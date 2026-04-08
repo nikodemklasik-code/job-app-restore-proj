@@ -1,9 +1,9 @@
-import postgres from 'postgres';
-import { drizzle } from 'drizzle-orm/postgres-js';
+import { createConnection } from 'mysql2/promise';
+import { drizzle } from 'drizzle-orm/mysql2';
 import * as schema from './schema.js';
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error('Missing DATABASE_URL');
 
-const client = postgres(connectionString);
-export const db = drizzle(client, { schema });
+const connection = await createConnection(connectionString);
+export const db = drizzle(connection, { schema, mode: 'default' });

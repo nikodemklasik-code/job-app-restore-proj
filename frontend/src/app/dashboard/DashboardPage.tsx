@@ -1,97 +1,181 @@
 import { useUser } from '@clerk/clerk-react';
-import { Briefcase, TrendingUp, Calendar, Zap, ChevronRight } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Briefcase, TrendingUp, MessageSquare, Award, ChevronRight, Loader2 } from 'lucide-react';
+import { api } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 
-const stats = [
-  { label: 'Active Applications', value: '24', icon: Briefcase, color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-950/40' },
-  { label: 'Avg Fit Score', value: '86%', icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/40' },
-  { label: 'Upcoming Interviews', value: '3', icon: Calendar, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/40' },
-  { label: 'AI Credits', value: '1,250', icon: Zap, color: 'text-violet-600', bg: 'bg-violet-50 dark:bg-violet-950/40' },
+const PIPELINE_STATUSES = [
+  { key: 'draft', label: 'Draft', color: 'bg-slate-500' },
+  { key: 'prepared', label: 'Prepared', color: 'bg-indigo-500' },
+  { key: 'sent', label: 'Sent', color: 'bg-sky-500' },
+  { key: 'interview', label: 'Interview', color: 'bg-amber-500' },
+  { key: 'accepted', label: 'Offers', color: 'bg-emerald-500' },
+  { key: 'rejected', label: 'Rejected', color: 'bg-red-500' },
 ];
 
 const suggestedActions = [
-  { title: 'Complete your profile', description: 'Add work experience to boost your fit scores', badge: 'Profile 75%', href: '/profile' },
-  { title: 'Review 3 new matches', description: 'High-fit jobs matched in the last 24 hours', badge: '96% avg fit', href: '/review' },
-  { title: 'Practice interview', description: 'You have an interview at Stripe in 2 days', badge: 'Prep now', href: '/interview' },
+  { title: 'Complete your profile', description: 'Add work experience to boost your fit scores', badge: 'Profile', href: '/profile' },
+  { title: 'Search for jobs', description: 'Browse AI-matched jobs from Reed, Adzuna, and Jooble', badge: 'Jobs', href: '/jobs' },
+  { title: 'Review applications', description: 'Update statuses and generate documents for your pipeline', badge: 'Pipeline', href: '/applications' },
 ];
 
 export default function DashboardPage() {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
+  const userId = user?.id ?? '';
   const navigate = useNavigate();
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+
+  const analyticsQuery = api.applications.getAnalytics.useQuery(
+    { userId },
+    { enabled: isLoaded && !!userId }
+  );
+
+  const analytics = analyticsQuery.data;
+
+  const stats = [
+    {
+      label: 'Total Applications',
+      value: analytics?.total ?? 0,
+      icon: Briefcase,
+      color: 'text-indigo-400',
+      bg: 'bg-indigo-500/10',
+    },
+    {
+      label: 'Response Rate',
+      value: analytics ? `${analytics.responseRate}%` : '—',
+      icon: TrendingUp,
+      color: 'text-emerald-400',
+      bg: 'bg-emerald-500/10',
+    },
+    {
+      label: 'Interviews',
+      value: analytics?.interviews ?? 0,
+      icon: MessageSquare,
+      color: 'text-amber-400',
+      bg: 'bg-amber-500/10',
+    },
+    {
+      label: 'Offers',
+      value: analytics?.offers ?? 0,
+      icon: Award,
+      color: 'text-emerald-400',
+      bg: 'bg-emerald-500/10',
+    },
+  ];
+
+  if (!isLoaded) {
+    return (
+      <div className="flex h-48 items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  const byStatus = analytics?.byStatus ?? {};
+  const total = analytics?.total ?? 0;
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="font-display text-3xl font-bold text-slate-900 dark:text-white">
-          {greeting}, {user?.firstName ?? 'there'} 👋
+        <h1 className="text-3xl font-bold text-white">
+          {greeting}, {user?.firstName ?? 'there'}
         </h1>
-        <p className="mt-1 text-slate-500">Here's what's happening in your career workspace today.</p>
+        <p className="mt-1 text-slate-400">Here's what's happening in your career workspace today.</p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.label}>
-            <CardContent className="pt-6">
+      {analyticsQuery.isLoading ? (
+        <div className="flex h-32 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+        </div>
+      ) : analyticsQuery.isError ? (
+        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400">
+          Failed to load analytics
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {stats.map((stat) => (
+            <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/5 p-5">
               <div className={`mb-3 inline-flex rounded-xl p-2.5 ${stat.bg}`}>
                 <stat.icon className={`h-5 w-5 ${stat.color}`} />
               </div>
-              <p className="font-display text-2xl font-bold text-slate-900 dark:text-white">{stat.value}</p>
+              <p className="text-2xl font-bold text-white">{stat.value}</p>
               <p className="mt-0.5 text-sm text-slate-500">{stat.label}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Profile readiness */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Profile Readiness</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-slate-700 dark:text-slate-300">75% complete</span>
-                <span className="text-slate-400">4 sections missing</span>
-              </div>
-              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                <div className="h-2 rounded-full bg-indigo-600 transition-all" style={{ width: '75%' }} />
-              </div>
             </div>
-            <Button variant="outline" size="sm" className="ml-4" onClick={() => void navigate('/profile')}>
-              Complete Profile
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          ))}
+        </div>
+      )}
 
-      {/* AI Suggested Actions */}
+      {/* Pipeline Mini-Chart */}
+      {analytics && total > 0 && (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
+          <h2 className="font-semibold text-white">Application Pipeline</h2>
+          <div className="space-y-3">
+            {PIPELINE_STATUSES.map(({ key, label, color }) => {
+              const count = (byStatus as Record<string, number>)[key] ?? 0;
+              const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+              return (
+                <div key={key} className="flex items-center gap-3">
+                  <span className="w-20 text-xs text-slate-400 shrink-0">{label}</span>
+                  <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
+                    <div
+                      className={`h-2 rounded-full transition-all ${color}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="w-8 text-right text-xs font-medium text-slate-400">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Summary stats row */}
+          <div className="flex gap-4 pt-2 border-t border-white/10">
+            <div className="text-center">
+              <p className="text-lg font-bold text-white">{analytics.applied}</p>
+              <p className="text-xs text-slate-500">Sent</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-white">{analytics.interviews}</p>
+              <p className="text-xs text-slate-500">Interviews</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-white">{analytics.offers}</p>
+              <p className="text-xs text-slate-500">Offers</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-white">{analytics.rejections}</p>
+              <p className="text-xs text-slate-500">Rejections</p>
+            </div>
+            <div className="ml-auto text-center">
+              <p className="text-lg font-bold text-emerald-400">{analytics.responseRate}%</p>
+              <p className="text-xs text-slate-500">Response Rate</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Suggested Actions */}
       <div>
-        <h2 className="mb-4 font-display text-lg font-semibold text-slate-900 dark:text-white">
-          AI Suggested Next Actions
-        </h2>
+        <h2 className="mb-4 text-lg font-semibold text-white">Next Actions</h2>
         <div className="space-y-3">
           {suggestedActions.map((action) => (
             <button
               key={action.href}
               onClick={() => void navigate(action.href)}
-              className="group flex w-full items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4 text-left transition-all hover:border-indigo-100 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-900"
+              className="group flex w-full items-center gap-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-left transition hover:border-indigo-500/30 hover:bg-white/[0.07]"
             >
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-slate-900 dark:text-white">{action.title}</span>
-                  <Badge variant="default">{action.badge}</Badge>
+                  <span className="font-medium text-white">{action.title}</span>
+                  <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-medium text-indigo-400">
+                    {action.badge}
+                  </span>
                 </div>
                 <p className="mt-0.5 text-sm text-slate-500">{action.description}</p>
               </div>
-              <ChevronRight className="h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-indigo-600" />
+              <ChevronRight className="h-4 w-4 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-indigo-400" />
             </button>
           ))}
         </div>

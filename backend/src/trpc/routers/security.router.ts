@@ -27,8 +27,12 @@ export const securityRouter = router({
       const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       const localUserId = userRecord[0]?.id;
       if (!localUserId) return { success: false };
-      const deleted = await db.delete(activeSessions).where(and(eq(activeSessions.id, input.sessionId), eq(activeSessions.userId, localUserId))).returning({ id: activeSessions.id });
-      return { success: deleted.length > 0 };
+      // MySQL doesn't support .returning() — verify by checking rows affected via select first
+      const existing = await db.select({ id: activeSessions.id }).from(activeSessions)
+        .where(and(eq(activeSessions.id, input.sessionId), eq(activeSessions.userId, localUserId))).limit(1);
+      if (existing.length === 0) return { success: false };
+      await db.delete(activeSessions).where(and(eq(activeSessions.id, input.sessionId), eq(activeSessions.userId, localUserId)));
+      return { success: true };
     }),
 
   removePasskey: publicProcedure
@@ -37,7 +41,10 @@ export const securityRouter = router({
       const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       const localUserId = userRecord[0]?.id;
       if (!localUserId) return { success: false };
-      const deleted = await db.delete(passkeys).where(and(eq(passkeys.id, input.passkeyId), eq(passkeys.userId, localUserId))).returning({ id: passkeys.id });
-      return { success: deleted.length > 0 };
+      const existing = await db.select({ id: passkeys.id }).from(passkeys)
+        .where(and(eq(passkeys.id, input.passkeyId), eq(passkeys.userId, localUserId))).limit(1);
+      if (existing.length === 0) return { success: false };
+      await db.delete(passkeys).where(and(eq(passkeys.id, input.passkeyId), eq(passkeys.userId, localUserId)));
+      return { success: true };
     }),
 });

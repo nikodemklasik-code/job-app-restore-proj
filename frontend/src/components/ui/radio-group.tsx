@@ -27,7 +27,7 @@ export const RadioGroup = ({ value, onValueChange, className, children, ...props
 
 // Own props declared explicitly; extends only the subset of input attributes that
 // make sense for a radio item (omitting onChange to avoid conflict with onSelect).
-interface RadioGroupItemProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
+interface RadioGroupItemProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value' | 'onSelect'> {
   value: string;
   id?: string;
   // Injected by RadioGroup via cloneElement — must be in the interface so TypeScript

@@ -1,6 +1,6 @@
 import { ClerkProvider } from '@clerk/clerk-react';
 
-const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
+const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 if (!clerkPubKey) {
   throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY environment variable');
@@ -12,7 +12,6 @@ export function ClerkRootProvider({ children }: { children: React.ReactNode }) {
       publishableKey={clerkPubKey}
       signInUrl="/auth"
       signUpUrl="/auth"
-      fallbackRedirectUrl="/dashboard"
       signInFallbackRedirectUrl="/dashboard"
       signUpFallbackRedirectUrl="/dashboard"
     >

@@ -7,6 +7,8 @@ import { securityRouter } from './security.router.js';
 import { jobsRouter } from './jobs.router.js';
 import { applicationsRouter } from './applications.router.js';
 import { reviewRouter } from './review.router.js';
+import { cvRouter } from './cv.router.js';
+import { jobSessionsRouter } from './jobSessions.router.js';
 
 export const appRouter = router({
   assistant: assistantRouter,
@@ -17,6 +19,8 @@ export const appRouter = router({
   jobs: jobsRouter,
   applications: applicationsRouter,
   review: reviewRouter,
+  cv: cvRouter,
+  jobSessions: jobSessionsRouter,
 });
 
 export type AppRouter = typeof appRouter;

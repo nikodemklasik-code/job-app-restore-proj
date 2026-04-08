@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { publicProcedure, router } from '../trpc.js';
@@ -46,7 +47,7 @@ export const profileRouter = router({
       if (existing.length > 0) {
         await db.update(profiles).set({ fullName: input.fullName, phone: input.phone, summary: input.summary, updatedAt: new Date() }).where(eq(profiles.userId, localUserId));
       } else {
-        await db.insert(profiles).values({ userId: localUserId, fullName: input.fullName, phone: input.phone, summary: input.summary });
+        await db.insert(profiles).values({ id: randomUUID(), userId: localUserId, fullName: input.fullName, phone: input.phone, summary: input.summary });
       }
       return { success: true };
     }),
@@ -64,7 +65,7 @@ export const profileRouter = router({
 
       await db.delete(skills).where(eq(skills.profileId, profileId));
       if (input.skills.length > 0) {
-        await db.insert(skills).values(input.skills.map((name) => ({ profileId, name })));
+        await db.insert(skills).values(input.skills.map((name) => ({ id: randomUUID(), profileId, name })));
       }
       return { success: true };
     }),
