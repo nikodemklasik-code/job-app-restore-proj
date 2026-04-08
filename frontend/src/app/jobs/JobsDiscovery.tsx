@@ -41,7 +41,9 @@ function formatSalary(min: number | null, max: number | null): string | null {
   return `up to £${Math.round((max ?? 0) / 1000)}k`;
 }
 
-// ── Session setup panel for Indeed / Gumtree ─────────────────────────────────
+// ── Session setup panel for Indeed / Gumtree — auto login wizard ─────────────
+
+type LoginStep = 'idle' | 'enterCredentials' | 'awaitingCode' | 'success' | 'error';
 
 function SessionPanel({ provider, status, userId }: {
   provider: 'indeed' | 'gumtree';
@@ -49,13 +51,53 @@ function SessionPanel({ provider, status, userId }: {
   userId: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [cookies, setCookies] = useState('');
+  const [step, setStep] = useState<LoginStep>('idle');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
+  const [codeSentTo, setCodeSentTo] = useState<string | null>(null);
+  const [msg, setMsg] = useState('');
   const utils = api.useUtils();
-
   const meta = SOURCE_META[provider];
 
-  const saveMutation = api.jobSessions.saveCookies.useMutation({
-    onSuccess: () => { setCookies(''); void utils.jobSessions.getStatus.invalidate(); },
+  const startIndeed = api.jobSessions.startIndeedLogin.useMutation({
+    onSuccess: (data) => {
+      if ('error' in data && data.error) { setMsg(data.error); setStep('error'); return; }
+      if ('requiresCode' in data && data.requiresCode) {
+        setCodeSentTo((data as { codeSentTo?: string | null }).codeSentTo ?? null);
+        setStep('awaitingCode');
+      } else {
+        // Already logged in (returned storageState directly)
+        setStep('success');
+        void utils.jobSessions.getStatus.invalidate();
+      }
+    },
+    onError: (e) => { setMsg(String(e)); setStep('error'); },
+  });
+
+  const submitIndeedCode = api.jobSessions.submitIndeedCode.useMutation({
+    onSuccess: (data) => {
+      if (data.success) { setStep('success'); void utils.jobSessions.getStatus.invalidate(); }
+      else { setMsg(data.error ?? 'Code rejected'); setStep('error'); }
+    },
+    onError: (e) => { setMsg(String(e)); setStep('error'); },
+  });
+
+  const startGumtree = api.jobSessions.startGumtreeLogin.useMutation({
+    onSuccess: (data) => {
+      if (data.error) { setMsg(data.error); setStep('error'); return; }
+      if (data.success) { setStep('success'); void utils.jobSessions.getStatus.invalidate(); return; }
+      if (data.requiresCode) { setCodeSentTo(data.codeSentTo ?? null); setStep('awaitingCode'); }
+    },
+    onError: (e) => { setMsg(String(e)); setStep('error'); },
+  });
+
+  const submitGumtreeCode = api.jobSessions.submitGumtreeCode.useMutation({
+    onSuccess: (data) => {
+      if (data.success) { setStep('success'); void utils.jobSessions.getStatus.invalidate(); }
+      else { setMsg(data.error ?? 'Code rejected'); setStep('error'); }
+    },
+    onError: (e) => { setMsg(String(e)); setStep('error'); },
   });
 
   const testMutation = api.jobSessions.testSession.useMutation({
@@ -63,8 +105,22 @@ function SessionPanel({ provider, status, userId }: {
   });
 
   const removeMutation = api.jobSessions.remove.useMutation({
-    onSuccess: () => { void utils.jobSessions.getStatus.invalidate(); },
+    onSuccess: () => { void utils.jobSessions.getStatus.invalidate(); setStep('idle'); },
   });
+
+  const isLoading = startIndeed.isPending || submitIndeedCode.isPending || startGumtree.isPending || submitGumtreeCode.isPending;
+
+  function handleStart() {
+    setMsg('');
+    if (provider === 'indeed') startIndeed.mutate({ userId, email, password: password || undefined });
+    else startGumtree.mutate({ userId, email, password: password || undefined });
+  }
+
+  function handleCode() {
+    setMsg('');
+    if (provider === 'indeed') submitIndeedCode.mutate({ userId, code });
+    else submitGumtreeCode.mutate({ userId, code });
+  }
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
@@ -74,72 +130,114 @@ function SessionPanel({ provider, status, userId }: {
       >
         <div className="flex items-center gap-3">
           <Cookie className="h-4 w-4 text-slate-400" />
-          <span className="text-sm font-medium text-white">{meta.label} session</span>
-          {status ? (
-            status.isActive
-              ? <span className="flex items-center gap-1 text-xs text-emerald-400"><CheckCircle2 className="h-3.5 w-3.5" />Active</span>
-              : <span className="flex items-center gap-1 text-xs text-red-400"><XCircle className="h-3.5 w-3.5" />Expired</span>
-          ) : (
-            <span className="flex items-center gap-1 text-xs text-slate-500"><AlertCircle className="h-3.5 w-3.5" />Not configured</span>
-          )}
+          <span className="text-sm font-medium text-white">{meta.label}</span>
+          {status?.isActive
+            ? <span className="flex items-center gap-1 text-xs text-emerald-400"><CheckCircle2 className="h-3.5 w-3.5" />Connected</span>
+            : status
+              ? <span className="flex items-center gap-1 text-xs text-amber-400"><AlertCircle className="h-3.5 w-3.5" />Expired</span>
+              : <span className="flex items-center gap-1 text-xs text-slate-500"><XCircle className="h-3.5 w-3.5" />Not connected</span>
+          }
         </div>
         {open ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
       </button>
 
       {open && (
         <div className="border-t border-white/10 px-4 py-4 space-y-3">
-          <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-3 text-xs text-indigo-300 space-y-1">
-            <p className="font-semibold">How to get cookies:</p>
-            <ol className="list-decimal list-inside space-y-0.5 text-indigo-200/80">
-              <li>Open <a href={meta.url} target="_blank" rel="noopener noreferrer" className="underline">{meta.url}</a> and sign in</li>
-              <li>Open DevTools → Application → Cookies → Copy all cookie values</li>
-              <li>Or use the EditThisCookie extension → Export → paste below</li>
-            </ol>
-          </div>
-
-          <textarea
-            value={cookies}
-            onChange={(e) => setCookies(e.target.value)}
-            placeholder={`Paste your ${meta.label} cookies here…`}
-            rows={3}
-            className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 font-mono"
-          />
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => saveMutation.mutate({ userId, provider, cookies })}
-              disabled={!cookies.trim() || saveMutation.isPending}
-              className="flex-1 rounded-xl bg-indigo-600 py-2 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
-            >
-              {saveMutation.isPending ? 'Saving…' : 'Save cookies'}
-            </button>
-            {status && (
-              <>
+          {/* Step: success */}
+          {(step === 'success' || status?.isActive) && step !== 'enterCredentials' ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                <p className="text-xs text-emerald-300">Session active — {meta.label} jobs included in search</p>
+              </div>
+              <div className="flex gap-2">
                 <button
                   onClick={() => testMutation.mutate({ userId, provider })}
                   disabled={testMutation.isPending}
-                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-300 transition hover:bg-white/10 disabled:opacity-60"
+                  className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2 text-xs text-slate-300 hover:bg-white/10 disabled:opacity-60"
                 >
-                  {testMutation.isPending ? '…' : 'Test'}
+                  {testMutation.isPending ? 'Testing…' : 'Test connection'}
+                </button>
+                <button
+                  onClick={() => setStep('enterCredentials')}
+                  className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2 text-xs text-slate-300 hover:bg-white/10"
+                >
+                  Re-login
                 </button>
                 <button
                   onClick={() => removeMutation.mutate({ userId, provider })}
                   disabled={removeMutation.isPending}
-                  className="rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-400 transition hover:bg-red-500/10 disabled:opacity-60"
+                  className="rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 disabled:opacity-60"
                 >
-                  Remove
+                  Disconnect
                 </button>
-              </>
-            )}
-          </div>
-
-          {testMutation.data && (
-            <p className={`text-xs ${testMutation.data.ok ? 'text-emerald-400' : 'text-red-400'}`}>
-              {testMutation.data.reason}
-            </p>
-          )}
-          {saveMutation.isError && (
-            <p className="text-xs text-red-400">{String(saveMutation.error)}</p>
+              </div>
+              {testMutation.data && (
+                <p className={`text-xs ${testMutation.data.ok ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {testMutation.data.reason}
+                </p>
+              )}
+            </div>
+          ) : step === 'awaitingCode' ? (
+            /* Step: enter verification code */
+            <div className="space-y-3">
+              <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-3 text-xs text-indigo-300">
+                <p className="font-semibold mb-1">Verification code required</p>
+                {codeSentTo && <p>Code sent to: <span className="font-mono text-white">{codeSentTo}</span></p>}
+                <p className="mt-1 text-indigo-200/70">Check your email or phone for the {meta.label} verification code.</p>
+              </div>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Enter 6-digit code"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                maxLength={8}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 font-mono tracking-widest text-center"
+              />
+              <div className="flex gap-2">
+                <button onClick={() => setStep('enterCredentials')} className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-400 hover:bg-white/5">Back</button>
+                <button
+                  onClick={handleCode}
+                  disabled={code.length < 4 || isLoading}
+                  className="flex-1 rounded-xl bg-indigo-600 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+                >
+                  {isLoading ? 'Verifying…' : 'Verify code'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Step: enter credentials */
+            <div className="space-y-3">
+              <p className="text-xs text-slate-400">
+                Enter your {meta.label} credentials. The server will log in automatically via a secure headless browser — your password is never stored.
+              </p>
+              <input
+                type="email"
+                placeholder={`${meta.label} email`}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+              />
+              <input
+                type="password"
+                placeholder="Password (optional — used for login only)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+              />
+              {msg && step === 'error' && (
+                <p className="text-xs text-red-400 rounded-lg bg-red-500/10 px-3 py-2">{msg}</p>
+              )}
+              <button
+                onClick={handleStart}
+                disabled={!email || isLoading}
+                className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Connecting…</> : `Connect ${meta.label}`}
+              </button>
+              <p className="text-[10px] text-slate-600 text-center">Password is used only to log in and is not saved to the database.</p>
+            </div>
           )}
         </div>
       )}

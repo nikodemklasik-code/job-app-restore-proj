@@ -208,6 +208,7 @@ export const userJobSessions = mysqlTable('user_job_sessions', {
   userId: varchar('user_id', { length: 36 }).notNull(),
   provider: varchar('provider', { length: 50 }).notNull(), // 'indeed' | 'gumtree'
   cookies: text('cookies').notNull(), // raw Cookie header string
+  storageState: text('storage_state'), // Playwright storageState JSON (full session)
   isActive: boolean('is_active').default(true).notNull(),
   lastTestedAt: timestamp('last_tested_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),

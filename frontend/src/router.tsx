@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { lazy, Suspense, type ComponentType } from 'react';
+import { AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
 import AppShell from './components/layout/AppShell';
 
 const AuthPage = lazy(() => import('./app/auth/AuthPage'));
@@ -35,6 +36,10 @@ export const router = createBrowserRouter([
         <AuthPage />
       </Suspense>
     ),
+  },
+  {
+    path: '/sso-callback',
+    element: <AuthenticateWithRedirectCallback />,
   },
   {
     path: '/',

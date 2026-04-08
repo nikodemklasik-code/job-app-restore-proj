@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "MultivoHub",
+    "slug": "multivohub",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#020617",
+    "splash": {
+      "backgroundColor": "#020617"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.multivohub.jobapp",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#020617"
+      },
+      "package": "com.multivohub.jobapp"
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "scheme": "multivohub",
+    "extra": {
+      "webAppUrl": "https://jobapp.multivohub.com"
+    }
+  }
+}
