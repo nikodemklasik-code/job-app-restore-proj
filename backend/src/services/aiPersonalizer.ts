@@ -2,6 +2,11 @@ import OpenAI from 'openai';
 
 const getClient = () => new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
+const getOpenAIClient = (): OpenAI | null => {
+  if (!process.env.OPENAI_API_KEY) return null;
+  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+};
+
 interface Profile {
   fullName?: string;
   summary?: string;
@@ -110,4 +115,98 @@ export async function scoreJobFit(
   if (reasons.length === 0) reasons.push('General profile match');
 
   return { score, reasons };
+}
+
+// Scam / MLM filter
+export function isScamJob(title: string, description: string): { isScam: boolean; reasons: string[] } {
+  const text = (title + ' ' + description).toLowerCase();
+  const reasons: string[] = [];
+
+  const scamPatterns = [
+    { pattern: /unlimited earning|uncapped commission|be your own boss|work from home.*no experience/i, reason: 'Unlimited earnings / no experience required' },
+    { pattern: /pyramid|mlm|multi.?level|network marketing|direct sales.*recruit/i, reason: 'Possible MLM / pyramid structure' },
+    { pattern: /pay.*training|purchase.*kit|buy.*starter|investment required/i, reason: 'Requires upfront payment' },
+    { pattern: /too good to be true|guaranteed income|passive income|financial freedom/i, reason: 'Unrealistic income promises' },
+    { pattern: /urgently hiring|immediate start.*no interview|no cv required/i, reason: 'Suspiciously low hiring bar' },
+  ];
+
+  for (const { pattern, reason } of scamPatterns) {
+    if (pattern.test(text)) reasons.push(reason);
+  }
+
+  return { isScam: reasons.length >= 2, reasons };
+}
+
+// Detailed job fit explanation
+export async function explainJobFit(
+  profile: { skills: string[]; summary?: string },
+  job: { title: string; description: string; requirements: string[] },
+): Promise<{ score: number; strengths: string[]; gaps: string[]; advice: string }> {
+  const openai = getOpenAIClient();
+  if (!openai) {
+    const { score } = await scoreJobFit(profile, { ...job, company: '' });
+    return {
+      score,
+      strengths: profile.skills.slice(0, 3).map((s) => `You have ${s}`),
+      gaps: job.requirements.filter((r) => !profile.skills.some((s) => s.toLowerCase().includes(r.toLowerCase()))).slice(0, 3),
+      advice: 'Add more skills to your profile for better matching.',
+    };
+  }
+
+  const prompt = `Analyse this job fit and respond with JSON only.
+Profile skills: ${profile.skills.join(', ')}
+Summary: ${profile.summary ?? ''}
+Job title: ${job.title}
+Job description (first 400 chars): ${job.description.slice(0, 400)}
+Requirements: ${job.requirements.join(', ')}
+
+Return: { "score": 0-100, "strengths": ["...","...","..."], "gaps": ["...","..."], "advice": "one sentence action" }`;
+
+  const res = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{ role: 'user', content: prompt }],
+    response_format: { type: 'json_object' },
+    max_tokens: 300,
+  });
+
+  const data = JSON.parse(res.choices[0]?.message?.content ?? '{}') as {
+    score?: number; strengths?: string[]; gaps?: string[]; advice?: string;
+  };
+
+  return {
+    score: typeof data.score === 'number' ? data.score : 50,
+    strengths: Array.isArray(data.strengths) ? data.strengths : [],
+    gaps: Array.isArray(data.gaps) ? data.gaps : [],
+    advice: data.advice ?? '',
+  };
+}
+
+// Follow-up email copilot
+export async function generateFollowUp(input: {
+  applicantName: string;
+  jobTitle: string;
+  company: string;
+  daysSinceApply: number;
+  previousStatus: string;
+}): Promise<string> {
+  const openai = getOpenAIClient();
+  if (!openai) {
+    return `Subject: Follow-up on ${input.jobTitle} Application\n\nDear Hiring Team,\n\nI wanted to follow up on my application for the ${input.jobTitle} position at ${input.company} submitted ${input.daysSinceApply} days ago. I remain very interested in this opportunity and would welcome the chance to discuss my candidacy further.\n\nKind regards,\n${input.applicantName}`;
+  }
+
+  const res = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [{
+      role: 'user',
+      content: `Write a short, professional follow-up email for a UK job application.
+Applicant: ${input.applicantName}
+Job: ${input.jobTitle} at ${input.company}
+Days since application: ${input.daysSinceApply}
+Current status: ${input.previousStatus}
+Keep it under 100 words, professional UK English. Include subject line.`,
+    }],
+    max_tokens: 200,
+  });
+
+  return res.choices[0]?.message?.content ?? '';
 }

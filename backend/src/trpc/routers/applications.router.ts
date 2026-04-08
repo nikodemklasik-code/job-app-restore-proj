@@ -4,7 +4,7 @@ import { eq, desc } from 'drizzle-orm';
 import { publicProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
 import { applications, applicationLogs, profiles, skills, users } from '../../db/schema.js';
-import { generateCoverLetter, generateCvSummary, scoreJobFit } from '../../services/aiPersonalizer.js';
+import { generateCoverLetter, generateCvSummary, scoreJobFit, generateFollowUp } from '../../services/aiPersonalizer.js';
 import { generateCvPdf, generateCoverLetterPdf } from '../../services/pdfGenerator.js';
 import { getLearnedSignals, recordOutcome } from '../../services/learningService.js';
 import { Resend } from 'resend';
@@ -188,11 +188,37 @@ export const applicationsRouter = router({
       return { success: true };
     }),
 
+  generateFollowUp: publicProcedure
+    .input(z.object({ userId: z.string(), applicationId: z.string() }))
+    .mutation(async ({ input }) => {
+      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      if (!userRecord[0]) throw new Error('User not found');
+
+      const appRow = await db.select().from(applications).where(eq(applications.id, input.applicationId)).limit(1);
+      if (!appRow[0]) throw new Error('Application not found');
+
+      const profileRecord = await db.select({ fullName: profiles.fullName }).from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1);
+      const applicantName = profileRecord[0]?.fullName ?? 'Candidate';
+
+      const createdAt = appRow[0].createdAt;
+      const daysSinceApply = Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+
+      const emailText = await generateFollowUp({
+        applicantName,
+        jobTitle: appRow[0].jobTitle,
+        company: appRow[0].company,
+        daysSinceApply,
+        previousStatus: appRow[0].status,
+      });
+
+      return { emailText };
+    }),
+
   getAnalytics: publicProcedure
     .input(z.object({ userId: z.string() }))
     .query(async ({ input }) => {
       const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
-      if (!userRecord[0]) return { total: 0, byStatus: {}, recentActivity: [] };
+      if (!userRecord[0]) return { total: 0, byStatus: {}, recentActivity: [], applied: 0, interviews: 0, offers: 0, rejections: 0, responseRate: 0 };
 
       const all = await db.select({ status: applications.status, createdAt: applications.createdAt })
         .from(applications).where(eq(applications.userId, userRecord[0].id));

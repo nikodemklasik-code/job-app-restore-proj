@@ -214,3 +214,50 @@ export const userJobSessions = mysqlTable('user_job_sessions', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
 });
+
+// Per-user email SMTP settings
+export const userEmailSettings = mysqlTable('user_email_settings', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull().unique(),
+  provider: varchar('provider', { length: 50 }).default('gmail'), // gmail|outlook|yahoo|icloud|custom
+  smtpHost: varchar('smtp_host', { length: 255 }),
+  smtpPort: int('smtp_port').default(587),
+  smtpUser: varchar('smtp_user', { length: 320 }),
+  smtpPassEncrypted: text('smtp_pass_encrypted'), // base64 obfuscated (not true encryption — user accepts risk)
+  fromName: varchar('from_name', { length: 255 }),
+  isVerified: boolean('is_verified').default(false).notNull(),
+  lastVerifiedAt: timestamp('last_verified_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+// Telegram notification settings per user
+export const userTelegramSettings = mysqlTable('user_telegram_settings', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull().unique(),
+  chatId: varchar('chat_id', { length: 50 }).notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  notifyOnApply: boolean('notify_on_apply').default(true).notNull(),
+  notifyOnReply: boolean('notify_on_reply').default(true).notNull(),
+  notifyOnInterview: boolean('notify_on_interview').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+// Auto-apply queue (Autopilot plan)
+export const autoApplyQueue = mysqlTable('auto_apply_queue', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  jobId: varchar('job_id', { length: 36 }),
+  jobTitle: varchar('job_title', { length: 255 }).notNull(),
+  company: varchar('company', { length: 255 }).notNull(),
+  applyUrl: varchar('apply_url', { length: 500 }).notNull(),
+  source: varchar('source', { length: 50 }).default('indeed'),
+  status: varchar('status', { length: 50 }).default('pending').notNull(), // pending|processing|applied|failed|skipped
+  fitScore: int('fit_score'),
+  errorMessage: text('error_message'),
+  appliedAt: timestamp('applied_at'),
+  scheduledAt: timestamp('scheduled_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});

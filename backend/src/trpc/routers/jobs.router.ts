@@ -5,7 +5,7 @@ import { publicProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
 import { jobs, profiles, skills, users, userJobSessions } from '../../db/schema.js';
 import { searchAllProviders } from '../../services/jobProviders.js';
-import { scoreJobFit } from '../../services/aiPersonalizer.js';
+import { scoreJobFit, explainJobFit, isScamJob } from '../../services/aiPersonalizer.js';
 
 export const jobsRouter = router({
   search: publicProcedure
@@ -133,5 +133,42 @@ export const jobsRouter = router({
         salaryMax: input.salaryMax ? String(input.salaryMax) : undefined,
       });
       return { id };
+    }),
+
+  explainFit: publicProcedure
+    .input(z.object({ userId: z.string(), jobId: z.string() }))
+    .query(async ({ input }) => {
+      const jobRow = await db.select().from(jobs).where(eq(jobs.id, input.jobId)).limit(1);
+      if (!jobRow[0]) throw new Error('Job not found');
+      const job = jobRow[0];
+
+      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+
+      let profileData: { skills: string[]; summary?: string } = { skills: [] };
+      if (userRecord[0]) {
+        const profileRecord = await db.select({ id: profiles.id, summary: profiles.summary })
+          .from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1);
+        if (profileRecord[0]) {
+          const skillRecords = await db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profileRecord[0].id));
+          profileData = {
+            summary: profileRecord[0].summary ?? '',
+            skills: skillRecords.map((s) => s.name),
+          };
+        }
+      }
+
+      const jobForAnalysis = {
+        title: job.title,
+        company: job.company,
+        description: job.description ?? '',
+        requirements: (job.requirements as string[]) ?? [],
+      };
+
+      const [fit, scam] = await Promise.all([
+        explainJobFit(profileData, jobForAnalysis),
+        Promise.resolve(isScamJob(job.title, job.description ?? '')),
+      ]);
+
+      return { fit, scam };
     }),
 });

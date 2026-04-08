@@ -3,7 +3,7 @@ import { useClerk } from '@clerk/clerk-react';
 import {
   LayoutDashboard, Briefcase, ClipboardList, FileText,
   MessageSquare, Mic, User, CreditCard, Settings,
-  Shield, Palette, LogOut, Sparkles,
+  Shield, Palette, LogOut, Sparkles, Calculator, Scale, BarChart2,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -29,6 +29,12 @@ const AI_GROWTH: NavItem[] = [
 const PROFILE_DOCS: NavItem[] = [
   { path: '/profile', label: 'Profile & CV', icon: User },
   { path: '/style-studio', label: 'Style Studio', icon: Palette },
+];
+
+const TOOLS: NavItem[] = [
+  { path: '/salary', label: 'Salary Calculator', icon: Calculator },
+  { path: '/legal', label: 'Legal Hub', icon: Scale },
+  { path: '/reports', label: 'Reports', icon: BarChart2 },
 ];
 
 const TECHNICAL: NavItem[] = [
@@ -93,6 +99,7 @@ export default function Sidebar() {
         <NavSection label="Main Flow" items={MAIN_FLOW} />
         <NavSection label="AI & Growth" items={AI_GROWTH} />
         <NavSection label="Profile & Documents" items={PROFILE_DOCS} />
+        <NavSection label="Tools & Insights" items={TOOLS} />
         <NavSection label="Technical & Account" items={TECHNICAL} />
       </nav>
 

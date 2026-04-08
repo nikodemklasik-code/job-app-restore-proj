@@ -15,6 +15,9 @@ const BillingPage = lazy(() => import('./app/billing/BillingPage'));
 const SettingsHub = lazy(() => import('./app/settings/SettingsHub'));
 const SecurityPage = lazy(() => import('./app/settings/SecurityPage'));
 const StyleStudio = lazy(() => import('./app/style/StyleStudio'));
+const UKSalaryCalculator = lazy(() => import('./app/salary/UKSalaryCalculator'));
+const LegalHub = lazy(() => import('./app/legal/LegalHub'));
+const ReportsHub = lazy(() => import('./app/reports/ReportsHub'));
 
 const PageLoader = () => (
   <div className="flex h-full items-center justify-center py-24">
@@ -57,6 +60,9 @@ export const router = createBrowserRouter([
       { path: 'settings', element: withSuspense(SettingsHub) },
       { path: 'security', element: withSuspense(SecurityPage) },
       { path: 'style-studio', element: withSuspense(StyleStudio) },
+      { path: 'salary', element: withSuspense(UKSalaryCalculator) },
+      { path: 'legal', element: withSuspense(LegalHub) },
+      { path: 'reports', element: withSuspense(ReportsHub) },
     ],
   },
 ]);
