@@ -1,10 +1,18 @@
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 import { publicProcedure, router } from '../trpc.js';
+import { db } from '../../db/index.js';
+import { interviewSessions, interviewAnswers, users } from '../../db/schema.js';
 import OpenAI from 'openai';
 
 function getOpenAI(): OpenAI | null {
   if (!process.env.OPENAI_API_KEY) return null;
   return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
+
+async function getLocalUserId(clerkId: string): Promise<string | null> {
+  const rows = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, clerkId)).limit(1);
+  return rows[0]?.id ?? null;
 }
 
 const metricsSchema = z.object({
@@ -52,7 +60,21 @@ export const interviewRouter = router({
         id: `q${i + 1}`,
         text: bank[i % bank.length],
       }));
-      return { sessionId: crypto.randomUUID(), questions };
+
+      const sessionId = crypto.randomUUID();
+
+      const localUserId = await getLocalUserId(input.userId);
+      if (localUserId) {
+        await db.insert(interviewSessions).values({
+          id: sessionId,
+          userId: localUserId,
+          mode: input.mode,
+          difficulty: input.difficulty,
+          status: 'in_progress',
+        }).catch(() => { /* non-fatal */ });
+      }
+
+      return { sessionId, questions };
     }),
 
   finishAnswer: publicProcedure
@@ -62,6 +84,7 @@ export const interviewRouter = router({
       questionId: z.string().min(1),
       transcript: z.string(),
       metrics: metricsSchema,
+      isLastQuestion: z.boolean().optional(),
     }))
     .mutation(async ({ input }) => {
       const fillerPenalty = input.metrics.fillerWordCount * 2;
@@ -91,6 +114,24 @@ export const interviewRouter = router({
           } catch { /* use default */ }
         }
         comments = feedbackComment;
+      }
+
+      // Persist the answer — non-fatal
+      await db.insert(interviewAnswers).values({
+        id: crypto.randomUUID(),
+        sessionId: input.sessionId,
+        questionId: input.questionId,
+        transcript: input.transcript ?? '',
+        metrics: input.metrics,
+        feedback: { score, comments },
+      }).catch(() => {});
+
+      // If last question, mark session completed
+      if (input.isLastQuestion) {
+        await db.update(interviewSessions)
+          .set({ status: 'completed', score })
+          .where(eq(interviewSessions.id, input.sessionId))
+          .catch(() => {});
       }
 
       return { metrics: input.metrics, feedback: { score, comments } };

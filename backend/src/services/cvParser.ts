@@ -44,53 +44,101 @@ function parseCvTextBasic(text: string): ParsedCv {
   };
 }
 
-export async function parseCvPdf(buffer: Buffer): Promise<ParsedCv> {
-  // Dynamic import of pdf-parse (CJS module)
+async function extractTextFromPdf(buffer: Buffer): Promise<string> {
   let pdfParse: (buffer: Buffer) => Promise<{ text: string }>;
   try {
     const mod = await import('pdf-parse');
     pdfParse = (mod.default ?? mod) as typeof pdfParse;
   } catch {
-    console.warn('[cvParser] pdf-parse not available, using raw text');
-    return parseCvTextBasic(buffer.toString('utf8'));
+    console.warn('[cvParser] pdf-parse not available, returning raw text');
+    return buffer.toString('utf8');
   }
-
   const { text } = await pdfParse(buffer);
+  return text;
+}
 
-  // Use OpenAI to structure if key available
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (apiKey && text.length > 50) {
-    try {
-      const client = new OpenAI({ apiKey });
-      const resp = await client.chat.completions.create({
-        model: 'gpt-4o-mini',
-        max_tokens: 1000,
-        response_format: { type: 'json_object' },
-        messages: [
-          {
-            role: 'system',
-            content: 'Extract structured data from this CV text. Return JSON with: fullName (string), email (string), phone (string), summary (string, max 300 chars), skills (string[]), experience (string[], max 10 items, each max 100 chars), education (string[], max 5 items).',
-          },
-          { role: 'user', content: text.slice(0, 4000) },
-        ],
-      });
-      const parsed = JSON.parse(resp.choices[0]?.message?.content ?? '{}') as Partial<ParsedCv>;
-      return {
-        fullName: parsed.fullName ?? '',
-        email: parsed.email ?? '',
-        phone: parsed.phone ?? '',
-        summary: parsed.summary ?? '',
-        skills: Array.isArray(parsed.skills) ? parsed.skills : [],
-        experience: Array.isArray(parsed.experience) ? parsed.experience : [],
-        education: Array.isArray(parsed.education) ? parsed.education : [],
-        rawText: text,
-      };
-    } catch (err) {
-      console.error('[cvParser] OpenAI parse failed, falling back to regex:', err);
-    }
+/**
+ * Detects file type from mimeType or base64 magic bytes and extracts plain text.
+ */
+export async function extractTextFromFile(base64: string, mimeType: string): Promise<string> {
+  const buffer = Buffer.from(base64, 'base64');
+
+  if (
+    mimeType === 'application/pdf' ||
+    mimeType === 'application/octet-stream'
+  ) {
+    return extractTextFromPdf(buffer);
   }
 
-  return parseCvTextBasic(text);
+  if (
+    mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+    mimeType === 'application/msword' ||
+    base64.startsWith('UEsD') // DOCX magic bytes in base64
+  ) {
+    // Dynamic import of mammoth (CJS module)
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore — mammoth has no bundled type declarations
+    const mammothMod = await import('mammoth');
+    const mammoth = (mammothMod.default ?? mammothMod) as { extractRawText: (opts: { buffer: Buffer }) => Promise<{ value: string }> };
+    const result = await mammoth.extractRawText({ buffer });
+    return result.value;
+  }
+
+  if (mimeType === 'text/plain') {
+    return buffer.toString('utf-8');
+  }
+
+  // fallback — try PDF
+  return extractTextFromPdf(buffer);
+}
+
+async function structureWithOpenAI(text: string): Promise<ParsedCv | null> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey || text.length <= 50) return null;
+  try {
+    const client = new OpenAI({ apiKey });
+    const resp = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 1000,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content: 'Extract structured data from this CV text. Return JSON with: fullName (string), email (string), phone (string), summary (string, max 300 chars), skills (string[]), experience (string[], max 10 items, each max 100 chars), education (string[], max 5 items).',
+        },
+        { role: 'user', content: text.slice(0, 4000) },
+      ],
+    });
+    const parsed = JSON.parse(resp.choices[0]?.message?.content ?? '{}') as Partial<ParsedCv>;
+    return {
+      fullName: parsed.fullName ?? '',
+      email: parsed.email ?? '',
+      phone: parsed.phone ?? '',
+      summary: parsed.summary ?? '',
+      skills: Array.isArray(parsed.skills) ? parsed.skills : [],
+      experience: Array.isArray(parsed.experience) ? parsed.experience : [],
+      education: Array.isArray(parsed.education) ? parsed.education : [],
+      rawText: text,
+    };
+  } catch (err) {
+    console.error('[cvParser] OpenAI parse failed, falling back to regex:', err);
+    return null;
+  }
+}
+
+export async function parseCvPdf(buffer: Buffer): Promise<ParsedCv> {
+  const text = await extractTextFromPdf(buffer);
+  const structured = await structureWithOpenAI(text);
+  return structured ?? parseCvTextBasic(text);
+}
+
+/**
+ * Parse a CV from any supported format (PDF, DOCX, TXT) given base64 content and MIME type.
+ */
+export async function parseCvFromFile(base64: string, mimeType: string): Promise<ParsedCv> {
+  const text = await extractTextFromFile(base64, mimeType);
+  const structured = await structureWithOpenAI(text);
+  return structured ?? parseCvTextBasic(text);
 }
 
 export type { ParsedCv };

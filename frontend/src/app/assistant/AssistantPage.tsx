@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { Send, Bot, User, RotateCcw } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Send, Bot, User, Trash2 } from 'lucide-react';
+import { useUser } from '@clerk/clerk-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useCareerAssistantStore } from '@/stores/careerAssistantStore';
 
 const QUICK_ACTIONS: { prompt: string; mode: string }[] = [
@@ -21,15 +21,64 @@ const MODE_LABELS: Record<string, string> = {
   onboarding: 'Profile onboarding',
 };
 
+const MAX_TEXTAREA_ROWS = 5;
+const LINE_HEIGHT_PX = 24; // approximate line height in px
+
 export default function AssistantPage() {
+  const { user } = useUser();
+  const userId = user?.id ?? '';
+
   const [input, setInput] = useState('');
-  const { messages, isSending, error, activeMode, sendMessage, clearMessages } = useCareerAssistantStore();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const {
+    messages,
+    isSending,
+    isLoadingHistory,
+    error,
+    activeMode,
+    sendMessage,
+    clearMessages,
+    loadHistory,
+  } = useCareerAssistantStore();
+
+  // Load conversation history once on mount
+  useEffect(() => {
+    if (userId) {
+      void loadHistory(userId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isSending]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const maxHeight = MAX_TEXTAREA_ROWS * LINE_HEIGHT_PX + 20; // +padding
+    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden';
+  }, [input]);
 
   const handleSend = async () => {
     if (!input.trim()) return;
     const text = input;
     setInput('');
     await sendMessage(text);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      void handleSend();
+    }
+    // Shift+Enter falls through — browser inserts newline naturally
   };
 
   return (
@@ -44,14 +93,29 @@ export default function AssistantPage() {
             Career-focused chat with topic boundaries (see system prompt on backend).
           </p>
         </div>
-        <Button variant="ghost" size="sm" onClick={clearMessages}>
-          <RotateCcw className="h-4 w-4" />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={clearMessages}
+          title="Clear conversation"
+          className="flex items-center gap-1.5 text-slate-500 hover:text-red-500"
+        >
+          <Trash2 className="h-4 w-4" />
+          <span className="hidden sm:inline text-xs">Clear</span>
         </Button>
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto rounded-2xl border border-slate-100 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        {messages.length === 0 ? (
+        {isLoadingHistory ? (
+          <div className="flex h-full items-center justify-center">
+            <div className="flex gap-1">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="h-2 w-2 animate-bounce rounded-full bg-slate-300" style={{ animationDelay: `${i * 0.15}s` }} />
+              ))}
+            </div>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950">
               <Bot className="h-7 w-7 text-indigo-600" />
@@ -83,7 +147,7 @@ export default function AssistantPage() {
                     : <Bot className="h-4 w-4 text-slate-500" />
                   }
                 </div>
-                <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'}`}>
+                <div className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'}`}>
                   {msg.text}
                 </div>
               </div>
@@ -102,6 +166,7 @@ export default function AssistantPage() {
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
         )}
       </div>
@@ -109,18 +174,29 @@ export default function AssistantPage() {
       {error && <p className="text-sm text-red-500">{error}</p>}
 
       {/* Input */}
-      <div className="flex gap-2">
-        <Input
-          placeholder="Ask anything career-related; replies use chat history…"
+      <div className="flex items-end gap-2">
+        <textarea
+          ref={textareaRef}
+          rows={1}
+          placeholder="Ask anything career-related… (Shift+Enter for new line)"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); } }}
-          className="flex-1"
+          onKeyDown={handleKeyDown}
+          disabled={isSending}
+          className="flex-1 resize-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500"
+          style={{ lineHeight: `${LINE_HEIGHT_PX}px`, overflowY: 'hidden' }}
         />
-        <Button onClick={() => void handleSend()} disabled={isSending || !input.trim()}>
+        <Button
+          onClick={() => void handleSend()}
+          disabled={isSending || !input.trim()}
+          className="shrink-0"
+        >
           <Send className="h-4 w-4" />
         </Button>
       </div>
+      <p className="text-right text-xs text-slate-400">
+        Enter to send · Shift+Enter for new line
+      </p>
     </div>
   );
 }

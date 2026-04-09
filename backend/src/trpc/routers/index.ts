@@ -12,6 +12,7 @@ import { jobSessionsRouter } from './jobSessions.router.js';
 import { emailSettingsRouter } from './emailSettings.router.js';
 import { telegramRouter } from './telegram.router.js';
 import { autoApplyRouter } from './autoApply.router.js';
+import { styleRouter } from './style.router.js';
 
 export const appRouter = router({
   assistant: assistantRouter,
@@ -27,6 +28,7 @@ export const appRouter = router({
   emailSettings: emailSettingsRouter,
   telegram: telegramRouter,
   autoApply: autoApplyRouter,
+  style: styleRouter,
 });
 
 export type AppRouter = typeof appRouter;

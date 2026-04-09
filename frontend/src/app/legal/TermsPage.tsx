@@ -242,6 +242,13 @@ const SECTIONS: Section[] = [
             valid erasure requests within 30 days, subject to any legal obligations to retain data.
           </li>
           <li>
+            <span className="text-white font-medium">Automatic Inactivity Deletion:</span> Accounts
+            inactive for 45 days are soft-deleted (access suspended). After 60 days of inactivity,
+            product data is permanently deleted. You will receive email warnings at 20 days and
+            40 days of inactivity before any deletion occurs. Active paid subscribers are exempt
+            from automatic deletion. Minimum billing records are retained as required by UK accounting law.
+          </li>
+          <li>
             <span className="text-white font-medium">Data Portability:</span> You may request a copy of
             your personal data in a structured, machine-readable format under UK GDPR Article 20.
           </li>

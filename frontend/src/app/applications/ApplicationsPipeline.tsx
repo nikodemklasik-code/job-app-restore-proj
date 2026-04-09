@@ -296,7 +296,7 @@ export default function ApplicationsPipeline() {
                         {/* Move to next status for draft → prepared handled by generateDocsMutation */}
                         {(col.key !== 'draft' && col.key !== 'prepared' && col.key !== 'sent' && col.key !== 'interview' && col.key !== 'accepted' && col.key !== 'rejected') && (
                           <button
-                            onClick={() => updateStatusMutation.mutate({ id: app.id, status: 'sent' })}
+                            onClick={() => updateStatusMutation.mutate({ id: app.id, userId, status: 'sent' })}
                             className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/10 py-1.5 text-xs text-slate-400 transition hover:bg-white/5"
                           >
                             Mark Sent

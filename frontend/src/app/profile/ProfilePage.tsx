@@ -1,8 +1,31 @@
 import { useEffect, useRef, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { Save, Plus, X, Upload, Download, Loader2, FileText, User } from 'lucide-react';
+import { Save, Plus, X, Upload, Download, Loader2, FileText, User, Pencil, Trash2, Briefcase, GraduationCap } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useProfileStore } from '@/stores/profileStore';
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+type ExperienceItem = {
+  id?: string;
+  employerName: string;
+  jobTitle: string;
+  startDate: string;
+  endDate: string;
+  description: string;
+};
+
+type EducationItem = {
+  id?: string;
+  schoolName: string;
+  degree: string;
+  fieldOfStudy: string;
+  startDate: string;
+  endDate: string;
+};
+
+const emptyExp = (): ExperienceItem => ({ employerName: '', jobTitle: '', startDate: '', endDate: '', description: '' });
+const emptyEdu = (): EducationItem => ({ schoolName: '', degree: '', fieldOfStudy: '', startDate: '', endDate: '' });
 
 export default function ProfilePage() {
   const { user, isLoaded } = useUser();
@@ -11,6 +34,32 @@ export default function ProfilePage() {
   const [newSkill, setNewSkill] = useState('');
   const [form, setForm] = useState({ fullName: '', email: '', phone: '', summary: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Experience state ──────────────────────────────────────────────────────
+  const [expEditingIdx, setExpEditingIdx] = useState<number | null>(null);
+  const [expForm, setExpForm] = useState<ExperienceItem>(emptyExp());
+  const [expIsAdding, setExpIsAdding] = useState(false);
+
+  const { data: experienceData, refetch: refetchExp } = api.profile.getExperience.useQuery(
+    { userId: userId ?? '' },
+    { enabled: !!userId },
+  );
+  const saveExperienceMutation = api.profile.saveExperience.useMutation({
+    onSuccess: () => void refetchExp(),
+  });
+
+  // ── Education state ───────────────────────────────────────────────────────
+  const [eduEditingIdx, setEduEditingIdx] = useState<number | null>(null);
+  const [eduForm, setEduForm] = useState<EducationItem>(emptyEdu());
+  const [eduIsAdding, setEduIsAdding] = useState(false);
+
+  const { data: educationData, refetch: refetchEdu } = api.profile.getEducation.useQuery(
+    { userId: userId ?? '' },
+    { enabled: !!userId },
+  );
+  const saveEducationMutation = api.profile.saveEducation.useMutation({
+    onSuccess: () => void refetchEdu(),
+  });
 
   // CV upload state
   const [uploadedCvId, setUploadedCvId] = useState<string | null>(null);
@@ -82,6 +131,126 @@ export default function ProfilePage() {
     if (!userId) return;
     const skills = (profile?.skills ?? []).filter((s) => s !== skill);
     await saveSkills(userId, skills);
+  };
+
+  // ── Experience handlers ───────────────────────────────────────────────────
+
+  const handleSaveExp = () => {
+    if (!userId || !expForm.employerName.trim() || !expForm.jobTitle.trim()) return;
+    const current: ExperienceItem[] = (experienceData ?? []).map((e) => ({
+      id: e.id,
+      employerName: e.employerName,
+      jobTitle: e.jobTitle,
+      startDate: e.startDate ?? '',
+      endDate: e.endDate ?? '',
+      description: e.description ?? '',
+    }));
+    let updated: ExperienceItem[];
+    if (expIsAdding) {
+      updated = [...current, expForm];
+    } else if (expEditingIdx !== null) {
+      updated = current.map((item, i) => (i === expEditingIdx ? expForm : item));
+    } else {
+      return;
+    }
+    saveExperienceMutation.mutate({ userId, items: updated });
+    setExpIsAdding(false);
+    setExpEditingIdx(null);
+    setExpForm(emptyExp());
+  };
+
+  const handleDeleteExp = (idx: number) => {
+    if (!userId) return;
+    const current: ExperienceItem[] = (experienceData ?? []).map((e) => ({
+      id: e.id,
+      employerName: e.employerName,
+      jobTitle: e.jobTitle,
+      startDate: e.startDate ?? '',
+      endDate: e.endDate ?? '',
+      description: e.description ?? '',
+    }));
+    saveExperienceMutation.mutate({ userId, items: current.filter((_, i) => i !== idx) });
+  };
+
+  const handleEditExp = (idx: number) => {
+    const item = experienceData?.[idx];
+    if (!item) return;
+    setExpForm({
+      id: item.id,
+      employerName: item.employerName,
+      jobTitle: item.jobTitle,
+      startDate: item.startDate ?? '',
+      endDate: item.endDate ?? '',
+      description: item.description ?? '',
+    });
+    setExpEditingIdx(idx);
+    setExpIsAdding(false);
+  };
+
+  const handleCancelExp = () => {
+    setExpIsAdding(false);
+    setExpEditingIdx(null);
+    setExpForm(emptyExp());
+  };
+
+  // ── Education handlers ────────────────────────────────────────────────────
+
+  const handleSaveEdu = () => {
+    if (!userId || !eduForm.schoolName.trim() || !eduForm.degree.trim()) return;
+    const current: EducationItem[] = (educationData ?? []).map((e) => ({
+      id: e.id,
+      schoolName: e.schoolName,
+      degree: e.degree,
+      fieldOfStudy: e.fieldOfStudy ?? '',
+      startDate: e.startDate ?? '',
+      endDate: e.endDate ?? '',
+    }));
+    let updated: EducationItem[];
+    if (eduIsAdding) {
+      updated = [...current, eduForm];
+    } else if (eduEditingIdx !== null) {
+      updated = current.map((item, i) => (i === eduEditingIdx ? eduForm : item));
+    } else {
+      return;
+    }
+    saveEducationMutation.mutate({ userId, items: updated });
+    setEduIsAdding(false);
+    setEduEditingIdx(null);
+    setEduForm(emptyEdu());
+  };
+
+  const handleDeleteEdu = (idx: number) => {
+    if (!userId) return;
+    const current: EducationItem[] = (educationData ?? []).map((e) => ({
+      id: e.id,
+      schoolName: e.schoolName,
+      degree: e.degree,
+      fieldOfStudy: e.fieldOfStudy ?? '',
+      startDate: e.startDate ?? '',
+      endDate: e.endDate ?? '',
+    }));
+    saveEducationMutation.mutate({ userId, items: current.filter((_, i) => i !== idx) });
+  };
+
+  const handleEditEdu = (idx: number) => {
+    const item = educationData?.[idx];
+    if (!item) return;
+    setEduForm({
+      id: item.id,
+      schoolName: item.schoolName,
+      degree: item.degree,
+      fieldOfStudy: item.fieldOfStudy ?? '',
+      startDate: item.startDate ?? '',
+      endDate: item.endDate ?? '',
+    });
+    setEduEditingIdx(idx);
+    setEduIsAdding(false);
+  };
+
+  const handleCancelEdu = () => {
+    setEduIsAdding(false);
+    setEduEditingIdx(null);
+    setEduForm(emptyEdu());
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -343,6 +512,395 @@ export default function ProfilePage() {
             <Plus className="h-4 w-4" />
           </button>
         </div>
+      </div>
+
+      {/* Work Experience */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/20">
+              <Briefcase className="h-5 w-5 text-violet-400" />
+            </div>
+            <h2 className="font-semibold text-white">Work Experience</h2>
+          </div>
+          {!expIsAdding && expEditingIdx === null && (
+            <button
+              onClick={() => { setExpIsAdding(true); setExpForm(emptyExp()); }}
+              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-300 transition hover:bg-white/10"
+            >
+              <Plus className="h-4 w-4" />
+              Add Experience
+            </button>
+          )}
+        </div>
+
+        {/* Existing experience cards */}
+        <div className="space-y-3">
+          {(experienceData ?? []).map((exp, idx) => (
+            <div key={exp.id ?? idx} className="rounded-xl border border-white/10 bg-white/5 p-4">
+              {expEditingIdx === idx ? (
+                /* Inline edit form */
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className="block text-xs text-slate-400">Company / Employer</label>
+                      <input
+                        value={expForm.employerName}
+                        onChange={(e) => setExpForm({ ...expForm, employerName: e.target.value })}
+                        placeholder="Acme Ltd"
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-xs text-slate-400">Job Title</label>
+                      <input
+                        value={expForm.jobTitle}
+                        onChange={(e) => setExpForm({ ...expForm, jobTitle: e.target.value })}
+                        placeholder="Senior Engineer"
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-xs text-slate-400">Start Date</label>
+                      <input
+                        value={expForm.startDate}
+                        onChange={(e) => setExpForm({ ...expForm, startDate: e.target.value })}
+                        placeholder="2021-03"
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-xs text-slate-400">End Date (leave blank if current)</label>
+                      <input
+                        value={expForm.endDate}
+                        onChange={(e) => setExpForm({ ...expForm, endDate: e.target.value })}
+                        placeholder="Present"
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="block text-xs text-slate-400">Description</label>
+                    <textarea
+                      value={expForm.description}
+                      onChange={(e) => setExpForm({ ...expForm, description: e.target.value })}
+                      placeholder="Key responsibilities and achievements..."
+                      rows={3}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-none"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSaveExp}
+                      disabled={saveExperienceMutation.isPending}
+                      className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+                    >
+                      {saveExperienceMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                      Save
+                    </button>
+                    <button onClick={handleCancelExp} className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-slate-400 transition hover:bg-white/5">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Read-only card */
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="font-medium text-white truncate">{exp.jobTitle}</p>
+                    <p className="text-sm text-slate-400">{exp.employerName}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {exp.startDate}{exp.endDate ? ` — ${exp.endDate}` : ' — Present'}
+                    </p>
+                    {exp.description && (
+                      <p className="mt-2 text-sm text-slate-300 line-clamp-2">{exp.description}</p>
+                    )}
+                  </div>
+                  <div className="flex shrink-0 gap-1.5">
+                    <button
+                      onClick={() => handleEditExp(idx)}
+                      className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white/10 hover:text-slate-300"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteExp(idx)}
+                      disabled={saveExperienceMutation.isPending}
+                      className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-40"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Add new experience inline form */}
+        {expIsAdding && (
+          <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-4 space-y-3">
+            <p className="text-xs font-medium text-indigo-400">New Experience</p>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="space-y-1">
+                <label className="block text-xs text-slate-400">Company / Employer</label>
+                <input
+                  value={expForm.employerName}
+                  onChange={(e) => setExpForm({ ...expForm, employerName: e.target.value })}
+                  placeholder="Acme Ltd"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs text-slate-400">Job Title</label>
+                <input
+                  value={expForm.jobTitle}
+                  onChange={(e) => setExpForm({ ...expForm, jobTitle: e.target.value })}
+                  placeholder="Senior Engineer"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs text-slate-400">Start Date</label>
+                <input
+                  value={expForm.startDate}
+                  onChange={(e) => setExpForm({ ...expForm, startDate: e.target.value })}
+                  placeholder="2021-03"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs text-slate-400">End Date (leave blank if current)</label>
+                <input
+                  value={expForm.endDate}
+                  onChange={(e) => setExpForm({ ...expForm, endDate: e.target.value })}
+                  placeholder="Present"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs text-slate-400">Description</label>
+              <textarea
+                value={expForm.description}
+                onChange={(e) => setExpForm({ ...expForm, description: e.target.value })}
+                placeholder="Key responsibilities and achievements..."
+                rows={3}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-none"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleSaveExp}
+                disabled={saveExperienceMutation.isPending}
+                className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+              >
+                {saveExperienceMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                Save
+              </button>
+              <button onClick={handleCancelExp} className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-slate-400 transition hover:bg-white/5">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {(experienceData ?? []).length === 0 && !expIsAdding && (
+          <p className="text-sm text-slate-500">No experience added yet. Click "Add Experience" to get started.</p>
+        )}
+      </div>
+
+      {/* Education */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20">
+              <GraduationCap className="h-5 w-5 text-emerald-400" />
+            </div>
+            <h2 className="font-semibold text-white">Education</h2>
+          </div>
+          {!eduIsAdding && eduEditingIdx === null && (
+            <button
+              onClick={() => { setEduIsAdding(true); setEduForm(emptyEdu()); }}
+              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-300 transition hover:bg-white/10"
+            >
+              <Plus className="h-4 w-4" />
+              Add Education
+            </button>
+          )}
+        </div>
+
+        {/* Existing education cards */}
+        <div className="space-y-3">
+          {(educationData ?? []).map((edu, idx) => (
+            <div key={edu.id ?? idx} className="rounded-xl border border-white/10 bg-white/5 p-4">
+              {eduEditingIdx === idx ? (
+                /* Inline edit form */
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="space-y-1">
+                      <label className="block text-xs text-slate-400">School / Institution</label>
+                      <input
+                        value={eduForm.schoolName}
+                        onChange={(e) => setEduForm({ ...eduForm, schoolName: e.target.value })}
+                        placeholder="University of Manchester"
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-xs text-slate-400">Degree</label>
+                      <input
+                        value={eduForm.degree}
+                        onChange={(e) => setEduForm({ ...eduForm, degree: e.target.value })}
+                        placeholder="BSc"
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-xs text-slate-400">Field of Study</label>
+                      <input
+                        value={eduForm.fieldOfStudy}
+                        onChange={(e) => setEduForm({ ...eduForm, fieldOfStudy: e.target.value })}
+                        placeholder="Computer Science"
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      />
+                    </div>
+                    <div className="space-y-1 md:col-span-1" />
+                    <div className="space-y-1">
+                      <label className="block text-xs text-slate-400">Start Date</label>
+                      <input
+                        value={eduForm.startDate}
+                        onChange={(e) => setEduForm({ ...eduForm, startDate: e.target.value })}
+                        placeholder="2018-09"
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-xs text-slate-400">End Date</label>
+                      <input
+                        value={eduForm.endDate}
+                        onChange={(e) => setEduForm({ ...eduForm, endDate: e.target.value })}
+                        placeholder="2021-06"
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSaveEdu}
+                      disabled={saveEducationMutation.isPending}
+                      className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+                    >
+                      {saveEducationMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                      Save
+                    </button>
+                    <button onClick={handleCancelEdu} className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-slate-400 transition hover:bg-white/5">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Read-only card */
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="font-medium text-white truncate">{edu.degree}{edu.fieldOfStudy ? ` — ${edu.fieldOfStudy}` : ''}</p>
+                    <p className="text-sm text-slate-400">{edu.schoolName}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {edu.startDate}{edu.endDate ? ` — ${edu.endDate}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-1.5">
+                    <button
+                      onClick={() => handleEditEdu(idx)}
+                      className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white/10 hover:text-slate-300"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteEdu(idx)}
+                      disabled={saveEducationMutation.isPending}
+                      className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-40"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Add new education inline form */}
+        {eduIsAdding && (
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
+            <p className="text-xs font-medium text-emerald-400">New Education</p>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="space-y-1">
+                <label className="block text-xs text-slate-400">School / Institution</label>
+                <input
+                  value={eduForm.schoolName}
+                  onChange={(e) => setEduForm({ ...eduForm, schoolName: e.target.value })}
+                  placeholder="University of Manchester"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs text-slate-400">Degree</label>
+                <input
+                  value={eduForm.degree}
+                  onChange={(e) => setEduForm({ ...eduForm, degree: e.target.value })}
+                  placeholder="BSc"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs text-slate-400">Field of Study</label>
+                <input
+                  value={eduForm.fieldOfStudy}
+                  onChange={(e) => setEduForm({ ...eduForm, fieldOfStudy: e.target.value })}
+                  placeholder="Computer Science"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                />
+              </div>
+              <div className="space-y-1 md:col-span-1" />
+              <div className="space-y-1">
+                <label className="block text-xs text-slate-400">Start Date</label>
+                <input
+                  value={eduForm.startDate}
+                  onChange={(e) => setEduForm({ ...eduForm, startDate: e.target.value })}
+                  placeholder="2018-09"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs text-slate-400">End Date</label>
+                <input
+                  value={eduForm.endDate}
+                  onChange={(e) => setEduForm({ ...eduForm, endDate: e.target.value })}
+                  placeholder="2021-06"
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleSaveEdu}
+                disabled={saveEducationMutation.isPending}
+                className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+              >
+                {saveEducationMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                Save
+              </button>
+              <button onClick={handleCancelEdu} className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-slate-400 transition hover:bg-white/5">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {(educationData ?? []).length === 0 && !eduIsAdding && (
+          <p className="text-sm text-slate-500">No education added yet. Click "Add Education" to get started.</p>
+        )}
       </div>
     </div>
   );

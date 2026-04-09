@@ -7,6 +7,15 @@ export const users = mysqlTable('users', {
   email: varchar('email', { length: 320 }).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+  // Data retention fields
+  lastSeenAt: timestamp('last_seen_at'),
+  retentionStatus: varchar('retention_status', { length: 30 }).default('active'),
+  // Values: 'active' | 'inactive_warning_1' | 'inactive_warning_2' | 'scheduled_for_deletion' | 'deleted' | 'purged'
+  deletionScheduledAt: timestamp('deletion_scheduled_at'),
+  warning1SentAt: timestamp('warning1_sent_at'),
+  warning2SentAt: timestamp('warning2_sent_at'),
+  deletedAt: timestamp('deleted_at'),
+  retentionExempt: boolean('retention_exempt').default(false),
 });
 
 export const profiles = mysqlTable('profiles', {

@@ -15,6 +15,8 @@ import {
   BookOpen,
   Import,
   FileBadge,
+  Sparkles,
+  Wand2,
 } from 'lucide-react';
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -32,7 +34,7 @@ interface UploadedDoc {
   rawText: string;
 }
 
-// ─── style analysis helpers ───────────────────────────────────────────────────
+// ─── style analysis helpers (local fallback) ──────────────────────────────────
 
 const TONE_KEYWORDS: Record<string, string[]> = {
   formal: ['therefore', 'furthermore', 'consequently', 'additionally', 'hereby', 'wherein', 'pursuant'],
@@ -49,7 +51,7 @@ const ACTION_VERBS = [
   'mentored','optimised','reduced','spearheaded','transformed',
 ];
 
-function analyseText(text: string) {
+function analyseTextLocal(text: string) {
   const lower = text.toLowerCase();
   const words = lower.split(/\s+/).filter(Boolean);
   const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 4);
@@ -73,6 +75,21 @@ function analyseText(text: string) {
 
   return { wordCount: words.length, sentenceCount: sentences.length, tones: tones.slice(0, 5), topVerbs };
 }
+
+// ─── AI analysis result type ──────────────────────────────────────────────────
+
+interface AiAnalysisResult {
+  suggestions?: string[];
+  score?: number;
+  tone?: string;
+  topVerbs?: string[];
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const styleApi = (api as any).style as {
+  analyzeDocument: { useMutation: () => { mutateAsync: (input: { userId: string; text: string; documentType: string }) => Promise<AiAnalysisResult>; isPending: boolean } };
+  rewriteSection: { useMutation: () => { mutateAsync: (input: { userId: string; text: string; instruction: string; tone: string }) => Promise<{ rewritten: string }>; isPending: boolean } };
+} | undefined;
 
 // ─── upload slot ─────────────────────────────────────────────────────────────
 
@@ -169,6 +186,16 @@ export default function StyleStudio() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<AiAnalysisResult | null>(null);
+  const [isAnalysing, setIsAnalysing] = useState(false);
+  const [rewrittenSummary, setRewrittenSummary] = useState<string | null>(null);
+  const [rewrittenSkills, setRewrittenSkills] = useState<string | null>(null);
+  const [isRewritingSummary, setIsRewritingSummary] = useState(false);
+  const [isRewritingSkills, setIsRewritingSkills] = useState(false);
+
+  // tRPC — style router (may not exist yet; access is guarded via styleApi)
+  const analyzeDocMutation = styleApi?.analyzeDocument.useMutation();
+  const rewriteMutation = styleApi?.rewriteSection.useMutation();
 
   // tRPC
   const profileQuery = api.profile.getProfile.useQuery(
@@ -207,6 +234,7 @@ export default function StyleStudio() {
         userId,
         filename: `${prefix}${file.name}`,
         base64,
+        mimeType: file.type || undefined,
       });
       const parsed = result.parsed;
       setDocs((prev) => ({
@@ -226,6 +254,60 @@ export default function StyleStudio() {
       setUploadError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setLoadingCat((prev) => ({ ...prev, [category]: false }));
+    }
+  }
+
+  async function handleAnalyse(rawText: string) {
+    if (!userId || !analyzeDocMutation) return;
+    setIsAnalysing(true);
+    setAiAnalysis(null);
+    try {
+      const result = await analyzeDocMutation.mutateAsync({
+        userId,
+        text: rawText.slice(0, 5000),
+        documentType: 'cv',
+      });
+      setAiAnalysis(result);
+    } catch {
+      // fallback — show nothing, local heuristic still renders
+    } finally {
+      setIsAnalysing(false);
+    }
+  }
+
+  async function handleRewriteSummary(text: string) {
+    if (!userId || !rewriteMutation) return;
+    setIsRewritingSummary(true);
+    try {
+      const { rewritten } = await rewriteMutation.mutateAsync({
+        userId,
+        text,
+        instruction: 'Make this more professional and impactful',
+        tone: 'professional',
+      });
+      setRewrittenSummary(rewritten);
+    } catch {
+      // non-fatal
+    } finally {
+      setIsRewritingSummary(false);
+    }
+  }
+
+  async function handleRewriteSkills(text: string) {
+    if (!userId || !rewriteMutation) return;
+    setIsRewritingSkills(true);
+    try {
+      const { rewritten } = await rewriteMutation.mutateAsync({
+        userId,
+        text,
+        instruction: 'Make this skills description more professional and impactful',
+        tone: 'professional',
+      });
+      setRewrittenSkills(rewritten);
+    } catch {
+      // non-fatal
+    } finally {
+      setIsRewritingSkills(false);
     }
   }
 
@@ -260,7 +342,7 @@ export default function StyleStudio() {
   // ── derived ────────────────────────────────────────────────────────────────
 
   const cvDoc = docs.cv;
-  const analysis = cvDoc?.rawText ? analyseText(cvDoc.rawText) : null;
+  const localAnalysis = cvDoc?.rawText ? analyseTextLocal(cvDoc.rawText) : null;
   const profile = profileQuery.data;
 
   // ── render ─────────────────────────────────────────────────────────────────
@@ -340,11 +422,64 @@ export default function StyleStudio() {
       </section>
 
       {/* ── style analysis ── */}
-      {cvDoc && analysis && (
+      {cvDoc && localAnalysis && (
         <section>
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-500">
-            Style Analysis — {cvDoc.filename}
-          </h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500">
+              Style Analysis — {cvDoc.filename}
+            </h2>
+            {analyzeDocMutation && (
+              <button
+                onClick={() => void handleAnalyse(cvDoc.rawText)}
+                disabled={isAnalysing}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-xs font-medium text-purple-300 hover:bg-purple-500/20 disabled:opacity-50 transition-colors"
+              >
+                {isAnalysing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+                Analyse with AI
+              </button>
+            )}
+          </div>
+
+          {/* AI suggestions banner */}
+          {aiAnalysis && (
+            <div className="mb-4 rounded-2xl border border-purple-500/20 bg-purple-500/5 p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-purple-400" />
+                <span className="text-sm font-semibold text-white">AI Insights</span>
+                {aiAnalysis.score !== undefined && (
+                  <span className="ml-auto text-sm font-bold text-purple-300">{aiAnalysis.score}/100</span>
+                )}
+              </div>
+              {aiAnalysis.tone && (
+                <p className="text-sm text-slate-300">
+                  <span className="text-slate-500">Detected tone: </span>
+                  <span className="capitalize">{aiAnalysis.tone}</span>
+                </p>
+              )}
+              {aiAnalysis.topVerbs && aiAnalysis.topVerbs.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {aiAnalysis.topVerbs.map((v) => (
+                    <span key={v} className="rounded-full border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-xs text-purple-300">{v}</span>
+                  ))}
+                </div>
+              )}
+              {aiAnalysis.suggestions && aiAnalysis.suggestions.length > 0 && (
+                <ul className="space-y-1.5 text-sm text-slate-300">
+                  {aiAnalysis.suggestions.map((s, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-purple-400 mt-1.5" />
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {/* stats */}
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -355,17 +490,17 @@ export default function StyleStudio() {
               <dl className="space-y-3">
                 <div className="flex justify-between">
                   <dt className="text-sm text-slate-400">Word count</dt>
-                  <dd className="text-sm font-semibold text-white">{analysis.wordCount.toLocaleString()}</dd>
+                  <dd className="text-sm font-semibold text-white">{localAnalysis.wordCount.toLocaleString()}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-sm text-slate-400">Sentences</dt>
-                  <dd className="text-sm font-semibold text-white">{analysis.sentenceCount.toLocaleString()}</dd>
+                  <dd className="text-sm font-semibold text-white">{localAnalysis.sentenceCount.toLocaleString()}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-sm text-slate-400">Avg. sentence length</dt>
                   <dd className="text-sm font-semibold text-white">
-                    {analysis.sentenceCount > 0
-                      ? Math.round(analysis.wordCount / analysis.sentenceCount)
+                    {localAnalysis.sentenceCount > 0
+                      ? Math.round(localAnalysis.wordCount / localAnalysis.sentenceCount)
                       : 0}{' '}
                     words
                   </dd>
@@ -379,11 +514,11 @@ export default function StyleStudio() {
                 <Palette className="h-4 w-4 text-slate-400" />
                 <span className="text-sm font-semibold text-white">Writing tone</span>
               </div>
-              {analysis.tones.length === 0 ? (
+              {localAnalysis.tones.length === 0 ? (
                 <p className="text-sm text-slate-500">No strong tone signals detected.</p>
               ) : (
                 <div className="space-y-2">
-                  {analysis.tones.map((t) => (
+                  {localAnalysis.tones.map((t) => (
                     <div key={t.label} className="flex items-center gap-3">
                       <span className="w-24 shrink-0 text-xs capitalize text-slate-400">{t.label}</span>
                       <div className="flex-1 rounded-full bg-white/5 h-1.5 overflow-hidden">
@@ -405,11 +540,11 @@ export default function StyleStudio() {
                 <Loader2 className="h-4 w-4 text-slate-400" />
                 <span className="text-sm font-semibold text-white">Top action verbs</span>
               </div>
-              {analysis.topVerbs.length === 0 ? (
+              {localAnalysis.topVerbs.length === 0 ? (
                 <p className="text-sm text-slate-500">No action verbs found.</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {analysis.topVerbs.map(([verb, count]) => (
+                  {localAnalysis.topVerbs.map(([verb, count]) => (
                     <span
                       key={verb}
                       className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs text-white"
@@ -422,6 +557,64 @@ export default function StyleStudio() {
               )}
             </div>
           </div>
+
+          {/* Rewrite with AI — summary */}
+          {rewriteMutation && cvDoc.summary && (
+            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-5 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium text-white">Summary</p>
+                  <p className="mt-0.5 text-sm text-slate-400 line-clamp-2">{rewrittenSummary ?? cvDoc.summary}</p>
+                </div>
+                <button
+                  onClick={() => void handleRewriteSummary(cvDoc.summary ?? '')}
+                  disabled={isRewritingSummary}
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 hover:bg-indigo-500/20 disabled:opacity-50 transition-colors"
+                >
+                  {isRewritingSummary ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-3.5 w-3.5" />
+                  )}
+                  Rewrite with AI
+                </button>
+              </div>
+              {rewrittenSummary && (
+                <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3 text-sm text-slate-300">
+                  {rewrittenSummary}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Rewrite with AI — skills */}
+          {rewriteMutation && cvDoc.skills.length > 0 && (
+            <div className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-5 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium text-white">Skills</p>
+                  <p className="mt-0.5 text-sm text-slate-400 line-clamp-1">{cvDoc.skills.slice(0, 5).join(', ')}{cvDoc.skills.length > 5 ? '…' : ''}</p>
+                </div>
+                <button
+                  onClick={() => void handleRewriteSkills(cvDoc.skills.join(', '))}
+                  disabled={isRewritingSkills}
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 hover:bg-indigo-500/20 disabled:opacity-50 transition-colors"
+                >
+                  {isRewritingSkills ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-3.5 w-3.5" />
+                  )}
+                  Rewrite with AI
+                </button>
+              </div>
+              {rewrittenSkills && (
+                <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3 text-sm text-slate-300">
+                  {rewrittenSkills}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* import to profile */}
           <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-5">

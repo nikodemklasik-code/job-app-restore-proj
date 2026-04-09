@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { eq, desc } from 'drizzle-orm';
+import { TRPCError } from '@trpc/server';
 import { publicProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
 import { applications, applicationLogs, profiles, skills, users } from '../../db/schema.js';
@@ -23,10 +24,14 @@ export const applicationsRouter = router({
     }),
 
   getById: publicProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: z.string(), userId: z.string() }))
     .query(async ({ input }) => {
+      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      const localUserId = userRecord[0]?.id;
       const rows = await db.select().from(applications).where(eq(applications.id, input.id)).limit(1);
-      return rows[0] ?? null;
+      const row = rows[0];
+      if (!row || row.userId !== localUserId) return null;
+      return row;
     }),
 
   create: publicProcedure
@@ -58,9 +63,16 @@ export const applicationsRouter = router({
   updateStatus: publicProcedure
     .input(z.object({
       id: z.string(),
+      userId: z.string(),
       status: z.enum(['draft', 'prepared', 'sent', 'rejected', 'accepted', 'interview']),
     }))
     .mutation(async ({ input }) => {
+      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      const localUserId = userRecord[0]?.id;
+      const rows = await db.select({ userId: applications.userId }).from(applications).where(eq(applications.id, input.id)).limit(1);
+      if (!rows[0] || rows[0].userId !== localUserId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Not authorized' });
+      }
       await db.update(applications).set({ status: input.status, updatedAt: new Date() }).where(eq(applications.id, input.id));
       await db.insert(applicationLogs).values({ id: randomUUID(), applicationId: input.id, action: `status:${input.status}` });
       return { success: true };
@@ -122,6 +134,7 @@ export const applicationsRouter = router({
 
       const appRow = await db.select().from(applications).where(eq(applications.id, input.applicationId)).limit(1);
       if (!appRow[0]) throw new Error('Application not found');
+      if (appRow[0].userId !== userRecord[0].id) throw new TRPCError({ code: 'FORBIDDEN', message: 'Not your application' });
 
       if (!appRow[0].coverLetterSnapshot) throw new Error('Generate documents first');
 
@@ -196,6 +209,7 @@ export const applicationsRouter = router({
 
       const appRow = await db.select().from(applications).where(eq(applications.id, input.applicationId)).limit(1);
       if (!appRow[0]) throw new Error('Application not found');
+      if (appRow[0].userId !== userRecord[0].id) throw new TRPCError({ code: 'FORBIDDEN', message: 'Not authorized' });
 
       const profileRecord = await db.select({ fullName: profiles.fullName }).from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1);
       const applicantName = profileRecord[0]?.fullName ?? 'Candidate';

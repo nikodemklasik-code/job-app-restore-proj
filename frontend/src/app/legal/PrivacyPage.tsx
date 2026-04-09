@@ -187,26 +187,62 @@ const SECTIONS: Section[] = [
       <>
         <p>
           We retain your personal data for as long as necessary to provide the Service and fulfil the
-          purposes set out in this policy, or as required by law. Our standard retention periods are:
+          purposes set out in this policy, or as required by law. We operate a structured inactivity-based
+          data retention policy:
         </p>
-        <ul className="list-disc pl-6 mt-3 space-y-2">
-          <li>
-            <span className="text-white font-medium">Account data:</span> Retained for the duration of
-            your account, plus 3 years after account deletion to satisfy legal, tax, and accounting
-            obligations.
-          </li>
+        <div className="mt-4 space-y-3">
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3">
+            <p className="font-semibold text-amber-300 text-sm">Inactivity Warning — Day 20</p>
+            <p className="text-sm text-slate-400 mt-1">
+              If you have not logged in for 20 days, we will send you an email warning that your account
+              is approaching scheduled deletion. Your account remains fully active at this stage.
+            </p>
+          </div>
+          <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 px-4 py-3">
+            <p className="font-semibold text-orange-300 text-sm">Final Warning — Day 40</p>
+            <p className="text-sm text-slate-400 mt-1">
+              After 40 days of inactivity, we will send a final warning email. Logging in at any point
+              resets the inactivity clock and keeps your account active.
+            </p>
+          </div>
+          <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3">
+            <p className="font-semibold text-red-300 text-sm">Soft Deletion — Day 45</p>
+            <p className="text-sm text-slate-400 mt-1">
+              Your account data is retained for 45 days after your last login before soft deletion.
+              At this point access to the Service is suspended and your account is marked for deletion.
+              You may contact support@multivohub.com to reactivate your account within this window.
+            </p>
+          </div>
+          <div className="rounded-lg border border-red-700/20 bg-red-700/5 px-4 py-3">
+            <p className="font-semibold text-red-400 text-sm">Permanent Deletion — Day 60</p>
+            <p className="text-sm text-slate-400 mt-1">
+              After 60 days of inactivity, product data (CVs, applications, interview sessions,
+              job sessions, and connected settings) is permanently deleted and cannot be recovered.
+              A minimal anonymised record is retained solely to satisfy UK accounting law obligations.
+            </p>
+          </div>
+          <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+            <p className="font-semibold text-emerald-400 text-sm">Active Paid Subscribers — Exempt</p>
+            <p className="text-sm text-slate-400 mt-1">
+              Active paid subscribers (Pro or Autopilot plans) are exempt from automatic deletion.
+              The inactivity policy applies only to free accounts and lapsed subscribers.
+            </p>
+          </div>
+        </div>
+        <ul className="list-disc pl-6 mt-4 space-y-2">
           <li>
             <span className="text-white font-medium">CV and career content:</span> Deleted promptly
-            upon a valid erasure request (see Section 6). You may also delete individual documents
-            at any time from within the platform.
+            upon a valid erasure request (see Section 6), or automatically at day 60 as described above.
+            You may also delete individual documents at any time from within the platform.
           </li>
           <li>
-            <span className="text-white font-medium">Payment records:</span> Retained for 7 years
-            in line with HMRC requirements for financial records.
+            <span className="text-white font-medium">Billing records:</span> Minimum billing records
+            are retained as required by UK accounting law (Companies Act 2006 and HMRC guidelines),
+            typically for 7 years.
           </li>
           <li>
             <span className="text-white font-medium">Usage and analytics data:</span> Retained in
-            anonymised or aggregated form indefinitely for product improvement purposes.
+            anonymised or aggregated form for product improvement purposes.
           </li>
           <li>
             <span className="text-white font-medium">Support communications:</span> Retained for

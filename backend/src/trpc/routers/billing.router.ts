@@ -1,11 +1,15 @@
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import Stripe from 'stripe';
+import { TRPCError } from '@trpc/server';
 import { publicProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
 import { subscriptions, users } from '../../db/schema.js';
 import { createCheckoutSession, createCustomerPortal } from '../../services/stripe.js';
 import { createPayPalOrder as createPayPalOrderService, capturePayPalOrder as capturePayPalOrderService } from '../../services/paypal.js';
+
+// In-memory map to validate PayPal order ownership before capture
+const pendingPayPalOrders = new Map<string, { userId: string; plan: string; expiresAt: number }>();
 
 const PLAN_AMOUNTS: Record<string, string> = {
   pro: '9.99',
@@ -158,12 +162,23 @@ export const billingRouter = router({
       if (!amount) throw new Error('Invalid plan');
       const description = `MultivoHub ${input.plan.charAt(0).toUpperCase() + input.plan.slice(1)} subscription`;
       const { id: orderId, approveUrl } = await createPayPalOrderService(amount, 'GBP', description);
+      pendingPayPalOrders.set(orderId, { userId: input.userId, plan: input.plan, expiresAt: Date.now() + 30 * 60 * 1000 });
       return { orderId, approveUrl };
     }),
 
   capturePayPalOrder: publicProcedure
     .input(z.object({ userId: z.string().min(1), orderId: z.string().min(1), plan: z.enum(['pro', 'autopilot']) }))
     .mutation(async ({ input }) => {
+      const pending = pendingPayPalOrders.get(input.orderId);
+      if (!pending || pending.userId !== input.userId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Invalid PayPal order' });
+      }
+      if (Date.now() > pending.expiresAt) {
+        pendingPayPalOrders.delete(input.orderId);
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'PayPal order expired' });
+      }
+      pendingPayPalOrders.delete(input.orderId);
+
       const result = await capturePayPalOrderService(input.orderId);
       if (!result.success) throw new Error('PayPal capture failed');
 

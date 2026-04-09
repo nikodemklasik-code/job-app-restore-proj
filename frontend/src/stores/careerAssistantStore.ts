@@ -12,6 +12,7 @@ interface CareerMessage {
 interface CareerAssistantStore {
   messages: CareerMessage[];
   isSending: boolean;
+  isLoadingHistory: boolean;
   error: string | null;
   /** Last explicit mode (quick actions set it; follow-up messages reuse it). */
   activeMode: string;
@@ -19,17 +20,51 @@ interface CareerAssistantStore {
   setSelectedJobId: (id: string | null) => void;
   sendMessage: (text: string, mode?: string, jobId?: string | null) => Promise<void>;
   clearMessages: () => void;
+  loadHistory: (userId: string) => Promise<void>;
 }
 
 export const useCareerAssistantStore = create<CareerAssistantStore>((set, get) => ({
   messages: [],
   isSending: false,
+  isLoadingHistory: false,
   error: null,
   activeMode: 'general',
   selectedJobId: null,
 
   setSelectedJobId: (id) => set({ selectedJobId: id }),
   clearMessages: () => set({ messages: [], error: null, activeMode: 'general' }),
+
+  async loadHistory(userId) {
+    if (!userId || get().messages.length > 0) return;
+    set({ isLoadingHistory: true });
+    try {
+      const history = await trpcClient.assistant.getHistory.query({ userId, limit: 20 });
+      // getHistory returns conversation metadata rows (counts/timestamps), not message text.
+      // Build a synthetic welcome message when there is prior activity so the user sees context.
+      if (history.length > 0) {
+        const latest = history[0];
+        const lastDate = latest?.lastMessageAt
+          ? new Date(latest.lastMessageAt as string | Date).toLocaleDateString('en-GB', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            })
+          : null;
+        const welcomeBack: CareerMessage = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          type: 'text',
+          text: `Welcome back! You have a previous conversation${lastDate ? ` (last active ${lastDate})` : ''}. Feel free to continue where you left off.`,
+          createdAt: new Date().toISOString(),
+        };
+        set({ messages: [welcomeBack] });
+      }
+    } catch {
+      // non-fatal — just don't populate history
+    } finally {
+      set({ isLoadingHistory: false });
+    }
+  },
 
   async sendMessage(text, modeArg, jobId = null) {
     if (!text.trim() || get().isSending) return;
