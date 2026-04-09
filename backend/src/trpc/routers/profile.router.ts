@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
-import { publicProcedure, router } from '../trpc.js';
+import { publicProcedure, protectedProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
 import { profiles, skills, users, experiences, educations } from '../../db/schema.js';
 
@@ -51,12 +51,9 @@ export const profileRouter = router({
       return { created: false as const };
     }),
 
-  getProfile: publicProcedure
-    .input(z.object({ userId: z.string().min(1) }))
-    .query(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
-      const localUserId = userRecord[0]?.id;
-      if (!localUserId) return null;
+  getProfile: protectedProcedure
+    .query(async ({ ctx }) => {
+      const localUserId = ctx.user.id;
 
       const profileRecord = await db.select().from(profiles).where(eq(profiles.userId, localUserId)).limit(1);
       const profile = profileRecord[0];
@@ -67,7 +64,7 @@ export const profileRouter = router({
       return {
         personalInfo: {
           fullName: profile.fullName,
-          email: userRecord[0]?.email ?? '',
+          email: ctx.user.email,
           phone: profile.phone ?? '',
           summary: profile.summary ?? '',
         },
@@ -75,18 +72,15 @@ export const profileRouter = router({
       };
     }),
 
-  savePersonalInfo: publicProcedure
+  savePersonalInfo: protectedProcedure
     .input(z.object({
-      userId: z.string().min(1),
       fullName: z.string(),
       email: z.string().email().optional(),
       phone: z.string().optional(),
       summary: z.string().optional(),
     }))
-    .mutation(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
-      const localUserId = userRecord[0]?.id;
-      if (!localUserId) return { success: false };
+    .mutation(async ({ ctx, input }) => {
+      const localUserId = ctx.user.id;
 
       if (input.email) {
         await db.update(users)
@@ -103,12 +97,10 @@ export const profileRouter = router({
       return { success: true };
     }),
 
-  saveSkills: publicProcedure
-    .input(z.object({ userId: z.string().min(1), skills: z.array(z.string()) }))
-    .mutation(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
-      const localUserId = userRecord[0]?.id;
-      if (!localUserId) return { success: false };
+  saveSkills: protectedProcedure
+    .input(z.object({ skills: z.array(z.string()) }))
+    .mutation(async ({ ctx, input }) => {
+      const localUserId = ctx.user.id;
 
       const profileRecord = await db.select({ id: profiles.id }).from(profiles).where(eq(profiles.userId, localUserId)).limit(1);
       const profileId = profileRecord[0]?.id;

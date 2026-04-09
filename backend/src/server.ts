@@ -3,16 +3,22 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import express from 'express';
 import Stripe from 'stripe';
+import OpenAI from 'openai';
+import multer from 'multer';
+import { streamInterviewResponse } from './services/interviewConversation.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// Produkcja: .env w katalogu głównym repo (np. /var/www/multivohub-jobapp/.env), cwd = backend/dist
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+// Try multiple levels up to find .env — handles both old (dist/server.js) and new (dist/backend/src/server.js) layouts
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') }); // dist/backend/src/ → repo root
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });        // dist/ → repo root (legacy)
+dotenv.config({ path: path.resolve(__dirname, '../.env') });            // local dev fallback
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
 import { appRouter } from './trpc/routers/index.js';
+import { createContext } from './trpc/trpc.js';
 import { runRetentionJob } from './services/retentionJob.js';
 
 const app = express();
@@ -40,6 +46,7 @@ const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
 app.use(cors({
   origin: frontendUrl,
   credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 // Stripe webhook — MUST be before express.json() and before global rate limit (Stripe retries / bursts).
@@ -95,7 +102,7 @@ app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (r
 app.use(express.json());
 app.use(generalLimiter);
 
-app.use('/trpc', createExpressMiddleware({ router: appRouter }));
+app.use('/trpc', createExpressMiddleware({ router: appRouter, createContext }));
 
 const apiRouter = express.Router();
 apiRouter.get('/health', (_req, res) => {
@@ -109,6 +116,105 @@ app.use('/api', apiRouter);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Interview conversation SSE stream
+app.post('/api/interview/stream', async (req, res) => {
+  const { messages, job } = req.body as {
+    messages: Array<{ role: string; content: string }>;
+    job: { title: string; company: string; description?: string; requirements?: string[] };
+  };
+
+  if (!messages || !job?.title || !job?.company) {
+    res.status(400).json({ error: 'Missing messages or job context' });
+    return;
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  try {
+    const validMessages = messages
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+    for await (const chunk of streamInterviewResponse(validMessages, job)) {
+      res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+    }
+    res.write('data: [DONE]\n\n');
+  } catch (err) {
+    console.error('[Interview Stream]', err);
+    res.write(`data: ${JSON.stringify({ error: 'AI stream failed' })}\n\n`);
+  } finally {
+    res.end();
+  }
+});
+
+// TTS endpoint — converts AI text to speech
+app.post('/api/interview/tts', async (req, res) => {
+  const { text } = req.body as { text: string };
+
+  if (!text || text.length > 500) {
+    res.status(400).json({ error: 'Invalid text' });
+    return;
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    res.status(503).json({ error: 'TTS not configured' });
+    return;
+  }
+
+  try {
+    const openai = new OpenAI({ apiKey });
+    const mp3 = await openai.audio.speech.create({
+      model: 'tts-1',
+      voice: 'onyx', // Deep professional male voice
+      input: text,
+      speed: 0.95,
+    });
+
+    const buffer = Buffer.from(await mp3.arrayBuffer());
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Content-Length', buffer.length);
+    res.send(buffer);
+  } catch (err) {
+    console.error('[TTS]', err);
+    res.status(500).json({ error: 'TTS failed' });
+  }
+});
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+// Whisper STT — transcribe audio from browser MediaRecorder
+app.post('/api/interview/transcribe', upload.single('audio'), async (req, res) => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    res.status(503).json({ error: 'STT not configured' });
+    return;
+  }
+
+  if (!req.file) {
+    res.status(400).json({ error: 'No audio file' });
+    return;
+  }
+
+  try {
+    const openai = new OpenAI({ apiKey });
+    const file = new File([req.file.buffer], 'audio.webm', { type: req.file.mimetype || 'audio/webm' });
+    const transcription = await openai.audio.transcriptions.create({
+      file,
+      model: 'whisper-1',
+      language: 'en',
+    });
+    res.json({ transcript: transcription.text });
+  } catch (err) {
+    console.error('[Whisper STT]', err);
+    res.status(500).json({ error: 'Transcription failed' });
+  }
 });
 
 app.listen(port, () => {

@@ -1,105 +1,98 @@
 import { create } from 'zustand';
 import { trpcClient } from '@/lib/api';
+import type { AssistantHistoryMessage } from '../../../shared/assistant';
 
-interface CareerMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  type: 'text' | 'error' | 'safety_refusal' | 'skill_verification_result';
-  text?: string;
-  createdAt: string;
-}
+type AssistantStatus = 'idle' | 'syncing' | 'sending' | 'error';
 
 interface CareerAssistantStore {
-  messages: CareerMessage[];
-  isSending: boolean;
-  isLoadingHistory: boolean;
+  conversationId: string | null;
+  messages: AssistantHistoryMessage[];
+  status: AssistantStatus;
   error: string | null;
-  /** Last explicit mode (quick actions set it; follow-up messages reuse it). */
-  activeMode: string;
   selectedJobId: string | null;
   setSelectedJobId: (id: string | null) => void;
-  sendMessage: (text: string, mode?: string, jobId?: string | null) => Promise<void>;
-  clearMessages: () => void;
-  loadHistory: (userId: string) => Promise<void>;
+  loadHistory: () => Promise<void>;
+  sendMessage: (text: string, mode?: 'general' | 'cv' | 'interview' | 'salary') => Promise<void>;
+  resetError: () => void;
+}
+
+function sortAsc(msgs: AssistantHistoryMessage[]): AssistantHistoryMessage[] {
+  return [...msgs].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  );
 }
 
 export const useCareerAssistantStore = create<CareerAssistantStore>((set, get) => ({
+  conversationId: null,
   messages: [],
-  isSending: false,
-  isLoadingHistory: false,
+  status: 'idle',
   error: null,
-  activeMode: 'general',
   selectedJobId: null,
 
   setSelectedJobId: (id) => set({ selectedJobId: id }),
-  clearMessages: () => set({ messages: [], error: null, activeMode: 'general' }),
 
-  async loadHistory(userId) {
-    if (!userId || get().messages.length > 0) return;
-    set({ isLoadingHistory: true });
+  async loadHistory() {
+    if (get().status === 'syncing') return;
+    set({ status: 'syncing', error: null });
     try {
-      const history = await trpcClient.assistant.getHistory.query({ userId, limit: 20 });
-      // getHistory returns conversation metadata rows (counts/timestamps), not message text.
-      // Build a synthetic welcome message when there is prior activity so the user sees context.
-      if (history.length > 0) {
-        const latest = history[0];
-        const lastDate = latest?.lastMessageAt
-          ? new Date(latest.lastMessageAt as string | Date).toLocaleDateString('en-GB', {
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-            })
-          : null;
-        const welcomeBack: CareerMessage = {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          type: 'text',
-          text: `Welcome back! You have a previous conversation${lastDate ? ` (last active ${lastDate})` : ''}. Feel free to continue where you left off.`,
-          createdAt: new Date().toISOString(),
-        };
-        set({ messages: [welcomeBack] });
-      }
-    } catch {
-      // non-fatal — just don't populate history
-    } finally {
-      set({ isLoadingHistory: false });
+      const history = await trpcClient.assistant.getHistory.query();
+      set({
+        messages: sortAsc(history as AssistantHistoryMessage[]),
+        conversationId: (history[0] as AssistantHistoryMessage | undefined)?.conversationId ?? null,
+        status: 'idle',
+        error: null,
+      });
+    } catch (e: unknown) {
+      set({ status: 'error', error: e instanceof Error ? e.message : 'Failed to load' });
     }
   },
 
-  async sendMessage(text, modeArg, jobId = null) {
-    if (!text.trim() || get().isSending) return;
+  async sendMessage(text, mode = 'general') {
+    const trimmed = text.trim();
+    if (!trimmed || get().status === 'sending') return;
 
-    const mode = modeArg ?? get().activeMode;
-    if (modeArg) {
-      set({ activeMode: modeArg });
-    }
-
-    const history = get()
-      .messages.filter((m) => (m.role === 'user' || m.role === 'assistant') && m.text)
-      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.text! }));
-
-    const userMessage: CareerMessage = {
+    const optimistic: AssistantHistoryMessage = {
       id: crypto.randomUUID(),
+      conversationId: get().conversationId ?? 'pending',
       role: 'user',
-      type: 'text',
-      text,
+      text: trimmed,
+      sourceType: 'manual_user_input',
       createdAt: new Date().toISOString(),
     };
 
-    set((state) => ({ messages: [...state.messages, userMessage], isSending: true, error: null }));
+    set((s) => ({
+      messages: sortAsc([...s.messages, optimistic]),
+      status: 'sending',
+      error: null,
+    }));
 
     try {
-      const response = await trpcClient.assistant.sendMessage.mutate({
-        text,
+      const resp = await trpcClient.assistant.sendMessage.mutate({
+        text: trimmed,
         mode,
-        jobId,
-        history: history.length > 0 ? history : undefined,
+        sourceType: 'manual_user_input',
+        jobId: get().selectedJobId,
       });
-      set((state) => ({ messages: [...state.messages, response] }));
-    } catch (error) {
-      set({ error: error instanceof Error ? error.message : 'Failed to send message' });
-    } finally {
-      set({ isSending: false });
+      set((s) => ({
+        conversationId: resp.conversationId,
+        messages: sortAsc([
+          ...s.messages.filter((m) => m.id !== optimistic.id),
+          resp.userRecord as AssistantHistoryMessage,
+          resp.aiRecord as AssistantHistoryMessage,
+        ]),
+        status: 'idle',
+        error: null,
+      }));
+    } catch (e: unknown) {
+      set((s) => ({
+        messages: s.messages.filter((m) => m.id !== optimistic.id),
+        status: 'error',
+        error: e instanceof Error ? e.message : 'Failed',
+      }));
     }
+  },
+
+  resetError() {
+    set({ status: 'idle', error: null });
   },
 }));

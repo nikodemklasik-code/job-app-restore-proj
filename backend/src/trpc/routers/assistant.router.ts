@@ -1,83 +1,142 @@
+import { randomUUID } from 'crypto';
+import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { eq, desc, sql } from 'drizzle-orm';
-import { publicProcedure, router } from '../trpc.js';
+import { allowedAssistantSourceTypes, assistantModes } from '../../../../shared/assistant.js';
+import { assistantConversations, assistantMessages } from '../../db/schema.js';
 import { db } from '../../db/index.js';
-import { assistantConversations, users } from '../../db/schema.js';
-import { generateCareerResponse } from '../../services/openai.js';
+import {
+  assertAllowedAssistantSourceType,
+  generateCareerResponse,
+  redactSensitiveText,
+} from '../../services/openai.js';
+import { protectedProcedure, router } from '../trpc.js';
 
-async function getLocalUserId(clerkId: string): Promise<string | null> {
-  const rows = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, clerkId)).limit(1);
-  return rows[0]?.id ?? null;
+async function getOrCreateConversation(userId: string): Promise<string> {
+  const existing = await db
+    .select({ id: assistantConversations.id })
+    .from(assistantConversations)
+    .where(eq(assistantConversations.userId, userId))
+    .orderBy(desc(assistantConversations.lastMessageAt))
+    .limit(1);
+
+  if (existing[0]) return existing[0].id;
+
+  const id = randomUUID();
+  await db.insert(assistantConversations).values({
+    id,
+    userId,
+    messageCount: 0,
+    lastMessageAt: new Date(),
+  });
+  return id;
 }
 
 export const assistantRouter = router({
-  sendMessage: publicProcedure
-    .input(z.object({
-      text: z.string().min(1).max(4000),
-      mode: z.string().default('general'),
-      userId: z.string().optional(),
-      jobId: z.string().nullable().optional(),
-      history: z
-        .array(
-          z.object({
-            role: z.enum(['user', 'assistant']),
-            content: z.string().max(12000),
-          }),
+  getHistory: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.user.id;
+    const conversationId = await getOrCreateConversation(userId);
+    const rows = await db
+      .select()
+      .from(assistantMessages)
+      .where(
+        and(
+          eq(assistantMessages.userId, userId),
+          eq(assistantMessages.conversationId, conversationId),
+        ),
+      )
+      .orderBy(asc(assistantMessages.createdAt))
+      .limit(100);
+
+    return rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }));
+  }),
+
+  sendMessage: protectedProcedure
+    .input(
+      z.object({
+        text: z.string().trim().min(1).max(4000),
+        mode: z.enum(assistantModes).default('general'),
+        sourceType: z.enum(allowedAssistantSourceTypes).default('manual_user_input'),
+        jobId: z.string().uuid().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const userId = ctx.user.id;
+      const sourceType = assertAllowedAssistantSourceType(input.sourceType);
+      const conversationId = await getOrCreateConversation(userId);
+
+      // Insert user message
+      const userMsgId = randomUUID();
+      await db.insert(assistantMessages).values({
+        id: userMsgId,
+        conversationId,
+        userId,
+        role: 'user',
+        text: input.text,
+        sourceType,
+        createdAt: new Date(),
+      });
+      const [userRecord] = await db
+        .select()
+        .from(assistantMessages)
+        .where(eq(assistantMessages.id, userMsgId))
+        .limit(1);
+
+      // Get recent context for AI (most recent 12, then reverse for chronological order)
+      const recent = await db
+        .select({ role: assistantMessages.role, text: assistantMessages.text })
+        .from(assistantMessages)
+        .where(
+          and(
+            eq(assistantMessages.userId, userId),
+            eq(assistantMessages.conversationId, conversationId),
+          ),
         )
-        .max(30)
-        .optional(),
-    }))
-    .mutation(async ({ input }) => {
-      const text = await generateCareerResponse(input.text, input.mode, input.history);
+        .orderBy(desc(assistantMessages.createdAt))
+        .limit(12);
 
-      // Persist conversation activity for the user — non-fatal
-      if (input.userId) {
-        const localId = await getLocalUserId(input.userId).catch(() => null);
-        if (localId) {
-          const existing = await db
-            .select({ id: assistantConversations.id })
-            .from(assistantConversations)
-            .where(eq(assistantConversations.userId, localId))
-            .limit(1)
-            .catch(() => [] as { id: string }[]);
+      const aiText = await generateCareerResponse({
+        mode: input.mode,
+        sourceType,
+        messages: recent.reverse().map((m) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.role === 'user' ? redactSensitiveText(m.text) : m.text,
+        })),
+      });
 
-          if (existing.length > 0) {
-            await db.update(assistantConversations)
-              .set({
-                messageCount: sql`${assistantConversations.messageCount} + 2`,
-                lastMessageAt: new Date(),
-              })
-              .where(eq(assistantConversations.userId, localId))
-              .catch(() => {});
-          } else {
-            await db.insert(assistantConversations).values({
-              id: crypto.randomUUID(),
-              userId: localId,
-              messageCount: 2,
-              lastMessageAt: new Date(),
-            }).catch(() => {});
-          }
-        }
+      // Insert AI message
+      const aiMsgId = randomUUID();
+      await db.insert(assistantMessages).values({
+        id: aiMsgId,
+        conversationId,
+        userId,
+        role: 'assistant',
+        text: aiText,
+        sourceType,
+        createdAt: new Date(),
+      });
+      const [aiRecord] = await db
+        .select()
+        .from(assistantMessages)
+        .where(eq(assistantMessages.id, aiMsgId))
+        .limit(1);
+
+      // Update conversation counter
+      await db
+        .update(assistantConversations)
+        .set({
+          lastMessageAt: new Date(),
+          messageCount: sql`${assistantConversations.messageCount} + 2`,
+        })
+        .where(eq(assistantConversations.id, conversationId));
+
+      if (!userRecord || !aiRecord) {
+        throw new Error('Failed to retrieve inserted messages');
       }
 
       return {
-        id: crypto.randomUUID(),
-        role: 'assistant' as const,
-        type: 'text' as const,
-        text,
-        createdAt: new Date().toISOString(),
+        conversationId,
+        userRecord: { ...userRecord, createdAt: userRecord.createdAt.toISOString() },
+        aiRecord: { ...aiRecord, createdAt: aiRecord.createdAt.toISOString() },
       };
-    }),
-
-  getHistory: publicProcedure
-    .input(z.object({ userId: z.string(), limit: z.number().max(50).default(20) }))
-    .query(async ({ input }) => {
-      const localId = await getLocalUserId(input.userId);
-      if (!localId) return [];
-      return db.select()
-        .from(assistantConversations)
-        .where(eq(assistantConversations.userId, localId))
-        .orderBy(desc(assistantConversations.lastMessageAt))
-        .limit(input.limit);
     }),
 });

@@ -67,6 +67,9 @@ export const interviewSessions = mysqlTable('interview_sessions', {
   difficulty: varchar('difficulty', { length: 50 }).notNull(),
   status: varchar('status', { length: 50 }).default('completed').notNull(),
   score: int('score'),
+  questionCount: int('question_count').notNull().default(3),
+  recruiterPersona: varchar('recruiter_persona', { length: 255 }),
+  selectedJobId: varchar('selected_job_id', { length: 36 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
 });
@@ -75,6 +78,7 @@ export const interviewAnswers = mysqlTable('interview_answers', {
   id: varchar('id', { length: 36 }).primaryKey(),
   sessionId: varchar('session_id', { length: 36 }).notNull(),
   questionId: varchar('question_id', { length: 255 }).notNull(),
+  questionText: text('question_text').notNull().default(''),
   transcript: text('transcript').notNull(),
   metrics: json('metrics').notNull(),
   feedback: json('feedback').notNull(),
@@ -84,8 +88,18 @@ export const interviewAnswers = mysqlTable('interview_answers', {
 export const assistantConversations = mysqlTable('assistant_conversations', {
   id: varchar('id', { length: 36 }).primaryKey(),
   userId: varchar('user_id', { length: 36 }).notNull(),
-  messageCount: int('message_count').default(0),
+  messageCount: int('message_count').default(0).notNull(),
   lastMessageAt: timestamp('last_message_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const assistantMessages = mysqlTable('assistant_messages', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  conversationId: varchar('conversation_id', { length: 36 }).notNull(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  role: varchar('role', { length: 20 }).notNull(),
+  text: text('text').notNull(),
+  sourceType: varchar('source_type', { length: 50 }).notNull().default('manual_user_input'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -129,6 +143,17 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   activeSessions: many(activeSessions),
   interviewSessions: many(interviewSessions),
   assistantConversations: many(assistantConversations),
+  assistantMessages: many(assistantMessages),
+}));
+
+export const assistantConversationsRelations = relations(assistantConversations, ({ one, many }) => ({
+  user: one(users, { fields: [assistantConversations.userId], references: [users.id] }),
+  messages: many(assistantMessages),
+}));
+
+export const assistantMessagesRelations = relations(assistantMessages, ({ one }) => ({
+  conversation: one(assistantConversations, { fields: [assistantMessages.conversationId], references: [assistantConversations.id] }),
+  user: one(users, { fields: [assistantMessages.userId], references: [users.id] }),
 }));
 
 export const profilesRelations = relations(profiles, ({ one, many }) => ({

@@ -1,19 +1,16 @@
+import { randomUUID } from 'crypto';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
-import { publicProcedure, router } from '../trpc.js';
+import { eq, desc, and } from 'drizzle-orm';
+import { TRPCError } from '@trpc/server';
+import { router, protectedProcedure, publicProcedure } from '../trpc.js';
 import { db } from '../../db/index.js';
-import { interviewSessions, interviewAnswers, users } from '../../db/schema.js';
-import OpenAI from 'openai';
-
-function getOpenAI(): OpenAI | null {
-  if (!process.env.OPENAI_API_KEY) return null;
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-}
-
-async function getLocalUserId(clerkId: string): Promise<string | null> {
-  const rows = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, clerkId)).limit(1);
-  return rows[0]?.id ?? null;
-}
+import { interviewSessions, interviewAnswers } from '../../db/schema.js';
+import {
+  buildInterviewQuestions,
+  scoreInterviewAnswer,
+  computeSessionScore,
+} from '../../services/interview.js';
+import { interviewModes, interviewDifficulties } from '../../../../shared/interview.js';
 
 const metricsSchema = z.object({
   answerDurationMs: z.number(),
@@ -26,114 +23,257 @@ const metricsSchema = z.object({
   gestureIntensityScore: z.number(),
 });
 
-const questionBank: Record<string, string[]> = {
-  behavioral: [
-    'Tell me about yourself and your recent experience.',
-    'Describe a challenging project you worked on.',
-    'Tell me about a time you handled conflicting priorities.',
-  ],
-  technical: [
-    'Walk me through a technical decision you made recently.',
-    'Describe a production issue you investigated and fixed.',
-    'How do you approach performance tuning in a frontend application?',
-  ],
-  general: [
-    'What are you looking for in your next role?',
-    'Why does this opportunity interest you?',
-    'What strengths would your teammates highlight?',
-  ],
-};
-
 export const interviewRouter = router({
-  startSession: publicProcedure
-    .input(z.object({
-      userId: z.string().min(1),
-      mode: z.string(),
-      difficulty: z.string(),
-      questionCount: z.number().int().min(1).max(10),
-      recruiterPersona: z.string().optional(),
-      selectedJobId: z.string().nullable().optional(),
-    }))
-    .mutation(async ({ input }) => {
-      const bank = questionBank[input.mode] ?? questionBank.behavioral;
-      const questions = Array.from({ length: input.questionCount }, (_, i) => ({
-        id: `q${i + 1}`,
-        text: bank[i % bank.length],
-      }));
+  // ── Start a new session ──────────────────────────────────────────────────────
+  startSession: protectedProcedure
+    .input(
+      z.object({
+        mode: z.enum(interviewModes),
+        difficulty: z.enum(interviewDifficulties),
+        questionCount: z.number().int().min(1).max(10).default(3),
+        recruiterPersona: z.string().nullable().optional(),
+        selectedJobId: z.string().nullable().optional(),
+        // publicProcedure fallback field — ignored when protectedProcedure resolves userId
+        userId: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const userId = ctx.user.id;
 
-      const sessionId = crypto.randomUUID();
+      const sessionId = randomUUID();
+      await db.insert(interviewSessions).values({
+        id: sessionId,
+        userId,
+        mode: input.mode,
+        difficulty: input.difficulty,
+        status: 'in_progress',
+        questionCount: input.questionCount,
+        recruiterPersona: input.recruiterPersona ?? null,
+        selectedJobId: input.selectedJobId ?? null,
+      });
 
-      const localUserId = await getLocalUserId(input.userId);
-      if (localUserId) {
-        await db.insert(interviewSessions).values({
-          id: sessionId,
-          userId: localUserId,
-          mode: input.mode,
-          difficulty: input.difficulty,
-          status: 'in_progress',
-        }).catch(() => { /* non-fatal */ });
-      }
-
+      const questions = buildInterviewQuestions(input.mode, input.questionCount);
       return { sessionId, questions };
     }),
 
-  finishAnswer: publicProcedure
-    .input(z.object({
-      userId: z.string().min(1),
-      sessionId: z.string().min(1),
-      questionId: z.string().min(1),
-      transcript: z.string(),
-      metrics: metricsSchema,
-      isLastQuestion: z.boolean().optional(),
-    }))
-    .mutation(async ({ input }) => {
-      const fillerPenalty = input.metrics.fillerWordCount * 2;
-      const paceBonus = (input.metrics.speakingPaceWpm >= 110 && input.metrics.speakingPaceWpm <= 160) ? 4 : 0;
-      const score = Math.max(0, Math.min(100, 75 + paceBonus + Math.round(input.metrics.eyeContactScore / 20) - fillerPenalty - input.metrics.pauseCount));
+  // ── Save one answer ──────────────────────────────────────────────────────────
+  saveAnswer: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.string().uuid(),
+        questionId: z.string(),
+        questionText: z.string(),
+        transcript: z.string(),
+        metrics: metricsSchema,
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const userId = ctx.user.id;
 
-      let comments: string;
-      if (input.transcript === 'No transcript available.') {
-        comments = 'Answer recorded but transcript was not captured.';
-      } else {
-        let feedbackComment = 'Good structure. Consider adding more specific examples with quantified outcomes.';
-        const openai = getOpenAI();
-        if (openai && input.transcript && input.transcript.trim().length > 20) {
-          try {
-            const resp = await openai.chat.completions.create({
-              model: 'gpt-4o-mini',
-              messages: [{
-                role: 'system',
-                content: 'You are an interview coach. Give concise (2 sentences max) actionable feedback on this interview answer. Be encouraging but specific.'
-              }, {
-                role: 'user',
-                content: `Question context: ${input.questionId}\nAnswer transcript: ${input.transcript.slice(0, 500)}`
-              }],
-              max_tokens: 100,
-            });
-            feedbackComment = resp.choices[0]?.message?.content ?? feedbackComment;
-          } catch { /* use default */ }
-        }
-        comments = feedbackComment;
+      const [session] = await db
+        .select({ userId: interviewSessions.userId })
+        .from(interviewSessions)
+        .where(eq(interviewSessions.id, input.sessionId))
+        .limit(1);
+
+      if (!session || session.userId !== userId) {
+        throw new TRPCError({ code: 'FORBIDDEN' });
       }
 
-      // Persist the answer — non-fatal
+      const feedback = scoreInterviewAnswer(input.metrics, input.transcript);
+      const answerId = randomUUID();
+
       await db.insert(interviewAnswers).values({
-        id: crypto.randomUUID(),
+        id: answerId,
         sessionId: input.sessionId,
         questionId: input.questionId,
-        transcript: input.transcript ?? '',
+        questionText: input.questionText,
+        transcript: input.transcript,
         metrics: input.metrics,
-        feedback: { score, comments },
-      }).catch(() => {});
+        feedback,
+      });
 
-      // If last question, mark session completed
+      const [answer] = await db
+        .select()
+        .from(interviewAnswers)
+        .where(eq(interviewAnswers.id, answerId))
+        .limit(1);
+
+      return {
+        answer: {
+          id: answer.id,
+          sessionId: answer.sessionId,
+          questionId: answer.questionId,
+          questionText: answer.questionText,
+          transcript: answer.transcript,
+          metrics: answer.metrics as typeof input.metrics,
+          feedback: answer.feedback as { score: number; comments: string },
+          createdAt: answer.createdAt.toISOString(),
+        },
+      };
+    }),
+
+  // ── Complete session — compute average score ─────────────────────────────────
+  completeSession: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const userId = ctx.user.id;
+
+      const [session] = await db
+        .select({ userId: interviewSessions.userId })
+        .from(interviewSessions)
+        .where(eq(interviewSessions.id, input.sessionId))
+        .limit(1);
+
+      if (!session || session.userId !== userId) {
+        throw new TRPCError({ code: 'FORBIDDEN' });
+      }
+
+      const answers = await db
+        .select({ feedback: interviewAnswers.feedback })
+        .from(interviewAnswers)
+        .where(eq(interviewAnswers.sessionId, input.sessionId));
+
+      const scores = answers.map((a) => (a.feedback as { score: number }).score);
+      const score = computeSessionScore(scores);
+
+      await db
+        .update(interviewSessions)
+        .set({ status: 'completed', score, updatedAt: new Date() })
+        .where(eq(interviewSessions.id, input.sessionId));
+
+      return { sessionId: input.sessionId, status: 'completed' as const, score };
+    }),
+
+  // ── Session history for current user ────────────────────────────────────────
+  getHistory: protectedProcedure
+    .input(z.object({}).optional())
+    .query(async ({ ctx }) => {
+      const userId = ctx.user.id;
+
+      const sessions = await db
+        .select()
+        .from(interviewSessions)
+        .where(eq(interviewSessions.userId, userId))
+        .orderBy(desc(interviewSessions.createdAt))
+        .limit(20);
+
+      const result = await Promise.all(
+        sessions.map(async (session) => {
+          const answers = await db
+            .select()
+            .from(interviewAnswers)
+            .where(eq(interviewAnswers.sessionId, session.id))
+            .orderBy(interviewAnswers.createdAt);
+
+          return {
+            ...session,
+            questionCount: session.questionCount ?? 3,
+            recruiterPersona: session.recruiterPersona ?? null,
+            selectedJobId: session.selectedJobId ?? null,
+            createdAt: session.createdAt.toISOString(),
+            updatedAt: session.updatedAt.toISOString(),
+            answers: answers.map((a) => ({
+              id: a.id,
+              sessionId: a.sessionId,
+              questionId: a.questionId,
+              questionText: a.questionText ?? '',
+              transcript: a.transcript,
+              metrics: a.metrics as Record<string, number>,
+              feedback: a.feedback as { score: number; comments: string },
+              createdAt: a.createdAt.toISOString(),
+            })),
+          };
+        }),
+      );
+
+      return result;
+    }),
+
+  // ── Single session with answers ──────────────────────────────────────────────
+  getSession: protectedProcedure
+    .input(z.object({ sessionId: z.string().uuid() }))
+    .query(async ({ input, ctx }) => {
+      const userId = ctx.user.id;
+
+      const [session] = await db
+        .select()
+        .from(interviewSessions)
+        .where(
+          and(
+            eq(interviewSessions.id, input.sessionId),
+            eq(interviewSessions.userId, userId),
+          ),
+        )
+        .limit(1);
+
+      if (!session) return null;
+
+      const answers = await db
+        .select()
+        .from(interviewAnswers)
+        .where(eq(interviewAnswers.sessionId, session.id));
+
+      return {
+        ...session,
+        questionCount: session.questionCount ?? 3,
+        recruiterPersona: session.recruiterPersona ?? null,
+        selectedJobId: session.selectedJobId ?? null,
+        createdAt: session.createdAt.toISOString(),
+        updatedAt: session.updatedAt.toISOString(),
+        answers: answers.map((a) => ({
+          id: a.id,
+          sessionId: a.sessionId,
+          questionId: a.questionId,
+          questionText: a.questionText ?? '',
+          transcript: a.transcript,
+          metrics: a.metrics as Record<string, number>,
+          feedback: a.feedback as { score: number; comments: string },
+          createdAt: a.createdAt.toISOString(),
+        })),
+      };
+    }),
+
+  // ── Legacy endpoint kept for interviewReadyStore backward compat ─────────────
+  finishAnswer: publicProcedure
+    .input(
+      z.object({
+        userId: z.string().min(1),
+        sessionId: z.string().min(1),
+        questionId: z.string().min(1),
+        transcript: z.string(),
+        metrics: metricsSchema,
+        isLastQuestion: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const feedback = scoreInterviewAnswer(input.metrics, input.transcript);
+
+      await db
+        .insert(interviewAnswers)
+        .values({
+          id: randomUUID(),
+          sessionId: input.sessionId,
+          questionId: input.questionId,
+          questionText: '',
+          transcript: input.transcript ?? '',
+          metrics: input.metrics,
+          feedback,
+        })
+        .catch(() => {});
+
       if (input.isLastQuestion) {
-        await db.update(interviewSessions)
-          .set({ status: 'completed', score })
+        await db
+          .update(interviewSessions)
+          .set({ status: 'completed', score: feedback.score })
           .where(eq(interviewSessions.id, input.sessionId))
           .catch(() => {});
       }
 
-      return { metrics: input.metrics, feedback: { score, comments } };
+      return { metrics: input.metrics, feedback };
     }),
 });

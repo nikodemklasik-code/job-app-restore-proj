@@ -2,7 +2,10 @@
   "name": "multivohub-jobapp",
   "private": true,
   "version": "1.0.0",
-  "workspaces": ["frontend", "backend"],
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
   "scripts": {
     "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:frontend": "cd frontend && npm run dev",
@@ -31,5 +34,6 @@
     "@capacitor/splash-screen": "^6.0.0",
     "@capacitor/status-bar": "^6.0.0",
     "@capacitor/keyboard": "^6.0.0"
-  }
+  },
+  "type": "module"
 }

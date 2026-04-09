@@ -18,9 +18,9 @@ interface ProfileStore {
   isLoadingProfile: boolean;
   isSaving: boolean;
   error: string | null;
-  loadProfile: (userId: string) => Promise<void>;
-  savePersonalInfo: (userId: string, data: PersonalInfo) => Promise<void>;
-  saveSkills: (userId: string, skills: string[]) => Promise<void>;
+  loadProfile: () => Promise<void>;
+  savePersonalInfo: (data: PersonalInfo) => Promise<void>;
+  saveSkills: (skills: string[]) => Promise<void>;
 }
 
 export const useProfileStore = create<ProfileStore>((set) => ({
@@ -29,10 +29,10 @@ export const useProfileStore = create<ProfileStore>((set) => ({
   isSaving: false,
   error: null,
 
-  async loadProfile(userId) {
+  async loadProfile() {
     set({ isLoadingProfile: true, error: null });
     try {
-      const data = await trpcClient.profile.getProfile.query({ userId });
+      const data = await trpcClient.profile.getProfile.query();
       if (data) set({ profile: data });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to load profile' });
@@ -41,10 +41,10 @@ export const useProfileStore = create<ProfileStore>((set) => ({
     }
   },
 
-  async savePersonalInfo(userId, data) {
+  async savePersonalInfo(data) {
     set({ isSaving: true, error: null });
     try {
-      await trpcClient.profile.savePersonalInfo.mutate({ userId, ...data });
+      await trpcClient.profile.savePersonalInfo.mutate({ ...data });
       set((state) => ({
         profile: state.profile ? { ...state.profile, personalInfo: data } : null,
       }));
@@ -55,10 +55,10 @@ export const useProfileStore = create<ProfileStore>((set) => ({
     }
   },
 
-  async saveSkills(userId, skills) {
+  async saveSkills(skills) {
     set({ isSaving: true, error: null });
     try {
-      await trpcClient.profile.saveSkills.mutate({ userId, skills });
+      await trpcClient.profile.saveSkills.mutate({ skills });
       set((state) => ({
         profile: state.profile ? { ...state.profile, skills } : null,
       }));

@@ -199,7 +199,7 @@ export default function StyleStudio() {
 
   // tRPC
   const profileQuery = api.profile.getProfile.useQuery(
-    { userId: userId ?? '' },
+    undefined,
     { enabled: Boolean(userId) },
   );
 

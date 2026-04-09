@@ -79,7 +79,7 @@ export default function ProfilePage() {
 
   const importToProfileMutation = api.cv.importToProfile.useMutation({
     onSuccess: () => {
-      if (userId) void loadProfile(userId);
+      void loadProfile();
       setUploadedCvId(null);
       setParsedCv(null);
     },
@@ -101,7 +101,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!isLoaded || !userId) return;
-    void loadProfile(userId);
+    void loadProfile();
   }, [isLoaded, userId, loadProfile]);
 
   useEffect(() => {
@@ -116,21 +116,19 @@ export default function ProfilePage() {
   }, [profile]);
 
   const handleSaveInfo = async () => {
-    if (!userId) return;
-    await savePersonalInfo(userId, form);
+    await savePersonalInfo(form);
   };
 
   const handleAddSkill = async () => {
-    if (!userId || !newSkill.trim()) return;
+    if (!newSkill.trim()) return;
     const skills = [...(profile?.skills ?? []), newSkill.trim()];
-    await saveSkills(userId, skills);
+    await saveSkills(skills);
     setNewSkill('');
   };
 
   const handleRemoveSkill = async (skill: string) => {
-    if (!userId) return;
     const skills = (profile?.skills ?? []).filter((s) => s !== skill);
-    await saveSkills(userId, skills);
+    await saveSkills(skills);
   };
 
   // ── Experience handlers ───────────────────────────────────────────────────

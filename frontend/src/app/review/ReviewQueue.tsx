@@ -70,7 +70,7 @@ export default function SkillsLab() {
 
   // tRPC
   const profileQuery = api.profile.getProfile.useQuery(
-    { userId: userId ?? '' },
+    undefined,
     { enabled: Boolean(userId) },
   );
 
@@ -132,13 +132,13 @@ export default function SkillsLab() {
   function handleAddAllMissing() {
     if (!userId) return;
     const merged = Array.from(new Set([...profileSkills, ...gapSkills]));
-    saveSkillsMutation.mutate({ userId, skills: merged });
+    saveSkillsMutation.mutate({ skills: merged });
   }
 
   function handleAddSingle(skill: string) {
     if (!userId) return;
     const merged = Array.from(new Set([...profileSkills, skill]));
-    saveSkillsMutation.mutate({ userId, skills: merged });
+    saveSkillsMutation.mutate({ skills: merged });
   }
 
   // ── render ─────────────────────────────────────────────────────────────────

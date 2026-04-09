@@ -587,7 +587,7 @@ function TelegramSettingsTab({ userId }: { userId: string }) {
 
 function SystemReadinessTab({ userId }: { userId: string }) {
   const { data: profile } = api.profile.getProfile.useQuery(
-    { userId },
+    undefined,
     { enabled: !!userId },
   );
   const { data: emailSettings } = api.emailSettings.getSettings.useQuery(
