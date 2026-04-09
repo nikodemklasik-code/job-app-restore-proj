@@ -21,6 +21,7 @@ const TermsPage = lazy(() => import('./app/legal/TermsPage'));
 const PrivacyPage = lazy(() => import('./app/legal/PrivacyPage'));
 const ReportsHub = lazy(() => import('./app/reports/ReportsHub'));
 const AutoApplyPage = lazy(() => import('./app/autopilot/AutoApplyPage'));
+const SkillsLab = lazy(() => import('./app/skills/SkillsLab'));
 
 const PageLoader = () => (
   <div className="flex h-full items-center justify-center py-24">
@@ -83,6 +84,7 @@ export const router = createBrowserRouter([
       { path: 'legal', element: withSuspense(LegalHub) },
       { path: 'reports', element: withSuspense(ReportsHub) },
       { path: 'auto-apply', element: withSuspense(AutoApplyPage) },
+      { path: 'skills', element: withSuspense(SkillsLab) },
     ],
   },
 ]);

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useSearchParams } from 'react-router-dom';
-import { Check, Zap, ExternalLink, Loader2, CreditCard } from 'lucide-react';
+import { Check, Zap, ExternalLink, Loader2, CreditCard, Heart } from 'lucide-react';
 import { useBillingStore } from '@/stores/billingStore';
 import { trpcClient } from '@/lib/api';
 
@@ -307,6 +307,107 @@ export default function BillingPage() {
           </div>
         </div>
       )}
+
+      {/* Patronage section - 3 tiers, 3 payment methods */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="inline-flex rounded-xl bg-rose-500/10 p-2.5">
+            <Heart className="h-5 w-5 text-rose-400" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-white">☕ Support MultivoHub</h2>
+            <p className="text-sm text-slate-400">Help keep this platform free for job seekers in difficult situations</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {(
+            [
+              {
+                id: 'supporter',
+                name: 'Supporter',
+                price: '£3',
+                cta: 'Buy us a coffee',
+                description: 'Helps cover API costs',
+              },
+              {
+                id: 'patron',
+                name: 'Patron',
+                price: '£7',
+                cta: 'Become a Patron',
+                description: 'Keeps 5 free users running',
+              },
+              {
+                id: 'champion',
+                name: 'Champion',
+                price: '£15',
+                cta: 'Champion the Cause',
+                description: 'Sponsors a job seeker in difficulty',
+              },
+            ] as const
+          ).map((tier) => (
+            <div
+              key={tier.id}
+              className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5"
+            >
+              <div>
+                <p className="font-semibold text-white">{tier.name}</p>
+                <div className="mt-1 flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-white">{tier.price}</span>
+                  <span className="text-xs text-slate-400">/month or one-time</span>
+                </div>
+                <p className="mt-1 text-xs text-slate-400">{tier.description}</p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {/* Card / Stripe */}
+                <a
+                  href={`https://buy.stripe.com/multivohub-${tier.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2 text-xs font-medium text-white transition hover:bg-indigo-700"
+                >
+                  <CreditCard className="h-3.5 w-3.5" />
+                  Card (Stripe)
+                </a>
+
+                {/* PayPal */}
+                <a
+                  href={`https://www.paypal.com/donate?hosted_button_id=multivohub_${tier.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-2 text-xs font-medium text-white transition hover:bg-white/10"
+                >
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.041.254-.93 4.778-4.005 7.201-9.138 7.201h-2.19a.563.563 0 0 0-.556.479l-1.187 7.527h-.506l-.24 1.516a.56.56 0 0 0 .554.647h3.882c.46 0 .85-.334.922-.788.06-.26.76-4.852.816-5.09a.932.932 0 0 1 .923-.788h.58c3.76 0 6.705-1.528 7.565-5.946.36-1.847.174-3.388-.777-4.471z" />
+                  </svg>
+                  PayPal
+                </a>
+
+                {/* Ko-fi */}
+                <a
+                  href="https://ko-fi.com/multivohub"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-xl py-2 text-xs font-medium text-white transition"
+                  style={{ backgroundColor: '#F06622' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = '0.88'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.opacity = '1'; }}
+                >
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.025 1.476 2.896 2.464 2.884.95-.01 3.396 0 3.396 0s-.016.025-.02.031c-.658 1.049-1.327 2.007-2.116 2.803-.461.461 0 .736.463.736h.003c1.278 0 2.497-.913 2.978-1.352.624-.573 1.182-1.282 1.65-1.906.469.626 1.027 1.334 1.65 1.906.481.44 1.7 1.352 2.978 1.352h.003c.463 0 .924-.275.463-.736-.789-.796-1.458-1.754-2.116-2.803-.004-.006-.02-.031-.02-.031s2.446-.01 3.396 0c.988.012 2.3-.859 2.464-2.884.06-4.498-.022-11.822-.022-11.822zM16.1 13.645c0 .607-.501 1.1-1.117 1.1H8.017c-.616 0-1.117-.493-1.117-1.1V9.744c0-.607.501-1.1 1.117-1.1h6.966c.616 0 1.117.493 1.117 1.1v3.901zm5.13-.786c-.42.596-1.009.882-1.748.85l-.003-.001V9.59c.739-.032 1.328.254 1.748.85.643.912.643 2.527 0 3.42z" />
+                  </svg>
+                  Ko-fi
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-center text-xs text-slate-500">
+          100% of patronage goes to platform costs and supporting users who cannot afford Pro
+        </p>
+      </div>
 
       {isLoading && (
         <div className="flex h-16 items-center justify-center">

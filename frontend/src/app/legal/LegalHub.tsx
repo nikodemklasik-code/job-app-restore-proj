@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Scale, ChevronDown, Shield, Briefcase, Users, ClipboardCheck, ExternalLink } from 'lucide-react';
+import { Scale, ChevronDown, Shield, Briefcase, Users, ClipboardCheck, ExternalLink, Building2, AlertTriangle } from 'lucide-react';
 
 interface AccordionItem {
   question: string;
@@ -233,6 +233,112 @@ Complain about an employment agency: GOV.UK > Complain about a recruitment agenc
 Check the DBS update service: GOV.UK > DBS Update Service
 Rehabilitation of Offenders Act 1974 (spent convictions): legislation.gov.uk
 Right to work check guidance for employers: GOV.UK > Employers' guide to right to work checks`,
+      },
+    ],
+  },
+  {
+    id: 'jobcentre',
+    title: 'Job Centre & Benefits Support',
+    icon: Building2,
+    color: 'text-orange-400',
+    bg: 'bg-orange-500/10',
+    summary: 'How to register at the Job Centre, claim Universal Credit, and access emergency support.',
+    items: [
+      {
+        question: 'How to Register at the Job Centre Plus',
+        answer: `Visit gov.uk/jobseekers-allowance or go in person to your nearest Job Centre Plus to register. You will need to bring: your National Insurance (NI) number, valid photo ID (passport or driving licence), bank details, and proof of address (utility bill or bank statement within 3 months).
+
+Depending on your NI contribution record, you may be eligible for New Style JSA (contribution-based, paid for up to 6 months) or Universal Credit (means-tested). An appointment is usually arranged within 2 weeks of registration. At your first appointment you will sign a Claimant Commitment — an agreed plan of what you will do to find work.
+
+Contact and find your local Job Centre: gov.uk/contact-jobcentre-plus`,
+      },
+      {
+        question: 'Universal Credit — What It Covers',
+        answer: `Universal Credit (UC) is a monthly payment that can help with living costs, and may include amounts for: housing costs (rent), children and childcare costs, disabilities or health conditions, and caring responsibilities.
+
+There is a 5-week wait for your first payment from the date of your claim. If you need money urgently, you can apply for an Advance Payment immediately — this is repayable from future UC payments, usually over 24 months. UC is managed online through your journal at gov.uk/universal-credit where you report changes and communicate with your work coach.`,
+      },
+      {
+        question: 'Emergency Support While Waiting',
+        answer: `If you are in financial hardship while waiting for benefits, several options are available:
+
+Budgeting Advance: A loan from UC for emergency household costs (e.g., replacing a broken appliance). Repayable from future UC payments.
+
+Food banks: The Trussell Trust operates a nationwide network of food banks — find your nearest at trusselltrust.org. A referral is usually required from a professional (GP, social worker, Job Centre).
+
+Local Welfare Assistance: Most councils operate a Local Welfare Assistance or Local Crisis Support scheme for residents in emergency need. Contact your council directly.
+
+Citizens Advice: Free, confidential advice on benefits, debt, and housing — 0800 144 8848 (Freephone) or citizensadvice.org.uk.
+
+Shelter helpline: Emergency housing advice — 0808 800 4444 (Freephone).`,
+      },
+      {
+        question: 'New Enterprise Allowance',
+        answer: `If you are receiving Universal Credit and want to start your own business, the New Enterprise Allowance (NEA) can provide financial support and mentoring.
+
+The NEA provides: a weekly allowance while you develop your business plan (£1,274 over 26 weeks), and access to a business loan of up to £2,500 if your plan is approved. You apply through your work coach at the Job Centre — they refer you to a local business mentor who helps you develop a business plan. The allowance starts once your business plan is agreed.`,
+      },
+    ],
+  },
+  {
+    id: 'emergency_leaving',
+    title: 'Emergency Leaving & Constructive Dismissal',
+    icon: AlertTriangle,
+    color: 'text-red-400',
+    bg: 'bg-red-500/10',
+    summary: 'What to do if you must leave a job urgently — your rights, protections, and legal remedies.',
+    items: [
+      {
+        question: 'What Is Constructive Dismissal?',
+        answer: `Constructive dismissal occurs when your employer's conduct is so unreasonable — such as being unsafe, abusive, illegal, or constituting a fundamental breach of your employment contract — that you have no reasonable choice but to resign. Despite resigning, the law treats this as if you were dismissed, giving you the right to bring an Employment Tribunal (ET) claim.
+
+Key requirements: You must resign promptly after the breach (delay can be treated as acceptance of the new terms). You should exhaust internal grievance procedures first where possible. Claims must be brought to the Employment Tribunal within 3 months less one day of the last act complained of. Early conciliation via ACAS is a mandatory first step before an ET claim.`,
+      },
+      {
+        question: 'Emergency Situations: When You Can Leave Immediately',
+        answer: `Certain circumstances justify immediate departure without following normal notice or grievance procedures:
+
+Threat to health and safety (Section 44, Employment Rights Act 1996): Employees have the right to leave or refuse to return to a workplace they reasonably believe poses a serious and imminent risk to their health or safety, without suffering detriment.
+
+Whistleblowing retaliation: If you face detriment for making a protected disclosure, you may leave and claim both unfair dismissal and whistleblower detriment.
+
+Sexual harassment or assault: Immediate departure is justified. Report to police if a criminal offence has occurred. Contact your employer's HR in writing. The Worker Protection (Amendment of Equality Act 2010) Act 2023 places a positive duty on employers to prevent sexual harassment.
+
+Bullying or unlawful discrimination: Document all incidents carefully (dates, witnesses, any written evidence). Raise a formal grievance in writing before leaving if at all possible. Contact ACAS: 0300 123 1100.`,
+      },
+      {
+        question: 'Who It Applies To',
+        answer: `Constructive dismissal claims via the Employment Tribunal require 2 or more years of continuous employment with the same employer. Workers and contractors have different protections and generally cannot bring unfair dismissal claims.
+
+Day one rights (no qualifying period required): Protection from unlawful discrimination under the Equality Act 2010; whistleblowing protection (protected disclosures); health and safety protections under Section 44 ERA 1996; protection from being subjected to detriment for asserting a statutory right.
+
+If you have under 2 years' service, you may still have claims for discrimination, whistleblowing, or automatic unfair dismissal (where no qualifying period applies) — take advice from ACAS or an employment solicitor.`,
+      },
+      {
+        question: 'Steps to Take Before Leaving',
+        answer: `If at all possible, take the following steps before resigning:
+
+1. Document all incidents with dates, times, names of witnesses, and copies of any written communications (emails, messages). Keep copies in a personal location outside work systems.
+
+2. Raise a formal grievance in writing to your employer, citing specific incidents and the contractual or legal rights you believe have been breached. Keep a copy of everything submitted and all responses.
+
+3. Contact ACAS (0300 123 1100) for free, impartial advice. Before making an Employment Tribunal claim, you must notify ACAS for Early Conciliation — ACAS will attempt to facilitate a settlement before the formal tribunal process.
+
+4. Seek legal advice. Many employment solicitors offer a free initial consultation. Law centres and Citizens Advice can also help.
+
+5. If you decide to leave, send your resignation letter in writing, explicitly stating that you are resigning due to your employer's conduct which amounts to constructive dismissal. Cite specific breaches. Keep a copy.`,
+      },
+      {
+        question: 'Financial Support After Emergency Leaving',
+        answer: `Leaving a job in an emergency can create immediate financial hardship. The following support may be available:
+
+Universal Credit: When completing your Claimant Commitment, explain the circumstances — your work coach has discretion to take emergency situations into account. Advance Payments are available from day one.
+
+Rapid Reclaim: If you have claimed UC or JSA within the last 12 months, a faster reclaim process (Rapid Reclaim) may be available — your previous details are pre-filled, reducing processing time.
+
+Local welfare emergency fund: Contact your local council for emergency assistance with food, fuel, and essential household items.
+
+Mortgage or rent payment deferral: Contact your lender or landlord as soon as possible. Mortgage lenders are required by FCA rules to consider requests for payment deferrals sympathetically. Many housing associations have hardship funds.`,
       },
     ],
   },

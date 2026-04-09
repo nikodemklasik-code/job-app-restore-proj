@@ -160,11 +160,16 @@ export const applicationsRouter = router({
 
       const subject = input.subject ?? `Application for ${appRow[0].jobTitle} at ${appRow[0].company}`;
 
+      // BCC the sender so they have a copy in their own inbox
+      const bccAddress = userRecord[0].email ?? undefined;
+
       await getResend().emails.send({
-        from: 'applications@multivohub.com',
+        from: `${profile?.fullName ?? 'Candidate'} via MultivoHub <applications@multivohub.com>`,
         to: input.recipientEmail,
+        bcc: bccAddress,
+        replyTo: userRecord[0].email ?? undefined,
         subject,
-        html: `<p>Dear Hiring Manager,</p><p>Please find attached my CV and cover letter for the ${appRow[0].jobTitle} role.</p><p>Best regards,<br/>${profile?.fullName ?? 'Candidate'}</p>`,
+        html: `<p>Dear Hiring Manager,</p><p>Please find attached my CV and cover letter for the ${appRow[0].jobTitle} role at ${appRow[0].company}.</p><p>I look forward to hearing from you.</p><p>Best regards,<br/>${profile?.fullName ?? 'Candidate'}${userRecord[0].email ? `<br/><a href="mailto:${userRecord[0].email}">${userRecord[0].email}</a>` : ''}</p>`,
         attachments: [
           { filename: 'CV.pdf', content: cvPdf.toString('base64') },
           { filename: 'Cover_Letter.pdf', content: clPdf.toString('base64') },

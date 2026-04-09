@@ -120,9 +120,10 @@ app.get('/health', (_req, res) => {
 
 // Interview conversation SSE stream
 app.post('/api/interview/stream', async (req, res) => {
-  const { messages, job } = req.body as {
+  const { messages, job, userId } = req.body as {
     messages: Array<{ role: string; content: string }>;
     job: { title: string; company: string; description?: string; requirements?: string[] };
+    userId?: string;
   };
 
   if (!messages || !job?.title || !job?.company) {
@@ -141,9 +142,34 @@ app.post('/api/interview/stream', async (req, res) => {
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 
-    for await (const chunk of streamInterviewResponse(validMessages, job)) {
-      res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+    if (userId) {
+      // Build adaptive prompt based on candidate history
+      const { buildCandidateInsights } = await import('./services/adaptiveInterviewer.js');
+      const { buildAdaptiveInterviewerSystemPrompt } = await import('./services/interviewConversation.js');
+      const insights = await buildCandidateInsights(userId);
+      const systemPrompt = buildAdaptiveInterviewerSystemPrompt(job, insights);
+
+      // Send insights metadata as first SSE event
+      res.write(`data: ${JSON.stringify({ type: 'insights', ...insights })}\n\n`);
+
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const stream = await openai.chat.completions.create({
+        model: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
+        messages: [{ role: 'system', content: systemPrompt }, ...validMessages],
+        stream: true,
+        temperature: 0.7,
+        max_tokens: 200,
+      });
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content) res.write(`data: ${JSON.stringify({ chunk: content })}\n\n`);
+      }
+    } else {
+      for await (const chunk of streamInterviewResponse(validMessages, job)) {
+        res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+      }
     }
+
     res.write('data: [DONE]\n\n');
   } catch (err) {
     console.error('[Interview Stream]', err);

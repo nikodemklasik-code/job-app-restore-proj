@@ -3,6 +3,72 @@ import { Briefcase, TrendingUp, MessageSquare, Award, ChevronRight, Loader2 } fr
 import { api } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 
+// ── Live Ticker ─────────────────────────────────────────────────────────────
+
+const tickerKeyframes = `
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+`;
+
+function fitColor(score: number): string {
+  if (score >= 80) return 'text-emerald-400';
+  if (score >= 60) return 'text-amber-400';
+  return 'text-slate-400';
+}
+
+function LiveTicker() {
+  const feedQuery = api.jobs.getFeed.useQuery({ limit: 20 });
+  const jobs = feedQuery.data ?? [];
+
+  if (feedQuery.isLoading || jobs.length === 0) return null;
+
+  // Duplicate items so the seamless infinite scroll works (we translate -50%)
+  const items = [...jobs, ...jobs];
+
+  return (
+    <>
+      <style>{tickerKeyframes}</style>
+      <div className="flex items-center gap-0 overflow-hidden rounded-xl border border-white/10 bg-white/5 h-9">
+        {/* Fixed label */}
+        <div className="flex shrink-0 items-center gap-1.5 border-r border-white/10 bg-white/5 px-3 h-full">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
+          <span className="text-[11px] font-bold tracking-widest text-red-400 uppercase">Live</span>
+        </div>
+
+        {/* Scrolling track */}
+        <div className="relative flex-1 overflow-hidden">
+          <div
+            className="flex whitespace-nowrap"
+            style={{
+              animation: `ticker-scroll ${jobs.length * 3}s linear infinite`,
+              willChange: 'transform',
+            }}
+          >
+            {items.map((job, idx) => {
+              const score = job.fitScore ?? 60;
+              const color = fitColor(score);
+              return (
+                <span key={`${job.id}-${idx}`} className="inline-flex items-center">
+                  <span className="mx-3 text-[12px] font-medium tracking-wide text-slate-200 uppercase">
+                    {job.company}
+                  </span>
+                  <span className="text-slate-600">·</span>
+                  <span className="mx-3 text-[12px] text-slate-300">{job.title}</span>
+                  <span className="text-slate-600">·</span>
+                  <span className={`mx-3 text-[12px] font-semibold ${color}`}>{score}% fit</span>
+                  <span className="mx-1 text-slate-700 select-none">|</span>
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 const PIPELINE_STATUSES = [
   { key: 'draft', label: 'Draft', color: 'bg-slate-500' },
   { key: 'prepared', label: 'Prepared', color: 'bg-indigo-500' },
@@ -106,6 +172,9 @@ export default function DashboardPage() {
           ))}
         </div>
       )}
+
+      {/* Live Job Ticker */}
+      <LiveTicker />
 
       {/* Pipeline Mini-Chart */}
       {analytics && total > 0 && (

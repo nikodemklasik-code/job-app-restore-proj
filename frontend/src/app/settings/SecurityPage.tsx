@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { KeyRound, Monitor, Smartphone, Laptop } from 'lucide-react';
+import { KeyRound, Monitor, Smartphone, Laptop, Clock, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -119,6 +119,46 @@ export default function SecurityPage() {
             </div>
             <Button variant="outline" disabled>Enable 2FA</Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Account Retention Status */}
+      <Card className="border-slate-100 dark:border-slate-800">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-indigo-500" />
+            Account Retention
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-start gap-3 rounded-xl bg-emerald-50 p-4 dark:bg-emerald-950/30">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+            <div>
+              <p className="text-sm font-medium text-slate-900 dark:text-white">Account is active</p>
+              <p className="mt-0.5 text-xs text-slate-500">Last login detected. Your data is safe.</p>
+            </div>
+          </div>
+          <div className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2 dark:border-slate-800">
+              <span className="flex items-center gap-2"><ShieldAlert className="h-3.5 w-3.5 text-amber-500" /> Warning email 1</span>
+              <span className="text-xs text-slate-400">After 20 days of inactivity</span>
+            </div>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2 dark:border-slate-800">
+              <span className="flex items-center gap-2"><ShieldAlert className="h-3.5 w-3.5 text-orange-500" /> Warning email 2</span>
+              <span className="text-xs text-slate-400">After 40 days of inactivity</span>
+            </div>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2 dark:border-slate-800">
+              <span className="flex items-center gap-2"><ShieldAlert className="h-3.5 w-3.5 text-red-500" /> Account deactivated</span>
+              <span className="text-xs text-slate-400">After 45 days of inactivity</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2"><ShieldAlert className="h-3.5 w-3.5 text-red-700" /> Data permanently deleted</span>
+              <span className="text-xs text-slate-400">After 60 days of inactivity</span>
+            </div>
+          </div>
+          <p className="text-xs text-slate-400">
+            Logging in at any time resets the inactivity counter. Active paid subscribers are never automatically deleted.
+          </p>
         </CardContent>
       </Card>
     </div>

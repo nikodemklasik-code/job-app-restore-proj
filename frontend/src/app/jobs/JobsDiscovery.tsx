@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
-import { Search, MapPin, Building2, DollarSign, Plus, ExternalLink, Loader2, Cookie, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { Search, MapPin, Building2, DollarSign, Plus, ExternalLink, Loader2, Cookie, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Sparkles, Wifi } from 'lucide-react';
 
 type JobResult = {
   id: string;
@@ -10,6 +10,7 @@ type JobResult = {
   location: string;
   salaryMin: number | null;
   salaryMax: number | null;
+  workMode: string | null;
   source: string;
   applyUrl: string;
   fitScore: number;
@@ -604,6 +605,12 @@ export default function JobsDiscovery() {
                     <span className="flex items-center gap-1">
                       <DollarSign className="h-3 w-3" />
                       {salary}
+                    </span>
+                  )}
+                  {job.workMode && (
+                    <span className="flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-medium capitalize text-slate-400">
+                      <Wifi className="h-3 w-3" />
+                      {job.workMode}
                     </span>
                   )}
                   <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium ${srcMeta?.color ?? 'bg-white/10 text-slate-400'}`}>

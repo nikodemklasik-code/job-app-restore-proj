@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
+import { useThemeStore } from '@/stores/themeStore';
 import {
   Plus,
   Loader2,
@@ -8,11 +9,13 @@ import {
   Mail,
   CheckCircle,
   XCircle,
+  ChevronDown,
   ChevronRight,
   Briefcase,
   TrendingUp,
   MessageSquare,
   Award,
+  Palette,
 } from 'lucide-react';
 
 type AppStatus = 'draft' | 'prepared' | 'sent' | 'interview' | 'accepted' | 'rejected';
@@ -27,16 +30,90 @@ type Application = {
   notes: string | null;
 };
 
-const COLUMNS: { key: AppStatus; label: string }[] = [
-  { key: 'draft', label: 'Draft' },
-  { key: 'prepared', label: 'Prepared' },
-  { key: 'sent', label: 'Sent' },
-  { key: 'interview', label: 'Interview' },
-  { key: 'accepted', label: 'Offer' },
-  { key: 'rejected', label: 'Rejected' },
+// ── Stage config ────────────────────────────────────────────────────────────
+
+type StageConfig = {
+  key: AppStatus;
+  label: string;
+  ringColor: string;
+  countColor: string;
+  borderColor: string;
+  bgColor: string;
+  badgeColor: string;
+  activeBorder: string;
+  glowColor: string;
+};
+
+const STAGES: StageConfig[] = [
+  {
+    key: 'draft',
+    label: 'Draft',
+    ringColor: '#94a3b8',
+    countColor: 'text-slate-300',
+    borderColor: 'border-slate-500/30',
+    bgColor: 'bg-slate-500/10',
+    badgeColor: 'text-slate-400 bg-white/10',
+    activeBorder: 'border-slate-400',
+    glowColor: 'shadow-slate-500/20',
+  },
+  {
+    key: 'prepared',
+    label: 'Ready',
+    ringColor: '#818cf8',
+    countColor: 'text-indigo-300',
+    borderColor: 'border-indigo-500/30',
+    bgColor: 'bg-indigo-500/10',
+    badgeColor: 'text-indigo-400 bg-indigo-500/20',
+    activeBorder: 'border-indigo-400',
+    glowColor: 'shadow-indigo-500/20',
+  },
+  {
+    key: 'sent',
+    label: 'Submitted',
+    ringColor: '#38bdf8',
+    countColor: 'text-sky-300',
+    borderColor: 'border-sky-500/30',
+    bgColor: 'bg-sky-500/10',
+    badgeColor: 'text-sky-400 bg-sky-500/20',
+    activeBorder: 'border-sky-400',
+    glowColor: 'shadow-sky-500/20',
+  },
+  {
+    key: 'interview',
+    label: 'Interview',
+    ringColor: '#fbbf24',
+    countColor: 'text-amber-300',
+    borderColor: 'border-amber-500/30',
+    bgColor: 'bg-amber-500/10',
+    badgeColor: 'text-amber-400 bg-amber-500/20',
+    activeBorder: 'border-amber-400',
+    glowColor: 'shadow-amber-500/20',
+  },
+  {
+    key: 'accepted',
+    label: 'Offer',
+    ringColor: '#34d399',
+    countColor: 'text-emerald-300',
+    borderColor: 'border-emerald-500/30',
+    bgColor: 'bg-emerald-500/10',
+    badgeColor: 'text-emerald-400 bg-emerald-500/20',
+    activeBorder: 'border-emerald-400',
+    glowColor: 'shadow-emerald-500/20',
+  },
+  {
+    key: 'rejected',
+    label: 'Rejected',
+    ringColor: '#f87171',
+    countColor: 'text-red-300',
+    borderColor: 'border-red-500/30',
+    bgColor: 'bg-red-500/10',
+    badgeColor: 'text-red-400 bg-red-500/20',
+    activeBorder: 'border-red-400',
+    glowColor: 'shadow-red-500/20',
+  },
 ];
 
-const statusColor: Record<AppStatus, string> = {
+const statusBadgeColor: Record<AppStatus, string> = {
   draft: 'text-slate-400 bg-white/10',
   prepared: 'text-indigo-400 bg-indigo-500/20',
   sent: 'text-sky-400 bg-sky-500/20',
@@ -45,22 +122,72 @@ const statusColor: Record<AppStatus, string> = {
   rejected: 'text-red-400 bg-red-500/20',
 };
 
-const columnHeaderColor: Record<AppStatus, string> = {
-  draft: 'text-slate-400',
-  prepared: 'text-indigo-400',
-  sent: 'text-sky-400',
-  interview: 'text-amber-400',
-  accepted: 'text-emerald-400',
-  rejected: 'text-red-400',
+const STATUS_LABELS: Record<AppStatus, string> = {
+  draft: 'Draft',
+  prepared: 'Ready',
+  sent: 'Submitted',
+  interview: 'Interview',
+  accepted: 'Offer',
+  rejected: 'Rejected',
 };
+
+// ── Progress Ring SVG ────────────────────────────────────────────────────────
+
+function ProgressRing({
+  value,
+  max,
+  color,
+  size = 40,
+}: {
+  value: number;
+  max: number;
+  color: string;
+  size?: number;
+}) {
+  const radius = (size - 6) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const pct = max === 0 ? 0 : Math.min(value / max, 1);
+  const offset = circumference * (1 - pct);
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0 -rotate-90">
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="rgba(255,255,255,0.08)"
+        strokeWidth={3}
+      />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke={color}
+        strokeWidth={3}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        style={{ transition: 'stroke-dashoffset 0.5s ease' }}
+      />
+    </svg>
+  );
+}
+
+// ── Main component ───────────────────────────────────────────────────────────
 
 export default function ApplicationsPipeline() {
   const { user, isLoaded } = useUser();
   const userId = user?.id ?? '';
 
+  const { theme, setTheme } = useThemeStore();
+
+  const [activeStage, setActiveStage] = useState<AppStatus | null>(null);
   const [showNewModal, setShowNewModal] = useState(false);
   const [newForm, setNewForm] = useState({ jobTitle: '', company: '', notes: '' });
   const [showCoverLetter, setShowCoverLetter] = useState<{ id: string; text: string } | null>(null);
+  const [fitReasonsMap, setFitReasonsMap] = useState<Record<string, string[]>>({});
   const [showEmailModal, setShowEmailModal] = useState<{ id: string; title: string; company: string } | null>(null);
   const [recipientEmail, setRecipientEmail] = useState('');
   const [followUpAppId, setFollowUpAppId] = useState<string | null>(null);
@@ -85,17 +212,13 @@ export default function ApplicationsPipeline() {
     },
   });
 
-  const updateStatusMutation = api.applications.updateStatus.useMutation({
-    onSuccess: () => {
-      void appsQuery.refetch();
-      void analyticsQuery.refetch();
-    },
-  });
-
   const generateDocsMutation = api.applications.generateDocuments.useMutation({
     onSuccess: (data, variables) => {
       void appsQuery.refetch();
       setShowCoverLetter({ id: variables.applicationId, text: data.coverLetter });
+      if (data.fitReasons?.length) {
+        setFitReasonsMap(prev => ({ ...prev, [variables.applicationId]: data.fitReasons as string[] }));
+      }
     },
   });
 
@@ -130,15 +253,79 @@ export default function ApplicationsPipeline() {
 
   const apps = (appsQuery.data ?? []) as Application[];
   const analytics = analyticsQuery.data;
+  const totalApps = apps.length;
+
+  const recentApps = [...apps]
+    .slice()
+    .reverse()
+    .slice(0, 3);
 
   const handleCreate = () => {
     if (!newForm.jobTitle || !newForm.company) return;
     createMutation.mutate({ userId, jobTitle: newForm.jobTitle, company: newForm.company, notes: newForm.notes || undefined });
   };
 
+  const handleTileClick = (key: AppStatus) => {
+    setActiveStage(prev => (prev === key ? null : key));
+  };
+
+  const activeStageApps = activeStage ? apps.filter(a => a.status === activeStage) : [];
+  const activeStageConfig = activeStage ? STAGES.find(s => s.key === activeStage)! : null;
+
+  const themeOptions: { value: 'dark' | 'neurodiversity' | 'high-contrast' | 'focus'; label: string }[] = [
+    { value: 'dark', label: 'Default' },
+    { value: 'neurodiversity', label: 'Neurodiversity' },
+    { value: 'high-contrast', label: 'High Contrast' },
+    { value: 'focus', label: 'Focus' },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Header */}
+
+      {/* ── Top Bar ──────────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+        {/* Theme switcher */}
+        <div className="flex items-center gap-2">
+          <Palette className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+          <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 p-1">
+            {themeOptions.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setTheme(opt.value)}
+                className={`rounded-lg px-2.5 py-1 text-[10px] font-medium transition-all ${
+                  theme === opt.value
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-white hover:bg-white/10'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Recent apps chips */}
+        {recentApps.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+            <span className="shrink-0 text-[10px] text-slate-500">Recent:</span>
+            {recentApps.map(app => (
+              <button
+                key={app.id}
+                onClick={() => handleTileClick(app.status)}
+                className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] transition hover:bg-white/10"
+              >
+                <span className="max-w-[80px] truncate font-medium text-white">{app.jobTitle}</span>
+                <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${statusBadgeColor[app.status]}`}>
+                  {STATUS_LABELS[app.status]}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Page header ──────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white">Applications Pipeline</h1>
@@ -153,7 +340,7 @@ export default function ApplicationsPipeline() {
         </button>
       </div>
 
-      {/* Analytics Stats */}
+      {/* ── Analytics Stats ───────────────────────────────────────────────── */}
       {analytics && (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
@@ -173,165 +360,151 @@ export default function ApplicationsPipeline() {
         </div>
       )}
 
+      {/* Errors / Loading */}
       {appsQuery.isError && (
         <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400">
           {appsQuery.error instanceof Error ? appsQuery.error.message : 'Failed to load applications'}
         </p>
       )}
-
       {appsQuery.isLoading && (
         <div className="flex h-32 items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
         </div>
       )}
 
-      {/* Kanban Board */}
+      {/* ── Stage Tiles Grid ──────────────────────────────────────────────── */}
       {!appsQuery.isLoading && (
-        <div className="overflow-x-auto pb-4">
-          <div className="flex gap-4 min-w-max">
-            {COLUMNS.map((col) => {
-              const colApps = apps.filter((a) => a.status === col.key);
-              return (
-                <div key={col.key} className="w-64 shrink-0 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className={`text-xs font-semibold uppercase tracking-wider ${columnHeaderColor[col.key]}`}>
-                      {col.label}
-                    </h3>
-                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold text-slate-400">
-                      {colApps.length}
-                    </span>
-                  </div>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+          {STAGES.map((stage) => {
+            const count = apps.filter(a => a.status === stage.key).length;
+            const isActive = activeStage === stage.key;
 
-                  {colApps.map((app) => (
-                    <div key={app.id} className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
-                      <div>
-                        <p className="font-medium text-white text-sm leading-tight">{app.jobTitle}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{app.company}</p>
-                      </div>
-
-                      {app.fitScore !== null && (
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusColor[app.status]}`}>
-                          {app.fitScore}% fit
-                        </span>
-                      )}
-
-                      {/* Actions per column */}
-                      <div className="space-y-1.5">
-                        {col.key === 'draft' && (
-                          <button
-                            onClick={() => generateDocsMutation.mutate({ userId, applicationId: app.id })}
-                            disabled={generateDocsMutation.isPending && generateDocsMutation.variables?.applicationId === app.id}
-                            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 py-1.5 text-xs font-medium text-indigo-400 transition hover:bg-indigo-500/20 disabled:opacity-50"
-                          >
-                            {generateDocsMutation.isPending && generateDocsMutation.variables?.applicationId === app.id
-                              ? <Loader2 className="h-3 w-3 animate-spin" />
-                              : <FileText className="h-3 w-3" />}
-                            Generate Docs
-                          </button>
-                        )}
-
-                        {col.key === 'prepared' && (
-                          <>
-                            {app.coverLetterSnapshot && (
-                              <button
-                                onClick={() => setShowCoverLetter({ id: app.id, text: app.coverLetterSnapshot! })}
-                                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 py-1.5 text-xs text-slate-400 transition hover:bg-white/10"
-                              >
-                                <FileText className="h-3 w-3" />
-                                View Cover Letter
-                              </button>
-                            )}
-                            <button
-                              onClick={() => setShowEmailModal({ id: app.id, title: app.jobTitle, company: app.company })}
-                              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 py-1.5 text-xs font-medium text-sky-400 transition hover:bg-sky-500/20"
-                            >
-                              <Mail className="h-3 w-3" />
-                              Send by Email
-                            </button>
-                          </>
-                        )}
-
-                        {col.key === 'sent' && (
-                          <div className="flex gap-1.5">
-                            <button
-                              onClick={() => recordOutcomeMutation.mutate({ userId, applicationId: app.id, outcome: 'interview' })}
-                              disabled={recordOutcomeMutation.isPending}
-                              className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-amber-500/30 bg-amber-500/10 py-1.5 text-[10px] font-medium text-amber-400 transition hover:bg-amber-500/20"
-                            >
-                              <ChevronRight className="h-3 w-3" />
-                              Interview
-                            </button>
-                            <button
-                              onClick={() => recordOutcomeMutation.mutate({ userId, applicationId: app.id, outcome: 'rejection' })}
-                              disabled={recordOutcomeMutation.isPending}
-                              className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-red-500/30 bg-red-500/10 py-1.5 text-[10px] font-medium text-red-400 transition hover:bg-red-500/20"
-                            >
-                              <XCircle className="h-3 w-3" />
-                              Rejected
-                            </button>
-                          </div>
-                        )}
-
-                        {col.key === 'interview' && (
-                          <div className="flex gap-1.5">
-                            <button
-                              onClick={() => recordOutcomeMutation.mutate({ userId, applicationId: app.id, outcome: 'offer' })}
-                              disabled={recordOutcomeMutation.isPending}
-                              className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-1.5 text-[10px] font-medium text-emerald-400 transition hover:bg-emerald-500/20"
-                            >
-                              <CheckCircle className="h-3 w-3" />
-                              Offer
-                            </button>
-                            <button
-                              onClick={() => recordOutcomeMutation.mutate({ userId, applicationId: app.id, outcome: 'rejection' })}
-                              disabled={recordOutcomeMutation.isPending}
-                              className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-red-500/30 bg-red-500/10 py-1.5 text-[10px] font-medium text-red-400 transition hover:bg-red-500/20"
-                            >
-                              <XCircle className="h-3 w-3" />
-                              Rejected
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Move to next status for draft → prepared handled by generateDocsMutation */}
-                        {(col.key !== 'draft' && col.key !== 'prepared' && col.key !== 'sent' && col.key !== 'interview' && col.key !== 'accepted' && col.key !== 'rejected') && (
-                          <button
-                            onClick={() => updateStatusMutation.mutate({ id: app.id, userId, status: 'sent' })}
-                            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/10 py-1.5 text-xs text-slate-400 transition hover:bg-white/5"
-                          >
-                            Mark Sent
-                          </button>
-                        )}
-
-                        {/* Follow-up Copilot */}
-                        <button
-                          onClick={() => {
-                            setFollowUpAppId(app.id);
-                            setFollowUpText('');
-                            generateFollowUpMutation.mutate({ userId, applicationId: app.id });
-                          }}
-                          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-violet-500/30 bg-violet-500/10 py-1.5 text-xs font-medium text-violet-400 transition hover:bg-violet-500/20"
-                        >
-                          <Mail className="h-3 w-3" />
-                          Follow-up
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-
-                  {colApps.length === 0 && (
-                    <div className="rounded-2xl border-2 border-dashed border-white/10 p-6 text-center text-xs text-slate-600">
-                      No applications
-                    </div>
-                  )}
+            return (
+              <button
+                key={stage.key}
+                onClick={() => handleTileClick(stage.key)}
+                className={`group relative flex h-[120px] flex-col justify-between overflow-hidden rounded-2xl border p-4 text-left transition-all duration-200
+                  ${isActive
+                    ? `${stage.activeBorder} bg-white/8 shadow-lg ${stage.glowColor}`
+                    : `border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/8`
+                  }`}
+              >
+                {/* Top row: stage name + chevron */}
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 group-hover:text-slate-300 transition-colors">
+                    {stage.label}
+                  </span>
+                  <ChevronDown
+                    className={`h-3.5 w-3.5 text-slate-600 transition-transform duration-200 ${isActive ? 'rotate-180 text-slate-400' : ''}`}
+                  />
                 </div>
-              );
-            })}
+
+                {/* Bottom row: count + progress ring */}
+                <div className="flex items-end justify-between">
+                  <span className={`text-4xl font-black leading-none tabular-nums ${stage.countColor}`}>
+                    {count}
+                  </span>
+                  <ProgressRing
+                    value={count}
+                    max={Math.max(totalApps, 1)}
+                    color={stage.ringColor}
+                    size={42}
+                  />
+                </div>
+
+                {/* Active indicator bar at bottom */}
+                {isActive && (
+                  <div
+                    className="absolute bottom-0 left-0 h-0.5 w-full"
+                    style={{ backgroundColor: stage.ringColor }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Drill-down Panel ─────────────────────────────────────────────── */}
+      {activeStage && activeStageConfig && (
+        <div
+          className="overflow-hidden rounded-2xl border border-white/10 bg-white/5"
+          style={{
+            borderColor: activeStageConfig.ringColor + '40',
+          }}
+        >
+          {/* Panel header */}
+          <div
+            className="flex items-center justify-between px-5 py-3"
+            style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+          >
+            <div className="flex items-center gap-2.5">
+              <div
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: activeStageConfig.ringColor }}
+              />
+              <span className="font-semibold text-white">{activeStageConfig.label}</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-semibold ${activeStageConfig.badgeColor}`}
+              >
+                {activeStageApps.length} application{activeStageApps.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <button
+              onClick={() => setActiveStage(null)}
+              className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white/10 hover:text-slate-300"
+            >
+              <XCircle className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Application cards */}
+          <div className="p-4">
+            {activeStageApps.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-10 text-center">
+                <div className="rounded-2xl border-2 border-dashed border-white/10 px-8 py-6">
+                  <p className="text-sm text-slate-500">No applications in this stage.</p>
+                  <button
+                    onClick={() => setShowNewModal(true)}
+                    className="mt-3 flex items-center gap-1.5 rounded-xl bg-white/5 px-3 py-1.5 text-xs text-slate-400 transition hover:bg-white/10 hover:text-white"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add one
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {activeStageApps.map((app) => (
+                  <AppCard
+                    key={app.id}
+                    app={app}
+                    stage={activeStageConfig}
+                    fitReasons={fitReasonsMap[app.id] ?? []}
+                    userId={userId}
+                    generateDocsMutation={generateDocsMutation}
+                    recordOutcomeMutation={recordOutcomeMutation}
+                    onViewCoverLetter={() =>
+                      app.coverLetterSnapshot &&
+                      setShowCoverLetter({ id: app.id, text: app.coverLetterSnapshot })
+                    }
+                    onSendEmail={() =>
+                      setShowEmailModal({ id: app.id, title: app.jobTitle, company: app.company })
+                    }
+                    onFollowUp={() => {
+                      setFollowUpAppId(app.id);
+                      setFollowUpText('');
+                      generateFollowUpMutation.mutate({ userId, applicationId: app.id });
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* New Application Modal */}
+      {/* ── New Application Modal ─────────────────────────────────────────── */}
       {showNewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#020617] p-6 space-y-4">
@@ -364,17 +537,15 @@ export default function ApplicationsPipeline() {
                   onChange={(e) => setNewForm({ ...newForm, notes: e.target.value })}
                   placeholder="Any notes about this application..."
                   rows={3}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-none"
+                  className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                 />
               </div>
             </div>
-
             {createMutation.isError && (
               <p className="text-sm text-red-400">
                 {createMutation.error instanceof Error ? createMutation.error.message : 'Failed to create'}
               </p>
             )}
-
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setShowNewModal(false)}
@@ -385,7 +556,7 @@ export default function ApplicationsPipeline() {
               <button
                 onClick={handleCreate}
                 disabled={createMutation.isPending || !newForm.jobTitle || !newForm.company}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
               >
                 {createMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                 Create
@@ -395,10 +566,10 @@ export default function ApplicationsPipeline() {
         </div>
       )}
 
-      {/* Cover Letter Preview Modal */}
+      {/* ── Cover Letter Preview Modal ────────────────────────────────────── */}
       {showCoverLetter && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-[#020617] p-6 space-y-4 max-h-[80vh] flex flex-col">
+          <div className="flex max-h-[80vh] w-full max-w-2xl flex-col space-y-4 rounded-2xl border border-white/10 bg-[#020617] p-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">Cover Letter Preview</h2>
               <button onClick={() => setShowCoverLetter(null)} className="text-slate-400 hover:text-white">
@@ -406,7 +577,7 @@ export default function ApplicationsPipeline() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto rounded-xl border border-white/10 bg-white/5 p-4">
-              <pre className="text-sm text-slate-300 whitespace-pre-wrap font-sans leading-relaxed">
+              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-slate-300">
                 {showCoverLetter.text}
               </pre>
             </div>
@@ -414,10 +585,10 @@ export default function ApplicationsPipeline() {
         </div>
       )}
 
-      {/* Follow-up Copilot Modal */}
+      {/* ── Follow-up Copilot Modal ───────────────────────────────────────── */}
       {followUpAppId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-[#020617] p-6 space-y-4 max-h-[80vh] flex flex-col">
+          <div className="flex max-h-[80vh] w-full max-w-2xl flex-col space-y-4 rounded-2xl border border-white/10 bg-[#020617] p-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">Follow-up Email</h2>
               <button
@@ -427,7 +598,6 @@ export default function ApplicationsPipeline() {
                 <XCircle className="h-5 w-5" />
               </button>
             </div>
-
             {generateFollowUpMutation.isPending ? (
               <div className="flex flex-1 items-center justify-center py-12">
                 <div className="flex flex-col items-center gap-3">
@@ -439,14 +609,16 @@ export default function ApplicationsPipeline() {
               <>
                 {generateFollowUpMutation.isError && (
                   <p className="text-sm text-red-400">
-                    {generateFollowUpMutation.error instanceof Error ? generateFollowUpMutation.error.message : 'Failed to generate follow-up'}
+                    {generateFollowUpMutation.error instanceof Error
+                      ? generateFollowUpMutation.error.message
+                      : 'Failed to generate follow-up'}
                   </p>
                 )}
                 <textarea
                   value={followUpText}
                   onChange={(e) => setFollowUpText(e.target.value)}
                   rows={12}
-                  className="flex-1 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-600 resize-none leading-relaxed"
+                  className="flex-1 w-full resize-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm leading-relaxed text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-600"
                   placeholder="Follow-up email will appear here…"
                 />
                 <div className="flex gap-3 pt-1">
@@ -459,7 +631,7 @@ export default function ApplicationsPipeline() {
                   <button
                     onClick={() => { void navigator.clipboard.writeText(followUpText); }}
                     disabled={!followUpText}
-                    className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 py-2 text-sm font-medium text-violet-400 transition hover:bg-violet-500/20 disabled:opacity-50"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 py-2 text-sm font-medium text-violet-400 transition hover:bg-violet-500/20 disabled:opacity-50"
                   >
                     <Mail className="h-4 w-4" />
                     Copy to clipboard
@@ -471,14 +643,15 @@ export default function ApplicationsPipeline() {
         </div>
       )}
 
-      {/* Send by Email Modal */}
+      {/* ── Send by Email Modal ───────────────────────────────────────────── */}
       {showEmailModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#020617] p-6 space-y-4">
+          <div className="w-full max-w-md space-y-4 rounded-2xl border border-white/10 bg-[#020617] p-6">
             <h2 className="text-lg font-semibold text-white">Send Application by Email</h2>
             <p className="text-sm text-slate-400">
-              Sending CV + cover letter for <span className="text-white font-medium">{showEmailModal.title}</span> at{' '}
-              <span className="text-white font-medium">{showEmailModal.company}</span>
+              Sending CV + cover letter for{' '}
+              <span className="font-medium text-white">{showEmailModal.title}</span> at{' '}
+              <span className="font-medium text-white">{showEmailModal.company}</span>
             </p>
             <div>
               <label className="mb-1 block text-xs text-slate-400">Recipient Email *</label>
@@ -490,7 +663,6 @@ export default function ApplicationsPipeline() {
                 className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
               />
             </div>
-
             {sendEmailMutation.isError && (
               <p className="text-sm text-red-400">
                 {sendEmailMutation.error instanceof Error ? sendEmailMutation.error.message : 'Failed to send'}
@@ -499,7 +671,6 @@ export default function ApplicationsPipeline() {
             {sendEmailMutation.isSuccess && (
               <p className="text-sm text-emerald-400">Email sent successfully!</p>
             )}
-
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => { setShowEmailModal(null); setRecipientEmail(''); }}
@@ -513,7 +684,7 @@ export default function ApplicationsPipeline() {
                   sendEmailMutation.mutate({ userId, applicationId: showEmailModal.id, recipientEmail });
                 }}
                 disabled={sendEmailMutation.isPending || !recipientEmail}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-sky-600 py-2 text-sm font-medium text-white transition hover:bg-sky-700 disabled:opacity-60"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-sky-600 py-2 text-sm font-medium text-white transition hover:bg-sky-700 disabled:opacity-60"
               >
                 {sendEmailMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                 <Mail className="h-4 w-4" />
@@ -523,6 +694,180 @@ export default function ApplicationsPipeline() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── AppCard sub-component ────────────────────────────────────────────────────
+
+type MutationRef<TVariables> = {
+  mutate: (vars: TVariables) => void;
+  isPending: boolean;
+  variables?: TVariables;
+};
+
+function AppCard({
+  app,
+  stage,
+  fitReasons,
+  userId,
+  generateDocsMutation,
+  recordOutcomeMutation,
+  onViewCoverLetter,
+  onSendEmail,
+  onFollowUp,
+}: {
+  app: Application;
+  stage: StageConfig;
+  fitReasons: string[];
+  userId: string;
+  generateDocsMutation: MutationRef<{ userId: string; applicationId: string }>;
+  recordOutcomeMutation: MutationRef<{ userId: string; applicationId: string; outcome: 'interview' | 'offer' | 'rejection' }>;
+  onViewCoverLetter: () => void;
+  onSendEmail: () => void;
+  onFollowUp: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-white/20 hover:bg-white/8">
+      {/* Title + company */}
+      <div>
+        <p className="text-sm font-semibold leading-tight text-white">{app.jobTitle}</p>
+        <p className="mt-0.5 text-xs text-slate-400">{app.company}</p>
+      </div>
+
+      {/* Fit score */}
+      {app.fitScore !== null && (
+        <div className="flex items-center gap-2">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${app.fitScore}%`,
+                backgroundColor: stage.ringColor,
+              }}
+            />
+          </div>
+          <span
+            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${stage.badgeColor}`}
+          >
+            {app.fitScore}% fit
+          </span>
+        </div>
+      )}
+
+      {/* Fit reasons */}
+      {fitReasons.length > 0 && (
+        <div className="space-y-0.5">
+          {fitReasons.slice(0, 3).map((reason, i) => (
+            <p key={i} className="flex items-start gap-1 text-[10px] text-emerald-400/80">
+              <span className="mt-0.5 shrink-0">✓</span>
+              {reason}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {/* Stage-specific actions */}
+      <div className="mt-auto space-y-1.5">
+        {stage.key === 'draft' && (
+          <button
+            onClick={() => generateDocsMutation.mutate({ userId, applicationId: app.id })}
+            disabled={
+              generateDocsMutation.isPending &&
+              generateDocsMutation.variables?.applicationId === app.id
+            }
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 py-1.5 text-xs font-medium text-indigo-400 transition hover:bg-indigo-500/20 disabled:opacity-50"
+          >
+            {generateDocsMutation.isPending &&
+            generateDocsMutation.variables?.applicationId === app.id ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <FileText className="h-3 w-3" />
+            )}
+            Generate Docs
+          </button>
+        )}
+
+        {stage.key === 'prepared' && (
+          <>
+            {app.coverLetterSnapshot && (
+              <button
+                onClick={onViewCoverLetter}
+                className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 py-1.5 text-xs text-slate-400 transition hover:bg-white/10"
+              >
+                <FileText className="h-3 w-3" />
+                View Cover Letter
+              </button>
+            )}
+            <button
+              onClick={onSendEmail}
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 py-1.5 text-xs font-medium text-sky-400 transition hover:bg-sky-500/20"
+            >
+              <Mail className="h-3 w-3" />
+              Send by Email
+            </button>
+          </>
+        )}
+
+        {stage.key === 'sent' && (
+          <div className="flex gap-1.5">
+            <button
+              onClick={() =>
+                recordOutcomeMutation.mutate({ userId, applicationId: app.id, outcome: 'interview' })
+              }
+              disabled={recordOutcomeMutation.isPending}
+              className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-amber-500/30 bg-amber-500/10 py-1.5 text-[10px] font-medium text-amber-400 transition hover:bg-amber-500/20 disabled:opacity-50"
+            >
+              <ChevronRight className="h-3 w-3" />
+              Interview
+            </button>
+            <button
+              onClick={() =>
+                recordOutcomeMutation.mutate({ userId, applicationId: app.id, outcome: 'rejection' })
+              }
+              disabled={recordOutcomeMutation.isPending}
+              className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-red-500/30 bg-red-500/10 py-1.5 text-[10px] font-medium text-red-400 transition hover:bg-red-500/20 disabled:opacity-50"
+            >
+              <XCircle className="h-3 w-3" />
+              Rejected
+            </button>
+          </div>
+        )}
+
+        {stage.key === 'interview' && (
+          <div className="flex gap-1.5">
+            <button
+              onClick={() =>
+                recordOutcomeMutation.mutate({ userId, applicationId: app.id, outcome: 'offer' })
+              }
+              disabled={recordOutcomeMutation.isPending}
+              className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-1.5 text-[10px] font-medium text-emerald-400 transition hover:bg-emerald-500/20 disabled:opacity-50"
+            >
+              <CheckCircle className="h-3 w-3" />
+              Offer
+            </button>
+            <button
+              onClick={() =>
+                recordOutcomeMutation.mutate({ userId, applicationId: app.id, outcome: 'rejection' })
+              }
+              disabled={recordOutcomeMutation.isPending}
+              className="flex flex-1 items-center justify-center gap-1 rounded-xl border border-red-500/30 bg-red-500/10 py-1.5 text-[10px] font-medium text-red-400 transition hover:bg-red-500/20 disabled:opacity-50"
+            >
+              <XCircle className="h-3 w-3" />
+              Rejected
+            </button>
+          </div>
+        )}
+
+        {/* Follow-up Copilot — available on all stages */}
+        <button
+          onClick={onFollowUp}
+          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-violet-500/30 bg-violet-500/10 py-1.5 text-xs font-medium text-violet-400 transition hover:bg-violet-500/20"
+        >
+          <Mail className="h-3 w-3" />
+          Follow-up
+        </button>
+      </div>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { useClerk } from '@clerk/clerk-react';
 import {
   LayoutDashboard, Briefcase, ClipboardList, FileText,
   MessageSquare, Mic, User, CreditCard, Settings,
-  Shield, Palette, LogOut, Sparkles, Calculator, Scale, BarChart2, Zap,
+  Shield, Palette, LogOut, Sparkles, Calculator, Scale, BarChart2, Zap, FlaskConical,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -32,6 +32,7 @@ const PROFILE_DOCS: NavItem[] = [
 ];
 
 const TOOLS: NavItem[] = [
+  { path: '/skills', label: 'Skills Lab', icon: FlaskConical },
   { path: '/salary', label: 'Salary Calculator', icon: Calculator },
   { path: '/legal', label: 'Legal Hub', icon: Scale },
   { path: '/reports', label: 'Reports', icon: BarChart2 },

@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import type { CandidateInsights } from './adaptiveInterviewer.js';
 
 function getOpenAI(): OpenAI {
   if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not configured');
@@ -66,4 +67,29 @@ export async function* streamInterviewResponse(
 
 export function countExchanges(messages: InterviewMessage[]): number {
   return messages.filter(m => m.role === 'user').length;
+}
+
+export function buildAdaptiveInterviewerSystemPrompt(
+  job: JobContext,
+  insights: CandidateInsights,
+): string {
+  const base = buildInterviewerSystemPrompt(job);
+
+  const adaptiveSection = [
+    '',
+    'Candidate performance context:',
+    insights.sessionCount === 0
+      ? '- First interview session ever. Be welcoming and set them at ease.'
+      : `- Has completed ${insights.sessionCount} previous session(s). Average score: ${insights.averageScore}/100.`,
+    insights.weakAreas.length > 0
+      ? `- Historically weak on: ${insights.weakAreas.join(', ')} type questions — pay attention here.`
+      : '',
+    insights.strongAreas.length > 0
+      ? `- Strong performer on: ${insights.strongAreas.join(', ')} type questions.`
+      : '',
+    `- Coaching directive: ${insights.adaptationNote}`,
+    `- Suggested challenge level: ${insights.suggestedDifficulty}.`,
+  ].filter(Boolean).join('\n');
+
+  return base + adaptiveSection;
 }

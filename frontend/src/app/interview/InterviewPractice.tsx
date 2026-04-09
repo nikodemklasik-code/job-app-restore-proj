@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
+import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase } from 'lucide-react';
 
@@ -70,6 +71,16 @@ interface JobOption {
   description?: string | null;
 }
 
+interface AdaptiveInsights {
+  type?: string;
+  averageScore: number;
+  sessionCount: number;
+  suggestedDifficulty: string;
+  adaptationNote?: string;
+  weakAreas?: string[];
+  strongAreas?: string[];
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
@@ -81,11 +92,13 @@ async function streamAIResponse(
   messages: Array<{ role: string; content: string }>,
   job: { title: string; company: string; description?: string },
   onChunk: (fullText: string) => void,
+  onInsights: (insights: AdaptiveInsights) => void,
+  userId?: string,
 ): Promise<string> {
   const response = await fetch(`${API_BASE}/api/interview/stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, job }),
+    body: JSON.stringify({ messages, job, userId: userId ?? undefined }),
     credentials: 'include',
   });
   if (!response.ok || !response.body) throw new Error(`Stream error ${response.status}`);
@@ -103,7 +116,11 @@ async function streamAIResponse(
       const data = line.slice(6).trim();
       if (data === '[DONE]') return fullText;
       try {
-        const parsed = JSON.parse(data) as { chunk?: string };
+        const parsed = JSON.parse(data) as { chunk?: string; type?: string; adaptationNote?: string; averageScore?: number; suggestedDifficulty?: string; sessionCount?: number };
+        if (parsed.type === 'insights') {
+          onInsights(parsed as AdaptiveInsights);
+          continue;
+        }
         if (parsed.chunk) {
           fullText += parsed.chunk;
           onChunk(fullText);
@@ -382,6 +399,9 @@ function MicLevelBars({ levels }: { levels: number[] }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function InterviewPractice() {
+  const { user } = useUser();
+  const userId = user?.id ?? undefined;
+
   // Phase / conversation
   const [phase, setPhase] = useState<Phase>('job-select');
   const [selectedJob, setSelectedJob] = useState<JobOption | null>(null);
@@ -392,6 +412,7 @@ export default function InterviewPractice() {
   const [avatarState, setAvatarState] = useState<AvatarState>('idle');
   const [exchangeCount, setExchangeCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [adaptiveInsights, setAdaptiveInsights] = useState<AdaptiveInsights | null>(null);
 
   // Recording
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -490,6 +511,8 @@ export default function InterviewPractice() {
           msgs,
           { title: job.title, company: job.company, description: job.description ?? undefined },
           (text) => setCurrentTranscript(text),
+          (insights) => setAdaptiveInsights(insights),
+          userId,
         );
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Network error';
@@ -516,7 +539,7 @@ export default function InterviewPractice() {
         setAvatarState('listening');
       }
     },
-    [getJob],
+    [getJob, userId],
   );
 
   const startInterview = useCallback(async () => {
@@ -618,6 +641,7 @@ export default function InterviewPractice() {
     setError(null);
     setAvatarState('idle');
     setIsRecording(false);
+    setAdaptiveInsights(null);
   }, []);
 
   // ── Job-select screen ──────────────────────────────────────────────────────
@@ -981,6 +1005,28 @@ export default function InterviewPractice() {
           {/* Avatar */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
             <Avatar state={avatarState} />
+
+            {/* Adaptive insights badge */}
+            {adaptiveInsights && adaptiveInsights.sessionCount > 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: 'rgba(99,102,241,0.15)',
+                  border: '1px solid rgba(99,102,241,0.4)',
+                  borderRadius: 20,
+                  padding: '4px 12px',
+                  fontSize: 12,
+                  color: '#a5b4fc',
+                  fontWeight: 500,
+                }}
+                title={adaptiveInsights.adaptationNote ?? ''}
+              >
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#6366f1', display: 'inline-block', flexShrink: 0 }} />
+                Adapting to your history{adaptiveInsights.averageScore > 0 ? ` • Avg score: ${adaptiveInsights.averageScore}/100` : ''}
+              </div>
+            )}
 
             {/* Live transcript */}
             {(currentTranscript || phase === 'processing') && (
