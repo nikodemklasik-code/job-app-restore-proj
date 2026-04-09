@@ -17,7 +17,10 @@ const SecurityPage = lazy(() => import('./app/settings/SecurityPage'));
 const StyleStudio = lazy(() => import('./app/style/StyleStudio'));
 const UKSalaryCalculator = lazy(() => import('./app/salary/UKSalaryCalculator'));
 const LegalHub = lazy(() => import('./app/legal/LegalHub'));
+const TermsPage = lazy(() => import('./app/legal/TermsPage'));
+const PrivacyPage = lazy(() => import('./app/legal/PrivacyPage'));
 const ReportsHub = lazy(() => import('./app/reports/ReportsHub'));
+const AutoApplyPage = lazy(() => import('./app/autopilot/AutoApplyPage'));
 
 const PageLoader = () => (
   <div className="flex h-full items-center justify-center py-24">
@@ -45,6 +48,22 @@ export const router = createBrowserRouter([
     element: <AuthenticateWithRedirectCallback />,
   },
   {
+    path: '/terms',
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <TermsPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: '/privacy',
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <PrivacyPage />
+      </Suspense>
+    ),
+  },
+  {
     path: '/',
     element: <AppShell />,
     children: [
@@ -63,6 +82,7 @@ export const router = createBrowserRouter([
       { path: 'salary', element: withSuspense(UKSalaryCalculator) },
       { path: 'legal', element: withSuspense(LegalHub) },
       { path: 'reports', element: withSuspense(ReportsHub) },
+      { path: 'auto-apply', element: withSuspense(AutoApplyPage) },
     ],
   },
 ]);

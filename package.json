@@ -9,6 +9,7 @@
     "dev:backend": "cd backend && npm run dev",
     "build:frontend": "cd frontend && npm run build",
     "build:backend": "cd backend && npm run build",
+    "setup:openai": "bash scripts/setup-openai-key.sh",
     "db:push": "cd backend && npx drizzle-kit push",
     "db:generate": "cd backend && npx drizzle-kit generate",
     "mobile:add:ios": "npx cap add ios",

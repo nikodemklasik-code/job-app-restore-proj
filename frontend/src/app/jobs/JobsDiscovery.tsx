@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
-import { Search, MapPin, Building2, DollarSign, Plus, ExternalLink, Loader2, Cookie, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Search, MapPin, Building2, DollarSign, Plus, ExternalLink, Loader2, Cookie, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 
 type JobResult = {
   id: string;
@@ -13,6 +13,7 @@ type JobResult = {
   source: string;
   applyUrl: string;
   fitScore: number;
+  description?: string;
 };
 
 type SessionStatus = { id: string; provider: string; isActive: boolean; lastTestedAt: Date | null; updatedAt: Date };
@@ -39,6 +40,140 @@ function formatSalary(min: number | null, max: number | null): string | null {
   if (min && max) return `£${Math.round(min / 1000)}k–£${Math.round(max / 1000)}k`;
   if (min) return `£${Math.round(min / 1000)}k+`;
   return `up to £${Math.round((max ?? 0) / 1000)}k`;
+}
+
+// ── Scam check helper ─────────────────────────────────────────────────────────
+
+function quickScamCheck(title: string, desc: string): boolean {
+  const text = (title + ' ' + desc).toLowerCase();
+  const patterns = [
+    /earn \$?\d{3,}/i, /work from home.*guaranteed/i, /no experience.*\$\d{4,}/i,
+    /mlm|pyramid|commission only|uncapped earning/i, /whatsapp.*job/i,
+    /investment.*return/i, /crypto.*recruiter/i, /be your own boss.*income/i
+  ];
+  return patterns.filter(p => p.test(text)).length >= 2;
+}
+
+// ── Explain Fit Modal ─────────────────────────────────────────────────────────
+
+function ExplainFitModal({ jobId, userId, onClose }: { jobId: string; userId: string; onClose: () => void }) {
+  const explainQuery = api.jobs.explainFit.useQuery(
+    { userId, jobId },
+    { enabled: !!jobId && !!userId }
+  );
+
+  const fit = explainQuery.data?.fit;
+  const scam = explainQuery.data?.scam;
+
+  function fitScoreColor(score: number): string {
+    if (score >= 80) return 'text-emerald-400';
+    if (score >= 60) return 'text-amber-400';
+    return 'text-red-400';
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#020617] p-6 space-y-4 max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-indigo-400" />
+            Why this match?
+          </h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-white">
+            <XCircle className="h-5 w-5" />
+          </button>
+        </div>
+
+        {explainQuery.isLoading && (
+          <div className="flex flex-1 items-center justify-center py-12">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-indigo-400" />
+              <p className="text-sm text-slate-400">Analysing your fit…</p>
+            </div>
+          </div>
+        )}
+
+        {explainQuery.isError && (
+          <p className="text-sm text-red-400">
+            {explainQuery.error instanceof Error ? explainQuery.error.message : 'Failed to analyse fit'}
+          </p>
+        )}
+
+        {fit && (
+          <div className="flex-1 overflow-y-auto space-y-4">
+            {/* Fit score */}
+            <div className="flex items-center justify-center py-4">
+              <span className={`text-6xl font-bold ${fitScoreColor(fit.score)}`}>
+                {fit.score}%
+              </span>
+            </div>
+
+            {/* Scam warning */}
+            {scam?.isScam && (
+              <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 space-y-1">
+                <p className="text-sm font-semibold text-red-400 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  Potential scam detected
+                </p>
+                {scam.reasons && scam.reasons.length > 0 && (
+                  <ul className="mt-1 space-y-0.5 pl-6 list-disc text-xs text-red-300">
+                    {scam.reasons.map((r: string, i: number) => <li key={i}>{r}</li>)}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {/* Strengths */}
+            {fit.strengths && fit.strengths.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400 mb-2">Strengths</p>
+                <ul className="space-y-1">
+                  {fit.strengths.map((s: string, i: number) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Gaps */}
+            {fit.gaps && fit.gaps.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-amber-400 mb-2">Gaps</p>
+                <ul className="space-y-1">
+                  {fit.gaps.map((g: string, i: number) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" />
+                      {g}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Advice */}
+            {fit.advice && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-indigo-400 mb-2">Advice</p>
+                <p className="text-sm text-slate-300 leading-relaxed">{fit.advice}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="pt-2">
+          <button
+            onClick={onClose}
+            className="w-full rounded-xl border border-white/10 py-2 text-sm text-slate-400 transition hover:bg-white/5"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ── Session setup panel for Indeed / Gumtree — auto login wizard ─────────────
@@ -263,6 +398,7 @@ export default function JobsDiscovery() {
   const [showManualModal, setShowManualModal] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
   const [manualForm, setManualForm] = useState({ title: '', company: '', location: '', applyUrl: '' });
+  const [explainJobId, setExplainJobId] = useState<string | null>(null);
 
   const sessionQuery = api.jobSessions.getStatus.useQuery(
     { userId },
@@ -434,6 +570,7 @@ export default function JobsDiscovery() {
           {jobResults.map((job) => {
             const salary = formatSalary(job.salaryMin, job.salaryMax);
             const srcMeta = SOURCE_META[job.source as Source];
+            const isScam = quickScamCheck(job.title, job.description ?? '');
             return (
               <div key={job.id} className="rounded-2xl border border-white/10 bg-white/5 p-5 flex flex-col gap-3 transition hover:border-white/20 hover:bg-white/[0.07]">
                 <div className="flex items-start justify-between gap-2">
@@ -449,6 +586,12 @@ export default function JobsDiscovery() {
                   <h3 className="font-semibold text-white leading-tight">{job.title}</h3>
                   <p className="text-sm text-slate-400 mt-0.5">{job.company}</p>
                 </div>
+
+                {isScam && (
+                  <span className="inline-flex w-fit items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-400">
+                    ⚠️ Check carefully
+                  </span>
+                )}
 
                 <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                   {job.location && (
@@ -468,17 +611,27 @@ export default function JobsDiscovery() {
                   </span>
                 </div>
 
-                {job.applyUrl && (
-                  <a
-                    href={job.applyUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-auto flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+                <div className="mt-auto flex flex-col gap-2">
+                  <button
+                    onClick={() => setExplainJobId(job.id)}
+                    className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 py-2 text-xs font-medium text-indigo-400 transition hover:bg-indigo-500/20"
                   >
-                    Apply
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
-                )}
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Why this match?
+                  </button>
+
+                  {job.applyUrl && (
+                    <a
+                      href={job.applyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+                    >
+                      Apply
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -491,6 +644,15 @@ export default function JobsDiscovery() {
         <div className="flex h-48 items-center justify-center rounded-2xl border-2 border-dashed border-white/10 text-slate-500">
           Enter a search query above and click Search to find jobs.
         </div>
+      )}
+
+      {/* Explain Fit Modal */}
+      {explainJobId && (
+        <ExplainFitModal
+          jobId={explainJobId}
+          userId={userId}
+          onClose={() => setExplainJobId(null)}
+        />
       )}
 
       {/* Manual Job Modal */}

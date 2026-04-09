@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
+import Stripe from 'stripe';
 import { publicProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
 import { subscriptions, users } from '../../db/schema.js';
@@ -76,12 +77,48 @@ export const billingRouter = router({
     }),
 
   getBillingHistory: publicProcedure
-    .query(async () => {
-      return [
-        { date: '1 Apr 2026', amount: 15, plan: 'pro', status: 'paid' },
-        { date: '1 Mar 2026', amount: 15, plan: 'pro', status: 'paid' },
-        { date: '1 Feb 2026', amount: 15, plan: 'pro', status: 'paid' },
-      ];
+    .input(z.object({ userId: z.string().min(1) }))
+    .query(async ({ input }): Promise<{ date: string; amount: number; plan: string; status: string }[]> => {
+      const userRecord = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.clerkId, input.userId))
+        .limit(1);
+
+      const localUserId = userRecord[0]?.id;
+      if (!localUserId) return [];
+
+      const sub = (
+        await db
+          .select()
+          .from(subscriptions)
+          .where(eq(subscriptions.userId, localUserId))
+          .limit(1)
+      )[0];
+
+      if (!sub?.stripeSubscriptionId) return [];
+
+      try {
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
+          apiVersion: '2025-02-24.acacia',
+        });
+        const invoices = await stripe.invoices.list({
+          subscription: sub.stripeSubscriptionId,
+          limit: 12,
+        });
+        return invoices.data.map((inv) => ({
+          date: new Date(inv.created * 1000).toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          }),
+          amount: (inv.amount_paid / 100),
+          plan: sub.plan,
+          status: inv.status ?? 'unknown',
+        }));
+      } catch {
+        return [];
+      }
     }),
 
   createCheckoutSession: publicProcedure

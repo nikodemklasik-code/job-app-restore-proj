@@ -36,7 +36,7 @@ export const useBillingStore = create<BillingStore>((set) => ({
     try {
       const [plan, history] = await Promise.all([
         trpcClient.billing.getCurrentPlan.query({ userId }),
-        trpcClient.billing.getBillingHistory.query(),
+        trpcClient.billing.getBillingHistory.query({ userId }),
       ]);
       set({ currentPlan: plan, billingHistory: history, isLoading: false });
     } catch (error) {

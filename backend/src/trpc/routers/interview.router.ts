@@ -1,5 +1,11 @@
 import { z } from 'zod';
 import { publicProcedure, router } from '../trpc.js';
+import OpenAI from 'openai';
+
+function getOpenAI(): OpenAI | null {
+  if (!process.env.OPENAI_API_KEY) return null;
+  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
 
 const metricsSchema = z.object({
   answerDurationMs: z.number(),
@@ -61,9 +67,32 @@ export const interviewRouter = router({
       const fillerPenalty = input.metrics.fillerWordCount * 2;
       const paceBonus = (input.metrics.speakingPaceWpm >= 110 && input.metrics.speakingPaceWpm <= 160) ? 4 : 0;
       const score = Math.max(0, Math.min(100, 75 + paceBonus + Math.round(input.metrics.eyeContactScore / 20) - fillerPenalty - input.metrics.pauseCount));
-      const comments = input.transcript === 'No transcript available.'
-        ? 'Answer recorded but transcript was not captured.'
-        : 'Good structure. Sharpen specificity of your examples with more quantified outcomes.';
+
+      let comments: string;
+      if (input.transcript === 'No transcript available.') {
+        comments = 'Answer recorded but transcript was not captured.';
+      } else {
+        let feedbackComment = 'Good structure. Consider adding more specific examples with quantified outcomes.';
+        const openai = getOpenAI();
+        if (openai && input.transcript && input.transcript.trim().length > 20) {
+          try {
+            const resp = await openai.chat.completions.create({
+              model: 'gpt-4o-mini',
+              messages: [{
+                role: 'system',
+                content: 'You are an interview coach. Give concise (2 sentences max) actionable feedback on this interview answer. Be encouraging but specific.'
+              }, {
+                role: 'user',
+                content: `Question context: ${input.questionId}\nAnswer transcript: ${input.transcript.slice(0, 500)}`
+              }],
+              max_tokens: 100,
+            });
+            feedbackComment = resp.choices[0]?.message?.content ?? feedbackComment;
+          } catch { /* use default */ }
+        }
+        comments = feedbackComment;
+      }
+
       return { metrics: input.metrics, feedback: { score, comments } };
     }),
 });

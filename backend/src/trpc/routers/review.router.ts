@@ -1,10 +1,55 @@
+import { z } from 'zod';
+import { eq, desc } from 'drizzle-orm';
 import { publicProcedure, router } from '../trpc.js';
+import { db } from '../../db/index.js';
+import { applications, users } from '../../db/schema.js';
 
 export const reviewRouter = router({
   getQueue: publicProcedure
-    .query(async () => [
-      { id: 'r1', type: 'Job Fit', title: 'Senior Frontend Engineer at Stripe', fit: 96, status: 'High Priority', time: '2 hours ago', action: 'Review match details' },
-      { id: 'r2', type: 'CV Review', title: 'Updated CV – Alex Morgan v2.4', fit: 0, status: 'AI Analysis Ready', time: 'Yesterday', action: 'View analysis' },
-      { id: 'r3', type: 'Application Draft', title: 'Cover Letter for Vercel', fit: 82, status: 'Needs Revision', time: '3 days ago', action: 'Improve opening' },
-    ]),
+    .input(z.object({ userId: z.string().min(1) }))
+    .query(async ({ input }) => {
+      const userRecord = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.clerkId, input.userId))
+        .limit(1);
+
+      const localUserId = userRecord[0]?.id;
+      if (!localUserId) return [];
+
+      const rows = await db
+        .select({
+          id: applications.id,
+          jobTitle: applications.jobTitle,
+          company: applications.company,
+          status: applications.status,
+          fitScore: applications.fitScore,
+          createdAt: applications.createdAt,
+          notes: applications.notes,
+          cvSnapshot: applications.cvSnapshot,
+        })
+        .from(applications)
+        .where(
+          eq(applications.userId, localUserId),
+        )
+        .orderBy(desc(applications.createdAt))
+        .limit(20);
+
+      return rows
+        .filter(
+          (r) =>
+            (r.fitScore ?? 0) >= 70 &&
+            (r.status === 'draft' || r.status === 'sent'),
+        )
+        .map((r) => ({
+          id: r.id,
+          jobTitle: r.jobTitle,
+          company: r.company,
+          status: r.status,
+          fitScore: r.fitScore,
+          createdAt: r.createdAt,
+          notes: r.notes,
+          cvSnapshot: r.cvSnapshot,
+        }));
+    }),
 });

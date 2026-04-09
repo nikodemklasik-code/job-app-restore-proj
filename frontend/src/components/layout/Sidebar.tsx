@@ -3,7 +3,7 @@ import { useClerk } from '@clerk/clerk-react';
 import {
   LayoutDashboard, Briefcase, ClipboardList, FileText,
   MessageSquare, Mic, User, CreditCard, Settings,
-  Shield, Palette, LogOut, Sparkles, Calculator, Scale, BarChart2,
+  Shield, Palette, LogOut, Sparkles, Calculator, Scale, BarChart2, Zap,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -16,9 +16,9 @@ interface NavItem {
 
 const MAIN_FLOW: NavItem[] = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/jobs', label: 'Jobs', icon: Briefcase, badge: 12 },
-  { path: '/applications', label: 'Applications', icon: ClipboardList, badge: 5 },
-  { path: '/review', label: 'Review Queue', icon: FileText, badge: 3 },
+  { path: '/jobs', label: 'Jobs', icon: Briefcase },
+  { path: '/applications', label: 'Applications', icon: ClipboardList },
+  { path: '/review', label: 'Review Queue', icon: FileText },
 ];
 
 const AI_GROWTH: NavItem[] = [
@@ -35,6 +35,10 @@ const TOOLS: NavItem[] = [
   { path: '/salary', label: 'Salary Calculator', icon: Calculator },
   { path: '/legal', label: 'Legal Hub', icon: Scale },
   { path: '/reports', label: 'Reports', icon: BarChart2 },
+];
+
+const AUTOMATION: NavItem[] = [
+  { path: '/auto-apply', label: 'Auto Apply', icon: Zap },
 ];
 
 const TECHNICAL: NavItem[] = [
@@ -100,6 +104,7 @@ export default function Sidebar() {
         <NavSection label="AI & Growth" items={AI_GROWTH} />
         <NavSection label="Profile & Documents" items={PROFILE_DOCS} />
         <NavSection label="Tools & Insights" items={TOOLS} />
+        <NavSection label="Automation" items={AUTOMATION} />
         <NavSection label="Technical & Account" items={TECHNICAL} />
       </nav>
 

@@ -4,16 +4,26 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCareerAssistantStore } from '@/stores/careerAssistantStore';
 
-const QUICK_ACTIONS = [
-  'Review my CV for a Senior Frontend role',
-  'Write a cover letter for Stripe',
-  'How should I negotiate salary?',
-  'Prepare me for a system design interview',
+const QUICK_ACTIONS: { prompt: string; mode: string }[] = [
+  { prompt: 'Review my CV for a Senior Frontend role', mode: 'cv' },
+  { prompt: 'Write a cover letter for Stripe', mode: 'general' },
+  { prompt: 'How should I negotiate salary?', mode: 'salary' },
+  { prompt: 'Prepare me for a system design interview', mode: 'system_design' },
+  { prompt: 'Walk me through completing my profile step by step', mode: 'onboarding' },
 ];
+
+const MODE_LABELS: Record<string, string> = {
+  general: 'General',
+  cv: 'CV',
+  interview: 'Interview',
+  salary: 'Salary',
+  system_design: 'System design',
+  onboarding: 'Profile onboarding',
+};
 
 export default function AssistantPage() {
   const [input, setInput] = useState('');
-  const { messages, isSending, error, sendMessage, clearMessages } = useCareerAssistantStore();
+  const { messages, isSending, error, activeMode, sendMessage, clearMessages } = useCareerAssistantStore();
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -28,6 +38,11 @@ export default function AssistantPage() {
         <div>
           <h1 className="font-display text-3xl font-bold text-slate-900 dark:text-white">AI Career Assistant</h1>
           <p className="mt-1 text-slate-500">Your personal career strategist powered by GPT-4o.</p>
+          <p className="mt-1 text-xs text-slate-400">
+            Mode: <span className="font-medium text-slate-600 dark:text-slate-300">{MODE_LABELS[activeMode] ?? activeMode}</span>
+            {' · '}
+            Career-focused chat with topic boundaries (see system prompt on backend).
+          </p>
         </div>
         <Button variant="ghost" size="sm" onClick={clearMessages}>
           <RotateCcw className="h-4 w-4" />
@@ -41,15 +56,16 @@ export default function AssistantPage() {
             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950">
               <Bot className="h-7 w-7 text-indigo-600" />
             </div>
-            <p className="text-slate-500">Ask me anything about your career journey</p>
-            <div className="grid grid-cols-2 gap-2">
+            <p className="text-slate-500">Career, CV, interviews — follow-up messages keep conversation context.</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {QUICK_ACTIONS.map((action) => (
                 <button
-                  key={action}
-                  onClick={() => void sendMessage(action)}
+                  key={action.prompt}
+                  type="button"
+                  onClick={() => void sendMessage(action.prompt, action.mode)}
                   className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-left text-xs text-slate-600 transition-colors hover:border-indigo-100 hover:bg-indigo-50 hover:text-indigo-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
                 >
-                  {action}
+                  {action.prompt}
                 </button>
               ))}
             </div>
@@ -95,7 +111,7 @@ export default function AssistantPage() {
       {/* Input */}
       <div className="flex gap-2">
         <Input
-          placeholder="Ask about your career, CV, interview prep..."
+          placeholder="Ask anything career-related; replies use chat history…"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); } }}

@@ -63,6 +63,8 @@ export default function ApplicationsPipeline() {
   const [showCoverLetter, setShowCoverLetter] = useState<{ id: string; text: string } | null>(null);
   const [showEmailModal, setShowEmailModal] = useState<{ id: string; title: string; company: string } | null>(null);
   const [recipientEmail, setRecipientEmail] = useState('');
+  const [followUpAppId, setFollowUpAppId] = useState<string | null>(null);
+  const [followUpText, setFollowUpText] = useState('');
 
   const appsQuery = api.applications.getAll.useQuery(
     { userId },
@@ -109,6 +111,12 @@ export default function ApplicationsPipeline() {
     onSuccess: () => {
       void appsQuery.refetch();
       void analyticsQuery.refetch();
+    },
+  });
+
+  const generateFollowUpMutation = api.applications.generateFollowUp.useMutation({
+    onSuccess: (data) => {
+      setFollowUpText(data.emailText);
     },
   });
 
@@ -294,6 +302,19 @@ export default function ApplicationsPipeline() {
                             Mark Sent
                           </button>
                         )}
+
+                        {/* Follow-up Copilot */}
+                        <button
+                          onClick={() => {
+                            setFollowUpAppId(app.id);
+                            setFollowUpText('');
+                            generateFollowUpMutation.mutate({ userId, applicationId: app.id });
+                          }}
+                          className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-violet-500/30 bg-violet-500/10 py-1.5 text-xs font-medium text-violet-400 transition hover:bg-violet-500/20"
+                        >
+                          <Mail className="h-3 w-3" />
+                          Follow-up
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -389,6 +410,63 @@ export default function ApplicationsPipeline() {
                 {showCoverLetter.text}
               </pre>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Follow-up Copilot Modal */}
+      {followUpAppId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-[#020617] p-6 space-y-4 max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">Follow-up Email</h2>
+              <button
+                onClick={() => { setFollowUpAppId(null); setFollowUpText(''); }}
+                className="text-slate-400 hover:text-white"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+
+            {generateFollowUpMutation.isPending ? (
+              <div className="flex flex-1 items-center justify-center py-12">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
+                  <p className="text-sm text-slate-400">Generating follow-up email…</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                {generateFollowUpMutation.isError && (
+                  <p className="text-sm text-red-400">
+                    {generateFollowUpMutation.error instanceof Error ? generateFollowUpMutation.error.message : 'Failed to generate follow-up'}
+                  </p>
+                )}
+                <textarea
+                  value={followUpText}
+                  onChange={(e) => setFollowUpText(e.target.value)}
+                  rows={12}
+                  className="flex-1 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-600 resize-none leading-relaxed"
+                  placeholder="Follow-up email will appear here…"
+                />
+                <div className="flex gap-3 pt-1">
+                  <button
+                    onClick={() => { setFollowUpAppId(null); setFollowUpText(''); }}
+                    className="flex-1 rounded-xl border border-white/10 py-2 text-sm text-slate-400 transition hover:bg-white/5"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => { void navigator.clipboard.writeText(followUpText); }}
+                    disabled={!followUpText}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-violet-500/30 bg-violet-500/10 py-2 text-sm font-medium text-violet-400 transition hover:bg-violet-500/20 disabled:opacity-50"
+                  >
+                    <Mail className="h-4 w-4" />
+                    Copy to clipboard
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

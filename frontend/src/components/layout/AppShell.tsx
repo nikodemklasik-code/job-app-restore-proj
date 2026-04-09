@@ -1,10 +1,28 @@
+import { useEffect, useRef } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
-import { useAuth } from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
+import { api } from '@/lib/api';
 import Sidebar from './Sidebar';
 import Header from './Header';
 
 export default function AppShell() {
   const { isSignedIn, isLoaded } = useAuth();
+  const { user, isLoaded: userLoaded } = useUser();
+  const ensureFromClerk = api.profile.ensureFromClerk.useMutation();
+  const ensuredForClerkId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!userLoaded || !user) return;
+    const email = user.primaryEmailAddress?.emailAddress;
+    if (!email) return;
+    if (ensuredForClerkId.current === user.id) return;
+    ensuredForClerkId.current = user.id;
+    const display =
+      user.fullName?.trim() ||
+      [user.firstName, user.lastName].filter(Boolean).join(' ').trim() ||
+      undefined;
+    ensureFromClerk.mutate({ userId: user.id, email, fullName: display });
+  }, [userLoaded, user, ensureFromClerk]);
 
   if (!isLoaded) {
     return (
