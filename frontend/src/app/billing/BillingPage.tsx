@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useSearchParams } from 'react-router-dom';
-import { Check, Zap, ExternalLink, Loader2, CreditCard, Heart } from 'lucide-react';
+import { Check, Zap, ExternalLink, Loader2, CreditCard, Heart, Bitcoin } from 'lucide-react';
 import { useBillingStore } from '@/stores/billingStore';
 import { trpcClient } from '@/lib/api';
 
-type PaymentMethod = 'stripe' | 'paypal';
+type PaymentMethod = 'stripe' | 'paypal' | 'crypto';
+
+// Coinbase Commerce hosted payment links (configured per plan)
+const COINBASE_LINKS: Record<string, string> = {
+  pro: import.meta.env.VITE_COINBASE_PRO_LINK ?? 'https://commerce.coinbase.com/checkout/multivohub-pro',
+  autopilot: import.meta.env.VITE_COINBASE_AUTOPILOT_LINK ?? 'https://commerce.coinbase.com/checkout/multivohub-autopilot',
+};
 
 const STRIPE_PRICE_IDS: Record<string, string> = {
   pro: import.meta.env.VITE_STRIPE_PRO_PRICE_ID ?? '',
@@ -86,16 +92,22 @@ export default function BillingPage() {
 
   const handleUpgrade = async (planId: 'pro' | 'autopilot') => {
     if (!userId || !userEmail) return;
+
+    // Crypto: redirect to Coinbase Commerce (no backend call needed)
+    if (paymentMethod === 'crypto') {
+      const link = COINBASE_LINKS[planId];
+      window.open(link, '_blank', 'noopener,noreferrer');
+      setStatusMessage({ type: 'success', text: 'Opening Coinbase Commerce… complete payment there and your plan will activate within 10 minutes.' });
+      return;
+    }
+
     setUpgradingPlan(planId);
     setStatusMessage(null);
     try {
       if (paymentMethod === 'paypal') {
         const { approveUrl } = await trpcClient.billing.createPayPalOrder.mutate({ userId, plan: planId });
-        // Append plan to return URL so we know which plan to activate on capture
-        const url = new URL(approveUrl);
-        // PayPal return_url is set server-side, but we store plan in localStorage as fallback
         localStorage.setItem('paypal_pending_plan', planId);
-        window.location.href = url.toString();
+        window.location.href = new URL(approveUrl).toString();
       } else {
         const priceId = STRIPE_PRICE_IDS[planId];
         if (!priceId) {
@@ -211,7 +223,23 @@ export default function BillingPage() {
               </svg>
               PayPal
             </button>
+            <button
+              onClick={() => setPaymentMethod('crypto')}
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+                paymentMethod === 'crypto'
+                  ? 'bg-amber-500 text-white'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Bitcoin className="h-4 w-4" />
+              Crypto
+            </button>
           </div>
+          {paymentMethod === 'crypto' && (
+            <p className="text-xs text-amber-400/80">
+              BTC, ETH, USDC accepted via Coinbase Commerce. Plan activates within 10 min of confirmation.
+            </p>
+          )}
         </div>
       )}
 
@@ -398,6 +426,17 @@ export default function BillingPage() {
                     <path d="M23.881 8.948c-.773-4.085-4.859-4.593-4.859-4.593H.723c-.604 0-.679.798-.679.798s-.082 7.324-.022 11.822c.164 2.025 1.476 2.896 2.464 2.884.95-.01 3.396 0 3.396 0s-.016.025-.02.031c-.658 1.049-1.327 2.007-2.116 2.803-.461.461 0 .736.463.736h.003c1.278 0 2.497-.913 2.978-1.352.624-.573 1.182-1.282 1.65-1.906.469.626 1.027 1.334 1.65 1.906.481.44 1.7 1.352 2.978 1.352h.003c.463 0 .924-.275.463-.736-.789-.796-1.458-1.754-2.116-2.803-.004-.006-.02-.031-.02-.031s2.446-.01 3.396 0c.988.012 2.3-.859 2.464-2.884.06-4.498-.022-11.822-.022-11.822zM16.1 13.645c0 .607-.501 1.1-1.117 1.1H8.017c-.616 0-1.117-.493-1.117-1.1V9.744c0-.607.501-1.1 1.117-1.1h6.966c.616 0 1.117.493 1.117 1.1v3.901zm5.13-.786c-.42.596-1.009.882-1.748.85l-.003-.001V9.59c.739-.032 1.328.254 1.748.85.643.912.643 2.527 0 3.42z" />
                   </svg>
                   Ko-fi
+                </a>
+
+                {/* Bitcoin / Crypto */}
+                <a
+                  href={`https://commerce.coinbase.com/checkout/multivohub-${tier.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 py-2 text-xs font-medium text-amber-400 transition hover:bg-amber-500/20"
+                >
+                  <Bitcoin className="h-3.5 w-3.5" />
+                  Bitcoin / Crypto
                 </a>
               </div>
             </div>
