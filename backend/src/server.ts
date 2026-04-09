@@ -34,7 +34,6 @@ const generalLimiter = rateLimit({
 //   message: { error: 'AI rate limit exceeded. Please wait.' },
 // });
 
-app.use(generalLimiter);
 const port = parseInt(process.env.PORT ?? '3001', 10);
 const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
 
@@ -43,7 +42,7 @@ app.use(cors({
   credentials: true,
 }));
 
-// Stripe webhook — MUST be before express.json()
+// Stripe webhook — MUST be before express.json() and before global rate limit (Stripe retries / bursts).
 app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -94,6 +93,7 @@ app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (r
 });
 
 app.use(express.json());
+app.use(generalLimiter);
 
 app.use('/trpc', createExpressMiddleware({ router: appRouter }));
 
