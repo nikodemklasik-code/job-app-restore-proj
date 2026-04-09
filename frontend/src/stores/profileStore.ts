@@ -1,26 +1,25 @@
 import { create } from 'zustand';
 import { trpcClient } from '@/lib/api';
-
-interface PersonalInfo {
-  fullName: string;
-  email: string;
-  phone: string;
-  summary: string;
-}
-
-interface Profile {
-  personalInfo: PersonalInfo;
-  skills: string[];
-}
+import type {
+  ProfileSnapshot,
+  PersonalInfo,
+  ProfileExperienceInput,
+  ProfileEducationInput,
+  ProfileTrainingInput,
+} from '../../../shared/profile';
 
 interface ProfileStore {
-  profile: Profile | null;
+  profile: ProfileSnapshot | null;
   isLoadingProfile: boolean;
   isSaving: boolean;
   error: string | null;
   loadProfile: () => Promise<void>;
   savePersonalInfo: (data: PersonalInfo) => Promise<void>;
   saveSkills: (skills: string[]) => Promise<void>;
+  replaceExperiences: (experiences: ProfileExperienceInput[]) => Promise<void>;
+  replaceEducations: (educations: ProfileEducationInput[]) => Promise<void>;
+  replaceTrainings: (trainings: ProfileTrainingInput[]) => Promise<void>;
+  dismissError: () => void;
 }
 
 export const useProfileStore = create<ProfileStore>((set) => ({
@@ -28,6 +27,10 @@ export const useProfileStore = create<ProfileStore>((set) => ({
   isLoadingProfile: false,
   isSaving: false,
   error: null,
+
+  dismissError() {
+    set({ error: null });
+  },
 
   async loadProfile() {
     set({ isLoadingProfile: true, error: null });
@@ -44,12 +47,10 @@ export const useProfileStore = create<ProfileStore>((set) => ({
   async savePersonalInfo(data) {
     set({ isSaving: true, error: null });
     try {
-      await trpcClient.profile.savePersonalInfo.mutate({ ...data });
-      set((state) => ({
-        profile: state.profile ? { ...state.profile, personalInfo: data } : null,
-      }));
+      const updated = await trpcClient.profile.savePersonalInfo.mutate(data);
+      set({ profile: updated });
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : 'Failed to save' });
+      set({ error: error instanceof Error ? error.message : 'Failed to save personal info' });
     } finally {
       set({ isSaving: false });
     }
@@ -58,12 +59,46 @@ export const useProfileStore = create<ProfileStore>((set) => ({
   async saveSkills(skills) {
     set({ isSaving: true, error: null });
     try {
-      await trpcClient.profile.saveSkills.mutate({ skills });
-      set((state) => ({
-        profile: state.profile ? { ...state.profile, skills } : null,
-      }));
+      const updated = await trpcClient.profile.saveSkills.mutate({ skills });
+      set({ profile: updated });
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : 'Failed to save' });
+      set({ error: error instanceof Error ? error.message : 'Failed to save skills' });
+    } finally {
+      set({ isSaving: false });
+    }
+  },
+
+  async replaceExperiences(experiences) {
+    set({ isSaving: true, error: null });
+    try {
+      const updated = await trpcClient.profile.replaceExperiences.mutate({ experiences });
+      set({ profile: updated });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to save experiences' });
+    } finally {
+      set({ isSaving: false });
+    }
+  },
+
+  async replaceEducations(educations) {
+    set({ isSaving: true, error: null });
+    try {
+      const updated = await trpcClient.profile.replaceEducations.mutate({ educations });
+      set({ profile: updated });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to save educations' });
+    } finally {
+      set({ isSaving: false });
+    }
+  },
+
+  async replaceTrainings(trainings) {
+    set({ isSaving: true, error: null });
+    try {
+      const updated = await trpcClient.profile.replaceTrainings.mutate({ trainings });
+      set({ profile: updated });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to save trainings' });
     } finally {
       set({ isSaving: false });
     }

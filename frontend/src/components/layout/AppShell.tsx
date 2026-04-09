@@ -1,9 +1,65 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth, useUser } from '@clerk/clerk-react';
+import { Volume2, VolumeX } from 'lucide-react';
 import { api } from '@/lib/api';
 import Sidebar from './Sidebar';
 import Header from './Header';
+
+// ─── Text-to-Speech floating button ──────────────────────────────────────────
+function TTSButton() {
+  const [speaking, setSpeaking] = useState(false);
+
+  const speak = () => {
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
+    }
+    const heading =
+      document.querySelector('h1')?.textContent ??
+      document.querySelector('h2')?.textContent ??
+      document.title;
+    const mainEl = document.querySelector('main, [role="main"], .page-content');
+    const text = mainEl?.textContent?.replace(/\s+/g, ' ').trim().slice(0, 600) ?? heading ?? document.title;
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.lang = 'en-US';
+    utt.rate = 0.9;
+    utt.onend = () => setSpeaking(false);
+    utt.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(utt);
+    setSpeaking(true);
+  };
+
+  return (
+    <button
+      onClick={speak}
+      title={speaking ? 'Stop reading' : 'Read page aloud'}
+      aria-label={speaking ? 'Stop reading' : 'Read page aloud'}
+      style={{
+        position: 'fixed',
+        bottom: 24,
+        right: 24,
+        zIndex: 9999,
+        borderRadius: '50%',
+        width: 48,
+        height: 48,
+        background: speaking ? '#dc2626' : '#6366f1',
+        border: 'none',
+        boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'background 0.2s',
+      }}
+    >
+      {speaking
+        ? <VolumeX style={{ width: 22, height: 22, color: '#fff' }} />
+        : <Volume2 style={{ width: 22, height: 22, color: '#fff' }} />}
+    </button>
+  );
+}
 
 export default function AppShell() {
   const { isSignedIn, isLoaded } = useAuth();
@@ -47,6 +103,7 @@ export default function AppShell() {
           </div>
         </main>
       </div>
+      <TTSButton />
     </div>
   );
 }

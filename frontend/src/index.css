@@ -105,6 +105,112 @@
   }
 }
 
+/* ─── Neurodiversity theme (soft cream, warm, no harsh borders) ─────────────── */
+.theme-neurodiversity {
+  --background: 43 70% 95%;        /* #fdf6e3 soft cream */
+  --foreground: 25 30% 20%;        /* warm dark brown, not pure black */
+  --card: 43 60% 92%;              /* slightly warmer cream for cards */
+  --card-foreground: 25 30% 20%;
+  --border: 40 30% 78%;            /* soft warm border */
+  --input: 40 30% 88%;
+  --primary: 238.7 83.5% 66.7%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 43 40% 88%;
+  --secondary-foreground: 25 30% 25%;
+  --muted: 43 40% 90%;
+  --muted-foreground: 25 20% 45%;
+  --accent: 43 40% 85%;
+  --accent-foreground: 25 30% 20%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 238.7 83.5% 66.7%;
+  --radius: 1rem;
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+}
+
+/* ─── High-contrast theme (low vision) ─────────────────────────────────────── */
+.theme-high-contrast {
+  --background: 0 0% 0%;           /* pure black */
+  --foreground: 60 100% 50%;       /* bright yellow */
+  --card: 0 0% 5%;                 /* near-black for cards */
+  --card-foreground: 60 100% 50%;
+  --border: 60 100% 50%;           /* yellow border everywhere */
+  --input: 0 0% 10%;
+  --primary: 60 100% 50%;          /* yellow primary */
+  --primary-foreground: 0 0% 0%;   /* black text on yellow */
+  --secondary: 0 0% 12%;
+  --secondary-foreground: 60 100% 50%;
+  --muted: 0 0% 10%;
+  --muted-foreground: 60 80% 65%;
+  --accent: 0 0% 15%;
+  --accent-foreground: 60 100% 50%;
+  --destructive: 0 100% 60%;
+  --destructive-foreground: 0 0% 0%;
+  --ring: 60 100% 50%;
+  --radius: 0.5rem;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+/* ─── Focus theme (ADHD-friendly, minimal noise, blue-only, reduced motion) ── */
+.theme-focus {
+  --background: 220 20% 98%;       /* near-white with blue tint */
+  --foreground: 220 40% 15%;       /* deep navy text */
+  --card: 220 15% 96%;
+  --card-foreground: 220 40% 15%;
+  --border: 220 25% 82%;           /* soft blue-grey border */
+  --input: 220 15% 92%;
+  --primary: 220 90% 56%;          /* single blue accent */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 15% 94%;
+  --secondary-foreground: 220 40% 20%;
+  --muted: 220 15% 94%;
+  --muted-foreground: 220 20% 50%;
+  --accent: 220 30% 90%;
+  --accent-foreground: 220 40% 15%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 220 90% 56%;
+  --radius: 0.75rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .theme-focus * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.15s !important;
+  }
+}
+
+/* ─── High-contrast extra overrides ─────────────────────────────────────────── */
+.theme-high-contrast * {
+  border-width: 2px !important;
+  outline-color: hsl(60 100% 50%);
+}
+.theme-high-contrast button,
+.theme-high-contrast a {
+  font-weight: 800;
+  text-decoration: underline;
+}
+.theme-high-contrast input,
+.theme-high-contrast textarea,
+.theme-high-contrast select {
+  border: 2px solid hsl(60 100% 50%) !important;
+  background: hsl(0 0% 0%) !important;
+  color: hsl(60 100% 50%) !important;
+}
+
+/* ─── Neurodiversity extra overrides ────────────────────────────────────────── */
+.theme-neurodiversity * {
+  border-radius: var(--radius) !important;
+}
+.theme-neurodiversity input,
+.theme-neurodiversity textarea,
+.theme-neurodiversity select {
+  border: 1px solid hsl(var(--border)) !important;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

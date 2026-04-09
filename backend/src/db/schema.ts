@@ -60,6 +60,17 @@ export const skills = mysqlTable('skills', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+export const trainings = mysqlTable('trainings', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  profileId: varchar('profile_id', { length: 36 }).notNull(),
+  title: varchar('title', { length: 255 }).notNull(),
+  providerName: varchar('provider_name', { length: 255 }).notNull(),
+  issuedAt: varchar('issued_at', { length: 20 }).notNull(),
+  expiresAt: varchar('expires_at', { length: 20 }),
+  credentialUrl: varchar('credential_url', { length: 500 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 export const interviewSessions = mysqlTable('interview_sessions', {
   id: varchar('id', { length: 36 }).primaryKey(),
   userId: varchar('user_id', { length: 36 }).notNull(),
@@ -161,6 +172,11 @@ export const profilesRelations = relations(profiles, ({ one, many }) => ({
   experiences: many(experiences),
   educations: many(educations),
   skills: many(skills),
+  trainings: many(trainings),
+}));
+
+export const trainingsRelations = relations(trainings, ({ one }) => ({
+  profile: one(profiles, { fields: [trainings.profileId], references: [profiles.id] }),
 }));
 
 export const interviewSessionsRelations = relations(interviewSessions, ({ one, many }) => ({

@@ -2,6 +2,50 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase } from 'lucide-react';
 
+// ─── Wave/avatar keyframes injected once ─────────────────────────────────────
+const AVATAR_STYLES = `
+  @keyframes wave {
+    0%, 100% { height: 8px; }
+    50% { height: 32px; }
+  }
+  @keyframes bounce-dot {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  @keyframes ping-dot {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.4); opacity: 0.4; }
+  }
+  @keyframes ping-ring {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes avatar-breathe {
+    0%, 100% { transform: scale(1.0); }
+    50% { transform: scale(1.01); }
+  }
+  @keyframes avatar-nod {
+    0%, 100% { transform: translateY(0px); }
+    25% { transform: translateY(-3px); }
+    75% { transform: translateY(1px); }
+  }
+  @keyframes eyes-look-up {
+    0%, 70%, 100% { transform: translateY(0); }
+    80%, 90% { transform: translateY(-2px); }
+  }
+  @keyframes eye-blink {
+    0%, 90%, 100% { transform: scaleY(1); }
+    95% { transform: scaleY(0.1); }
+  }
+  @keyframes avatar-wave-bars {
+    0%, 100% { height: 4px; transform: scaleY(0.5); }
+    50% { height: 20px; transform: scaleY(1); }
+  }
+`;
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Phase =
@@ -111,88 +155,205 @@ async function transcribeAudio(blob: Blob): Promise<string> {
   }
 }
 
-// ─── Avatar Component ─────────────────────────────────────────────────────────
+// ─── Human Avatar Component ───────────────────────────────────────────────────
 
 function Avatar({ state }: { state: AvatarState }) {
+  // Blink timer for listening/idle states
+  const [blinkPhase, setBlinkPhase] = useState(false);
+  useEffect(() => {
+    if (state !== 'listening' && state !== 'idle') { setBlinkPhase(false); return; }
+    const interval = setInterval(() => {
+      setBlinkPhase(true);
+      setTimeout(() => setBlinkPhase(false), 150);
+    }, state === 'listening' ? 3000 : 4500);
+    return () => clearInterval(interval);
+  }, [state]);
+
+  const ringColor =
+    state === 'speaking' ? '#6366f1' :
+    state === 'listening' ? '#22c55e' :
+    state === 'thinking' ? '#f59e0b' :
+    '#475569';
+
+  const ringAnimation =
+    state === 'speaking' ? 'ping-ring 1.2s ease-in-out infinite' :
+    state === 'idle' ? 'avatar-breathe 3s ease-in-out infinite' :
+    'none';
+
+  const faceAnimation =
+    state === 'speaking' ? 'avatar-nod 1.5s ease-in-out infinite' :
+    state === 'thinking' ? 'eyes-look-up 4s ease-in-out infinite' :
+    state === 'idle' ? 'avatar-breathe 3s ease-in-out infinite' :
+    'none';
+
+  const eyeScaleY = blinkPhase ? 0.08 : 1;
+  // When listening, eyes are slightly squinted attentively
+  const eyeRy = state === 'listening' ? (blinkPhase ? 0.4 : 6) : (blinkPhase ? 0.4 : 8);
+
+  // Pupil offsets for thinking (look up-right)
+  const pupilDy = state === 'thinking' ? -2 : 0;
+  const pupilDx = state === 'thinking' ? 1 : 0;
+
   return (
-    <div className="relative flex items-center justify-center" style={{ width: 160, height: 160 }}>
-      {/* Outer ring */}
+    <div
+      className="relative"
+      style={{
+        width: 160,
+        height: 160,
+        animation: ringAnimation,
+      }}
+      aria-label={`AI interviewer — ${state}`}
+    >
+      {/* Glow ring */}
       <div
-        className="absolute inset-0 rounded-full"
         style={{
-          background:
-            state === 'listening'
-              ? 'conic-gradient(from 0deg, #22c55e, #16a34a, #22c55e)'
-              : 'conic-gradient(from 0deg, #6366f1, #3b82f6, #8b5cf6, #6366f1)',
-          padding: 3,
+          position: 'absolute',
+          inset: -4,
           borderRadius: '50%',
-          animation:
-            state === 'idle' ? 'pulse 2s cubic-bezier(0.4,0,0.6,1) infinite' :
-            state === 'listening' ? 'ping-ring 1s ease-in-out infinite' : 'none',
+          border: `3px solid ${ringColor}`,
+          opacity: state === 'idle' ? 0.35 : 0.85,
+          transition: 'border-color 0.4s, opacity 0.4s',
+          animation: state === 'speaking' ? 'ping-ring 1.2s ease-in-out infinite' : 'none',
         }}
       />
-      {/* Inner circle */}
-      <div
-        className="relative z-10 flex items-center justify-center rounded-full"
-        style={{
-          width: 148,
-          height: 148,
-          background: 'linear-gradient(135deg, #1e1b4b 0%, #1e3a5f 100%)',
-          marginTop: 3,
-          marginLeft: 3,
-        }}
+
+      {/* SVG face — animated as a unit */}
+      <svg
+        viewBox="0 0 160 160"
+        style={{ width: 160, height: 160, borderRadius: '50%', animation: faceAnimation, display: 'block' }}
+        aria-hidden="true"
       >
-        {state === 'speaking' && (
-          <div className="flex items-end gap-1" style={{ height: 40 }}>
-            {[0, 150, 300, 450, 600].map((delay, i) => (
-              <div
-                key={i}
-                style={{
-                  width: 6,
-                  background: 'linear-gradient(to top, #6366f1, #818cf8)',
-                  borderRadius: 3,
-                  animation: 'wave 0.8s ease-in-out infinite',
-                  animationDelay: `${delay}ms`,
-                }}
-              />
-            ))}
-          </div>
+        {/* Dark background */}
+        <circle cx="80" cy="80" r="80" fill="#1e293b" />
+
+        {/* Shirt / shoulders */}
+        <ellipse cx="80" cy="160" rx="52" ry="24" fill="#4338ca" />
+        {/* Collar */}
+        <path d="M68 138 L80 148 L92 138" fill="#3730a3" />
+
+        {/* Neck */}
+        <rect x="66" y="118" width="28" height="26" rx="8" fill="#c9956c" />
+
+        {/* Head */}
+        <ellipse cx="80" cy="82" rx="36" ry="40" fill="#daa570" />
+
+        {/* Hair — dark brown, covers top of head */}
+        <ellipse cx="80" cy="47" rx="37" ry="19" fill="#3b1f07" />
+        {/* Side hair left */}
+        <ellipse cx="45" cy="68" rx="11" ry="22" fill="#3b1f07" />
+        {/* Side hair right */}
+        <ellipse cx="115" cy="68" rx="11" ry="22" fill="#3b1f07" />
+        {/* Hair front strand line for realism */}
+        <path d="M56 52 Q64 58 62 66" stroke="#2a1504" strokeWidth="2" fill="none" strokeLinecap="round" />
+        <path d="M104 52 Q96 58 98 66" stroke="#2a1504" strokeWidth="2" fill="none" strokeLinecap="round" />
+
+        {/* Ears */}
+        <ellipse cx="44" cy="84" rx="6" ry="9" fill="#c9956c" />
+        <ellipse cx="116" cy="84" rx="6" ry="9" fill="#c9956c" />
+        <ellipse cx="44" cy="84" rx="3.5" ry="5.5" fill="#b8845c" />
+        <ellipse cx="116" cy="84" rx="3.5" ry="5.5" fill="#b8845c" />
+
+        {/* Eyebrows */}
+        <path d="M55 70 Q63 65 71 70" stroke="#3b1f07" strokeWidth="2.5" fill="none" strokeLinecap="round"
+          style={{ transform: state === 'thinking' ? 'translateY(-2px)' : 'none', transition: 'transform 0.5s' }} />
+        <path d="M89 70 Q97 65 105 70" stroke="#3b1f07" strokeWidth="2.5" fill="none" strokeLinecap="round"
+          style={{ transform: state === 'thinking' ? 'translateY(-2px)' : 'none', transition: 'transform 0.5s' }} />
+
+        {/* Eye whites */}
+        <ellipse cx="63" cy="82" rx="8.5" ry={eyeRy} fill="white"
+          style={{ transformOrigin: '63px 82px', transform: `scaleY(${eyeScaleY})`, transition: 'transform 0.08s' }} />
+        <ellipse cx="97" cy="82" rx="8.5" ry={eyeRy} fill="white"
+          style={{ transformOrigin: '97px 82px', transform: `scaleY(${eyeScaleY})`, transition: 'transform 0.08s' }} />
+
+        {/* Pupils */}
+        {!blinkPhase && (
+          <>
+            <circle cx={64 + pupilDx} cy={83 + pupilDy} r="5" fill="#1a0f00" />
+            <circle cx={98 + pupilDx} cy={83 + pupilDy} r="5" fill="#1a0f00" />
+            {/* Iris colour */}
+            <circle cx={64 + pupilDx} cy={83 + pupilDy} r="3" fill="#5b3a29" />
+            <circle cx={98 + pupilDx} cy={83 + pupilDy} r="3" fill="#5b3a29" />
+            {/* Eye shine */}
+            <circle cx={66 + pupilDx} cy={81 + pupilDy} r="1.5" fill="rgba(255,255,255,0.9)" />
+            <circle cx={100 + pupilDx} cy={81 + pupilDy} r="1.5" fill="rgba(255,255,255,0.9)" />
+          </>
         )}
-        {state === 'listening' && (
-          <div className="flex items-center justify-center">
+
+        {/* Nose */}
+        <path d="M80 90 L76 102 Q80 105 84 102 Z" fill="#b8845c" />
+        <ellipse cx="76" cy="102" rx="4" ry="2.5" fill="#a67040" />
+        <ellipse cx="84" cy="102" rx="4" ry="2.5" fill="#a67040" />
+
+        {/* Mouth — changes based on state */}
+        {state === 'speaking' ? (
+          <>
+            {/* Open mouth when speaking */}
+            <ellipse cx="80" cy="113" rx="11" ry="7" fill="#7a1515" />
+            <ellipse cx="80" cy="110" rx="11" ry="4" fill="#c9956c" />
+            {/* Teeth hint */}
+            <rect x="70" y="109" width="20" height="4" rx="2" fill="#f5f0e8" />
+          </>
+        ) : (
+          /* Subtle smile */
+          <path d="M70 110 Q80 118 90 110" stroke="#b8845c" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+        )}
+
+        {/* Subtle cheek flush */}
+        <ellipse cx="54" cy="95" rx="8" ry="5" fill="rgba(220,130,100,0.25)" />
+        <ellipse cx="106" cy="95" rx="8" ry="5" fill="rgba(220,130,100,0.25)" />
+      </svg>
+
+      {/* Speaking waveform overlay */}
+      {state === 'speaking' && (
+        <div style={{
+          position: 'absolute',
+          bottom: 6,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          gap: 3,
+          alignItems: 'flex-end',
+        }}>
+          {[0, 1, 2, 3, 4].map((i) => (
             <div
+              key={i}
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                background: '#22c55e',
-                opacity: 0.8,
-                animation: 'ping-dot 1s ease-in-out infinite',
+                width: 4,
+                background: '#818cf8',
+                borderRadius: 2,
+                animation: `avatar-wave-bars 0.8s ease-in-out infinite`,
+                animationDelay: `${i * 0.15}s`,
               }}
             />
-          </div>
-        )}
-        {state === 'thinking' && (
-          <div className="flex gap-2">
-            {[0, 200, 400].map((delay, i) => (
-              <div
-                key={i}
-                style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: '50%',
-                  background: '#818cf8',
-                  animation: 'bounce-dot 0.8s ease-in-out infinite',
-                  animationDelay: `${delay}ms`,
-                }}
-              />
-            ))}
-          </div>
-        )}
-        {state === 'idle' && (
-          <span style={{ fontSize: 48 }}>🤖</span>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
+
+      {/* Thinking dots overlay */}
+      {state === 'thinking' && (
+        <div style={{
+          position: 'absolute',
+          bottom: 6,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          gap: 4,
+        }}>
+          {[0, 200, 400].map((delay, i) => (
+            <div
+              key={i}
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: '#f59e0b',
+                animation: 'bounce-dot 0.8s ease-in-out infinite',
+                animationDelay: `${delay}ms`,
+              }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -470,24 +631,7 @@ export default function InterviewPractice() {
         className="min-h-screen flex items-center justify-center p-4"
         style={{ background: '#0a0f1e' }}
       >
-        <style>{`
-          @keyframes wave {
-            0%, 100% { height: 8px; }
-            50% { height: 32px; }
-          }
-          @keyframes bounce-dot {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-8px); }
-          }
-          @keyframes ping-dot {
-            0%, 100% { transform: scale(1); opacity: 0.8; }
-            50% { transform: scale(1.4); opacity: 0.4; }
-          }
-          @keyframes ping-ring {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-          }
-        `}</style>
+        <style>{AVATAR_STYLES}</style>
 
         <div
           style={{
@@ -755,27 +899,7 @@ export default function InterviewPractice() {
       }}
     >
       {/* Keyframes */}
-      <style>{`
-        @keyframes wave {
-          0%, 100% { height: 8px; }
-          50% { height: 32px; }
-        }
-        @keyframes bounce-dot {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
-        }
-        @keyframes ping-dot {
-          0%, 100% { transform: scale(1); opacity: 0.8; }
-          50% { transform: scale(1.4); opacity: 0.4; }
-        }
-        @keyframes ping-ring {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+      <style>{AVATAR_STYLES}</style>
 
       {/* Main panels row */}
       <div style={{ display: 'flex', gap: 16, flex: 1, minHeight: 0 }}>
