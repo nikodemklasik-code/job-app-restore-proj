@@ -251,6 +251,42 @@ app.post('/api/interview/transcribe', upload.single('audio'), async (req, res) =
   }
 });
 
+// ─── Negotiation coaching stream ──────────────────────────────────────────────
+app.post('/api/negotiation/stream', async (req, res) => {
+  const { messages } = req.body as {
+    messages: Array<{ role: string; content: string }>;
+  };
+
+  if (!messages || !Array.isArray(messages)) {
+    res.status(400).json({ error: 'Missing messages' });
+    return;
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  try {
+    const { streamNegotiationResponse } = await import('./services/negotiationConversation.js');
+    const validMessages = messages
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+    for await (const chunk of streamNegotiationResponse(validMessages)) {
+      res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+    }
+
+    res.write('data: [DONE]\n\n');
+  } catch (err) {
+    console.error('[Negotiation Stream]', err);
+    res.write(`data: ${JSON.stringify({ error: 'Stream failed' })}\n\n`);
+  } finally {
+    res.end();
+  }
+});
+
 app.listen(port, () => {
   console.log(`Backend running on http://localhost:${port}`);
   console.log(`tRPC available at http://localhost:${port}/trpc`);
