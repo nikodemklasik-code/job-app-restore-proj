@@ -355,6 +355,42 @@ export const emailMonitoring = mysqlTable('email_monitoring', {
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
 });
 
+// Live Interview sessions (persistent store for liveInterviewEngine)
+export const liveInterviewSessions = mysqlTable('live_interview_sessions', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  status: varchar('status', { length: 30 }).notNull().default('CREATED'),
+  stage: varchar('stage', { length: 50 }).notNull().default('INTRO'),
+  mode: varchar('mode', { length: 50 }).notNull(),
+  // roleContext fields (denormalized for easy queries)
+  targetRole: varchar('target_role', { length: 200 }).notNull(),
+  company: varchar('company', { length: 200 }),
+  seniority: varchar('seniority', { length: 100 }),
+  roleDescription: text('role_description'),
+  // config
+  maxTurns: int('max_turns').notNull().default(12),
+  maxFollowUpsPerTopic: int('max_follow_ups_per_topic').notNull().default(2),
+  turnCount: int('turn_count').notNull().default(0),
+  // rich state stored as JSON
+  memory: json('memory').notNull(),
+  summary: json('summary'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+  startedAt: timestamp('started_at'),
+  endedAt: timestamp('ended_at'),
+});
+
+export const liveInterviewTurns = mysqlTable('live_interview_turns', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  sessionId: varchar('session_id', { length: 36 }).notNull(),
+  speaker: varchar('speaker', { length: 20 }).notNull(), // 'assistant' | 'candidate'
+  message: text('message').notNull(),
+  intent: varchar('intent', { length: 50 }),
+  nextAction: varchar('next_action', { length: 50 }),
+  stage: varchar('stage', { length: 50 }).notNull(),
+  timestamp: timestamp('timestamp').defaultNow().notNull(),
+});
+
 // Web Push subscriptions (VAPID)
 export const pushSubscriptions = mysqlTable('push_subscriptions', {
   id: varchar('id', { length: 36 }).primaryKey(),

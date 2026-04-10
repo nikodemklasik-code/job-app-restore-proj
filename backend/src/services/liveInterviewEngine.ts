@@ -1,5 +1,11 @@
 import { randomUUID } from 'crypto';
 import OpenAI from 'openai';
+import {
+  dbCreateSession,
+  dbGetSession,
+  dbUpdateSession,
+  dbAppendTurn,
+} from './liveInterviewRepository.js';
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
@@ -119,9 +125,7 @@ export interface ProcessTurnResult {
   isComplete: boolean;
 }
 
-// ── In-memory session store ───────────────────────────────────────────────────
-
-const sessionStore = new Map<string, LiveInterviewSession>();
+// ── Session store removed — sessions are persisted via liveInterviewRepository ─
 
 function getOpenAI(): OpenAI {
   if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not configured');
@@ -532,12 +536,12 @@ Be honest and specific. Do not invent achievements. Base everything on the answe
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-export function createSession(
+export async function createSession(
   userId: string,
   mode: string,
   roleContext: RoleContext,
   config?: Partial<InterviewConfig>,
-): LiveInterviewSession {
+): Promise<LiveInterviewSession> {
   const session: LiveInterviewSession = {
     id: randomUUID(),
     userId,
@@ -567,7 +571,7 @@ export function createSession(
     transcript: [],
   };
 
-  sessionStore.set(session.id, session);
+  await dbCreateSession(session);
   return session;
 }
 
@@ -575,7 +579,7 @@ export async function startSession(sessionId: string): Promise<{
   assistantMessage: string;
   session: LiveInterviewSession;
 }> {
-  const session = sessionStore.get(sessionId);
+  const session = await dbGetSession(sessionId);
   if (!session) throw new Error('SESSION_NOT_FOUND');
   if (session.status !== InterviewStatus.CREATED) throw new Error('SESSION_ALREADY_STARTED');
 
@@ -599,7 +603,8 @@ export async function startSession(sessionId: string): Promise<{
   session.turnCount += 1;
   session.updatedAt = new Date();
 
-  sessionStore.set(session.id, session);
+  await dbUpdateSession(session);
+  await dbAppendTurn(turn, session.id);
   return { assistantMessage: openingMessage, session };
 }
 
@@ -607,7 +612,7 @@ export async function processTurn(
   sessionId: string,
   userMessage: string,
 ): Promise<ProcessTurnResult> {
-  const session = sessionStore.get(sessionId);
+  const session = await dbGetSession(sessionId);
   if (!session) throw new Error('SESSION_NOT_FOUND');
   if (session.status !== InterviewStatus.ACTIVE) throw new Error('SESSION_NOT_ACTIVE');
   if (!userMessage.trim()) throw new Error('EMPTY_MESSAGE');
@@ -668,7 +673,9 @@ export async function processTurn(
     session.summary = await generateSummary(session);
   }
 
-  sessionStore.set(session.id, session);
+  await dbUpdateSession(session);
+  await dbAppendTurn(candidateTurn, session.id);
+  await dbAppendTurn(assistantTurn, session.id);
 
   return {
     assistantMessage,
@@ -689,7 +696,7 @@ export async function completeSession(sessionId: string): Promise<{
   summary: InterviewSummary;
   session: LiveInterviewSession;
 }> {
-  const session = sessionStore.get(sessionId);
+  const session = await dbGetSession(sessionId);
   if (!session) throw new Error('SESSION_NOT_FOUND');
   if (session.status === InterviewStatus.CREATED) throw new Error('SESSION_NOT_STARTED');
 
@@ -698,7 +705,7 @@ export async function completeSession(sessionId: string): Promise<{
     session.endedAt = new Date();
     session.updatedAt = new Date();
     session.summary = await generateSummary(session);
-    sessionStore.set(session.id, session);
+    await dbUpdateSession(session);
   }
 
   return {
@@ -707,16 +714,16 @@ export async function completeSession(sessionId: string): Promise<{
   };
 }
 
-export function getSession(sessionId: string): LiveInterviewSession | undefined {
-  return sessionStore.get(sessionId);
+export async function getSession(sessionId: string): Promise<LiveInterviewSession | undefined> {
+  return dbGetSession(sessionId);
 }
 
-export function abandonSession(sessionId: string): void {
-  const session = sessionStore.get(sessionId);
+export async function abandonSession(sessionId: string): Promise<void> {
+  const session = await dbGetSession(sessionId);
   if (session && session.status === InterviewStatus.ACTIVE) {
     session.status = InterviewStatus.ABANDONED;
     session.endedAt = new Date();
     session.updatedAt = new Date();
-    sessionStore.set(session.id, session);
+    await dbUpdateSession(session);
   }
 }

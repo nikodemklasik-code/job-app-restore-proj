@@ -34,7 +34,7 @@ export const liveInterviewRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       const userId = ctx.user.id;
-      const session = createSession(userId, input.mode, input.roleContext, {
+      const session = await createSession(userId, input.mode, input.roleContext, {
         maxTurns: input.config?.maxTurns,
       });
       return {
@@ -49,7 +49,7 @@ export const liveInterviewRouter = router({
     .input(z.object({ sessionId: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {
       const userId = ctx.user.id;
-      const existing = getSession(input.sessionId);
+      const existing = await getSession(input.sessionId);
       if (!existing) throw new TRPCError({ code: 'NOT_FOUND', message: 'Session not found' });
       if (existing.userId !== userId) throw new TRPCError({ code: 'FORBIDDEN' });
 
@@ -80,7 +80,7 @@ export const liveInterviewRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       const userId = ctx.user.id;
-      const session = getSession(input.sessionId);
+      const session = await getSession(input.sessionId);
       if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: 'Session not found' });
       if (session.userId !== userId) throw new TRPCError({ code: 'FORBIDDEN' });
       if (session.status !== InterviewStatus.ACTIVE) {
@@ -96,7 +96,7 @@ export const liveInterviewRouter = router({
           stage: result.stage,
           memoryUpdate: result.memoryUpdate,
           isComplete: result.isComplete,
-          summary: result.isComplete ? getSession(input.sessionId)?.summary ?? null : null,
+          summary: result.isComplete ? (await getSession(input.sessionId))?.summary ?? null : null,
         };
       } catch (err) {
         const code = err instanceof Error ? err.message : '';
@@ -115,7 +115,7 @@ export const liveInterviewRouter = router({
     .input(z.object({ sessionId: z.string().uuid() }))
     .mutation(async ({ input, ctx }) => {
       const userId = ctx.user.id;
-      const session = getSession(input.sessionId);
+      const session = await getSession(input.sessionId);
       if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: 'Session not found' });
       if (session.userId !== userId) throw new TRPCError({ code: 'FORBIDDEN' });
 
@@ -138,21 +138,21 @@ export const liveInterviewRouter = router({
   // ── Abandon session ──────────────────────────────────────────────────────────
   abandon: protectedProcedure
     .input(z.object({ sessionId: z.string().uuid() }))
-    .mutation(({ input, ctx }) => {
+    .mutation(async ({ input, ctx }) => {
       const userId = ctx.user.id;
-      const session = getSession(input.sessionId);
+      const session = await getSession(input.sessionId);
       if (!session) return { success: true };
       if (session.userId !== userId) throw new TRPCError({ code: 'FORBIDDEN' });
-      abandonSession(input.sessionId);
+      await abandonSession(input.sessionId);
       return { success: true };
     }),
 
   // ── Get session ──────────────────────────────────────────────────────────────
   getSession: protectedProcedure
     .input(z.object({ sessionId: z.string().uuid() }))
-    .query(({ input, ctx }) => {
+    .query(async ({ input, ctx }) => {
       const userId = ctx.user.id;
-      const session = getSession(input.sessionId);
+      const session = await getSession(input.sessionId);
       if (!session) throw new TRPCError({ code: 'NOT_FOUND' });
       if (session.userId !== userId) throw new TRPCError({ code: 'FORBIDDEN' });
       return {
