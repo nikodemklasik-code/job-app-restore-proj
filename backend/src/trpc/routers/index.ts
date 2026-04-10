@@ -1,5 +1,6 @@
 import { router } from '../trpc.js';
 import { assistantRouter } from './assistant.router.js';
+import { liveInterviewRouter } from './liveInterview.router.js';
 import { interviewRouter } from './interview.router.js';
 import { profileRouter } from './profile.router.js';
 import { billingRouter } from './billing.router.js';
@@ -21,6 +22,7 @@ import { radarRouter } from './radar.router.js';
 export const appRouter = router({
   assistant: assistantRouter,
   interview: interviewRouter,
+  liveInterview: liveInterviewRouter,
   profile: profileRouter,
   billing: billingRouter,
   security: securityRouter,

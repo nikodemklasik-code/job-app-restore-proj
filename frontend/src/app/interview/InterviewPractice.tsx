@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { api } from '@/lib/api';
+import { api, trpcClient } from '@/lib/api';
 import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, BookOpen, Clock, TrendingUp, FileDown, StickyNote, Star, Lock, Zap } from 'lucide-react';
 import { interviewModeLabels } from '../../../../shared/interview';
 import type { InterviewMode } from '../../../../shared/interview';
@@ -104,6 +104,16 @@ interface TurnFeedback {
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 const MAX_EXCHANGES = 8;
+
+// ─── Live Interview Summary type ──────────────────────────────────────────────
+
+interface LiveInterviewSummary {
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  communicationNotes: string;
+  nextFocus: string[];
+}
 
 // ─── Client-side STAR helpers (fast, no network) ─────────────────────────────
 
@@ -657,6 +667,11 @@ export default function InterviewPractice() {
   // Transcript toggle (for complete screen)
   const [showTranscript, setShowTranscript] = useState(false);
 
+  // Live Interview engine state
+  const [useLiveMode, setUseLiveMode] = useState(true);
+  const liveSessionIdRef = useRef<string | null>(null);
+  const [liveInterviewSummary, setLiveInterviewSummary] = useState<LiveInterviewSummary | null>(null);
+
   // Jobs feed & history
   const feedQuery = api.jobs.getFeed.useQuery({ limit: 20 }, { enabled: phase === 'lobby' });
   const historyQuery = api.interview.getHistory.useQuery(undefined, { enabled: showHistory });
@@ -834,11 +849,47 @@ export default function InterviewPractice() {
     setTurnFeedback(null);
     setSessionNotes('');
     setShowNotesSaved(false);
+    setLiveInterviewSummary(null);
+    liveSessionIdRef.current = null;
     setPhase('connecting');
     setAvatarState('thinking');
     await new Promise((r) => setTimeout(r, 1800));
-    await runAITurn([]);
-  }, [runAITurn]);
+
+    if (useLiveMode) {
+      // ── Live Interview engine path ──────────────────────────────────────────
+      const job = getJob();
+      try {
+        const { sessionId } = await trpcClient.liveInterview.createSession.mutate({
+          mode: selectedMode as 'behavioral' | 'technical' | 'general' | 'hr' | 'case-study' | 'language-check',
+          roleContext: {
+            targetRole: job.title,
+            company: job.company,
+            description: job.description ?? undefined,
+          },
+        });
+        liveSessionIdRef.current = sessionId;
+
+        const { assistantMessage } = await trpcClient.liveInterview.startSession.mutate({ sessionId });
+        const firstMsg: Message = { role: 'assistant', content: assistantMessage };
+        setMessages([firstMsg]);
+        setCurrentTranscript('');
+        setPhase('ai-speaking');
+        setAvatarState('speaking');
+        await playTTS(assistantMessage);
+        setExchangeCount(1);
+        setPhase('user-turn');
+        setAvatarState('listening');
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Network error';
+        setError(`Could not start interview: ${msg}`);
+        setAvatarState('idle');
+        setPhase('lobby');
+      }
+    } else {
+      // ── Coaching mode (legacy stream path) ─────────────────────────────────
+      await runAITurn([]);
+    }
+  }, [runAITurn, useLiveMode, getJob, selectedMode]);
 
   const startRecording = useCallback(async () => {
     setError(null);
@@ -892,7 +943,45 @@ export default function InterviewPractice() {
         { role: 'user', content: transcript },
       ];
       setMessages(updatedMsgs);
-      await runAITurn(updatedMsgs);
+
+      if (useLiveMode && liveSessionIdRef.current) {
+        // ── Live Interview engine path ────────────────────────────────────────
+        setPhase('processing');
+        setAvatarState('thinking');
+        try {
+          const result = await trpcClient.liveInterview.respond.mutate({
+            sessionId: liveSessionIdRef.current,
+            userMessage: transcript,
+          });
+
+          const aiMsg: Message = { role: 'assistant', content: result.assistantMessage };
+          const withAi: Message[] = [...updatedMsgs, aiMsg];
+          setMessages(withAi);
+          setExchangeCount(withAi.filter((m) => m.role === 'assistant').length);
+
+          setPhase('ai-speaking');
+          setAvatarState('speaking');
+          await playTTS(result.assistantMessage);
+
+          if (result.isComplete) {
+            if (result.summary) setLiveInterviewSummary(result.summary as LiveInterviewSummary);
+            setPhase('complete');
+            setAvatarState('idle');
+            stopCamera();
+          } else {
+            setPhase('user-turn');
+            setAvatarState('listening');
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'Network error';
+          setError(`AI error: ${msg}`);
+          setAvatarState('idle');
+          setPhase('user-turn');
+        }
+      } else {
+        // ── Coaching mode (legacy stream path) ───────────────────────────────
+        await runAITurn(updatedMsgs);
+      }
     };
 
     recorder.start(250);
@@ -900,7 +989,7 @@ export default function InterviewPractice() {
     setIsRecording(true);
     setAvatarState('listening');
     setPhase('user-turn');
-  }, [messages, runAITurn, startMicLevelAnimation, stopMicLevelAnimation]);
+  }, [messages, runAITurn, useLiveMode, stopCamera, startMicLevelAnimation, stopMicLevelAnimation]);
 
   const stopRecording = useCallback(() => {
     recorderRef.current?.stop();
@@ -916,12 +1005,22 @@ export default function InterviewPractice() {
 
   const endCall = useCallback(() => {
     recorderRef.current?.stop();
-    setPhase('complete');
-    setAvatarState('idle');
     setIsRecording(false);
     stopMicLevelAnimation();
     stopCamera();
-  }, [stopMicLevelAnimation, stopCamera]);
+
+    if (useLiveMode && liveSessionIdRef.current) {
+      const sessionId = liveSessionIdRef.current;
+      void trpcClient.liveInterview.complete.mutate({ sessionId }).then((res) => {
+        if (res.summary) setLiveInterviewSummary(res.summary as LiveInterviewSummary);
+      }).catch(() => {
+        // non-fatal — show complete screen without AI summary
+      });
+    }
+
+    setPhase('complete');
+    setAvatarState('idle');
+  }, [useLiveMode, stopMicLevelAnimation, stopCamera]);
 
   const resetAll = useCallback(() => {
     setPhase('lobby');
@@ -941,6 +1040,8 @@ export default function InterviewPractice() {
     setSessionNotes('');
     setShowNotesSaved(false);
     setShowHistory(false);
+    setLiveInterviewSummary(null);
+    liveSessionIdRef.current = null;
   }, []);
 
   // ── LOBBY SCREEN ───────────────────────────────────────────────────────────
@@ -1095,6 +1196,37 @@ export default function InterviewPractice() {
               </div>
             ) : (
             <>
+            {/* Mode toggle: Live Interview vs Coaching */}
+            <div style={{ background: '#0f172a', borderRadius: 10, border: '1px solid #1e293b', padding: '8px', display: 'flex', gap: 4 }}>
+              <button
+                onClick={() => setUseLiveMode(true)}
+                style={{
+                  flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13,
+                  background: useLiveMode ? 'linear-gradient(135deg,#6366f1,#3b82f6)' : 'transparent',
+                  color: useLiveMode ? '#fff' : '#64748b',
+                  transition: 'all 0.15s',
+                }}
+              >
+                🎙️ Live Interview
+              </button>
+              <button
+                onClick={() => setUseLiveMode(false)}
+                style={{
+                  flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13,
+                  background: !useLiveMode ? 'rgba(99,102,241,0.18)' : 'transparent',
+                  color: !useLiveMode ? '#a5b4fc' : '#64748b',
+                  transition: 'all 0.15s',
+                }}
+              >
+                🧑‍🏫 Coaching Mode
+              </button>
+            </div>
+            {useLiveMode && (
+              <p style={{ margin: 0, fontSize: 12, color: '#64748b', textAlign: 'center' }}>
+                Real interview flow — structured questions, follow-ups, session memory, and summary
+              </p>
+            )}
+
             {/* Join button */}
             <button
               disabled={!canJoin}
@@ -1333,8 +1465,55 @@ export default function InterviewPractice() {
             )}
           </div>
 
-          {/* Coaching Plan */}
-          {coachingPlan.length > 0 && (
+          {/* Live Interview Summary (when live mode was used) */}
+          {useLiveMode && liveInterviewSummary && (
+            <div style={{ background: '#0f172a', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 16, padding: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <span style={{ fontSize: 16 }}>🎙️</span>
+                <span style={{ fontWeight: 700, fontSize: 15 }}>Interview Summary</span>
+              </div>
+              <p style={{ margin: '0 0 14px', fontSize: 14, color: '#94a3b8', lineHeight: 1.7 }}>{liveInterviewSummary.summary}</p>
+              {liveInterviewSummary.strengths.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#34d399', letterSpacing: '0.08em', marginBottom: 6 }}>STRENGTHS</div>
+                  {liveInterviewSummary.strengths.map((s, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 4 }}>
+                      <span style={{ color: '#34d399', flexShrink: 0 }}>✓</span>
+                      <span style={{ fontSize: 13, color: '#e2e8f0' }}>{s}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {liveInterviewSummary.weaknesses.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#f87171', letterSpacing: '0.08em', marginBottom: 6 }}>AREAS TO IMPROVE</div>
+                  {liveInterviewSummary.weaknesses.map((w, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 4 }}>
+                      <span style={{ color: '#f87171', flexShrink: 0 }}>→</span>
+                      <span style={{ fontSize: 13, color: '#e2e8f0' }}>{w}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {liveInterviewSummary.nextFocus.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.08em', marginBottom: 6 }}>NEXT PRACTICE FOCUS</div>
+                  {liveInterviewSummary.nextFocus.map((f, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 4 }}>
+                      <span style={{ color: '#fbbf24', flexShrink: 0 }}>•</span>
+                      <span style={{ fontSize: 13, color: '#e2e8f0' }}>{f}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {liveInterviewSummary.communicationNotes && (
+                <p style={{ margin: '12px 0 0', fontSize: 12, color: '#64748b', fontStyle: 'italic' }}>{liveInterviewSummary.communicationNotes}</p>
+              )}
+            </div>
+          )}
+
+          {/* Coaching Plan (shown only in coaching mode) */}
+          {!useLiveMode && coachingPlan.length > 0 && (
             <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 16, padding: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                 <Star style={{ width: 16, height: 16, color: '#fbbf24' }} />
