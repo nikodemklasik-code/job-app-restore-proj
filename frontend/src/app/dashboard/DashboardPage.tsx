@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { Briefcase, TrendingUp, MessageSquare, Award, ChevronRight, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -22,9 +23,12 @@ function LiveTicker() {
   const feedQuery = api.jobs.getFeed.useQuery({ limit: 20 });
   const jobs = feedQuery.data ?? [];
 
-  const prefersReducedMotion =
-    typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const prefersReducedMotion = useMemo(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    [],
+  );
 
   if (feedQuery.isLoading || jobs.length === 0) return null;
 
@@ -61,8 +65,12 @@ function LiveTicker() {
           <span className="text-[11px] font-bold tracking-widest text-red-400 uppercase">Live</span>
         </div>
 
-        {/* Scrolling track — pauses on hover or keyboard focus */}
-        <div className="relative flex-1 overflow-hidden group">
+        {/* Scrolling track — pauses on hover or keyboard focus; keyboard-focusable for keyboard users */}
+        <div
+          className="relative flex-1 overflow-hidden group"
+          tabIndex={0}
+          aria-label="Live job feed — press Tab to pause scrolling"
+        >
           <div
             className="flex whitespace-nowrap group-hover:[animation-play-state:paused] group-focus-within:[animation-play-state:paused]"
             style={{

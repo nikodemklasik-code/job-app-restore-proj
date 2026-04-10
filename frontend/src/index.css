@@ -169,21 +169,55 @@
   --card: 0 0% 5%;                 /* near-black for cards */
   --card-foreground: 60 100% 50%;
   --border: 60 100% 50%;           /* yellow border everywhere */
-  --input: 0 0% 10%;
+  --input: 0 0% 8%;
   --primary: 60 100% 50%;          /* yellow primary */
   --primary-foreground: 0 0% 0%;   /* black text on yellow */
   --secondary: 0 0% 12%;
   --secondary-foreground: 60 100% 50%;
   --muted: 0 0% 10%;
-  --muted-foreground: 60 80% 65%;
+  --muted-foreground: 60 80% 70%;
   --accent: 0 0% 15%;
   --accent-foreground: 60 100% 50%;
   --destructive: 0 100% 60%;
   --destructive-foreground: 0 0% 0%;
   --ring: 60 100% 50%;
   --radius: 0.5rem;
+  /* Readable proportions: adequate spacing, no forced bold on everything */
+  line-height: 1.75;
+  letter-spacing: 0.025em;
+}
+
+/* Headings stay prominent without forcing bold on body copy */
+.theme-high-contrast h1,
+.theme-high-contrast h2,
+.theme-high-contrast h3,
+.theme-high-contrast h4,
+.theme-high-contrast h5,
+.theme-high-contrast h6 {
   font-weight: 700;
-  font-size: 1.05rem;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+}
+
+/* Ensure buttons and interactive labels keep sufficient weight */
+.theme-high-contrast button,
+.theme-high-contrast [role="button"],
+.theme-high-contrast label {
+  font-weight: 600;
+}
+
+/* Override hardcoded slate/white utility colours so glass-effect UI is readable */
+.theme-high-contrast [class*="text-slate-"],
+.theme-high-contrast [class*="text-white"] {
+  color: hsl(60 80% 70%) !important;
+}
+.theme-high-contrast [class*="border-white"],
+.theme-high-contrast [class*="border-slate-"] {
+  border-color: hsl(60 100% 50%) !important;
+}
+.theme-high-contrast [class*="bg-white/"],
+.theme-high-contrast [class*="bg-slate-"] {
+  background-color: hsl(0 0% 8%) !important;
 }
 
 /* ─── Focus theme (ADHD-friendly, minimal noise, blue-only, reduced motion) ── */

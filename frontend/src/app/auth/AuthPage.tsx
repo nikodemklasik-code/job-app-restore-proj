@@ -674,21 +674,36 @@ export default function AuthPage() {
                 className="space-y-3"
               >
                 {infoMessage && (
-                  <div className="rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-2.5 text-xs text-indigo-200">
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    className="rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-2.5 text-xs text-indigo-200"
+                  >
                     {infoMessage}
                   </div>
                 )}
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  placeholder="6-digit code from email"
-                  value={emailCode}
-                  onChange={(e) => setEmailCode(e.target.value.replace(/\s/g, ''))}
-                  className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm tracking-widest text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
-                />
+                <div className="space-y-1">
+                  <label htmlFor="auth-code" className="block text-xs font-medium text-slate-400">
+                    Verification code
+                  </label>
+                  <input
+                    id="auth-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="6-digit code"
+                    value={emailCode}
+                    onChange={(e) => setEmailCode(e.target.value.replace(/\s/g, ''))}
+                    aria-describedby={error ? 'auth-error' : undefined}
+                    className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm tracking-widest text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
+                  />
+                </div>
                 {error && (
-                  <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-xs text-red-400">
+                  <div
+                    id="auth-error"
+                    role="alert"
+                    className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-xs text-red-400"
+                  >
                     {error}
                   </div>
                 )}
@@ -713,41 +728,63 @@ export default function AuthPage() {
             ) : (
               <form onSubmit={(e) => void handleSubmit(e)} className="space-y-3">
                 {mode === 'sign-up' && (
+                  <div className="space-y-1">
+                    <label htmlFor="auth-fullname" className="block text-xs font-medium text-slate-400">
+                      Full name <span className="text-slate-600">(optional)</span>
+                    </label>
+                    <input
+                      id="auth-fullname"
+                      type="text"
+                      placeholder="Alex Morgan"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      autoComplete="name"
+                      className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
+                    />
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <label htmlFor="auth-email" className="block text-xs font-medium text-slate-400">
+                    Email address
+                  </label>
                   <input
-                    type="text"
-                    placeholder="Full name (optional)"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    autoComplete="name"
+                    id="auth-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                    aria-describedby={error ? 'auth-error' : undefined}
                     className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
                   />
-                )}
-                <input
-                  type="email"
-                  placeholder="Email address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
-                />
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'}
-                    className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 pr-11 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="auth-password" className="block text-xs font-medium text-slate-400">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="auth-password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder={mode === 'sign-up' ? 'Create a password' : 'Your password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'}
+                      aria-describedby={error ? 'auth-error' : undefined}
+                      className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 pr-11 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      aria-pressed={showPassword}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 {mode === 'sign-in' && (
@@ -762,7 +799,11 @@ export default function AuthPage() {
                 )}
 
                 {error && (
-                  <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-xs text-red-400">
+                  <div
+                    id="auth-error"
+                    role="alert"
+                    className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-xs text-red-400"
+                  >
                     {error}
                   </div>
                 )}

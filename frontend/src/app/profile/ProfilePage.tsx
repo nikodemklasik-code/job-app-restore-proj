@@ -430,19 +430,21 @@ export default function ProfilePage() {
           {(profile?.skills ?? []).map((skill) => (
             <span key={skill} className="flex items-center gap-1.5 rounded-full bg-indigo-500/20 px-3 py-1 text-sm font-medium text-indigo-300">
               {skill}
-              <button onClick={() => void handleRemoveSkill(skill)} className="hover:text-indigo-100"><X className="h-3 w-3" /></button>
+              <button onClick={() => void handleRemoveSkill(skill)} aria-label={`Remove skill: ${skill}`} className="hover:text-indigo-100"><X className="h-3 w-3" /></button>
             </span>
           ))}
         </div>
         <div className="flex gap-2">
+          <label htmlFor="skill-input" className="sr-only">Add a skill</label>
           <input
-            placeholder="Add a skill..."
+            id="skill-input"
+            placeholder="Add a skill…"
             value={newSkill}
             onChange={(e) => setNewSkill(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') void handleAddSkill(); }}
             className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
           />
-          <button onClick={() => void handleAddSkill()} className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-slate-400 transition hover:bg-white/10">
+          <button onClick={() => void handleAddSkill()} aria-label="Add skill" className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-slate-400 transition hover:bg-white/10">
             <Plus className="h-4 w-4" />
           </button>
         </div>
@@ -470,12 +472,12 @@ export default function ProfilePage() {
               {expEditingIdx === idx ? (
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div className="space-y-1"><label className="block text-xs text-slate-400">Company / Employer</label><input value={expForm.employerName} onChange={(e) => setExpForm({ ...expForm, employerName: e.target.value })} placeholder="Acme Ltd" className={inputCls} /></div>
-                    <div className="space-y-1"><label className="block text-xs text-slate-400">Job Title</label><input value={expForm.jobTitle} onChange={(e) => setExpForm({ ...expForm, jobTitle: e.target.value })} placeholder="Senior Engineer" className={inputCls} /></div>
-                    <div className="space-y-1"><label className="block text-xs text-slate-400">Start Date</label><input value={expForm.startDate} onChange={(e) => setExpForm({ ...expForm, startDate: e.target.value })} placeholder="2021-03" className={inputCls} /></div>
-                    <div className="space-y-1"><label className="block text-xs text-slate-400">End Date (blank = current)</label><input value={expForm.endDate ?? ''} onChange={(e) => setExpForm({ ...expForm, endDate: e.target.value || null })} placeholder="Present" className={inputCls} /></div>
+                    <div className="space-y-1"><label htmlFor={`exp-employer-edit-${idx}`} className="block text-xs text-slate-400">Company / Employer</label><input id={`exp-employer-edit-${idx}`} value={expForm.employerName} onChange={(e) => setExpForm({ ...expForm, employerName: e.target.value })} placeholder="Acme Ltd" className={inputCls} /></div>
+                    <div className="space-y-1"><label htmlFor={`exp-title-edit-${idx}`} className="block text-xs text-slate-400">Job Title</label><input id={`exp-title-edit-${idx}`} value={expForm.jobTitle} onChange={(e) => setExpForm({ ...expForm, jobTitle: e.target.value })} placeholder="Senior Engineer" className={inputCls} /></div>
+                    <div className="space-y-1"><label htmlFor={`exp-start-edit-${idx}`} className="block text-xs text-slate-400">Start Date</label><input id={`exp-start-edit-${idx}`} value={expForm.startDate} onChange={(e) => setExpForm({ ...expForm, startDate: e.target.value })} placeholder="2021-03" className={inputCls} /></div>
+                    <div className="space-y-1"><label htmlFor={`exp-end-edit-${idx}`} className="block text-xs text-slate-400">End Date <span className="text-slate-600">(blank = current)</span></label><input id={`exp-end-edit-${idx}`} value={expForm.endDate ?? ''} onChange={(e) => setExpForm({ ...expForm, endDate: e.target.value || null })} placeholder="Present" className={inputCls} /></div>
                   </div>
-                  <div className="space-y-1"><label className="block text-xs text-slate-400">Description</label><textarea value={expForm.description} onChange={(e) => setExpForm({ ...expForm, description: e.target.value })} placeholder="Key responsibilities..." rows={3} className={`${inputCls} resize-none`} /></div>
+                  <div className="space-y-1"><label htmlFor={`exp-desc-edit-${idx}`} className="block text-xs text-slate-400">Description</label><textarea id={`exp-desc-edit-${idx}`} value={expForm.description} onChange={(e) => setExpForm({ ...expForm, description: e.target.value })} placeholder="Key responsibilities..." rows={3} className={`${inputCls} resize-none`} /></div>
                   <div className="flex gap-2">
                     <button onClick={() => void handleSaveExp()} disabled={isSaving} className={saveBtnCls}>{isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save</button>
                     <button onClick={handleCancelExp} className={cancelBtnCls}>Cancel</button>
@@ -503,12 +505,12 @@ export default function ProfilePage() {
           <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-4 space-y-3">
             <p className="text-xs font-medium text-indigo-400">New Experience</p>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <div className="space-y-1"><label className="block text-xs text-slate-400">Company / Employer</label><input value={expForm.employerName} onChange={(e) => setExpForm({ ...expForm, employerName: e.target.value })} placeholder="Acme Ltd" className={inputCls} /></div>
-              <div className="space-y-1"><label className="block text-xs text-slate-400">Job Title</label><input value={expForm.jobTitle} onChange={(e) => setExpForm({ ...expForm, jobTitle: e.target.value })} placeholder="Senior Engineer" className={inputCls} /></div>
-              <div className="space-y-1"><label className="block text-xs text-slate-400">Start Date</label><input value={expForm.startDate} onChange={(e) => setExpForm({ ...expForm, startDate: e.target.value })} placeholder="2021-03" className={inputCls} /></div>
-              <div className="space-y-1"><label className="block text-xs text-slate-400">End Date (blank = current)</label><input value={expForm.endDate ?? ''} onChange={(e) => setExpForm({ ...expForm, endDate: e.target.value || null })} placeholder="Present" className={inputCls} /></div>
+              <div className="space-y-1"><label htmlFor="exp-employer-new" className="block text-xs text-slate-400">Company / Employer</label><input id="exp-employer-new" value={expForm.employerName} onChange={(e) => setExpForm({ ...expForm, employerName: e.target.value })} placeholder="Acme Ltd" className={inputCls} /></div>
+              <div className="space-y-1"><label htmlFor="exp-title-new" className="block text-xs text-slate-400">Job Title</label><input id="exp-title-new" value={expForm.jobTitle} onChange={(e) => setExpForm({ ...expForm, jobTitle: e.target.value })} placeholder="Senior Engineer" className={inputCls} /></div>
+              <div className="space-y-1"><label htmlFor="exp-start-new" className="block text-xs text-slate-400">Start Date</label><input id="exp-start-new" value={expForm.startDate} onChange={(e) => setExpForm({ ...expForm, startDate: e.target.value })} placeholder="2021-03" className={inputCls} /></div>
+              <div className="space-y-1"><label htmlFor="exp-end-new" className="block text-xs text-slate-400">End Date <span className="text-slate-600">(blank = current)</span></label><input id="exp-end-new" value={expForm.endDate ?? ''} onChange={(e) => setExpForm({ ...expForm, endDate: e.target.value || null })} placeholder="Present" className={inputCls} /></div>
             </div>
-            <div className="space-y-1"><label className="block text-xs text-slate-400">Description</label><textarea value={expForm.description} onChange={(e) => setExpForm({ ...expForm, description: e.target.value })} placeholder="Key responsibilities..." rows={3} className={`${inputCls} resize-none`} /></div>
+            <div className="space-y-1"><label htmlFor="exp-desc-new" className="block text-xs text-slate-400">Description</label><textarea id="exp-desc-new" value={expForm.description} onChange={(e) => setExpForm({ ...expForm, description: e.target.value })} placeholder="Key responsibilities..." rows={3} className={`${inputCls} resize-none`} /></div>
             <div className="flex gap-2">
               <button onClick={() => void handleSaveExp()} disabled={isSaving} className={saveBtnCls}>{isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save</button>
               <button onClick={handleCancelExp} className={cancelBtnCls}>Cancel</button>
@@ -540,12 +542,12 @@ export default function ProfilePage() {
               {eduEditingIdx === idx ? (
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div className="space-y-1"><label className="block text-xs text-slate-400">School / Institution</label><input value={eduForm.schoolName} onChange={(e) => setEduForm({ ...eduForm, schoolName: e.target.value })} placeholder="University of Manchester" className={inputCls} /></div>
-                    <div className="space-y-1"><label className="block text-xs text-slate-400">Degree</label><input value={eduForm.degree} onChange={(e) => setEduForm({ ...eduForm, degree: e.target.value })} placeholder="BSc" className={inputCls} /></div>
-                    <div className="space-y-1"><label className="block text-xs text-slate-400">Field of Study</label><input value={eduForm.fieldOfStudy} onChange={(e) => setEduForm({ ...eduForm, fieldOfStudy: e.target.value })} placeholder="Computer Science" className={inputCls} /></div>
+                    <div className="space-y-1"><label htmlFor={`edu-school-edit-${idx}`} className="block text-xs text-slate-400">School / Institution</label><input id={`edu-school-edit-${idx}`} value={eduForm.schoolName} onChange={(e) => setEduForm({ ...eduForm, schoolName: e.target.value })} placeholder="University of Manchester" className={inputCls} /></div>
+                    <div className="space-y-1"><label htmlFor={`edu-degree-edit-${idx}`} className="block text-xs text-slate-400">Degree</label><input id={`edu-degree-edit-${idx}`} value={eduForm.degree} onChange={(e) => setEduForm({ ...eduForm, degree: e.target.value })} placeholder="BSc" className={inputCls} /></div>
+                    <div className="space-y-1"><label htmlFor={`edu-field-edit-${idx}`} className="block text-xs text-slate-400">Field of Study</label><input id={`edu-field-edit-${idx}`} value={eduForm.fieldOfStudy} onChange={(e) => setEduForm({ ...eduForm, fieldOfStudy: e.target.value })} placeholder="Computer Science" className={inputCls} /></div>
                     <div />
-                    <div className="space-y-1"><label className="block text-xs text-slate-400">Start Date</label><input value={eduForm.startDate} onChange={(e) => setEduForm({ ...eduForm, startDate: e.target.value })} placeholder="2018-09" className={inputCls} /></div>
-                    <div className="space-y-1"><label className="block text-xs text-slate-400">End Date</label><input value={eduForm.endDate ?? ''} onChange={(e) => setEduForm({ ...eduForm, endDate: e.target.value || null })} placeholder="2021-06" className={inputCls} /></div>
+                    <div className="space-y-1"><label htmlFor={`edu-start-edit-${idx}`} className="block text-xs text-slate-400">Start Date</label><input id={`edu-start-edit-${idx}`} value={eduForm.startDate} onChange={(e) => setEduForm({ ...eduForm, startDate: e.target.value })} placeholder="2018-09" className={inputCls} /></div>
+                    <div className="space-y-1"><label htmlFor={`edu-end-edit-${idx}`} className="block text-xs text-slate-400">End Date</label><input id={`edu-end-edit-${idx}`} value={eduForm.endDate ?? ''} onChange={(e) => setEduForm({ ...eduForm, endDate: e.target.value || null })} placeholder="2021-06" className={inputCls} /></div>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => void handleSaveEdu()} disabled={isSaving} className={saveBtnCls}>{isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save</button>
@@ -573,12 +575,12 @@ export default function ProfilePage() {
           <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-4 space-y-3">
             <p className="text-xs font-medium text-indigo-400">New Education</p>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <div className="space-y-1"><label className="block text-xs text-slate-400">School / Institution</label><input value={eduForm.schoolName} onChange={(e) => setEduForm({ ...eduForm, schoolName: e.target.value })} placeholder="University of Manchester" className={inputCls} /></div>
-              <div className="space-y-1"><label className="block text-xs text-slate-400">Degree</label><input value={eduForm.degree} onChange={(e) => setEduForm({ ...eduForm, degree: e.target.value })} placeholder="BSc" className={inputCls} /></div>
-              <div className="space-y-1"><label className="block text-xs text-slate-400">Field of Study</label><input value={eduForm.fieldOfStudy} onChange={(e) => setEduForm({ ...eduForm, fieldOfStudy: e.target.value })} placeholder="Computer Science" className={inputCls} /></div>
+              <div className="space-y-1"><label htmlFor="edu-school-new" className="block text-xs text-slate-400">School / Institution</label><input id="edu-school-new" value={eduForm.schoolName} onChange={(e) => setEduForm({ ...eduForm, schoolName: e.target.value })} placeholder="University of Manchester" className={inputCls} /></div>
+              <div className="space-y-1"><label htmlFor="edu-degree-new" className="block text-xs text-slate-400">Degree</label><input id="edu-degree-new" value={eduForm.degree} onChange={(e) => setEduForm({ ...eduForm, degree: e.target.value })} placeholder="BSc" className={inputCls} /></div>
+              <div className="space-y-1"><label htmlFor="edu-field-new" className="block text-xs text-slate-400">Field of Study</label><input id="edu-field-new" value={eduForm.fieldOfStudy} onChange={(e) => setEduForm({ ...eduForm, fieldOfStudy: e.target.value })} placeholder="Computer Science" className={inputCls} /></div>
               <div />
-              <div className="space-y-1"><label className="block text-xs text-slate-400">Start Date</label><input value={eduForm.startDate} onChange={(e) => setEduForm({ ...eduForm, startDate: e.target.value })} placeholder="2018-09" className={inputCls} /></div>
-              <div className="space-y-1"><label className="block text-xs text-slate-400">End Date</label><input value={eduForm.endDate ?? ''} onChange={(e) => setEduForm({ ...eduForm, endDate: e.target.value || null })} placeholder="2021-06" className={inputCls} /></div>
+              <div className="space-y-1"><label htmlFor="edu-start-new" className="block text-xs text-slate-400">Start Date</label><input id="edu-start-new" value={eduForm.startDate} onChange={(e) => setEduForm({ ...eduForm, startDate: e.target.value })} placeholder="2018-09" className={inputCls} /></div>
+              <div className="space-y-1"><label htmlFor="edu-end-new" className="block text-xs text-slate-400">End Date</label><input id="edu-end-new" value={eduForm.endDate ?? ''} onChange={(e) => setEduForm({ ...eduForm, endDate: e.target.value || null })} placeholder="2021-06" className={inputCls} /></div>
             </div>
             <div className="flex gap-2">
               <button onClick={() => void handleSaveEdu()} disabled={isSaving} className={saveBtnCls}>{isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save</button>
