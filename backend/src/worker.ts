@@ -3,7 +3,13 @@
  *
  * Runs as a standalone PM2 process (ecosystem.config.cjs → worker app).
  * Polls `auto_apply_queue` for pending jobs every 30 seconds and processes
- * them via Playwright browser automation (Indeed / Gumtree session reuse).
+ * them via:
+ *   a) Email-based apply (CV+CL sent via user SMTP) when applyEmail is set
+ *   b) Playwright browser automation (Indeed / Gumtree) otherwise
+ *
+ * Additional scheduled tasks:
+ *   - Follow-up scheduler: runs once per day
+ *   - IMAP monitor: runs every 30 minutes
  *
  * Start:  node dist/backend/src/worker.js
  * Dev:    tsx src/worker.ts
@@ -18,11 +24,16 @@ dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-import { eq, sql, and } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { db } from './db/index.js';
-import { autoApplyQueue, userJobSessions, users } from './db/schema.js';
+import { autoApplyQueue, userJobSessions } from './db/schema.js';
+import { processEmailApply } from './services/emailAutoApply.js';
+import { runFollowUpScheduler } from './services/followUpScheduler.js';
+import { runImapMonitor } from './services/imapMonitor.js';
 
 const POLL_INTERVAL_MS = 30_000;
+const FOLLOW_UP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const IMAP_INTERVAL_MS = 30 * 60 * 1000;            // 30 minutes
 const MAX_CONCURRENT = 2;
 const JOB_TIMEOUT_MS = 120_000; // 2 min per job max
 
@@ -89,9 +100,7 @@ async function applyToJob(job: {
   });
 
   try {
-    const storageState = JSON.parse(storageStateJson) as Parameters<
-      typeof browser.newContext
-    >[0]['storageState'];
+    const storageState = JSON.parse(storageStateJson) as NonNullable<Parameters<typeof browser.newContext>[0]>['storageState'];
 
     const context = await browser.newContext({
       storageState,
@@ -174,17 +183,33 @@ async function processBatch(): Promise<void> {
 
   log(`Found ${pending.length} pending job(s)`);
 
-  // Resolve internal user IDs (autoApplyQueue stores internal userId, not clerkId)
   await Promise.all(
     pending.map(async (job) => {
       await markStatus(job.id, 'processing');
       try {
-        await Promise.race([
-          applyToJob({ ...job, source: job.source ?? 'indeed' }),
-          new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Job timed out')), JOB_TIMEOUT_MS),
-          ),
-        ]);
+        if (job.applyEmail) {
+          // ── Email-based apply ─────────────────────────────────────────────
+          const result = await Promise.race([
+            processEmailApply(job),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Email apply timed out')), JOB_TIMEOUT_MS),
+            ),
+          ]);
+          if (result === 'sent') {
+            log(`✓ Email-applied to job ${job.id}`);
+          } else {
+            log(`– Email-apply skipped for job ${job.id} (${result})`);
+            await markStatus(job.id, result === 'skipped' ? 'skipped' : 'failed');
+          }
+        } else {
+          // ── Browser-automation apply ──────────────────────────────────────
+          await Promise.race([
+            applyToJob({ ...job, source: job.source ?? 'indeed' }),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Job timed out')), JOB_TIMEOUT_MS),
+            ),
+          ]);
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         log(`✗ Job ${job.id} failed: ${msg}`);
@@ -219,6 +244,7 @@ async function main(): Promise<void> {
   log('Auto-apply worker starting…');
   await recoverStuckJobs();
 
+  // ── Main poll loop (every 30 s) ─────────────────────────────────────────
   const poll = async () => {
     try {
       await processBatch();
@@ -228,7 +254,29 @@ async function main(): Promise<void> {
     setTimeout(poll, POLL_INTERVAL_MS);
   };
 
+  // ── Follow-up scheduler (runs immediately then every 24 h) ──────────────
+  const followUpLoop = async () => {
+    try {
+      await runFollowUpScheduler();
+    } catch (err) {
+      log(`Follow-up scheduler error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    setTimeout(followUpLoop, FOLLOW_UP_INTERVAL_MS);
+  };
+
+  // ── IMAP monitor (runs immediately then every 30 min) ───────────────────
+  const imapLoop = async () => {
+    try {
+      await runImapMonitor();
+    } catch (err) {
+      log(`IMAP monitor error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    setTimeout(imapLoop, IMAP_INTERVAL_MS);
+  };
+
   await poll();
+  await followUpLoop();
+  await imapLoop();
 }
 
 main().catch((err) => {

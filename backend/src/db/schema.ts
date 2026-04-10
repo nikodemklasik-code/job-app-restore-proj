@@ -303,11 +303,15 @@ export const autoApplyQueue = mysqlTable('auto_apply_queue', {
   jobTitle: varchar('job_title', { length: 255 }).notNull(),
   company: varchar('company', { length: 255 }).notNull(),
   applyUrl: varchar('apply_url', { length: 500 }).notNull(),
+  applyEmail: varchar('apply_email', { length: 320 }), // employer email for email-based apply
   source: varchar('source', { length: 50 }).default('indeed'),
   status: varchar('status', { length: 50 }).default('pending').notNull(), // pending|processing|applied|failed|skipped
   fitScore: int('fit_score'),
+  cvSnapshot: text('cv_snapshot'),    // generated CV text
+  clSnapshot: text('cl_snapshot'),    // generated cover letter text
   errorMessage: text('error_message'),
   appliedAt: timestamp('applied_at'),
+  sentAt: timestamp('sent_at'),       // when email was sent
   scheduledAt: timestamp('scheduled_at').defaultNow().notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
@@ -330,4 +334,34 @@ export const jobScrapeLogs = mysqlTable('job_scrape_logs', {
   jobCount: int('job_count').default(0),
   errorMessage: text('error_message'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Per-application IMAP inbox monitoring consent
+export const emailMonitoring = mysqlTable('email_monitoring', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  applicationId: varchar('application_id', { length: 36 }).notNull(),
+  // IMAP credentials (reuses SMTP user/pass from userEmailSettings when null)
+  imapHost: varchar('imap_host', { length: 255 }),
+  imapPort: int('imap_port').default(993),
+  // Stored encrypted just like smtpPassEncrypted
+  imapPassEncrypted: text('imap_pass_encrypted'),
+  grantedAt: timestamp('granted_at').defaultNow().notNull(),
+  revokedAt: timestamp('revoked_at'),
+  isActive: boolean('is_active').default(true).notNull(),
+  // Tracking last-checked UID to avoid re-processing old messages
+  lastUid: int('last_uid').default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+// Web Push subscriptions (VAPID)
+export const pushSubscriptions = mysqlTable('push_subscriptions', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  endpoint: varchar('endpoint', { length: 1000 }).notNull().unique(),
+  p256dh: varchar('p256dh', { length: 500 }).notNull(),   // client public key
+  auth: varchar('auth', { length: 255 }).notNull(),        // client auth secret
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
 });

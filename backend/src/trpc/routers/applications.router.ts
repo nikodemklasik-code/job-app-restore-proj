@@ -64,7 +64,7 @@ export const applicationsRouter = router({
     .input(z.object({
       id: z.string(),
       userId: z.string(),
-      status: z.enum(['draft', 'prepared', 'sent', 'rejected', 'accepted', 'interview']),
+      status: z.enum(['draft', 'prepared', 'sent', 'follow_up_sent', 'rejected', 'accepted', 'interview']),
     }))
     .mutation(async ({ input }) => {
       const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);

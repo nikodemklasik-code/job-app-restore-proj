@@ -57,6 +57,7 @@ export const autoApplyRouter = router({
       jobTitle: z.string().min(1),
       company: z.string().min(1),
       applyUrl: z.string().url(),
+      applyEmail: z.string().email().optional(),
       source: z.string().optional(),
     }))
     .mutation(async ({ input }) => {
@@ -85,6 +86,7 @@ export const autoApplyRouter = router({
         jobTitle: input.jobTitle,
         company: input.company,
         applyUrl: input.applyUrl,
+        applyEmail: input.applyEmail ?? null,
         source: input.source ?? 'indeed',
         status: 'pending',
       });

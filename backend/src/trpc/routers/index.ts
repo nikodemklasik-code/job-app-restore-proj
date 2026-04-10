@@ -14,6 +14,8 @@ import { telegramRouter } from './telegram.router.js';
 import { autoApplyRouter } from './autoApply.router.js';
 import { styleRouter } from './style.router.js';
 import { jobSourcesRouter } from './jobSources.router.js';
+import { pushRouter } from './push.router.js';
+import { emailMonitoringRouter } from './emailMonitoring.router.js';
 
 export const appRouter = router({
   assistant: assistantRouter,
@@ -31,6 +33,8 @@ export const appRouter = router({
   autoApply: autoApplyRouter,
   style: styleRouter,
   jobSources: jobSourcesRouter,
+  push: pushRouter,
+  emailMonitoring: emailMonitoringRouter,
 });
 
 export type AppRouter = typeof appRouter;

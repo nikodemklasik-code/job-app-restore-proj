@@ -192,6 +192,7 @@ export default function ApplicationsPipeline() {
   const [recipientEmail, setRecipientEmail] = useState('');
   const [followUpAppId, setFollowUpAppId] = useState<string | null>(null);
   const [followUpText, setFollowUpText] = useState('');
+  const [monitoringMap, setMonitoringMap] = useState<Record<string, boolean>>({});
 
   const appsQuery = api.applications.getAll.useQuery(
     { userId },
@@ -240,6 +241,18 @@ export default function ApplicationsPipeline() {
   const generateFollowUpMutation = api.applications.generateFollowUp.useMutation({
     onSuccess: (data) => {
       setFollowUpText(data.emailText);
+    },
+  });
+
+  const grantMonitoringMutation = api.emailMonitoring.grant.useMutation({
+    onSuccess: (_data, variables) => {
+      setMonitoringMap(prev => ({ ...prev, [variables.applicationId]: true }));
+    },
+  });
+
+  const revokeMonitoringMutation = api.emailMonitoring.revoke.useMutation({
+    onSuccess: (_data, variables) => {
+      setMonitoringMap(prev => ({ ...prev, [variables.applicationId]: false }));
     },
   });
 
@@ -496,6 +509,15 @@ export default function ApplicationsPipeline() {
                       setFollowUpText('');
                       generateFollowUpMutation.mutate({ userId, applicationId: app.id });
                     }}
+                    monitoringActive={monitoringMap[app.id] ?? false}
+                    onToggleMonitoring={() => {
+                      const active = monitoringMap[app.id] ?? false;
+                      if (active) {
+                        revokeMonitoringMutation.mutate({ userId, applicationId: app.id });
+                      } else {
+                        grantMonitoringMutation.mutate({ userId, applicationId: app.id });
+                      }
+                    }}
                   />
                 ))}
               </div>
@@ -716,6 +738,8 @@ function AppCard({
   onViewCoverLetter,
   onSendEmail,
   onFollowUp,
+  onToggleMonitoring,
+  monitoringActive,
 }: {
   app: Application;
   stage: StageConfig;
@@ -726,6 +750,8 @@ function AppCard({
   onViewCoverLetter: () => void;
   onSendEmail: () => void;
   onFollowUp: () => void;
+  onToggleMonitoring: () => void;
+  monitoringActive: boolean;
 }) {
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-white/20 hover:bg-white/8">
@@ -832,6 +858,22 @@ function AppCard({
               Rejected
             </button>
           </div>
+        )}
+
+        {/* IMAP monitoring toggle — available for sent applications */}
+        {stage.key === 'sent' && (
+          <button
+            onClick={onToggleMonitoring}
+            title={monitoringActive ? 'Disable inbox monitoring for this application' : 'Enable inbox monitoring — app will detect employer replies and update status automatically'}
+            className={`flex w-full items-center justify-center gap-1.5 rounded-xl py-1.5 text-xs font-medium transition ${
+              monitoringActive
+                ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                : 'border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10'
+            }`}
+          >
+            <Mail className="h-3 w-3" />
+            {monitoringActive ? 'Inbox monitored ✓' : 'Monitor inbox replies'}
+          </button>
         )}
 
         {stage.key === 'interview' && (
