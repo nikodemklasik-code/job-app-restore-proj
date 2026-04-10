@@ -6,7 +6,7 @@ import { publicProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
 import { applications, applicationLogs, profiles, skills, users } from '../../db/schema.js';
 import { generateCoverLetter, generateCvSummary, scoreJobFit, generateFollowUp } from '../../services/aiPersonalizer.js';
-import { generateCvPdf, generateCoverLetterPdf } from '../../services/pdfGenerator.js';
+import { generateCvPdf, generateCoverLetterPdf, generateCandidateReport } from '../../services/pdfGenerator.js';
 import { getLearnedSignals, recordOutcome } from '../../services/learningService.js';
 import { Resend } from 'resend';
 
@@ -278,6 +278,91 @@ export const applicationsRouter = router({
         phone: profile.phone ?? '',
         summary: profile.summary ?? '',
         skills: skillRecords.map((s) => s.name),
+      });
+
+      return { base64: pdfBuffer.toString('base64') };
+    }),
+
+  downloadCoverLetterPdf: publicProcedure
+    .input(z.object({
+      userId: z.string(),
+      text: z.string(),
+      company: z.string().optional(),
+      role: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      if (!userRecord[0]) throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found' });
+
+      const profileRecord = await db.select({ fullName: profiles.fullName }).from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1);
+
+      const pdfBuffer = await generateCoverLetterPdf(input.text, {
+        senderName: profileRecord[0]?.fullName ?? undefined,
+        company: input.company,
+        role: input.role,
+      });
+
+      return { base64: pdfBuffer.toString('base64') };
+    }),
+
+  downloadCandidateReport: publicProcedure
+    .input(z.object({ userId: z.string() }))
+    .mutation(async ({ input }) => {
+      const userRecord = await db
+        .select({ id: users.id, email: users.email })
+        .from(users)
+        .where(eq(users.clerkId, input.userId))
+        .limit(1);
+      if (!userRecord[0]) throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found' });
+
+      const profileRecord = await db
+        .select({ id: profiles.id, fullName: profiles.fullName })
+        .from(profiles)
+        .where(eq(profiles.userId, userRecord[0].id))
+        .limit(1);
+
+      const allApps = await db
+        .select({ status: applications.status, company: applications.company })
+        .from(applications)
+        .where(eq(applications.userId, userRecord[0].id));
+
+      const total = allApps.length;
+      const interviews = allApps.filter((a) => ['interview', 'interview_scheduled'].includes(a.status ?? '')).length;
+      const offers = allApps.filter((a) => a.status === 'offer').length;
+      const responseRate = total > 0 ? Math.round(((interviews + offers) / total) * 100) : 0;
+
+      // Status breakdown
+      const statusCounts = new Map<string, number>();
+      for (const a of allApps) {
+        const s = a.status ?? 'unknown';
+        statusCounts.set(s, (statusCounts.get(s) ?? 0) + 1);
+      }
+      const topStatuses = [...statusCounts.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([status, count]) => ({ status, count }));
+
+      // Top companies
+      const companyCounts = new Map<string, number>();
+      for (const a of allApps) {
+        const c = a.company ?? 'Unknown';
+        companyCounts.set(c, (companyCounts.get(c) ?? 0) + 1);
+      }
+      const topCompanies = [...companyCounts.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 9)
+        .map(([company]) => company);
+
+      const pdfBuffer = await generateCandidateReport({
+        fullName: profileRecord[0]?.fullName ?? undefined,
+        email: userRecord[0].email,
+        totalApplications: total,
+        interviews,
+        offers,
+        responseRate,
+        topCompanies,
+        topStatuses,
+        generatedAt: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
       });
 
       return { base64: pdfBuffer.toString('base64') };

@@ -1,9 +1,10 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
-import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, BookOpen, Clock, TrendingUp, FileDown, StickyNote, Star } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, BookOpen, Clock, TrendingUp, FileDown, StickyNote, Star, Lock } from 'lucide-react';
 import { interviewModeLabels } from '../../../../shared/interview';
 import type { InterviewMode } from '../../../../shared/interview';
+import { useBillingStore } from '@/stores/billingStore';
 
 // ─── Wave/avatar keyframes injected once ─────────────────────────────────────
 const AVATAR_STYLES = `
@@ -601,6 +602,13 @@ export default function InterviewPractice() {
   const { user } = useUser();
   const userId = user?.id ?? undefined;
 
+  // Billing / plan gate
+  const { currentPlan, loadBillingData } = useBillingStore();
+  useEffect(() => {
+    if (userId && !currentPlan) void loadBillingData(userId);
+  }, [userId, currentPlan, loadBillingData]);
+  const isPremium = currentPlan ? currentPlan.plan !== 'free' : null; // null = loading
+
   // Phase / conversation
   const [phase, setPhase] = useState<Phase>('lobby');
   const [selectedJob, setSelectedJob] = useState<JobOption | null>(null);
@@ -1055,6 +1063,21 @@ export default function InterviewPractice() {
               </div>
             ) : null}
 
+            {/* Premium gate — show upgrade prompt for free users */}
+            {isPremium === false ? (
+              <div style={{ background: 'linear-gradient(135deg,rgba(99,102,241,0.18),rgba(59,130,246,0.12))', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 14, padding: '20px 20px', textAlign: 'center' }}>
+                <Lock style={{ width: 28, height: 28, color: '#a5b4fc', margin: '0 auto 10px' }} />
+                <p style={{ fontWeight: 700, fontSize: 15, color: '#e2e8f0', marginBottom: 6 }}>AI Interview Practice is a Pro feature</p>
+                <p style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>Upgrade to Pro or Autopilot to unlock unlimited mock interviews, coaching plans, and session history.</p>
+                <a
+                  href="/billing"
+                  style={{ display: 'inline-block', padding: '10px 28px', background: 'linear-gradient(135deg,#6366f1,#3b82f6)', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}
+                >
+                  Upgrade to Pro →
+                </a>
+              </div>
+            ) : (
+            <>
             {/* Join button */}
             <button
               disabled={!canJoin}
@@ -1077,6 +1100,8 @@ export default function InterviewPractice() {
             >
               {canJoin ? `📞 Join Interview — ${job.title} at ${job.company}` : 'Select a job or enter a custom role'}
             </button>
+            </>
+            )}
 
             {/* Bottom action links */}
             <div style={{ display: 'flex', gap: 10 }}>

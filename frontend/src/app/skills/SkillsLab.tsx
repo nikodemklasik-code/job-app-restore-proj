@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FlaskConical, Loader2, ChevronRight, AlertCircle } from 'lucide-react';
+import { FlaskConical, Loader2, ChevronRight, AlertCircle, BookOpen, ChevronDown, ExternalLink } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import { useProfileStore } from '@/stores/profileStore';
@@ -26,32 +26,106 @@ interface SkillBarProps {
   level: number; // 0-10
 }
 
+interface Course {
+  title: string;
+  provider: string;
+  url: string;
+  level: string;
+}
+
 function SkillBar({ name, level }: SkillBarProps) {
   const pct = level * 10;
   const segments = 10;
   const filledSegments = Math.round(level);
   const color = levelColor(pct);
 
+  const [expanded, setExpanded] = useState(false);
+  const [courses, setCourses] = useState<Course[] | null>(null);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const suggestMutation = (api as any).style.suggestCoursesForSkill.useMutation({
+    onSuccess: (data: { courses: Course[] }) => setCourses(data.courses),
+  });
+
+  function handleToggle() {
+    if (!expanded && !courses && !suggestMutation.isPending) {
+      suggestMutation.mutate({ skill: name });
+    }
+    setExpanded((v) => !v);
+  }
+
   return (
-    <div className="group flex items-center gap-3">
-      <span className="w-32 shrink-0 truncate text-sm text-slate-300 group-hover:text-white transition-colors">
-        {name}
-      </span>
-      <div className="flex flex-1 items-center gap-0.5">
-        {Array.from({ length: segments }).map((_, i) => (
-          <div
-            key={i}
-            className="h-3 flex-1 rounded-sm transition-all"
-            style={{
-              backgroundColor: i < filledSegments ? color : 'rgba(255,255,255,0.07)',
-              opacity: i < filledSegments ? 1 - i * 0.04 : 1,
-            }}
-          />
-        ))}
+    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+      <div className="group flex items-center gap-3 px-3 py-2">
+        <span className="w-28 shrink-0 truncate text-sm text-slate-300 group-hover:text-white transition-colors">
+          {name}
+        </span>
+        <div className="flex flex-1 items-center gap-0.5">
+          {Array.from({ length: segments }).map((_, i) => (
+            <div
+              key={i}
+              className="h-3 flex-1 rounded-sm transition-all"
+              style={{
+                backgroundColor: i < filledSegments ? color : 'rgba(255,255,255,0.07)',
+                opacity: i < filledSegments ? 1 - i * 0.04 : 1,
+              }}
+            />
+          ))}
+        </div>
+        <span className="w-9 shrink-0 text-right text-xs font-semibold" style={{ color }}>
+          {pct}%
+        </span>
+        <button
+          onClick={handleToggle}
+          title="Suggest courses"
+          className="ml-1 flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-1.5 py-1 text-[10px] text-slate-400 hover:border-indigo-500/40 hover:text-indigo-300 transition-all"
+        >
+          {suggestMutation.isPending ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <>
+              <BookOpen className="h-3 w-3" />
+              <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+            </>
+          )}
+        </button>
       </div>
-      <span className="w-9 shrink-0 text-right text-xs font-semibold" style={{ color }}>
-        {pct}%
-      </span>
+      {expanded && (
+        <div className="px-3 pb-3 space-y-1.5 border-t border-white/[0.06]">
+          {suggestMutation.isPending ? (
+            <div className="flex items-center gap-2 pt-2 text-xs text-slate-500">
+              <Loader2 className="h-3 w-3 animate-spin text-indigo-400" /> Finding courses…
+            </div>
+          ) : courses && courses.length > 0 ? (
+            <div className="pt-2 space-y-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Suggested Courses</p>
+              {courses.map((c, i) => (
+                <a
+                  key={i}
+                  href={c.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-xs hover:border-indigo-500/30 hover:bg-white/[0.06] transition-all"
+                >
+                  <div>
+                    <span className="font-medium text-slate-200">{c.title}</span>
+                    <span className="ml-2 text-slate-500">· {c.provider}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="rounded px-1.5 py-0.5 text-[10px] font-medium"
+                      style={{ background: c.level === 'Beginner' ? 'rgba(52,211,153,0.15)' : c.level === 'Advanced' ? 'rgba(248,113,113,0.15)' : 'rgba(251,191,36,0.15)', color: c.level === 'Beginner' ? '#34d399' : c.level === 'Advanced' ? '#f87171' : '#fbbf24' }}>
+                      {c.level}
+                    </span>
+                    <ExternalLink className="h-3 w-3 text-slate-600" />
+                  </div>
+                </a>
+              ))}
+            </div>
+          ) : courses && courses.length === 0 ? (
+            <p className="pt-2 text-xs text-slate-500">No courses found for this skill.</p>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }
