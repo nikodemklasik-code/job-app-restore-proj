@@ -462,12 +462,15 @@ export default function AuthPage() {
           0%, 100% { opacity: 1;   transform: scale(1);   }
           50%       { opacity: .4; transform: scale(1.4); }
         }
-        .animate-float   { animation: float 4s ease-in-out infinite; }
-        .animate-floatIn { animation: floatIn .6s ease both; }
-        .blob-pulse      { animation: blobPulse 7s ease-in-out infinite; }
-        .ticker-strip    { animation: marqueeLoop 42s linear infinite; }
-        .bar-grow        { animation: barGrow 2.4s ease-in-out infinite; transform-origin: left; }
-        .live-dot        { animation: fakePulse 1.6s ease-in-out infinite; }
+        /* All decorative animations are gated behind prefers-reduced-motion */
+        @media (prefers-reduced-motion: no-preference) {
+          .animate-float   { animation: float 4s ease-in-out infinite; }
+          .animate-floatIn { animation: floatIn .6s ease both; }
+          .blob-pulse      { animation: blobPulse 7s ease-in-out infinite; }
+          .ticker-strip    { animation: marqueeLoop 42s linear infinite; }
+          .bar-grow        { animation: barGrow 2.4s ease-in-out infinite; transform-origin: left; }
+          .live-dot        { animation: fakePulse 1.6s ease-in-out infinite; }
+        }
       `}</style>
 
       {/* Root — desktop: fixed viewport, no scroll; mobile: allow vertical scroll if needed */}
