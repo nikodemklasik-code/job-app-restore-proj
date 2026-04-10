@@ -22,7 +22,31 @@ function LiveTicker() {
   const feedQuery = api.jobs.getFeed.useQuery({ limit: 20 });
   const jobs = feedQuery.data ?? [];
 
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   if (feedQuery.isLoading || jobs.length === 0) return null;
+
+  // If the user prefers reduced motion, show a static list instead of a ticker
+  if (prefersReducedMotion) {
+    return (
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2">
+        <span className="shrink-0 text-[11px] font-bold uppercase tracking-widest text-red-400">
+          Live
+        </span>
+        {jobs.slice(0, 5).map((job) => {
+          const score = job.fitScore ?? 60;
+          return (
+            <span key={job.id} className="text-[12px] text-slate-300">
+              {job.company} — {job.title}{' '}
+              <span className={`font-semibold ${fitColor(score)}`}>{score}% fit</span>
+            </span>
+          );
+        })}
+      </div>
+    );
+  }
 
   // Duplicate items so the seamless infinite scroll works (we translate -50%)
   const items = [...jobs, ...jobs];
@@ -37,10 +61,10 @@ function LiveTicker() {
           <span className="text-[11px] font-bold tracking-widest text-red-400 uppercase">Live</span>
         </div>
 
-        {/* Scrolling track */}
-        <div className="relative flex-1 overflow-hidden">
+        {/* Scrolling track — pauses on hover or keyboard focus */}
+        <div className="relative flex-1 overflow-hidden group">
           <div
-            className="flex whitespace-nowrap"
+            className="flex whitespace-nowrap group-hover:[animation-play-state:paused] group-focus-within:[animation-play-state:paused]"
             style={{
               animation: `ticker-scroll ${jobs.length * 3}s linear infinite`,
               willChange: 'transform',

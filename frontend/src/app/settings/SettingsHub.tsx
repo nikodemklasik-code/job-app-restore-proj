@@ -14,10 +14,19 @@ import {
   AlertTriangle,
   Send,
   Loader2,
+  Accessibility,
+  Brain,
+  Contrast,
+  Focus,
+  Sun,
+  Moon,
+  Monitor,
+  PanelLeftClose,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useThemeStore } from '@/stores/themeStore';
 import { api } from '@/lib/api';
 
 // ---------------------------------------------------------------------------
@@ -654,6 +663,165 @@ function SystemReadinessTab({ userId }: { userId: string }) {
 }
 
 // ---------------------------------------------------------------------------
+// Accessibility Tab
+// ---------------------------------------------------------------------------
+
+const THEME_OPTIONS = [
+  {
+    id: 'light' as const,
+    Icon: Sun,
+    label: 'Light',
+    description: 'Standard bright white interface.',
+  },
+  {
+    id: 'dark' as const,
+    Icon: Moon,
+    label: 'Dark',
+    description: 'Dark background to reduce eye strain in low light.',
+  },
+  {
+    id: 'system' as const,
+    Icon: Monitor,
+    label: 'System default',
+    description: 'Follows your operating system preference automatically.',
+  },
+  {
+    id: 'neurodiversity' as const,
+    Icon: Brain,
+    label: 'Neurodiversity',
+    description:
+      'Soft cream background, warm tones, rounded corners, and comfortable line spacing. Designed to reduce visual stress for dyslexia and sensory sensitivity.',
+  },
+  {
+    id: 'high-contrast' as const,
+    Icon: Contrast,
+    label: 'High contrast',
+    description:
+      'Black background with bright yellow text and thick borders. Maximises legibility for low vision.',
+  },
+  {
+    id: 'focus' as const,
+    Icon: Focus,
+    label: 'Focus (calm blue)',
+    description:
+      'Minimal blue-grey palette with all animations removed. Reduces distractions for ADHD and hypersensitivity.',
+  },
+];
+
+function AccessibilityTab() {
+  const { theme, setTheme, focusMode, setFocusMode } = useThemeStore();
+
+  return (
+    <div className="space-y-6">
+      {/* Theme picker */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Accessibility className="h-4 w-4" /> Colour &amp; Visual Theme
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+            Choose the theme that is most comfortable for you. Accessibility themes are also
+            available in the quick-access buttons in the header.
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {THEME_OPTIONS.map(({ id, Icon, label, description }) => {
+              const isActive = theme === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTheme(id)}
+                  aria-pressed={isActive}
+                  className={`flex flex-col items-start gap-2 rounded-2xl border p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
+                    isActive
+                      ? 'border-indigo-400 bg-indigo-50 dark:border-indigo-600 dark:bg-indigo-950/40'
+                      : 'border-slate-100 bg-white hover:border-indigo-100 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900'
+                  }`}
+                >
+                  <div className="flex w-full items-center gap-2">
+                    <Icon className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                    <span className="font-medium text-slate-800 dark:text-slate-200">{label}</span>
+                    {isActive && (
+                      <span className="ml-auto rounded-full bg-indigo-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">{description}</p>
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Focus mode */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <PanelLeftClose className="h-4 w-4" /> Focus Mode
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <label className="flex cursor-pointer items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Hide sidebar navigation</p>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                Hides the left sidebar so you can concentrate on the current task without
+                distraction. The sidebar button in the header lets you toggle it on and off at
+                any time.
+              </p>
+            </div>
+            <Toggle checked={focusMode} onChange={() => setFocusMode(!focusMode)} />
+          </label>
+        </CardContent>
+      </Card>
+
+      {/* Reduced motion info */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Reduced Motion</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            MultivoHub automatically respects your operating system's{' '}
+            <strong className="font-semibold text-slate-700 dark:text-slate-300">
+              Reduce Motion
+            </strong>{' '}
+            accessibility setting. When enabled, all animations and transitions are disabled
+            throughout the app. You can find this setting in:
+          </p>
+          <ul className="mt-3 space-y-1 text-sm text-slate-500 dark:text-slate-400">
+            <li>
+              <strong className="text-slate-700 dark:text-slate-300">macOS:</strong> System
+              Settings → Accessibility → Display → Reduce Motion
+            </li>
+            <li>
+              <strong className="text-slate-700 dark:text-slate-300">Windows:</strong> Settings
+              → Accessibility → Visual effects → Animation effects
+            </li>
+            <li>
+              <strong className="text-slate-700 dark:text-slate-300">Android:</strong> Settings
+              → Accessibility → Remove animations
+            </li>
+            <li>
+              <strong className="text-slate-700 dark:text-slate-300">iOS / iPadOS:</strong>{' '}
+              Settings → Accessibility → Motion → Reduce Motion
+            </li>
+          </ul>
+          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+            Selecting the <strong className="text-slate-700 dark:text-slate-300">Focus</strong>{' '}
+            colour theme above also removes animations regardless of your OS setting.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main SettingsHub
 // ---------------------------------------------------------------------------
 
@@ -679,6 +847,7 @@ export default function SettingsHub() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="accessibility">Accessibility</TabsTrigger>
           <TabsTrigger value="email">Email &amp; SMTP</TabsTrigger>
           <TabsTrigger value="telegram">Telegram</TabsTrigger>
           <TabsTrigger value="sources">Job Sources</TabsTrigger>
@@ -721,6 +890,11 @@ export default function SettingsHub() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* ACCESSIBILITY */}
+        <TabsContent value="accessibility">
+          <AccessibilityTab />
         </TabsContent>
 
         {/* EMAIL */}

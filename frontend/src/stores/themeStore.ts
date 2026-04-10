@@ -4,7 +4,9 @@ type Theme = 'light' | 'dark' | 'system' | 'neurodiversity' | 'high-contrast' | 
 
 interface ThemeStore {
   theme: Theme;
+  focusMode: boolean;
   setTheme: (theme: Theme) => void;
+  setFocusMode: (enabled: boolean) => void;
   initTheme: () => void;
 }
 
@@ -32,6 +34,7 @@ const applyTheme = (theme: Theme) => {
 
 export const useThemeStore = create<ThemeStore>((set) => ({
   theme: 'system',
+  focusMode: false,
 
   setTheme: (theme) => {
     set({ theme });
@@ -39,9 +42,15 @@ export const useThemeStore = create<ThemeStore>((set) => ({
     localStorage.setItem('theme', theme);
   },
 
+  setFocusMode: (enabled) => {
+    set({ focusMode: enabled });
+    localStorage.setItem('focusMode', enabled ? '1' : '0');
+  },
+
   initTheme: () => {
     const saved = (localStorage.getItem('theme') as Theme | null) ?? 'system';
-    set({ theme: saved });
+    const savedFocusMode = localStorage.getItem('focusMode') === '1';
+    set({ theme: saved, focusMode: savedFocusMode });
     applyTheme(saved);
   },
 }));

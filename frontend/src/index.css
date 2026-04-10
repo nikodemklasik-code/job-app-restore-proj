@@ -50,10 +50,39 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    /* Improved readability: comfortable line-height and gentle letter-spacing */
+    line-height: 1.6;
+    letter-spacing: 0.008em;
   }
 
   h1, h2, h3, h4, h5, h6 {
     @apply font-display;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+
+  /* ─── Global focus-visible ring (WCAG 2.4.7) ─────────────────────────────── */
+  :focus-visible {
+    outline: 3px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* ─── Skip-to-content link ───────────────────────────────────────────────── */
+  .skip-to-content {
+    position: absolute;
+    top: -9999px;
+    left: 0;
+    z-index: 10000;
+    padding: 0.75rem 1.5rem;
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    font-weight: 600;
+    border-radius: 0 0 0.5rem 0;
+    text-decoration: none;
+    transition: top 0.1s;
+  }
+  .skip-to-content:focus {
+    top: 0;
   }
 }
 
@@ -175,11 +204,22 @@
   --radius: 0.75rem;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .theme-focus * {
+/* ─── Reduce animations for Focus theme (always) ────────────────────────── */
+.theme-focus * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.15s !important;
+}
+
+/* ─── Respect OS-level prefers-reduced-motion globally ──────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.15s !important;
+    transition-duration: 0.1ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

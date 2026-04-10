@@ -1,6 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
-import { Sun, Moon, Monitor } from 'lucide-react';
+import { Sun, Moon, Monitor, Brain, Contrast, Focus, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { useThemeStore } from '@/stores/themeStore';
 
 const PAGE_TITLES: Record<string, string> = {
@@ -20,7 +20,7 @@ const PAGE_TITLES: Record<string, string> = {
 export default function Header() {
   const { pathname } = useLocation();
   const { user } = useUser();
-  const { theme, setTheme } = useThemeStore();
+  const { theme, setTheme, focusMode, setFocusMode } = useThemeStore();
 
   const title = PAGE_TITLES[pathname] ?? 'Career Workspace';
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -30,11 +30,38 @@ export default function Header() {
     user?.primaryEmailAddress?.emailAddress?.split('@')[0] ||
     '';
 
+  const standardThemes = [
+    { id: 'light' as const, Icon: Sun, label: 'Light' },
+    { id: 'system' as const, Icon: Monitor, label: 'System default' },
+    { id: 'dark' as const, Icon: Moon, label: 'Dark' },
+  ];
+
+  const a11yThemes = [
+    { id: 'neurodiversity' as const, Icon: Brain, label: 'Neurodiversity (warm cream)' },
+    { id: 'high-contrast' as const, Icon: Contrast, label: 'High contrast' },
+    { id: 'focus' as const, Icon: Focus, label: 'Focus mode (reduced colour)' },
+  ];
+
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-100 bg-white/80 px-6 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80">
-      <div>
-        <h1 className="font-display text-base font-semibold text-slate-900 dark:text-white">{title}</h1>
-        <p className="text-xs text-slate-400">{today}</p>
+      <div className="flex items-center gap-3">
+        {/* Focus mode sidebar toggle */}
+        <button
+          onClick={() => setFocusMode(!focusMode)}
+          title={focusMode ? 'Show sidebar' : 'Focus mode — hide sidebar'}
+          aria-label={focusMode ? 'Show sidebar' : 'Focus mode — hide sidebar'}
+          aria-pressed={focusMode}
+          className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+        >
+          {focusMode
+            ? <PanelLeft className="h-4 w-4" />
+            : <PanelLeftClose className="h-4 w-4" />}
+        </button>
+
+        <div>
+          <h1 className="font-display text-base font-semibold text-slate-900 dark:text-white">{title}</h1>
+          <p className="text-xs text-slate-400">{today}</p>
+        </div>
       </div>
 
       <div className="flex items-center gap-3">
@@ -43,25 +70,52 @@ export default function Header() {
           1,250 credits
         </div>
 
-        {/* Theme toggle */}
-        <div className="flex items-center gap-1 rounded-xl border border-slate-100 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
-          {(['light', 'system', 'dark'] as const).map((t) => {
-            const Icon = t === 'light' ? Sun : t === 'dark' ? Moon : Monitor;
-            return (
-              <button
-                key={t}
-                onClick={() => setTheme(t)}
-                className={`rounded-lg p-1.5 transition-colors ${
-                  theme === t
-                    ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white'
-                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-                }`}
-                title={t}
-              >
-                <Icon className="h-3.5 w-3.5" />
-              </button>
-            );
-          })}
+        {/* Standard theme toggle */}
+        <div
+          className="flex items-center gap-1 rounded-xl border border-slate-100 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800"
+          role="group"
+          aria-label="Colour theme"
+        >
+          {standardThemes.map(({ id, Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => setTheme(id)}
+              aria-label={label}
+              aria-pressed={theme === id}
+              className={`rounded-lg p-1.5 transition-colors ${
+                theme === id
+                  ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white'
+                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+              }`}
+              title={label}
+            >
+              <Icon className="h-3.5 w-3.5" />
+            </button>
+          ))}
+        </div>
+
+        {/* Accessibility theme toggle */}
+        <div
+          className="flex items-center gap-1 rounded-xl border border-slate-100 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800"
+          role="group"
+          aria-label="Accessibility theme"
+        >
+          {a11yThemes.map(({ id, Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => setTheme(id)}
+              aria-label={label}
+              aria-pressed={theme === id}
+              className={`rounded-lg p-1.5 transition-colors ${
+                theme === id
+                  ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white'
+                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+              }`}
+              title={label}
+            >
+              <Icon className="h-3.5 w-3.5" />
+            </button>
+          ))}
         </div>
 
         {displayName ? (
