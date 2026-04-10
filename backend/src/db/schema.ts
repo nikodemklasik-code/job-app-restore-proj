@@ -312,3 +312,22 @@ export const autoApplyQueue = mysqlTable('auto_apply_queue', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
 });
+
+export const jobSourceSettings = mysqlTable('job_source_settings', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  providerName: varchar('provider_name', { length: 50 }).notNull(),
+  isEnabled: boolean('is_enabled').default(true).notNull(),
+  config: json('config'),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+export const jobScrapeLogs = mysqlTable('job_scrape_logs', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }),
+  providerName: varchar('provider_name', { length: 50 }).notNull(),
+  query: varchar('query', { length: 255 }),
+  jobCount: int('job_count').default(0),
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
