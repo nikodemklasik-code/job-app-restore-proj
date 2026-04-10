@@ -24,6 +24,7 @@ const MAIN_FLOW: NavItem[] = [
 const AI_GROWTH: NavItem[] = [
   { path: '/assistant', label: 'AI Assistant', icon: MessageSquare },
   { path: '/interview', label: 'Interview Ready', icon: Mic },
+  { path: '/skills', label: 'Skills Lab', icon: FlaskConical },
 ];
 
 const PROFILE_DOCS: NavItem[] = [
@@ -32,7 +33,6 @@ const PROFILE_DOCS: NavItem[] = [
 ];
 
 const TOOLS: NavItem[] = [
-  { path: '/skills', label: 'Skills Lab', icon: FlaskConical },
   { path: '/salary', label: 'Salary Calculator', icon: Calculator },
   { path: '/legal', label: 'Legal Hub', icon: Scale },
   { path: '/reports', label: 'Reports', icon: BarChart2 },
