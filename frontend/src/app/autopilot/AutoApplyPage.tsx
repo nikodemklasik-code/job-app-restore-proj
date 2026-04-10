@@ -5,10 +5,10 @@ import {
   Zap,
   Plus,
   Loader2,
-  AlertTriangle,
   ChevronUp,
   RotateCcw,
   SkipForward,
+  TrendingUp,
 } from 'lucide-react';
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -194,17 +194,44 @@ export default function AutoApplyPage() {
   }
 
   const queue = (queueQuery.data ?? []) as QueueItem[];
-  const stats = statsQuery.data ?? { pending: 0, processing: 0, applied: 0, failed: 0, skipped: 0, total: 0 };
+  const stats = statsQuery.data ?? { pending: 0, processing: 0, applied: 0, failed: 0, skipped: 0, total: 0, weeklyUsed: 0, weeklyLimit: 3, plan: 'free' };
+  const weeklyPct = stats.weeklyLimit > 0 ? Math.min(100, Math.round((stats.weeklyUsed / stats.weeklyLimit) * 100)) : 0;
+  const weeklyRemaining = Math.max(0, stats.weeklyLimit - stats.weeklyUsed);
+  const planLabels: Record<string, string> = { free: 'Free', pro: 'Pro', autopilot: 'Autopilot' };
+  const upgradeHints: Record<string, string | null> = {
+    free: 'Upgrade to Pro for 15/week or Autopilot for 50/week',
+    pro: 'Upgrade to Autopilot for 50/week',
+    autopilot: null,
+  };
 
   return (
     <div className="space-y-8">
-      {/* autopilot plan banner */}
-      <div className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-4">
-        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
-        <p className="text-sm text-amber-300">
-          <span className="font-semibold">Auto Apply is part of the Autopilot plan.</span>{' '}
-          Upgrade to enable automatic job discovery and application.
-        </p>
+      {/* Weekly quota bar */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-slate-200">
+            <TrendingUp className="h-4 w-4 text-indigo-400" />
+            Weekly auto-apply quota — <span className="text-indigo-300">{planLabels[stats.plan] ?? stats.plan} plan</span>
+          </div>
+          <span className={`text-sm font-semibold ${weeklyRemaining === 0 ? 'text-red-400' : 'text-slate-200'}`}>
+            {stats.weeklyUsed} / {stats.weeklyLimit} used
+          </span>
+        </div>
+        <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+          <div
+            className={`h-2 rounded-full transition-all ${weeklyPct >= 100 ? 'bg-red-500' : weeklyPct >= 80 ? 'bg-amber-500' : 'bg-indigo-500'}`}
+            style={{ width: `${weeklyPct}%` }}
+          />
+        </div>
+        {upgradeHints[stats.plan] && (
+          <p className="mt-2 text-xs text-slate-500">
+            {upgradeHints[stats.plan]} ·{' '}
+            <a href="/billing" className="text-indigo-400 underline hover:text-indigo-300">Upgrade</a>
+          </p>
+        )}
+        {weeklyRemaining === 0 && (
+          <p className="mt-2 text-xs text-amber-400">Limit reached — resets every Monday at 00:00 UTC</p>
+        )}
       </div>
 
       {/* header */}
@@ -224,7 +251,9 @@ export default function AutoApplyPage() {
         <div className="flex shrink-0 gap-3">
           <button
             onClick={() => setShowAddForm((v) => !v)}
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
+            disabled={weeklyRemaining === 0}
+            title={weeklyRemaining === 0 ? 'Weekly limit reached — resets Monday' : undefined}
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {showAddForm ? <ChevronUp className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
             Add Job

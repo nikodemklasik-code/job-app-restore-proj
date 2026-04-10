@@ -197,12 +197,20 @@ async function processBatch(): Promise<void> {
 // ─── Reset any jobs stuck in "processing" at startup (crash recovery) ─────────
 
 async function recoverStuckJobs(): Promise<void> {
-  const result = await db
+  // Query count before update so we know how many were recovered
+  const stuckRows = await db
+    .select({ id: autoApplyQueue.id })
+    .from(autoApplyQueue)
+    .where(eq(autoApplyQueue.status, 'processing'));
+
+  if (stuckRows.length === 0) return;
+
+  await db
     .update(autoApplyQueue)
     .set({ status: 'pending', updatedAt: new Date() })
     .where(eq(autoApplyQueue.status, 'processing'));
-  const affected = (result as unknown as { affectedRows?: number }).affectedRows ?? 0;
-  if (affected > 0) log(`Recovered ${affected} stuck job(s) → pending`);
+
+  log(`Recovered ${stuckRows.length} stuck job(s) → pending`);
 }
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
