@@ -294,4 +294,55 @@ export const interviewRouter = router({
 
       return { metrics: input.metrics, feedback };
     }),
+
+  // ── Download interview progress credential PDF ────────────────────────────
+  downloadCredential: protectedProcedure
+    .input(
+      z.object({
+        sessionId: z.string().uuid(),
+        growthAreas: z.array(z.string().max(200)).max(3),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const userId = ctx.user.id;
+
+      const [session] = await db
+        .select()
+        .from(interviewSessions)
+        .where(and(eq(interviewSessions.id, input.sessionId), eq(interviewSessions.userId, userId)))
+        .limit(1);
+
+      if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: 'Session not found' });
+
+      const { profiles } = await import('../../db/schema.js');
+      const { users } = await import('../../db/schema.js');
+      const [profile] = await db
+        .select({ fullName: profiles.fullName })
+        .from(profiles)
+        .innerJoin(users, eq(users.id, profiles.userId))
+        .where(eq(users.clerkId, userId))
+        .limit(1);
+
+      const modeLabelMap: Record<string, string> = {
+        behavioral: 'Behavioral',
+        technical: 'Technical',
+        general: 'General HR',
+        hr: 'HR Screen',
+        'case-study': 'Case Study',
+        'language-check': 'Language Check',
+      };
+
+      const { generateInterviewCredentialPdf } = await import('../../services/pdfGenerator.js');
+      const buf = await generateInterviewCredentialPdf({
+        candidateName: profile?.fullName ?? 'Candidate',
+        mode: modeLabelMap[session.mode] ?? session.mode,
+        date: new Date(session.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
+        score: session.score ?? 0,
+        questionCount: session.questionCount ?? 0,
+        growthAreas: input.growthAreas,
+        sessionId: session.id,
+      });
+
+      return { base64: buf.toString('base64'), filename: `interview-credential-${session.id.slice(0, 8)}.pdf` };
+    }),
 });

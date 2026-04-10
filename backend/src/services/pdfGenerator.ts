@@ -170,6 +170,90 @@ export async function generateCoverLetterPdf(text: string, meta: CoverLetterMeta
   return promise;
 }
 
+// ── Interview Credential PDF ──────────────────────────────────────────────────
+
+export interface InterviewCredentialData {
+  candidateName: string;
+  mode: string;
+  date: string;
+  score: number;
+  questionCount: number;
+  growthAreas: string[];
+  sessionId: string;
+}
+
+export async function generateInterviewCredentialPdf(data: InterviewCredentialData): Promise<Buffer> {
+  const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 60, right: 60 } });
+  const promise = bufferFromStream(doc);
+  const W = doc.page.width;
+
+  // Dark header
+  doc.rect(0, 0, W, 110).fill(DARK);
+  doc.rect(0, 110, W, 4).fill(INDIGO);
+
+  // Badge area
+  doc.rect(60, 22, 66, 66).fill(INDIGO).roundedRect(60, 22, 66, 66, 8).fill(INDIGO);
+  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(28).text(`${data.score}`, 60, 38, { width: 66, align: 'center' });
+  doc.fillColor('#a5b4fc').font('Helvetica').fontSize(9).text('SCORE', 60, 68, { width: 66, align: 'center' });
+
+  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(18).text('Interview Progress Certificate', 140, 26, { width: W - 200 });
+  doc.fillColor('#94a3b8').font('Helvetica').fontSize(10).text(`Issued to: ${data.candidateName}`, 140, 52);
+  doc.fillColor('#64748b').font('Helvetica').fontSize(9).text(`Session ID: ${data.sessionId}`, 140, 70);
+
+  let y = 130;
+
+  // Session details
+  doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(11).text('SESSION DETAILS', 60, y);
+  y += 14;
+  doc.rect(60, y - 2, W - 120, 1).fill(INDIGO);
+  y += 10;
+
+  const details: [string, string][] = [
+    ['Date', data.date],
+    ['Mode', data.mode],
+    ['Questions Answered', String(data.questionCount)],
+    ['Readiness Score', `${data.score} / 100`],
+  ];
+  for (const [label, value] of details) {
+    doc.fillColor(MUTED).font('Helvetica').fontSize(10).text(label, 60, y, { width: 180 });
+    doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10).text(value, 240, y);
+    y = doc.y + 4;
+  }
+  y += 12;
+
+  // Growth areas
+  if (data.growthAreas.length > 0) {
+    doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(11).text('TOP 3 GROWTH AREAS', 60, y);
+    y += 14;
+    doc.rect(60, y - 2, W - 120, 1).fill(INDIGO);
+    y += 10;
+    data.growthAreas.slice(0, 3).forEach((area, i) => {
+      doc.rect(60, y, 8, 8).fill(INDIGO);
+      doc.fillColor(DARK).font('Helvetica').fontSize(10).text(`${i + 1}.  ${area}`, 76, y, { width: W - 150 });
+      y = doc.y + 6;
+    });
+    y += 10;
+  }
+
+  // Disclaimer box
+  doc.rect(60, y, W - 120, 52).fill('#f8fafc').stroke('#e2e8f0');
+  doc.fillColor(MUTED).font('Helvetica').fontSize(8).text(
+    'This certificate records interview preparation activity completed on the MultivoHub platform. It reflects self-reported practice session data and is not a hiring assessment, candidate selection recommendation, or guarantee of interview outcome.',
+    68, y + 10, { width: W - 136, align: 'justify' },
+  );
+  y += 68;
+
+  // Footer
+  doc.rect(0, doc.page.height - 32, W, 32).fill(LIGHT_BG);
+  doc.fillColor(MUTED).font('Helvetica').fontSize(8).text(
+    `MultivoHub Interview Progress Certificate  ·  ${data.date}`,
+    0, doc.page.height - 20, { align: 'center', width: W },
+  );
+
+  doc.end();
+  return promise;
+}
+
 interface CandidateReportData {
   fullName?: string;
   email?: string;

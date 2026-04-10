@@ -1200,6 +1200,28 @@ export default function InterviewPractice() {
                         <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>
                           {s.answers.length} answer{s.answers.length !== 1 ? 's' : ''} · {s.difficulty}
                         </div>
+                        {score !== null && (
+                          <button
+                            onClick={() => {
+                              const growthAreas = [
+                                'Structure answers with clear STAR format',
+                                'Add quantified outcomes to each response',
+                                'Reduce filler words and pause instead',
+                              ];
+                              void api.interview.downloadCredential.mutate({ sessionId: s.id, growthAreas }).then((res) => {
+                                const bytes = Uint8Array.from(atob(res.base64), (c) => c.charCodeAt(0));
+                                const blob = new Blob([bytes], { type: 'application/pdf' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url; a.download = res.filename; a.click();
+                                URL.revokeObjectURL(url);
+                              });
+                            }}
+                            style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 7, padding: '5px 10px', color: '#818cf8', fontSize: 11, cursor: 'pointer' }}
+                          >
+                            <FileDown style={{ width: 12, height: 12 }} /> Download Credential PDF
+                          </button>
+                        )}
                       </div>
                     );
                   })}

@@ -234,3 +234,69 @@ export async function* streamNegotiationResponse(
     if (content) yield content;
   }
 }
+
+// ── Negotiation Simulator ────────────────────────────────────────────────────
+
+export interface SimulatorOffer {
+  role: string;
+  company: string;
+  offeredSalary: number;
+  currency: string;
+  targetSalary: number;
+  marketRate?: number;
+  benefits?: string;
+}
+
+export function buildNegotiationSimulatorPrompt(offer: SimulatorOffer): string {
+  const { role, company, offeredSalary, currency, targetSalary, marketRate, benefits } = offer;
+  const sym = currency === 'GBP' ? '£' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency;
+  return `You are an HR representative at ${company} conducting a real-time salary negotiation with a job candidate for the role of ${role}.
+
+## YOUR OPENING OFFER
+You have offered: ${sym}${offeredSalary.toLocaleString()} per year${benefits ? ` plus ${benefits}` : ''}.
+The candidate is targeting: ${sym}${targetSalary.toLocaleString()}.
+${marketRate ? `Market rate for this role: ${sym}${marketRate.toLocaleString()}.` : ''}
+
+## YOUR ROLE
+- Play a realistic but fair HR representative.
+- Start the simulation by delivering the offer naturally (one paragraph).
+- After each candidate response, respond as HR would: acknowledge their point, hold your position, make small concessions only when the candidate makes a strong case. You can move up in increments of ${sym}${Math.round(offeredSalary * 0.02).toLocaleString()}–${sym}${Math.round(offeredSalary * 0.04).toLocaleString()} when justified.
+- Track the negotiation internally. When the candidate signals acceptance or after 6 rounds, end the simulation with: **[SIMULATION COMPLETE]** followed by a debrief that includes:
+  1. **Final agreed salary** — what was accepted
+  2. **Money left on the table** — difference between what they accepted and the target (${sym}${targetSalary.toLocaleString()})
+  3. **What worked** — 2-3 specific negotiation moves the candidate used well
+  4. **What was missed** — 1-2 opportunities or stronger arguments they could have made
+  5. **Next time** — one concrete tip for their next negotiation
+
+## RULES
+- Do NOT break character during the simulation to give coaching advice.
+- Do NOT reveal the candidate's target salary unless they mention it.
+- Respond in English. Keep responses concise (2-4 sentences during the simulation).
+- Be realistic: do not instantly agree to any number without pushback.
+- After the debrief, return to normal coaching mode if the user has further questions.`;
+}
+
+export async function* streamNegotiationSimulation(
+  messages: NegotiationMessage[],
+  offer: SimulatorOffer,
+): AsyncGenerator<string> {
+  const openai = getOpenAI();
+
+  const systemMessage: NegotiationMessage = {
+    role: 'system',
+    content: buildNegotiationSimulatorPrompt(offer),
+  };
+
+  const stream = await openai.chat.completions.create({
+    model: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
+    messages: [systemMessage, ...messages],
+    stream: true,
+    temperature: 0.75,
+    max_tokens: 800,
+  });
+
+  for await (const chunk of stream) {
+    const content = chunk.choices[0]?.delta?.content;
+    if (content) yield content;
+  }
+}

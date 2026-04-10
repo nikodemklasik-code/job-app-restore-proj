@@ -16,6 +16,7 @@ import { styleRouter } from './style.router.js';
 import { jobSourcesRouter } from './jobSources.router.js';
 import { pushRouter } from './push.router.js';
 import { emailMonitoringRouter } from './emailMonitoring.router.js';
+import { radarRouter } from './radar.router.js';
 
 export const appRouter = router({
   assistant: assistantRouter,
@@ -35,6 +36,7 @@ export const appRouter = router({
   jobSources: jobSourcesRouter,
   push: pushRouter,
   emailMonitoring: emailMonitoringRouter,
+  radar: radarRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -23,6 +23,8 @@ const ReportsHub = lazy(() => import('./app/reports/ReportsHub'));
 const AutoApplyPage = lazy(() => import('./app/autopilot/AutoApplyPage'));
 const SkillsLab = lazy(() => import('./app/skills/SkillsLab'));
 const NegotiationCoach = lazy(() => import('./app/negotiation/NegotiationCoach'));
+const JobRadar = lazy(() => import('./app/radar/JobRadar'));
+const InterviewWarmup = lazy(() => import('./app/warmup/InterviewWarmup'));
 
 const PageLoader = () => (
   <div className="flex h-full items-center justify-center py-24">
@@ -87,6 +89,8 @@ export const router = createBrowserRouter([
       { path: 'auto-apply', element: withSuspense(AutoApplyPage) },
       { path: 'skills', element: withSuspense(SkillsLab) },
       { path: 'negotiation', element: withSuspense(NegotiationCoach) },
+      { path: 'radar', element: withSuspense(JobRadar) },
+      { path: 'warmup', element: withSuspense(InterviewWarmup) },
     ],
   },
 ]);

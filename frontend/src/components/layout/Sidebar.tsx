@@ -3,7 +3,7 @@ import { useClerk } from '@clerk/clerk-react';
 import {
   LayoutDashboard, Briefcase, ClipboardList, FileText,
   MessageSquare, Mic, User, CreditCard, Settings,
-  Shield, Palette, LogOut, Sparkles, Calculator, Scale, BarChart2, Zap, FlaskConical, Handshake,
+  Shield, Palette, LogOut, Sparkles, Calculator, Scale, BarChart2, Zap, FlaskConical, Handshake, Radar, Flame,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -24,8 +24,10 @@ const MAIN_FLOW: NavItem[] = [
 const AI_GROWTH: NavItem[] = [
   { path: '/assistant', label: 'AI Assistant', icon: MessageSquare },
   { path: '/interview', label: 'Interview Ready', icon: Mic },
+  { path: '/warmup', label: 'Daily Warmup', icon: Flame },
   { path: '/negotiation', label: 'Negotiation Coach', icon: Handshake },
   { path: '/skills', label: 'Skills Lab', icon: FlaskConical },
+  { path: '/radar', label: 'Job Radar', icon: Radar },
 ];
 
 const PROFILE_DOCS: NavItem[] = [
