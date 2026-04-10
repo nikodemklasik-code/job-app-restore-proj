@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { FlaskConical, Loader2, ChevronRight, AlertCircle, BookOpen, ChevronDown, ExternalLink } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { FlaskConical, Loader2, ChevronRight, AlertCircle, BookOpen, ChevronDown, ExternalLink, Zap } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import { useProfileStore } from '@/stores/profileStore';
+import { useBillingStore } from '@/stores/billingStore';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -265,6 +266,7 @@ export default function SkillsLab() {
   const { user } = useUser();
   const userId = user?.id ?? '';
   const { profile, isLoadingProfile, loadProfile } = useProfileStore();
+  const { currentPlan, loadBillingData } = useBillingStore();
 
   const [targetInput, setTargetInput] = useState('');
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -277,6 +279,10 @@ export default function SkillsLab() {
   if (!profile && !isLoadingProfile) {
     void loadProfile();
   }
+
+  useEffect(() => {
+    if (userId && !currentPlan) void loadBillingData(userId);
+  }, [userId, currentPlan, loadBillingData]);
 
   const rawSkills: string[] = profile?.skills ?? [];
   const skillItems = rawSkills.map((name) => ({ name, level: pseudoLevel(name) }));
@@ -298,6 +304,23 @@ export default function SkillsLab() {
           <p className="text-sm text-slate-400">Visualise your current skills and analyse gaps for any role.</p>
         </div>
       </div>
+
+      {/* Credits bar */}
+      {currentPlan && (
+        <div className="flex items-center justify-between rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-2.5">
+          <div className="flex items-center gap-2">
+            <Zap className="h-4 w-4 text-indigo-400" />
+            <span className="text-sm text-slate-400">AI credits remaining:</span>
+            <span className="text-sm font-bold text-white">{currentPlan.credits.toLocaleString()}</span>
+          </div>
+          <a
+            href="/billing"
+            className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-500/20"
+          >
+            Buy Credits →
+          </a>
+        </div>
+      )}
 
       {/* 2-column layout */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

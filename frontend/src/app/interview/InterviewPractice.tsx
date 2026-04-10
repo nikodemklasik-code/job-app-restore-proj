@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
-import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, BookOpen, Clock, TrendingUp, FileDown, StickyNote, Star, Lock } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, BookOpen, Clock, TrendingUp, FileDown, StickyNote, Star, Lock, Zap } from 'lucide-react';
 import { interviewModeLabels } from '../../../../shared/interview';
 import type { InterviewMode } from '../../../../shared/interview';
 import { useBillingStore } from '@/stores/billingStore';
@@ -952,6 +952,23 @@ export default function InterviewPractice() {
     return (
       <div style={{ minHeight: '100vh', background: '#050a14', color: '#f9fafb', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <style>{AVATAR_STYLES}</style>
+
+        {/* Credits bar */}
+        {currentPlan && (
+          <div style={{ width: '100%', maxWidth: 880, marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 12, padding: '10px 18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Zap style={{ width: 16, height: 16, color: '#818cf8' }} />
+              <span style={{ fontSize: 13, color: '#94a3b8' }}>AI credits remaining:</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{currentPlan.credits.toLocaleString()}</span>
+            </div>
+            <a
+              href="/billing"
+              style={{ fontSize: 12, fontWeight: 600, color: '#a5b4fc', textDecoration: 'none', padding: '5px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: 8, transition: 'opacity 0.15s' }}
+            >
+              Buy Credits →
+            </a>
+          </div>
+        )}
 
         <div style={{ width: '100%', maxWidth: 880, display: 'flex', gap: 24, flexWrap: 'wrap', justifyContent: 'center' }}>
 

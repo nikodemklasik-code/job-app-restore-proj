@@ -310,6 +310,41 @@ export default function BillingPage() {
         })}
       </div>
 
+      {/* Annual / longer-term plans — coming soon */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-white">📅 Annual &amp; Long-Term Plans</h2>
+            <p className="mt-0.5 text-sm text-slate-400">Save more with quarterly, semi-annual and annual billing — launching soon.</p>
+          </div>
+          <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-400">Coming Soon</span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {(
+            [
+              { label: 'Quarterly', saving: 'Save ~10%', period: 'every 3 months' },
+              { label: 'Semi-Annual', saving: 'Save ~15%', period: 'every 6 months' },
+              { label: 'Annual', saving: 'Save ~20%', period: 'per year' },
+            ] as const
+          ).map((item) => (
+            <div
+              key={item.label}
+              className="flex flex-col gap-2 rounded-xl border border-white/[0.07] bg-white/[0.03] p-5 opacity-60"
+            >
+              <p className="font-semibold text-white">{item.label}</p>
+              <p className="text-sm text-slate-400">{item.period}</p>
+              <span className="inline-flex w-fit items-center rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
+                {item.saving}
+              </span>
+              <div className="mt-auto flex items-center justify-center rounded-lg border border-white/10 bg-white/5 py-2 text-xs font-medium text-slate-500">
+                Coming Soon
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Billing history */}
       {billingHistory.length > 0 && (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
