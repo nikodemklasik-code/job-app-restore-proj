@@ -1,11 +1,12 @@
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
-import { eq, and, desc, like, or } from 'drizzle-orm';
+import { eq, and, desc, like, or, inArray } from 'drizzle-orm';
 import { publicProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
-import { jobs, profiles, skills, users, userJobSessions } from '../../db/schema.js';
+import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions } from '../../db/schema.js';
 import { searchAllProviders } from '../../services/jobProviders.js';
-import { scoreJobFit, explainJobFit, isScamJob } from '../../services/aiPersonalizer.js';
+import { scoreJobFit, explainJobFit, isScamJob, getCompanyProfile } from '../../services/aiPersonalizer.js';
+import { buildCandidateInsights } from '../../services/adaptiveInterviewer.js';
 
 export const jobsRouter = router({
   search: publicProcedure
@@ -145,15 +146,33 @@ export const jobsRouter = router({
       const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
 
       let profileData: { skills: string[]; summary?: string } = { skills: [] };
+      let interviewInsights: Parameters<typeof explainJobFit>[2] | undefined;
+
       if (userRecord[0]) {
-        const profileRecord = await db.select({ id: profiles.id, summary: profiles.summary })
-          .from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1);
+        const [profileRecord, sessionCount] = await Promise.all([
+          db.select({ id: profiles.id, summary: profiles.summary })
+            .from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1),
+          db.select({ id: interviewSessions.id })
+            .from(interviewSessions).where(eq(interviewSessions.userId, userRecord[0].id)).limit(1),
+        ]);
         if (profileRecord[0]) {
           const skillRecords = await db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profileRecord[0].id));
           profileData = {
             summary: profileRecord[0].summary ?? '',
             skills: skillRecords.map((s) => s.name),
           };
+        }
+        // Facultatively incorporate interview performance data
+        if (sessionCount.length > 0) {
+          const insights = await buildCandidateInsights(userRecord[0].id);
+          if (insights.sessionCount > 0) {
+            interviewInsights = {
+              averageScore: insights.averageScore,
+              sessionCount: insights.sessionCount,
+              strongAreas: insights.strongAreas,
+              weakAreas: insights.weakAreas,
+            };
+          }
         }
       }
 
@@ -165,10 +184,46 @@ export const jobsRouter = router({
       };
 
       const [fit, scam] = await Promise.all([
-        explainJobFit(profileData, jobForAnalysis),
+        explainJobFit(profileData, jobForAnalysis, interviewInsights),
         Promise.resolve(isScamJob(job.title, job.description ?? '')),
       ]);
 
+      // Save extracted requirements back to DB if the job has none yet
+      if (fit.extractedRequirements && fit.extractedRequirements.length > 0 &&
+          ((job.requirements as string[]) ?? []).length === 0) {
+        await db.update(jobs)
+          .set({ requirements: fit.extractedRequirements, updatedAt: new Date() })
+          .where(eq(jobs.id, job.id));
+      }
+
       return { fit, scam };
+    }),
+
+  getUserJobStatuses: publicProcedure
+    .input(z.object({ userId: z.string(), jobIds: z.array(z.string()) }))
+    .query(async ({ input }) => {
+      if (input.jobIds.length === 0) return {};
+      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      if (!userRecord[0]) return {};
+
+      const rows = await db
+        .select({ jobId: applications.jobId, status: applications.status })
+        .from(applications)
+        .where(and(
+          eq(applications.userId, userRecord[0].id),
+          inArray(applications.jobId, input.jobIds),
+        ));
+
+      const map: Record<string, string> = {};
+      for (const r of rows) {
+        if (r.jobId) map[r.jobId] = r.status;
+      }
+      return map;
+    }),
+
+  getCompanyProfile: publicProcedure
+    .input(z.object({ companyName: z.string().min(1), jobTitle: z.string().optional() }))
+    .query(async ({ input }) => {
+      return getCompanyProfile(input.companyName, input.jobTitle);
     }),
 });

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
-import { Search, MapPin, Building2, DollarSign, Plus, ExternalLink, Loader2, Cookie, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Sparkles, Wifi } from 'lucide-react';
+import { Search, MapPin, DollarSign, Plus, ExternalLink, Loader2, Cookie, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Sparkles, Wifi, BookOpen, ChevronRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 type JobResult = {
   id: string;
@@ -15,6 +16,8 @@ type JobResult = {
   applyUrl: string;
   fitScore: number;
   description?: string;
+  requirements?: string[];
+  postedAt?: string;
 };
 
 type SessionStatus = { id: string; provider: string; isActive: boolean; lastTestedAt: Date | null; updatedAt: Date };
@@ -55,7 +58,240 @@ function quickScamCheck(title: string, desc: string): boolean {
   return patterns.filter(p => p.test(text)).length >= 2;
 }
 
-// ── Explain Fit Modal ─────────────────────────────────────────────────────────
+// ── Application status badge ──────────────────────────────────────────────────
+
+const STATUS_META: Record<string, { label: string; color: string }> = {
+  draft:            { label: 'Draft',          color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' },
+  prepared:         { label: 'Prepared',       color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  sent:             { label: 'Applied',        color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' },
+  follow_up_sent:   { label: 'Follow-up sent', color: 'bg-violet-500/20 text-violet-400 border-violet-500/30' },
+  interview:        { label: 'Interview',      color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  accepted:         { label: 'Offer',          color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+  rejected:         { label: 'Rejected',       color: 'bg-red-500/20 text-red-400 border-red-500/30' },
+};
+
+function ApplicationStatusBadge({ status }: { status: string }) {
+  const meta = STATUS_META[status] ?? { label: status, color: 'bg-white/10 text-slate-400 border-white/10' };
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${meta.color}`}>
+      {meta.label}
+    </span>
+  );
+}
+
+// ── Company profile card ───────────────────────────────────────────────────────
+
+function CompanyCard({ companyName, jobTitle }: { companyName: string; jobTitle: string }) {
+  const query = api.jobs.getCompanyProfile.useQuery(
+    { companyName, jobTitle },
+    { enabled: !!companyName }
+  );
+
+  if (query.isLoading) {
+    return (
+      <div className="flex items-center gap-2 py-2 text-xs text-slate-500">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        Loading company profile…
+      </div>
+    );
+  }
+
+  const profile = query.data;
+  if (!profile) return null;
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2 text-xs">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold text-white">{companyName}</span>
+        <div className="flex gap-1.5">
+          <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-slate-400">{profile.industry}</span>
+          <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-slate-400">{profile.size}</span>
+        </div>
+      </div>
+      <p className="text-slate-400 leading-relaxed">{profile.culture}</p>
+      <div className="rounded-lg border border-indigo-500/20 bg-indigo-500/10 px-3 py-2">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-indigo-400 mb-1">Interview style</p>
+        <p className="text-slate-300 leading-relaxed">{profile.interviewStyle}</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Job card component ────────────────────────────────────────────────────────
+
+function JobCard({
+  job,
+  applicationStatus,
+  userId,
+  onExplainFit,
+}: {
+  job: JobResult;
+  applicationStatus?: string;
+  userId: string;
+  onExplainFit: (id: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [showCompany, setShowCompany] = useState(false);
+  const salary = formatSalary(job.salaryMin, job.salaryMax);
+  const srcMeta = SOURCE_META[job.source as Source];
+  const isScam = quickScamCheck(job.title, job.description ?? '');
+  const requirements: string[] = job.requirements ?? [];
+
+  const postedDate = job.postedAt
+    ? (() => {
+        const d = new Date(job.postedAt);
+        const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
+        if (diffDays === 0) return 'Today';
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays < 7) return `${diffDays}d ago`;
+        if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+      })()
+    : null;
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 flex flex-col gap-0 transition hover:border-white/20 hover:bg-white/[0.07] overflow-hidden">
+      {/* Card header */}
+      <div className="p-5 flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-lg font-bold text-slate-300">
+            {job.company.charAt(0).toUpperCase()}
+          </div>
+          <div className="flex items-center gap-1.5">
+            {applicationStatus && <ApplicationStatusBadge status={applicationStatus} />}
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${fitBadgeClass(job.fitScore)}`}>
+              {job.fitScore}% fit
+            </span>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="font-semibold text-white leading-tight">{job.title}</h3>
+          <button
+            onClick={() => setShowCompany((v) => !v)}
+            className="flex items-center gap-1 mt-0.5 text-sm text-slate-400 hover:text-slate-200 transition"
+          >
+            {job.company}
+            <ChevronRight className={`h-3 w-3 transition-transform ${showCompany ? 'rotate-90' : ''}`} />
+          </button>
+        </div>
+
+        {isScam && (
+          <span className="inline-flex w-fit items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-400">
+            ⚠️ Check carefully
+          </span>
+        )}
+
+        {/* Company card (lazy) */}
+        {showCompany && (
+          <CompanyCard companyName={job.company} jobTitle={job.title} />
+        )}
+
+        {/* Meta row */}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          {job.location && (
+            <span className="flex items-center gap-1">
+              <MapPin className="h-3 w-3" />
+              {job.location}
+            </span>
+          )}
+          {salary && (
+            <span className="flex items-center gap-1">
+              <DollarSign className="h-3 w-3" />
+              {salary}
+            </span>
+          )}
+          {job.workMode && (
+            <span className="flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-medium capitalize text-slate-400">
+              <Wifi className="h-3 w-3" />
+              {job.workMode}
+            </span>
+          )}
+          {postedDate && (
+            <span className="text-slate-500">{postedDate}</span>
+          )}
+          <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium ${srcMeta?.color ?? 'bg-white/10 text-slate-400'}`}>
+            {srcMeta?.label ?? job.source}
+          </span>
+        </div>
+      </div>
+
+      {/* Expandable skills section */}
+      <div className="border-t border-white/5">
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className="w-full flex items-center justify-between px-5 py-2.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 transition"
+        >
+          <span className="font-medium">
+            {requirements.length > 0 ? `${requirements.length} required skills` : 'Skills & requirements'}
+          </span>
+          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        </button>
+
+        {expanded && (
+          <div className="px-5 pb-4 space-y-3">
+            {requirements.length > 0 ? (
+              <>
+                <div className="flex flex-wrap gap-1.5">
+                  {requirements.map((req, i) => (
+                    <span
+                      key={i}
+                      className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-slate-300"
+                    >
+                      {req}
+                    </span>
+                  ))}
+                </div>
+                <Link
+                  to="/skills"
+                  className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition w-fit"
+                >
+                  <BookOpen className="h-3.5 w-3.5" />
+                  Learn these skills in Skills Lab →
+                </Link>
+              </>
+            ) : (
+              <div className="text-xs text-slate-500 space-y-1.5">
+                <p>No requirements extracted yet.</p>
+                <button
+                  onClick={() => onExplainFit(job.id)}
+                  className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 transition"
+                  disabled={!userId}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Analyse fit to extract requirements
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="px-5 pb-5 pt-2 mt-auto flex flex-col gap-2">
+        <button
+          onClick={() => onExplainFit(job.id)}
+          className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 py-2 text-xs font-medium text-indigo-400 transition hover:bg-indigo-500/20"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          Why this match?
+        </button>
+        {job.applyUrl && (
+          <a
+            href={job.applyUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+          >
+            Apply
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
 
 function ExplainFitModal({ jobId, userId, onClose }: { jobId: string; userId: string; onClose: () => void }) {
   const explainQuery = api.jobs.explainFit.useQuery(
@@ -444,8 +680,15 @@ export default function JobsDiscovery() {
   }
 
   const jobResults = (searchQuery.data ?? []) as JobResult[];
+  const jobIds = jobResults.map((j) => j.id);
   const indeedStatus = sessions.find((s) => s.provider === 'indeed');
   const gumtreeStatus = sessions.find((s) => s.provider === 'gumtree');
+
+  const jobStatusQuery = api.jobs.getUserJobStatuses.useQuery(
+    { userId, jobIds },
+    { enabled: !!userId && jobIds.length > 0 }
+  );
+  const jobStatusMap = (jobStatusQuery.data ?? {}) as Record<string, string>;
 
   return (
     <div className="space-y-6">
@@ -568,80 +811,15 @@ export default function JobsDiscovery() {
         </div>
       ) : jobResults.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {jobResults.map((job) => {
-            const salary = formatSalary(job.salaryMin, job.salaryMax);
-            const srcMeta = SOURCE_META[job.source as Source];
-            const isScam = quickScamCheck(job.title, job.description ?? '');
-            return (
-              <div key={job.id} className="rounded-2xl border border-white/10 bg-white/5 p-5 flex flex-col gap-3 transition hover:border-white/20 hover:bg-white/[0.07]">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10">
-                    <Building2 className="h-5 w-5 text-slate-400" />
-                  </div>
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${fitBadgeClass(job.fitScore)}`}>
-                    {job.fitScore}% fit
-                  </span>
-                </div>
-
-                <div>
-                  <h3 className="font-semibold text-white leading-tight">{job.title}</h3>
-                  <p className="text-sm text-slate-400 mt-0.5">{job.company}</p>
-                </div>
-
-                {isScam && (
-                  <span className="inline-flex w-fit items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-400">
-                    ⚠️ Check carefully
-                  </span>
-                )}
-
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                  {job.location && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {job.location}
-                    </span>
-                  )}
-                  {salary && (
-                    <span className="flex items-center gap-1">
-                      <DollarSign className="h-3 w-3" />
-                      {salary}
-                    </span>
-                  )}
-                  {job.workMode && (
-                    <span className="flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-medium capitalize text-slate-400">
-                      <Wifi className="h-3 w-3" />
-                      {job.workMode}
-                    </span>
-                  )}
-                  <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium ${srcMeta?.color ?? 'bg-white/10 text-slate-400'}`}>
-                    {srcMeta?.label ?? job.source}
-                  </span>
-                </div>
-
-                <div className="mt-auto flex flex-col gap-2">
-                  <button
-                    onClick={() => setExplainJobId(job.id)}
-                    className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 py-2 text-xs font-medium text-indigo-400 transition hover:bg-indigo-500/20"
-                  >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    Why this match?
-                  </button>
-
-                  {job.applyUrl && (
-                    <a
-                      href={job.applyUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
-                    >
-                      Apply
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          {jobResults.map((job) => (
+            <JobCard
+              key={job.id}
+              job={job}
+              applicationStatus={jobStatusMap[job.id]}
+              userId={userId}
+              onExplainFit={setExplainJobId}
+            />
+          ))}
         </div>
       ) : searchParams !== null ? (
         <div className="flex h-48 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-500">

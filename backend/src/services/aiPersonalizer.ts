@@ -138,10 +138,18 @@ export function isScamJob(title: string, description: string): { isScam: boolean
 }
 
 // Detailed job fit explanation
+export interface InterviewInsightsForScoring {
+  averageScore: number;
+  sessionCount: number;
+  strongAreas: string[];
+  weakAreas: string[];
+}
+
 export async function explainJobFit(
   profile: { skills: string[]; summary?: string },
   job: { title: string; description: string; requirements: string[] },
-): Promise<{ score: number; strengths: string[]; gaps: string[]; advice: string }> {
+  interviewInsights?: InterviewInsightsForScoring,
+): Promise<{ score: number; strengths: string[]; gaps: string[]; advice: string; extractedRequirements?: string[] }> {
   const openai = getOpenAIClient();
   if (!openai) {
     const { score } = await scoreJobFit(profile, { ...job, company: '' });
@@ -153,24 +161,32 @@ export async function explainJobFit(
     };
   }
 
+  const insightNote = interviewInsights && interviewInsights.sessionCount > 0
+    ? `\nInterview performance data (${interviewInsights.sessionCount} sessions, avg score ${interviewInsights.averageScore}%):
+  - Strong areas: ${interviewInsights.strongAreas.join(', ') || 'none identified'}
+  - Weak areas: ${interviewInsights.weakAreas.join(', ') || 'none identified'}
+  Factor this into the score: strong interview performance (+5), weak areas matching job requirements (-5 each).`
+    : '';
+
   const prompt = `Analyse this job fit and respond with JSON only.
 Profile skills: ${profile.skills.join(', ')}
 Summary: ${profile.summary ?? ''}
 Job title: ${job.title}
 Job description (first 400 chars): ${job.description.slice(0, 400)}
-Requirements: ${job.requirements.join(', ')}
+Requirements: ${job.requirements.join(', ')}${insightNote}
 
-Return: { "score": 0-100, "strengths": ["...","...","..."], "gaps": ["...","..."], "advice": "one sentence action" }`;
+Return: { "score": 0-100, "strengths": ["...","...","..."], "gaps": ["...","..."], "advice": "one sentence action", "extractedRequirements": ["skill1","skill2","skill3","skill4","skill5"] }
+extractedRequirements: extract up to 8 specific skills/requirements from the job description as short strings.`;
 
   const res = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
     messages: [{ role: 'user', content: prompt }],
     response_format: { type: 'json_object' },
-    max_tokens: 300,
+    max_tokens: 400,
   });
 
   const data = JSON.parse(res.choices[0]?.message?.content ?? '{}') as {
-    score?: number; strengths?: string[]; gaps?: string[]; advice?: string;
+    score?: number; strengths?: string[]; gaps?: string[]; advice?: string; extractedRequirements?: string[];
   };
 
   return {
@@ -178,6 +194,7 @@ Return: { "score": 0-100, "strengths": ["...","...","..."], "gaps": ["...","..."
     strengths: Array.isArray(data.strengths) ? data.strengths : [],
     gaps: Array.isArray(data.gaps) ? data.gaps : [],
     advice: data.advice ?? '',
+    extractedRequirements: Array.isArray(data.extractedRequirements) ? data.extractedRequirements : undefined,
   };
 }
 
@@ -209,4 +226,55 @@ Keep it under 100 words, professional UK English. Include subject line.`,
   });
 
   return res.choices[0]?.message?.content ?? '';
+}
+
+export interface CompanyProfile {
+  industry: string;
+  size: string;
+  culture: string;
+  interviewStyle: string;
+  summary: string;
+}
+
+export async function getCompanyProfile(companyName: string, jobTitle?: string): Promise<CompanyProfile> {
+  const openai = getOpenAIClient();
+  const fallback: CompanyProfile = {
+    industry: 'Technology',
+    size: 'Unknown',
+    culture: `${companyName} is a professional organisation. Research their website and LinkedIn for culture insights.`,
+    interviewStyle: 'Standard interview process. Expect CV screening, phone screen, and final round.',
+    summary: `${companyName} — add the company URL to get a richer profile.`,
+  };
+
+  if (!openai) return fallback;
+
+  const prompt = `You are a knowledgeable recruiter. Provide a concise company profile for "${companyName}"${jobTitle ? ` (hiring for: ${jobTitle})` : ''}.
+Respond with JSON only:
+{
+  "industry": "brief industry/sector",
+  "size": "startup|SME|enterprise or headcount estimate",
+  "culture": "2-3 sentences on work culture, values, and management style",
+  "interviewStyle": "1-2 sentences on typical interview process and what they assess",
+  "summary": "1 sentence company overview"
+}
+If you don't have specific knowledge of this company, provide a reasonable inference based on the name and industry context.`;
+
+  try {
+    const res = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      max_tokens: 300,
+    });
+    const data = JSON.parse(res.choices[0]?.message?.content ?? '{}') as Partial<CompanyProfile>;
+    return {
+      industry: data.industry ?? fallback.industry,
+      size: data.size ?? fallback.size,
+      culture: data.culture ?? fallback.culture,
+      interviewStyle: data.interviewStyle ?? fallback.interviewStyle,
+      summary: data.summary ?? fallback.summary,
+    };
+  } catch {
+    return fallback;
+  }
 }
