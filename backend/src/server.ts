@@ -166,7 +166,7 @@ app.post('/api/interview/stream', async (req, res) => {
         messages: [{ role: 'system', content: systemPrompt }, ...validMessages],
         stream: true,
         temperature: 0.7,
-        max_tokens: 200,
+        max_tokens: 2000,
       });
       for await (const chunk of stream) {
         const content = chunk.choices[0]?.delta?.content;

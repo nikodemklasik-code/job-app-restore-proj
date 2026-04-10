@@ -985,8 +985,8 @@ export default function InterviewPractice() {
                 <Briefcase style={{ width: 22, height: 22, color: '#fff' }} />
               </div>
               <div>
-                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>AI Interview</h1>
-                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Preparing to join your mock interview</p>
+                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>AI Interview Coach</h1>
+                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Share your answers — get structured coaching reports</p>
               </div>
             </div>
 
