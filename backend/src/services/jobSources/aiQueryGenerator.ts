@@ -48,7 +48,7 @@ export async function generateJobQueries(
         return parsed.slice(0, count);
       }
     } catch (err) {
-      console.error('[aiQueryGenerator] OpenAI error, falling back to heuristic:', err);
+      console.error('[aiQueryGenerator] OpenAI error, using fallback query generation based on profile data:', err);
     }
   }
 
