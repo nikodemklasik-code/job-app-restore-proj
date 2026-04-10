@@ -1,7 +1,9 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
-import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, BookOpen, Clock, TrendingUp, FileDown, StickyNote, Star } from 'lucide-react';
+import { interviewModeLabels } from '../../../../shared/interview';
+import type { InterviewMode } from '../../../../shared/interview';
 
 // ─── Wave/avatar keyframes injected once ─────────────────────────────────────
 const AVATAR_STYLES = `
@@ -45,6 +47,14 @@ const AVATAR_STYLES = `
     0%, 100% { height: 4px; transform: scaleY(0.5); }
     50% { height: 20px; transform: scaleY(1); }
   }
+  @keyframes slide-up {
+    from { transform: translate(-50%, 20px); opacity: 0; }
+    to   { transform: translate(-50%, 0);   opacity: 1; }
+  }
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
 `;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -81,10 +91,198 @@ interface AdaptiveInsights {
   strongAreas?: string[];
 }
 
+interface TurnFeedback {
+  score: number;
+  starPresence: { situation: boolean; task: boolean; action: boolean; result: boolean };
+  improvementTip: string;
+  clarityScore: number;
+  confidenceNote: string;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 const MAX_EXCHANGES = 8;
+
+// ─── Client-side STAR helpers (fast, no network) ─────────────────────────────
+
+function detectStarClient(t: string): TurnFeedback['starPresence'] {
+  const s = t.toLowerCase();
+  return {
+    situation: /\b(when|at the time|there was|we were|our team|last year|during|in my previous|at \w+ company|back in)\b/.test(s),
+    task: /\b(i needed to|my (task|goal|job|responsibility) was|i was responsible|i had to|assigned to|my role was|tasked with)\b/.test(s),
+    action: /\b(i (did|decided|implemented|built|led|created|wrote|fixed|reached out|set up|introduced|proposed|developed|organized|designed))\b/.test(s),
+    result: /\b(result(ed)?( in)?|achiev|improv|reduc|increas|saved|success|by \d|percent|outcome|we (launched|delivered|hit|exceeded|met))\b/.test(s),
+  };
+}
+
+function starTipClient(star: TurnFeedback['starPresence'], t: string): string {
+  const missing = (Object.entries(star) as [string, boolean][]).filter(([, v]) => !v).map(([k]) => k);
+  if (missing.length === 0) return t.length < 120 ? 'Good coverage — add more detail and a quantified result.' : 'Excellent STAR structure. Consider adding a measurable outcome.';
+  const tips: Record<string, string> = {
+    situation: 'Add context — briefly describe the situation or project.',
+    task: 'Clarify your specific responsibility — what were YOU tasked with?',
+    action: 'Emphasise your own actions — use "I did…" statements.',
+    result: 'Always close with the outcome — numbers, impact, or what was learned.',
+  };
+  return tips[missing[0]] ?? 'Structure your answer: Situation → Task → Action → Result.';
+}
+
+function scoreTurnClient(transcript: string): TurnFeedback {
+  const star = detectStarClient(transcript);
+  const starCount = Object.values(star).filter(Boolean).length;
+  const baseScore = 55 + starCount * 10 + Math.min(transcript.length / 30, 10);
+  const score = Math.round(Math.min(100, Math.max(30, baseScore)));
+  const fillers = (transcript.toLowerCase().match(/\b(um|uh|like|you know|kind of|sort of)\b/g) ?? []).length;
+  const clarityScore = Math.max(30, Math.min(100, 75 - fillers * 8 + (transcript.length > 200 ? 10 : 0)));
+  const confidenceNote =
+    fillers >= 5 ? 'Many filler words detected — try pausing instead of saying "um".' :
+    transcript.length < 60 ? 'Very brief answer — expand with a specific example.' :
+    'Delivery is solid. Ground your answer in concrete specifics.';
+  return { score, starPresence: star, improvementTip: starTipClient(star, transcript), clarityScore, confidenceNote };
+}
+
+// ─── Coaching plan generator (client-side, from all user messages) ────────────
+
+function generateCoachingPlan(userMessages: string[]): { area: string; action: string; priority: 'high' | 'medium' | 'low' }[] {
+  const combined = userMessages.join(' ').toLowerCase();
+  const plan: { area: string; action: string; priority: 'high' | 'medium' | 'low' }[] = [];
+
+  const starScores = userMessages.map((m) => {
+    const s = detectStarClient(m);
+    return Object.values(s).filter(Boolean).length;
+  });
+  const avgStar = starScores.reduce((a, b) => a + b, 0) / (starScores.length || 1);
+  if (avgStar < 2.5) plan.push({ area: 'STAR Structure', action: 'Practise structuring every answer with Situation → Task → Action → Result. Record yourself answering 3 behavioral questions this week.', priority: 'high' });
+
+  const fillers = (combined.match(/\b(um|uh|like|you know|kind of)\b/g) ?? []).length;
+  if (fillers >= 6) plan.push({ area: 'Filler Words', action: 'Record your answers and count filler words. Replace each "um" with a deliberate pause — it sounds more confident.', priority: 'high' });
+
+  const hasNumbers = /\b\d+\s*(percent|%|people|users|days|weeks|months|k|million|thousand)\b/.test(combined);
+  if (!hasNumbers) plan.push({ area: 'Quantified Results', action: 'Add metrics to at least 3 answers. For every achievement, ask: "By how much?" or "How many people were impacted?"', priority: 'high' });
+
+  const hasSituation = userMessages.filter((m) => detectStarClient(m).situation).length;
+  if (hasSituation < userMessages.length * 0.5) plan.push({ area: 'Storytelling', action: 'Open every answer with a brief scene-setting sentence. E.g. "At my previous company, we were facing X…"', priority: 'medium' });
+
+  const avgLen = userMessages.reduce((a, b) => a + b.length, 0) / (userMessages.length || 1);
+  if (avgLen < 120) plan.push({ area: 'Answer Depth', action: 'Aim for 90-120 seconds per answer. After each answer in practice, ask yourself: "What one extra detail would make this stronger?"', priority: 'medium' });
+
+  if (plan.length < 3) plan.push({ area: 'Active Listening', action: 'In your next practice, consciously reference the interviewer\'s exact words in your response to show engagement.', priority: 'low' });
+
+  return plan.slice(0, 5);
+}
+
+// ─── Markdown report generator ────────────────────────────────────────────────
+
+function generateMarkdownReport(params: {
+  job: JobOption;
+  mode: InterviewMode;
+  messages: Message[];
+  callSeconds: number;
+  exchangeCount: number;
+  notes: string;
+  modeLabel: string;
+}): string {
+  const { job, messages, callSeconds, exchangeCount, notes, modeLabel } = params;
+  const date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  const duration = `${Math.floor(callSeconds / 60)}m ${callSeconds % 60}s`;
+  const userMsgs = messages.filter((m) => m.role === 'user').map((m) => m.content);
+  const coachingPlan = generateCoachingPlan(userMsgs);
+
+  let md = `# Interview Practice Report\n\n`;
+  md += `**Role:** ${job.title} at ${job.company}\n`;
+  md += `**Mode:** ${modeLabel}\n`;
+  md += `**Date:** ${date}\n`;
+  md += `**Duration:** ${duration} · ${exchangeCount} exchanges\n\n`;
+  md += `---\n\n## Transcript\n\n`;
+  messages.forEach((m) => {
+    const speaker = m.role === 'assistant' ? `**AI Interviewer**` : `**You**`;
+    md += `${speaker}: ${m.content}\n\n`;
+  });
+  md += `---\n\n## Coaching Plan\n\n`;
+  coachingPlan.forEach((item, i) => {
+    md += `### ${i + 1}. ${item.area} _(${item.priority} priority)_\n${item.action}\n\n`;
+  });
+  if (notes.trim()) { md += `---\n\n## Your Notes\n\n${notes}\n`; }
+  return md;
+}
+
+// ─── Question Bank data ────────────────────────────────────────────────────────
+
+const QUESTION_BANK: Record<InterviewMode, string[]> = {
+  behavioral: [
+    'Tell me about yourself and the experience most relevant to this role.',
+    'Describe a time you handled conflicting priorities under pressure.',
+    'Tell me about a mistake you made and how you fixed it.',
+    'Describe a project where you influenced a team decision without formal authority.',
+    'Tell me about a time you had to learn something quickly to deliver a project.',
+    'Give an example of when you showed leadership without being a manager.',
+    'Tell me about a time you disagreed with your manager. How did you handle it?',
+    'Describe a situation where you went above and beyond for a stakeholder.',
+    'Tell me about a time you had to deliver bad news. How did you approach it?',
+    'Describe your biggest professional failure and what you learned from it.',
+  ],
+  technical: [
+    'Walk me through a technical decision you made recently and why.',
+    'Describe a production issue you investigated and how you resolved it.',
+    'How do you approach debugging performance problems?',
+    'How would you design a URL shortening service from scratch?',
+    'What is your approach to testing strategy in a growing codebase?',
+    'Explain the trade-off between consistency and availability in distributed systems.',
+    'How do you ensure code quality in a fast-moving team?',
+    'Describe your approach to database schema design.',
+    'How would you scale a system from 1K to 1M users?',
+    'What does good API design look like to you?',
+  ],
+  general: [
+    'What are you looking for in your next role and why now?',
+    'Why does this opportunity interest you?',
+    'What strengths would your recent teammates highlight first?',
+    'What type of environment helps you do your best work?',
+    'What is one area you are actively improving right now?',
+    'How do you prioritise when everything feels urgent?',
+    'Where do you see yourself in three years?',
+    'What motivates you most in a role?',
+    'How do you define success in a new position?',
+    'What questions do you have for us?',
+  ],
+  hr: [
+    'What are your salary expectations for this role?',
+    'When are you available to start?',
+    'Are you currently interviewing elsewhere?',
+    'How do you prefer to receive feedback from a manager?',
+    'Describe your ideal work-life balance.',
+    'Tell me about a time you navigated a difficult colleague relationship.',
+    'What does recognition at work mean to you?',
+    'Are you open to relocation or travel if required?',
+    'How do you handle feedback you disagree with?',
+    'What type of management style brings out your best work?',
+  ],
+  'case-study': [
+    "A client's revenue has dropped 20% in 3 months. Walk me through how you'd diagnose this.",
+    'Your company wants to enter a new market. How would you evaluate the opportunity?',
+    'You have a £500k marketing budget for a product launch. How do you allocate it?',
+    'Estimate the number of Uber rides taken in London on a typical weekday.',
+    "You're the PM for a feature that's been live 2 weeks and has low adoption. What do you do?",
+    'How would you prioritise a product backlog of 40 items with capacity for only 5 this sprint?',
+    "A competitor just launched a feature your team has been building. What's your response?",
+    'How do you measure whether a new feature was successful?',
+    'Walk me through how you would restructure a declining product.',
+    'Design a loyalty programme for a retail bank. How would you approach this?',
+  ],
+  'language-check': [
+    'Introduce yourself in 2 minutes — tell me about your background and why you\'re here.',
+    'Describe the most complex project you\'ve delivered, focusing on clear explanation.',
+    'Explain a technical concept you know well to a non-technical stakeholder.',
+    'Tell me about a time you adapted your communication style for a different audience.',
+    'What is your approach to written communication in a remote team?',
+    'Summarise your career story in three sentences.',
+    'How do you present complex data to senior leadership clearly?',
+    'Describe a situation where miscommunication caused a problem and how you resolved it.',
+    'What makes a great presentation, in your view?',
+    'How do you ensure alignment across teams with different communication styles?',
+  ],
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -94,11 +292,12 @@ async function streamAIResponse(
   onChunk: (fullText: string) => void,
   onInsights: (insights: AdaptiveInsights) => void,
   userId?: string,
+  mode?: string,
 ): Promise<string> {
   const response = await fetch(`${API_BASE}/api/interview/stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, job, userId: userId ?? undefined }),
+    body: JSON.stringify({ messages, job, userId: userId ?? undefined, mode }),
     credentials: 'include',
   });
   if (!response.ok || !response.body) throw new Error(`Stream error ${response.status}`);
@@ -407,12 +606,23 @@ export default function InterviewPractice() {
   const [selectedJob, setSelectedJob] = useState<JobOption | null>(null);
   const [customCompany, setCustomCompany] = useState('');
   const [customRole, setCustomRole] = useState('');
+  const [selectedMode, setSelectedMode] = useState<InterviewMode>('behavioral');
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [avatarState, setAvatarState] = useState<AvatarState>('idle');
   const [exchangeCount, setExchangeCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [adaptiveInsights, setAdaptiveInsights] = useState<AdaptiveInsights | null>(null);
+
+  // Per-turn feedback
+  const [turnFeedback, setTurnFeedback] = useState<TurnFeedback | null>(null);
+
+  // Post-session
+  const [sessionNotes, setSessionNotes] = useState('');
+  const [showNotesSaved, setShowNotesSaved] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showQuestionBank, setShowQuestionBank] = useState(false);
+  const [qbMode, setQbMode] = useState<InterviewMode>('behavioral');
 
   // Recording
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -439,8 +649,16 @@ export default function InterviewPractice() {
   // Transcript toggle (for complete screen)
   const [showTranscript, setShowTranscript] = useState(false);
 
-  // Jobs feed
+  // Jobs feed & history
   const feedQuery = api.jobs.getFeed.useQuery({ limit: 20 }, { enabled: phase === 'lobby' });
+  const historyQuery = api.interview.getHistory.useQuery(undefined, { enabled: showHistory });
+
+  // Feedback auto-dismiss timer
+  useEffect(() => {
+    if (!turnFeedback) return;
+    const t = setTimeout(() => setTurnFeedback(null), 5000);
+    return () => clearTimeout(t);
+  }, [turnFeedback]);
 
   // ── Camera setup / teardown ────────────────────────────────────────────────
 
@@ -569,6 +787,7 @@ export default function InterviewPractice() {
           (text) => setCurrentTranscript(text),
           (insights) => setAdaptiveInsights(insights),
           userId,
+          selectedMode,
         );
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Network error';
@@ -596,7 +815,7 @@ export default function InterviewPractice() {
         setAvatarState('listening');
       }
     },
-    [getJob, userId, stopCamera],
+    [getJob, userId, stopCamera, selectedMode],
   );
 
   const joinCall = useCallback(async () => {
@@ -604,9 +823,11 @@ export default function InterviewPractice() {
     setExchangeCount(0);
     setCallSeconds(0);
     setError(null);
+    setTurnFeedback(null);
+    setSessionNotes('');
+    setShowNotesSaved(false);
     setPhase('connecting');
     setAvatarState('thinking');
-    // Brief connecting delay for the animation
     await new Promise((r) => setTimeout(r, 1800));
     await runAITurn([]);
   }, [runAITurn]);
@@ -653,6 +874,10 @@ export default function InterviewPractice() {
         setAvatarState('listening');
         return;
       }
+
+      // Show instant per-turn feedback
+      const feedback = scoreTurnClient(transcript);
+      setTurnFeedback(feedback);
 
       const updatedMsgs: Message[] = [
         ...messages,
@@ -704,6 +929,10 @@ export default function InterviewPractice() {
     setIsRecording(false);
     setAdaptiveInsights(null);
     setShowTranscript(false);
+    setTurnFeedback(null);
+    setSessionNotes('');
+    setShowNotesSaved(false);
+    setShowHistory(false);
   }, []);
 
   // ── LOBBY SCREEN ───────────────────────────────────────────────────────────
@@ -774,6 +1003,34 @@ export default function InterviewPractice() {
               </div>
             </div>
 
+            {/* Interview mode selector */}
+            <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>INTERVIEW MODE</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                {(Object.entries(interviewModeLabels) as [InterviewMode, typeof interviewModeLabels[InterviewMode]][]).map(([modeKey, meta]) => (
+                  <button
+                    key={modeKey}
+                    onClick={() => setSelectedMode(modeKey)}
+                    title={meta.description}
+                    style={{
+                      background: selectedMode === modeKey ? 'rgba(99,102,241,0.22)' : '#050a14',
+                      border: `1px solid ${selectedMode === modeKey ? '#6366f1' : '#1e293b'}`,
+                      borderRadius: 8,
+                      padding: '8px 6px',
+                      cursor: 'pointer',
+                      color: selectedMode === modeKey ? '#a5b4fc' : '#94a3b8',
+                      textAlign: 'center',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{ fontSize: 18 }}>{meta.emoji}</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, marginTop: 2 }}>{meta.label}</div>
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: '#475569', marginTop: 8, marginBottom: 0 }}>{interviewModeLabels[selectedMode].description}</p>
+            </div>
+
             {/* Jobs list */}
             {feedQuery.isLoading ? (
               <div style={{ textAlign: 'center', color: '#64748b', fontSize: 13, padding: '12px 0' }}>
@@ -784,7 +1041,7 @@ export default function InterviewPractice() {
               <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
                 <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>OR PICK A JOB</p>
                 <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {feedQuery.data.map((j) => (
+                  {feedQuery.data.map((j: { id: string; title: string; company: string; description?: string | null; location?: string | null }) => (
                     <button
                       key={j.id}
                       onClick={() => { setSelectedJob({ id: j.id, title: j.title, company: j.company, description: j.description }); setCustomCompany(''); setCustomRole(''); }}
@@ -820,8 +1077,110 @@ export default function InterviewPractice() {
             >
               {canJoin ? `📞 Join Interview — ${job.title} at ${job.company}` : 'Select a job or enter a custom role'}
             </button>
+
+            {/* Bottom action links */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowQuestionBank(true)}
+                style={{ flex: 1, padding: '10px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, color: '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              >
+                <BookOpen style={{ width: 14, height: 14 }} /> Question Bank
+              </button>
+              <button
+                onClick={() => setShowHistory(true)}
+                style={{ flex: 1, padding: '10px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, color: '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              >
+                <Clock style={{ width: 14, height: 14 }} /> History
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* Question Bank modal */}
+        {showQuestionBank && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ width: '100%', maxWidth: 600, background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 28, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>📚 Question Bank</h2>
+                <button onClick={() => setShowQuestionBank(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>✕</button>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+                {(Object.keys(QUESTION_BANK) as InterviewMode[]).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setQbMode(m)}
+                    style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${qbMode === m ? '#6366f1' : '#1e293b'}`, background: qbMode === m ? 'rgba(99,102,241,0.2)' : '#050a14', color: qbMode === m ? '#a5b4fc' : '#94a3b8', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    {interviewModeLabels[m].emoji} {interviewModeLabels[m].label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {QUESTION_BANK[qbMode].map((q, i) => (
+                  <div key={i} style={{ background: '#050a14', border: '1px solid #1e293b', borderRadius: 10, padding: '12px 16px', fontSize: 14, color: '#e2e8f0', lineHeight: 1.5 }}>
+                    <span style={{ color: '#475569', fontSize: 12, fontWeight: 700, marginRight: 8 }}>Q{i + 1}</span>{q}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* History modal */}
+        {showHistory && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ width: '100%', maxWidth: 600, background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 28, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>🕐 Interview History</h2>
+                <button onClick={() => setShowHistory(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>✕</button>
+              </div>
+              {historyQuery.isLoading ? (
+                <div style={{ textAlign: 'center', color: '#64748b', padding: 40 }}>Loading…</div>
+              ) : !historyQuery.data || historyQuery.data.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#475569', padding: 40 }}>No sessions yet. Complete your first interview to see history here.</div>
+              ) : (
+                <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(historyQuery.data as Array<{ id: string; mode: string; difficulty: string; score: number | null; createdAt: string; answers: unknown[] }>).map((s) => {
+                    const modeLabel = interviewModeLabels[s.mode as InterviewMode] ?? { emoji: '💼', label: s.mode };
+                    const score = s.score;
+                    const scoreColor = score === null ? '#64748b' : score >= 80 ? '#34d399' : score >= 60 ? '#fbbf24' : '#f87171';
+                    return (
+                      <div key={s.id} style={{ background: '#050a14', border: '1px solid #1e293b', borderRadius: 10, padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>{modeLabel.emoji} {modeLabel.label}</span>
+                            <span style={{ fontSize: 11, color: '#475569', marginLeft: 10 }}>{new Date(s.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                          </div>
+                          {score !== null && (
+                            <span style={{ fontSize: 16, fontWeight: 800, color: scoreColor }}>{score}/100</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>
+                          {s.answers.length} answer{s.answers.length !== 1 ? 's' : ''} · {s.difficulty}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {/* Progress trend */}
+                  {(historyQuery.data as Array<{ score: number | null }>).filter((s) => s.score !== null).length >= 2 && (
+                    <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 10, padding: 16, marginTop: 8 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#a5b4fc', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><TrendingUp style={{ width: 14, height: 14 }} /> Score Trend</div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: 48 }}>
+                        {(historyQuery.data as Array<{ id: string; score: number | null }>).filter((s) => s.score !== null).slice(0, 10).reverse().map((s, i) => {
+                          const pct = ((s.score ?? 0) / 100) * 48;
+                          const c = (s.score ?? 0) >= 80 ? '#34d399' : (s.score ?? 0) >= 60 ? '#fbbf24' : '#f87171';
+                          return (
+                            <div key={i} title={`${s.score}/100`} style={{ flex: 1, height: `${pct}px`, background: c, borderRadius: 3, minHeight: 4 }} />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -851,26 +1210,88 @@ export default function InterviewPractice() {
 
   if (phase === 'complete') {
     const job = getJob();
+    const modeInfo = interviewModeLabels[selectedMode];
+    const userMessages = messages.filter((m) => m.role === 'user').map((m) => m.content);
+    const coachingPlan = generateCoachingPlan(userMessages);
+    const avgScore = userMessages.length > 0
+      ? Math.round(userMessages.reduce((acc, t) => acc + scoreTurnClient(t).score, 0) / userMessages.length)
+      : null;
+    const scoreColor = avgScore === null ? '#64748b' : avgScore >= 80 ? '#34d399' : avgScore >= 60 ? '#fbbf24' : '#f87171';
+
+    const handleExport = () => {
+      const md = generateMarkdownReport({ job, mode: selectedMode, messages, callSeconds, exchangeCount, notes: sessionNotes, modeLabel: modeInfo.label });
+      const blob = new Blob([md], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeName = job.company.replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').toLowerCase() || 'company';
+      a.download = `interview-report-${safeName}-${new Date().toISOString().slice(0, 10)}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    const handleSaveNotes = () => {
+      setShowNotesSaved(true);
+      setTimeout(() => setShowNotesSaved(false), 2500);
+    };
+
     return (
       <div style={{ minHeight: '100vh', background: '#050a14', color: '#f1f5f9', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <style>{AVATAR_STYLES}</style>
-        <div style={{ width: '100%', maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ width: '100%', maxWidth: 680, display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-          {/* Summary card */}
-          <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 32, textAlign: 'center' }}>
-            <div style={{ fontSize: 52, marginBottom: 12 }}>🎙️</div>
-            <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 6px' }}>Interview Complete</h2>
-            <p style={{ fontSize: 14, color: '#64748b', margin: 0 }}>
-              {job.title} at {job.company} · {formatTime(callSeconds)} · {exchangeCount} exchange{exchangeCount !== 1 ? 's' : ''}
+          {/* Summary header card */}
+          <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 28, textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 10 }}>🎙️</div>
+            <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>Interview Complete</h2>
+            <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 14px' }}>
+              {modeInfo.emoji} {modeInfo.label} · {job.title} at {job.company}
             </p>
-
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 20, flexWrap: 'wrap' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 26, fontWeight: 800, color: scoreColor }}>{avgScore !== null ? `${avgScore}/100` : '—'}</div>
+                <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>Avg Score</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 26, fontWeight: 800, color: '#a5b4fc' }}>{formatTime(callSeconds)}</div>
+                <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>Duration</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 26, fontWeight: 800, color: '#34d399' }}>{exchangeCount}</div>
+                <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>Exchanges</div>
+              </div>
+            </div>
             {adaptiveInsights && adaptiveInsights.sessionCount > 0 && (
-              <div style={{ marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 20, padding: '5px 14px', fontSize: 12, color: '#a5b4fc' }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#6366f1', display: 'inline-block' }} />
-                Session #{adaptiveInsights.sessionCount + 1} · Avg score: {adaptiveInsights.averageScore}/100 across history
+              <div style={{ marginTop: 14, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 20, padding: '5px 14px', fontSize: 12, color: '#a5b4fc' }}>
+                <TrendingUp style={{ width: 12, height: 12 }} />
+                Session #{adaptiveInsights.sessionCount + 1} · Historical avg: {adaptiveInsights.averageScore}/100
               </div>
             )}
           </div>
+
+          {/* Coaching Plan */}
+          {coachingPlan.length > 0 && (
+            <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 16, padding: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <Star style={{ width: 16, height: 16, color: '#fbbf24' }} />
+                <span style={{ fontWeight: 700, fontSize: 15 }}>Your Coaching Plan</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {coachingPlan.map((item, i) => {
+                  const priorityColor = item.priority === 'high' ? '#f87171' : item.priority === 'medium' ? '#fbbf24' : '#34d399';
+                  return (
+                    <div key={i} style={{ background: '#050a14', border: '1px solid #1e293b', borderRadius: 10, padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: priorityColor, background: `${priorityColor}20`, borderRadius: 4, padding: '2px 7px', letterSpacing: '0.05em' }}>{item.priority.toUpperCase()}</span>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: '#e2e8f0' }}>{item.area}</span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: 13, color: '#94a3b8', lineHeight: 1.6 }}>{item.action}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Transcript toggle */}
           <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 16, overflow: 'hidden' }}>
@@ -882,7 +1303,7 @@ export default function InterviewPractice() {
               {showTranscript ? <ChevronUp style={{ width: 16, height: 16, color: '#64748b' }} /> : <ChevronDown style={{ width: 16, height: 16, color: '#64748b' }} />}
             </button>
             {showTranscript && (
-              <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 360, overflowY: 'auto' }}>
+              <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 340, overflowY: 'auto' }}>
                 {messages.map((msg, i) => (
                   <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                     <div style={{ flexShrink: 0, fontSize: 18 }}>{msg.role === 'assistant' ? '🤖' : '👤'}</div>
@@ -898,21 +1319,50 @@ export default function InterviewPractice() {
             )}
           </div>
 
+          {/* Session Notes */}
+          <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 16, padding: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <StickyNote style={{ width: 15, height: 15, color: '#fbbf24' }} />
+              <span style={{ fontWeight: 700, fontSize: 14 }}>Session Notes</span>
+              {showNotesSaved && <span style={{ fontSize: 11, color: '#34d399', marginLeft: 'auto' }}>✓ Saved</span>}
+            </div>
+            <textarea
+              value={sessionNotes}
+              onChange={(e) => setSessionNotes(e.target.value)}
+              placeholder="Add your own observations, things to remember, follow-up actions…"
+              rows={4}
+              style={{ width: '100%', background: '#050a14', border: '1px solid #1e293b', borderRadius: 8, padding: '10px 12px', color: '#e2e8f0', fontSize: 13, resize: 'vertical', outline: 'none', boxSizing: 'border-box', lineHeight: 1.6 }}
+            />
+            <button
+              onClick={handleSaveNotes}
+              style={{ marginTop: 8, padding: '7px 18px', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8, color: '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+            >
+              Save Notes
+            </button>
+          </div>
+
           {/* Action buttons */}
-          <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button
               onClick={() => void joinCall()}
-              style={{ flex: 1, padding: '13px 0', background: 'linear-gradient(135deg,#6366f1,#3b82f6)', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              style={{ flex: '1 1 160px', padding: '13px 0', background: 'linear-gradient(135deg,#6366f1,#3b82f6)', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
             >
               <RefreshCw style={{ width: 16, height: 16 }} /> Practice Again
             </button>
             <button
+              onClick={handleExport}
+              style={{ flex: '1 1 160px', padding: '13px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, color: '#94a3b8', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+            >
+              <FileDown style={{ width: 16, height: 16 }} /> Export Report
+            </button>
+            <button
               onClick={resetAll}
-              style={{ flex: 1, padding: '13px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, color: '#cbd5e1', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+              style={{ flex: '1 1 160px', padding: '13px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, color: '#cbd5e1', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
             >
               <Briefcase style={{ width: 16, height: 16 }} /> Change Role
             </button>
           </div>
+
         </div>
       </div>
     );
@@ -1008,6 +1458,11 @@ export default function InterviewPractice() {
           {statusLabel}
         </div>
 
+        {/* Mode badge */}
+        <div style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 20, padding: '4px 10px', fontSize: 12, fontWeight: 600, color: '#818cf8', display: 'flex', alignItems: 'center', gap: 4 }}>
+          {interviewModeLabels[selectedMode].emoji} {interviewModeLabels[selectedMode].label}
+        </div>
+
         {/* Exchange counter */}
         <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>
           {exchangeCount}/{MAX_EXCHANGES}
@@ -1052,6 +1507,41 @@ export default function InterviewPractice() {
       {error && (
         <div style={{ position: 'absolute', top: 70, right: 20, zIndex: 20, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.5)', borderRadius: 10, padding: '8px 14px', fontSize: 13, color: '#fca5a5', maxWidth: 320 }}>
           {error}
+        </div>
+      )}
+
+      {/* Per-turn feedback overlay */}
+      {turnFeedback && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 120,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 25,
+            background: 'rgba(15,23,42,0.92)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(99,102,241,0.4)',
+            borderRadius: 16,
+            padding: '14px 20px',
+            width: 340,
+            maxWidth: 'calc(100vw - 260px)',
+            animation: 'slide-up 0.3s ease',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#a5b4fc', letterSpacing: '0.05em' }}>⚡ INSTANT FEEDBACK</span>
+            <span style={{ fontSize: 18, fontWeight: 800, color: turnFeedback.score >= 80 ? '#34d399' : turnFeedback.score >= 60 ? '#fbbf24' : '#f87171' }}>{turnFeedback.score}/100</span>
+          </div>
+          {/* STAR indicators */}
+          <div style={{ display: 'flex', gap: 5, marginBottom: 8 }}>
+            {(['situation', 'task', 'action', 'result'] as const).map((k) => (
+              <span key={k} style={{ flex: 1, textAlign: 'center', fontSize: 10, fontWeight: 700, padding: '3px 0', borderRadius: 5, background: turnFeedback.starPresence[k] ? 'rgba(52,211,153,0.2)' : 'rgba(100,116,139,0.15)', color: turnFeedback.starPresence[k] ? '#34d399' : '#475569', letterSpacing: '0.04em' }}>
+                {k[0].toUpperCase()}
+              </span>
+            ))}
+          </div>
+          <p style={{ margin: 0, fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>{turnFeedback.improvementTip}</p>
         </div>
       )}
 

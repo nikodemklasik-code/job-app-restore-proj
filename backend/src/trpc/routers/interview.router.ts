@@ -238,6 +238,24 @@ export const interviewRouter = router({
       };
     }),
 
+  // ── Save session notes ───────────────────────────────────────────────────────
+  saveNotes: protectedProcedure
+    .input(z.object({ sessionId: z.string().uuid(), notes: z.string().max(4000) }))
+    .mutation(async ({ input, ctx }) => {
+      const userId = ctx.user.id;
+      const [session] = await db
+        .select({ userId: interviewSessions.userId })
+        .from(interviewSessions)
+        .where(eq(interviewSessions.id, input.sessionId))
+        .limit(1);
+      if (!session || session.userId !== userId) throw new TRPCError({ code: 'FORBIDDEN' });
+      await db
+        .update(interviewSessions)
+        .set({ notes: input.notes, updatedAt: new Date() })
+        .where(eq(interviewSessions.id, input.sessionId));
+      return { success: true };
+    }),
+
   // ── Legacy endpoint kept for interviewReadyStore backward compat ─────────────
   finishAnswer: publicProcedure
     .input(

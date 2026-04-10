@@ -81,6 +81,7 @@ export const interviewSessions = mysqlTable('interview_sessions', {
   questionCount: int('question_count').notNull().default(3),
   recruiterPersona: varchar('recruiter_persona', { length: 255 }),
   selectedJobId: varchar('selected_job_id', { length: 36 }),
+  notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
 });

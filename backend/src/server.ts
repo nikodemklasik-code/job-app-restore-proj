@@ -127,10 +127,11 @@ app.get('/health', (_req, res) => {
 
 // Interview conversation SSE stream
 app.post('/api/interview/stream', async (req, res) => {
-  const { messages, job, userId } = req.body as {
+  const { messages, job, userId, mode } = req.body as {
     messages: Array<{ role: string; content: string }>;
     job: { title: string; company: string; description?: string; requirements?: string[] };
     userId?: string;
+    mode?: string;
   };
 
   if (!messages || !job?.title || !job?.company) {
@@ -154,7 +155,7 @@ app.post('/api/interview/stream', async (req, res) => {
       const { buildCandidateInsights } = await import('./services/adaptiveInterviewer.js');
       const { buildAdaptiveInterviewerSystemPrompt } = await import('./services/interviewConversation.js');
       const insights = await buildCandidateInsights(userId);
-      const systemPrompt = buildAdaptiveInterviewerSystemPrompt(job, insights);
+      const systemPrompt = buildAdaptiveInterviewerSystemPrompt(job, insights, mode);
 
       // Send insights metadata as first SSE event
       res.write(`data: ${JSON.stringify({ type: 'insights', ...insights })}\n\n`);
@@ -172,7 +173,7 @@ app.post('/api/interview/stream', async (req, res) => {
         if (content) res.write(`data: ${JSON.stringify({ chunk: content })}\n\n`);
       }
     } else {
-      for await (const chunk of streamInterviewResponse(validMessages, job)) {
+      for await (const chunk of streamInterviewResponse(validMessages, job, mode)) {
         res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
       }
     }

@@ -18,8 +18,18 @@ export interface JobContext {
   requirements?: string[];
 }
 
-export function buildInterviewerSystemPrompt(job: JobContext): string {
+const MODE_CONTEXT: Record<string, string> = {
+  behavioral: 'Focus entirely on STAR-format behavioral questions about real past experiences.',
+  technical: 'Focus on technical depth: system design, architecture decisions, debugging approaches, and trade-offs. Ask follow-up questions to probe understanding.',
+  general: 'Focus on motivations, career story, culture fit, and growth mindset. Keep the tone conversational.',
+  hr: 'Cover practical screening: availability, salary expectations, current interviews, management style, and expectations. Be friendly but efficient.',
+  'case-study': 'Present business problems or estimation questions. Guide the candidate through structured problem-solving. Probe assumptions and push for quantified conclusions.',
+  'language-check': 'Assess fluency, clarity, vocabulary range, and ability to explain complex topics simply. Gently note if phrasing is unclear or overly formal/informal.',
+};
+
+export function buildInterviewerSystemPrompt(job: JobContext, mode?: string): string {
   const reqList = job.requirements?.slice(0, 8).join(', ') ?? 'relevant technical and soft skills';
+  const modeInstruction = mode && MODE_CONTEXT[mode] ? `\nInterview mode instruction: ${MODE_CONTEXT[mode]}` : '';
   return `You are a senior hiring manager at ${job.company} interviewing a candidate for the ${job.title} role.
 
 Your personality: professional, warm, curious, direct. You listen carefully and ask intelligent follow-ups.
@@ -27,7 +37,7 @@ Your personality: professional, warm, curious, direct. You listen carefully and 
 Interview context:
 - Role: ${job.title} at ${job.company}
 - Key requirements: ${reqList}
-${job.description ? `- Role description: ${job.description.slice(0, 400)}` : ''}
+${job.description ? `- Role description: ${job.description.slice(0, 400)}` : ''}${modeInstruction}
 
 Rules:
 - Keep each response to 2-3 sentences MAX. Be concise.
@@ -43,12 +53,13 @@ Rules:
 export async function* streamInterviewResponse(
   messages: InterviewMessage[],
   job: JobContext,
+  mode?: string,
 ): AsyncGenerator<string> {
   const openai = getOpenAI();
 
   const systemMessage: InterviewMessage = {
     role: 'system',
-    content: buildInterviewerSystemPrompt(job),
+    content: buildInterviewerSystemPrompt(job, mode),
   };
 
   const stream = await openai.chat.completions.create({
@@ -72,8 +83,9 @@ export function countExchanges(messages: InterviewMessage[]): number {
 export function buildAdaptiveInterviewerSystemPrompt(
   job: JobContext,
   insights: CandidateInsights,
+  mode?: string,
 ): string {
-  const base = buildInterviewerSystemPrompt(job);
+  const base = buildInterviewerSystemPrompt(job, mode);
 
   const adaptiveSection = [
     '',
