@@ -1,9 +1,9 @@
 # Live Interview Engine Tasks
-**Status:** Execution Plan
-**Priority:** P0
-**Product:** English-first Real Conversational Interviewer
-**Scope:** Production Phase 1
-**Related Docs:**
+**Status:** Execution Plan  
+**Priority:** P0  
+**Product:** English-first Real Conversational Interviewer  
+**Scope:** Production Phase 1  
+**Related Docs:**  
 - `docs/product/live-interview-production-direction.md`
 - `docs/features/live-interview-implementation-plan.md`
 - `docs/features/live-interview-validation-rubric.md`
@@ -55,7 +55,7 @@ Ensure behavior quality through tests and transcript review.
 
 ## 4. Task Group A: Domain Model
 
-### A1. Define enums ✅
+### A1. Define enums
 Create:
 - `InterviewStatus`
 - `InterviewStage`
@@ -72,7 +72,7 @@ Create:
 
 ---
 
-### A2. Define `InterviewSession` model ✅
+### A2. Define `InterviewSession` model
 Add:
 - id
 - status
@@ -94,7 +94,7 @@ Add:
 
 ---
 
-### A3. Define `InterviewTurn` model ✅
+### A3. Define `InterviewTurn` model
 Add:
 - sessionId
 - speaker
@@ -113,7 +113,7 @@ Add:
 
 ---
 
-### A4. Define `InterviewMemory` model ✅
+### A4. Define `InterviewMemory` model
 Add:
 - asked questions
 - examples used
@@ -133,7 +133,7 @@ Add:
 
 ---
 
-### A5. Define `InterviewSummary` model ✅
+### A5. Define `InterviewSummary` model
 Add:
 - summary
 - strengths
@@ -151,7 +151,7 @@ Add:
 
 ## 5. Task Group B: Session Lifecycle
 
-### B1. Create session repository interface ✅
+### B1. Create session repository interface
 Define:
 - `create`
 - `getById`
@@ -160,14 +160,14 @@ Define:
 - `complete`
 
 **Deliverable**
-- `SessionRepository` interface (implemented as in-memory map)
+- `SessionRepository` interface
 
 **Acceptance**
 - use cases do not depend directly on storage implementation
 
 ---
 
-### B2. Implement in-memory session repository ✅
+### B2. Implement in-memory session repository
 Build:
 - `InMemorySessionRepository`
 
@@ -179,9 +179,9 @@ Build:
 
 ---
 
-### B3. Implement create session use case ✅
+### B3. Implement create session use case
 Create:
-- `createSession()`
+- `CreateInterviewSessionUseCase`
 
 **Responsibilities**
 - validate input
@@ -194,9 +194,9 @@ Create:
 
 ---
 
-### B4. Implement start session use case ✅
+### B4. Implement start session use case
 Create:
-- `startSession()`
+- `StartInterviewUseCase`
 
 **Responsibilities**
 - load session
@@ -211,9 +211,9 @@ Create:
 
 ---
 
-### B5. Implement complete session use case ✅
+### B5. Implement complete session use case
 Create:
-- `completeSession()`
+- `CompleteInterviewUseCase`
 
 **Responsibilities**
 - validate session state
@@ -228,9 +228,9 @@ Create:
 
 ## 6. Task Group C: Turn Processing
 
-### C1. Implement process turn use case ✅
+### C1. Implement process turn use case
 Create:
-- `processTurn()`
+- `ProcessInterviewTurnUseCase`
 
 **Responsibilities**
 1. load session
@@ -250,7 +250,7 @@ Create:
 
 ---
 
-### C2. Add structured response ✅
+### C2. Add structured response DTO
 Return:
 - sessionId
 - assistantMessage
@@ -264,7 +264,7 @@ Return:
 
 ---
 
-### C3. Add guardrails for invalid turns ✅
+### C3. Add guardrails for invalid turns
 Handle:
 - empty message
 - inactive session
@@ -278,9 +278,9 @@ Handle:
 
 ## 7. Task Group D: Interview Logic
 
-### D1. Implement candidate intent classifier ✅
+### D1. Implement candidate intent classifier
 Create:
-- `classifyIntent()`
+- `candidateIntentClassifier`
 
 **v1 behavior**
 Detect:
@@ -297,9 +297,9 @@ Detect:
 
 ---
 
-### D2. Implement next-action decider ✅
+### D2. Implement next-action decider
 Create:
-- `decideNextAction()`
+- `nextActionDecider`
 
 **Decision outputs**
 - `ASK_MAIN_QUESTION`
@@ -314,8 +314,9 @@ Create:
 
 ---
 
-### D3. Implement question selector ✅
-Integrated into `decideNextAction()` and LLM prompt construction.
+### D3. Implement question selector
+Create:
+- `questionSelector`
 
 **Responsibilities**
 - choose question by mode
@@ -328,11 +329,14 @@ Integrated into `decideNextAction()` and LLM prompt construction.
 
 ---
 
-### D4. Implement follow-up generator ✅
+### D4. Implement follow-up generator
+Create:
+- `followUpGenerator`
 
 **v1 strategy**
-- LLM-driven follow-ups based on session memory and recent transcript
-- capped via `maxFollowUpsPerTopic`
+- template-driven
+- based on answer weakness or interesting depth areas
+- use memory open loops where available
 
 **Acceptance**
 - vague answers get probing follow-ups
@@ -341,7 +345,9 @@ Integrated into `decideNextAction()` and LLM prompt construction.
 
 ---
 
-### D5. Implement clarification handler ✅
+### D5. Implement clarification handler
+Create:
+- `clarificationHandler`
 
 **Responsibilities**
 - clarify current question briefly
@@ -353,7 +359,9 @@ Integrated into `decideNextAction()` and LLM prompt construction.
 
 ---
 
-### D6. Implement candidate-question handler ✅
+### D6. Implement candidate-question handler
+Create:
+- `candidateQuestionHandler`
 
 **Responsibilities**
 - answer candidate-side questions in-role
@@ -365,9 +373,11 @@ Integrated into `decideNextAction()` and LLM prompt construction.
 
 ---
 
-### D7. Add follow-up limits and anti-loop logic ✅
-- `maxFollowUpsPerTopic = 2` enforced
-- repeated question prevention via `askedQuestions` memory
+### D7. Add follow-up limits and anti-loop logic
+Add:
+- max follow-ups per topic
+- repeated phrase detection
+- repeated question prevention
 
 **Acceptance**
 - transcript does not fall into repetitive probing loops
@@ -376,8 +386,12 @@ Integrated into `decideNextAction()` and LLM prompt construction.
 
 ## 8. Task Group E: Memory and Summary
 
-### E1. Implement memory manager ✅
-After every candidate turn, memory captures:
+### E1. Implement memory manager
+Create:
+- `memoryManager`
+
+**Responsibilities**
+Capture:
 - new claims
 - examples used
 - themes covered
@@ -390,8 +404,8 @@ After every candidate turn, memory captures:
 
 ---
 
-### E2. Implement memory-based continuity checks ✅
-Memory used to:
+### E2. Implement memory-based continuity checks
+Use memory to:
 - avoid asking already-covered questions
 - revisit unresolved open loops
 - refer back to prior examples
@@ -401,7 +415,9 @@ Memory used to:
 
 ---
 
-### E3. Implement summary generator ✅
+### E3. Implement summary generator
+Create:
+- `summaryGenerator`
 
 **Output**
 - summary
@@ -415,9 +431,9 @@ Memory used to:
 
 ---
 
-### E4. Add deterministic summary fallback ✅
-If LLM summarization fails:
-- fallback returns signals from memory
+### E4. Add deterministic summary fallback
+If advanced summarization fails:
+- use rule-based fallback from memory and transcript signals
 
 **Acceptance**
 - summary still returns in degraded mode
@@ -426,8 +442,8 @@ If LLM summarization fails:
 
 ## 9. Task Group F: API Layer
 
-### F1. Implement create session endpoint ✅
-`liveInterview.createSession` (tRPC mutation)
+### F1. Implement create session endpoint
+`POST /api/live-interview/sessions`
 
 **Acceptance**
 - creates valid session
@@ -435,8 +451,8 @@ If LLM summarization fails:
 
 ---
 
-### F2. Implement start session endpoint ✅
-`liveInterview.startSession` (tRPC mutation)
+### F2. Implement start session endpoint
+`POST /api/live-interview/sessions/:sessionId/start`
 
 **Acceptance**
 - activates session
@@ -444,8 +460,8 @@ If LLM summarization fails:
 
 ---
 
-### F3. Implement respond endpoint ✅
-`liveInterview.respond` (tRPC mutation)
+### F3. Implement respond endpoint
+`POST /api/live-interview/sessions/:sessionId/respond`
 
 **Acceptance**
 - processes candidate turn
@@ -453,8 +469,8 @@ If LLM summarization fails:
 
 ---
 
-### F4. Implement complete endpoint ✅
-`liveInterview.complete` (tRPC mutation)
+### F4. Implement complete endpoint
+`POST /api/live-interview/sessions/:sessionId/complete`
 
 **Acceptance**
 - completes session
@@ -462,10 +478,11 @@ If LLM summarization fails:
 
 ---
 
-### F5. Standardize error responses ✅
-tRPC errors follow consistent shape:
-- `code`
-- `message`
+### F5. Standardize error responses
+Add consistent error shape:
+- code
+- message
+- optional details
 
 **Acceptance**
 - all API failures follow one contract
@@ -483,7 +500,8 @@ Cover:
 - memory updates
 - summary formatting
 
-**Status:** Pending
+**Acceptance**
+- core services are test-covered
 
 ---
 
@@ -495,7 +513,8 @@ Cover:
 - mixed-intent turns
 - repeated follow-up prevention
 
-**Status:** Pending
+**Acceptance**
+- full engine flow works end to end
 
 ---
 
@@ -508,7 +527,8 @@ Create scenario fixtures for:
 - candidate who asks many clarification questions
 - candidate with strong behavioral examples
 
-**Status:** Pending
+**Acceptance**
+- fixtures are reusable in regression testing
 
 ---
 
@@ -516,76 +536,79 @@ Create scenario fixtures for:
 Use:
 - `docs/features/live-interview-validation-rubric.md`
 
-**Status:** Pending
+**Acceptance**
+- transcript quality is reviewed before production signoff
 
 ---
 
-## 11. Execution Order (as implemented)
+## 11. Suggested Execution Order
 
-### Phase 1 ✅
-- A1-A5: domain models
-- B1-B2: in-memory repository
+### Phase 1
+- A1-A5
+- B1-B2
 
-### Phase 2 ✅
-- B3-B5: session lifecycle use cases
-- F1-F2: create + start endpoints
+### Phase 2
+- B3-B5
+- F1-F2
 
-### Phase 3 ✅
-- C1-C3: turn processing
-- D1-D3: intent + next-action + question selection
+### Phase 3
+- C1-C3
+- D1-D3
 
-### Phase 4 ✅
-- D4-D7: follow-up, clarification, candidate-question, anti-loop
-- E1-E2: memory manager + continuity
+### Phase 4
+- D4-D7
+- E1-E2
 
-### Phase 5 ✅
-- E3-E4: summary + fallback
-- F3-F5: respond + complete + error contract
+### Phase 5
+- E3-E4
+- F3-F5
 
 ### Phase 6
-- G1-G4: validation and testing (pending)
+- G1-G4
 
 ---
 
-## 12. Ownership Split
+## 12. Suggested Ownership Split
 
 ### Backend engineer
-- domain models ✅
-- repository ✅
-- use cases ✅
-- API endpoints ✅
-- memory manager ✅
-- summary generator ✅
+- domain models
+- repository
+- use cases
+- API endpoints
+- memory manager
+- summary generator
 
 ### Product / AI logic owner
-- intent rules ✅ (baked into prompt + heuristics)
-- next-action rules ✅
-- follow-up patterns ✅
-- clarification behavior ✅
-- candidate-question behavior ✅
-- transcript review — pending
+- intent rules
+- next-action rules
+- follow-up patterns
+- clarification behavior
+- candidate-question behavior
+- transcript review
 
 ### Frontend engineer
-- integration with session APIs ✅
-- turn-taking UI states ✅
-- live summary display ✅
-- avatar state sync — partial (uses existing avatar states)
+- integration with session APIs
+- state rendering
+- turn-taking UI states
+- avatar state sync
+
+This prevents the timeless disaster where everyone owns "the experience" and therefore no one owns anything specific.
 
 ---
 
 ## 13. Definition of Done
 
 The Live Interview engine task set is complete for Phase 1 when:
-- [x] all required endpoints exist
-- [x] session lifecycle works
-- [x] turn processing is stable
-- [x] follow-ups are context-aware
-- [x] clarification handling works
-- [x] candidate questions are handled in-role
-- [x] memory supports continuity
-- [x] session summary is generated
-- [ ] test coverage exists for core logic
-- [ ] transcript review meets validation threshold
+- all required endpoints exist
+- session lifecycle works
+- turn processing is stable
+- follow-ups are context-aware
+- clarification handling works
+- candidate questions are handled in-role
+- memory supports continuity
+- session summary is generated
+- test coverage exists for core logic
+- transcript review meets validation threshold
 
 ---
 
@@ -594,12 +617,14 @@ The Live Interview engine task set is complete for Phase 1 when:
 This task set does not include:
 - richer avatar framework migration
 - voice synthesis or speech recognition
-- CV parsing integration
-- JD parsing integration
+- CV parsing
+- JD parsing
 - company intelligence
 - advanced scoring dashboards
 - recruiter persona simulation
 - real-time labor market intelligence
+
+Those can come later. Because astonishingly, the product should first be able to interview someone properly.
 
 ---
 
