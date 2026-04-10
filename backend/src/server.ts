@@ -40,12 +40,14 @@ const generalLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' },
 });
 
-// TODO: apply aiLimiter to /api/assistant/* when AI streaming routes are added
-// const aiLimiter = rateLimit({
-//   windowMs: 60 * 1000, // 1 min
-//   max: 10,
-//   message: { error: 'AI rate limit exceeded. Please wait.' },
-// });
+// Tighter limiter for AI-heavy endpoints (interview, negotiation, assistant)
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 min
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'AI rate limit exceeded. Please wait a moment and try again.' },
+});
 
 const port = parseInt(process.env.PORT ?? '3001', 10);
 const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
@@ -108,6 +110,12 @@ app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (r
 
 app.use(express.json());
 app.use(generalLimiter);
+
+// Strict rate limit for AI-heavy endpoints (streaming, TTS, STT, negotiation, assistant)
+app.use('/api/interview', aiLimiter);
+app.use('/api/negotiation', aiLimiter);
+// tRPC assistant.sendMessage — path is /trpc/assistant.sendMessage or /trpc/assistant.getHistory
+app.use('/trpc/assistant.sendMessage', aiLimiter);
 
 app.use('/trpc', createExpressMiddleware({ router: appRouter, createContext }));
 
