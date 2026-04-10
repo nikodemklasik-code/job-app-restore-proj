@@ -2,6 +2,7 @@ import { useLocation } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { Sun, Moon, Monitor, Brain, Contrast, Focus, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { useThemeStore } from '@/stores/themeStore';
+import { api } from '@/lib/api';
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -21,6 +22,11 @@ export default function Header() {
   const { pathname } = useLocation();
   const { user } = useUser();
   const { theme, setTheme, focusMode, setFocusMode } = useThemeStore();
+  const creditsQuery = api.billing.getCurrentPlan.useQuery(
+    { userId: user?.id ?? '' },
+    { enabled: !!user?.id, staleTime: 60_000 },
+  );
+  const credits = creditsQuery.data?.credits ?? null;
 
   const title = PAGE_TITLES[pathname] ?? 'Career Workspace';
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -66,9 +72,11 @@ export default function Header() {
 
       <div className="flex items-center gap-3">
         {/* Credits pill */}
-        <div className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
-          1,250 credits
-        </div>
+        {credits !== null && (
+          <div className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
+            {credits.toLocaleString()} credits
+          </div>
+        )}
 
         {/* Standard theme toggle */}
         <div

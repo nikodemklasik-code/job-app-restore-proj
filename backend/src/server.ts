@@ -13,6 +13,13 @@ dotenv.config({ path: path.resolve(__dirname, '../../../../.env') }); // dist/ba
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });        // dist/ → repo root (legacy)
 dotenv.config({ path: path.resolve(__dirname, '../.env') });            // local dev fallback
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+// ─── Fail-fast ENV validation ─────────────────────────────────────────────────
+// Skip in test environment to allow partial ENV in unit tests
+if (process.env.NODE_ENV !== 'test') {
+  const { requireValidEnv } = await import('../../../../lib/envSchema.mjs');
+  requireValidEnv();
+}
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
