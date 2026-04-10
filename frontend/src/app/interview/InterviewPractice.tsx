@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
-import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp } from 'lucide-react';
 
 // ─── Wave/avatar keyframes injected once ─────────────────────────────────────
 const AVATAR_STYLES = `
@@ -50,8 +50,8 @@ const AVATAR_STYLES = `
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Phase =
-  | 'job-select'
-  | 'idle'
+  | 'lobby'       // pre-call: job select + camera preview
+  | 'connecting'  // brief "Connecting…" animation
   | 'ai-speaking'
   | 'user-turn'
   | 'processing'
@@ -403,7 +403,7 @@ export default function InterviewPractice() {
   const userId = user?.id ?? undefined;
 
   // Phase / conversation
-  const [phase, setPhase] = useState<Phase>('job-select');
+  const [phase, setPhase] = useState<Phase>('lobby');
   const [selectedJob, setSelectedJob] = useState<JobOption | null>(null);
   const [customCompany, setCustomCompany] = useState('');
   const [customRole, setCustomRole] = useState('');
@@ -419,51 +419,107 @@ export default function InterviewPractice() {
   const chunksRef = useRef<Blob[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [micDenied, setMicDenied] = useState(false);
+  const [micMuted, setMicMuted] = useState(false);
 
   // Camera
   const videoRef = useRef<HTMLVideoElement>(null);
+  const lobbyVideoRef = useRef<HTMLVideoElement>(null);
   const [cameraActive, setCameraActive] = useState(false);
+  const [cameraOn, setCameraOn] = useState(true);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
 
   // Mic level
   const animFrameRef = useRef<number>(0);
   const [micLevels, setMicLevels] = useState<number[]>([0.1, 0.2, 0.1, 0.2, 0.1]);
 
-  // Conversation log scroll
-  const logRef = useRef<HTMLDivElement>(null);
+  // Call timer
+  const [callSeconds, setCallSeconds] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Transcript toggle (for complete screen)
+  const [showTranscript, setShowTranscript] = useState(false);
 
   // Jobs feed
-  const feedQuery = api.jobs.getFeed.useQuery({ limit: 20 }, { enabled: phase === 'job-select' });
+  const feedQuery = api.jobs.getFeed.useQuery({ limit: 20 }, { enabled: phase === 'lobby' });
 
-  // Auto-scroll log
-  useEffect(() => {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight;
-    }
-  }, [messages, currentTranscript]);
+  // ── Camera setup / teardown ────────────────────────────────────────────────
 
-  // Camera setup
-  useEffect(() => {
-    if (phase === 'job-select') return;
-    let stream: MediaStream | null = null;
-    (async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-          setCameraActive(true);
-        }
-      } catch {
-        setCameraActive(false);
+  const startCamera = useCallback(async (targetRef: React.RefObject<HTMLVideoElement>) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      cameraStreamRef.current = stream;
+      if (targetRef.current) {
+        targetRef.current.srcObject = stream;
+        await targetRef.current.play();
+        setCameraActive(true);
       }
-    })();
-    return () => {
-      if (stream) stream.getTracks().forEach((t) => t.stop());
+    } catch {
       setCameraActive(false);
+    }
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
+    cameraStreamRef.current = null;
+    setCameraActive(false);
+  }, []);
+
+  // Lobby: start camera for preview
+  useEffect(() => {
+    if (phase === 'lobby') {
+      void startCamera(lobbyVideoRef);
+    }
+    return () => {
+      if (phase !== 'lobby') stopCamera();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
-  // Mic level animation
+  // Call: move stream to call video ref when transitioning into call
+  useEffect(() => {
+    if (phase === 'ai-speaking' || phase === 'user-turn' || phase === 'processing') {
+      if (!cameraStreamRef.current) {
+        void startCamera(videoRef);
+      } else if (videoRef.current) {
+        videoRef.current.srcObject = cameraStreamRef.current;
+        void videoRef.current.play();
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  // Toggle camera on/off during call
+  const toggleCamera = useCallback(() => {
+    const stream = cameraStreamRef.current;
+    if (!stream) return;
+    const videoTrack = stream.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      setCameraOn(videoTrack.enabled);
+    }
+  }, []);
+
+  // ── Call timer ─────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (phase === 'ai-speaking' || phase === 'user-turn' || phase === 'processing') {
+      if (!timerRef.current) {
+        timerRef.current = setInterval(() => setCallSeconds((s) => s + 1), 1000);
+      }
+    } else {
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    }
+    return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
+  }, [phase]);
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60).toString().padStart(2, '0');
+    const sec = (s % 60).toString().padStart(2, '0');
+    return `${m}:${sec}`;
+  };
+
+  // ── Mic level animation ────────────────────────────────────────────────────
+
   const startMicLevelAnimation = useCallback((analyser: AnalyserNode) => {
     const data = new Uint8Array(analyser.frequencyBinCount);
     const tick = () => {
@@ -485,7 +541,7 @@ export default function InterviewPractice() {
     setMicLevels([0.1, 0.2, 0.1, 0.2, 0.1]);
   }, []);
 
-  // ── Core conversation flow ──────────────────────────────────────────────────
+  // ── Core conversation flow ─────────────────────────────────────────────────
 
   const getJob = useCallback((): JobOption => {
     if (selectedJob) return selectedJob;
@@ -534,20 +590,24 @@ export default function InterviewPractice() {
       if (newExchangeCount >= MAX_EXCHANGES) {
         setPhase('complete');
         setAvatarState('idle');
+        stopCamera();
       } else {
         setPhase('user-turn');
         setAvatarState('listening');
       }
     },
-    [getJob, userId],
+    [getJob, userId, stopCamera],
   );
 
-  const startInterview = useCallback(async () => {
+  const joinCall = useCallback(async () => {
     setMessages([]);
     setExchangeCount(0);
+    setCallSeconds(0);
     setError(null);
-    setPhase('idle');
+    setPhase('connecting');
     setAvatarState('thinking');
+    // Brief connecting delay for the animation
+    await new Promise((r) => setTimeout(r, 1800));
     await runAITurn([]);
   }, [runAITurn]);
 
@@ -562,7 +622,6 @@ export default function InterviewPractice() {
       return;
     }
 
-    // Set up analyser for level visualisation
     const ctx = new AudioContext();
     const source = ctx.createMediaStreamSource(stream);
     const analyser = ctx.createAnalyser();
@@ -622,282 +681,236 @@ export default function InterviewPractice() {
     }
   }, [isRecording, startRecording, stopRecording]);
 
-  const endInterview = useCallback(() => {
+  const endCall = useCallback(() => {
     recorderRef.current?.stop();
     setPhase('complete');
     setAvatarState('idle');
     setIsRecording(false);
     stopMicLevelAnimation();
-  }, [stopMicLevelAnimation]);
+    stopCamera();
+  }, [stopMicLevelAnimation, stopCamera]);
 
   const resetAll = useCallback(() => {
-    setPhase('job-select');
+    setPhase('lobby');
     setSelectedJob(null);
     setCustomCompany('');
     setCustomRole('');
     setMessages([]);
     setCurrentTranscript('');
     setExchangeCount(0);
+    setCallSeconds(0);
     setError(null);
     setAvatarState('idle');
     setIsRecording(false);
     setAdaptiveInsights(null);
+    setShowTranscript(false);
   }, []);
 
-  // ── Job-select screen ──────────────────────────────────────────────────────
+  // ── LOBBY SCREEN ───────────────────────────────────────────────────────────
 
-  if (phase === 'job-select') {
+  if (phase === 'lobby') {
     const job = getJob();
-    const canStart = (selectedJob !== null) || (customCompany.trim() !== '' && customRole.trim() !== '');
+    const canJoin = (selectedJob !== null) || (customCompany.trim() !== '' && customRole.trim() !== '');
 
     return (
-      <div
-        className="min-h-screen flex items-center justify-center p-4"
-        style={{ background: '#0a0f1e' }}
-      >
+      <div style={{ minHeight: '100vh', background: '#050a14', color: '#f9fafb', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <style>{AVATAR_STYLES}</style>
 
-        <div
-          style={{
-            background: '#111827',
-            border: '1px solid #1f2937',
-            borderRadius: 16,
-            padding: 32,
-            width: '100%',
-            maxWidth: 560,
-            color: '#f9fafb',
-          }}
-        >
-          <div className="flex items-center gap-3 mb-6">
-            <div
+        <div style={{ width: '100%', maxWidth: 880, display: 'flex', gap: 24, flexWrap: 'wrap', justifyContent: 'center' }}>
+
+          {/* Left: camera preview tile */}
+          <div style={{ flex: '1 1 340px', minHeight: 320, background: '#0f172a', borderRadius: 20, border: '1px solid #1e293b', overflow: 'hidden', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {/* actual video */}
+            <video
+              ref={lobbyVideoRef}
+              muted
+              playsInline
+              style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', position: 'absolute', inset: 0 }}
+            />
+            {!cameraActive && (
+              <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>👤</div>
+                <span style={{ fontSize: 13, color: '#64748b' }}>Camera unavailable</span>
+              </div>
+            )}
+            {/* "You" label */}
+            <div style={{ position: 'absolute', bottom: 14, left: 14, background: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600, color: '#e2e8f0', zIndex: 2 }}>
+              You
+            </div>
+            {/* Camera indicator */}
+            <div style={{ position: 'absolute', top: 14, right: 14, zIndex: 2, width: 10, height: 10, borderRadius: '50%', background: cameraActive ? '#22c55e' : '#64748b', boxShadow: cameraActive ? '0 0 8px #22c55e' : 'none' }} />
+          </div>
+
+          {/* Right: job selector + join */}
+          <div style={{ flex: '1 1 340px', display: 'flex', flexDirection: 'column', gap: 16, justifyContent: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#6366f1,#3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Briefcase style={{ width: 22, height: 22, color: '#fff' }} />
+              </div>
+              <div>
+                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>AI Interview</h1>
+                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Preparing to join your mock interview</p>
+              </div>
+            </div>
+
+            {/* Custom role */}
+            <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>CUSTOM ROLE</p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  type="text"
+                  placeholder="Company name"
+                  value={customCompany}
+                  onChange={(e) => { setCustomCompany(e.target.value); setSelectedJob(null); }}
+                  style={{ flex: 1, background: '#050a14', border: '1px solid #1e293b', borderRadius: 8, padding: '8px 12px', color: '#f1f5f9', fontSize: 14, outline: 'none' }}
+                />
+                <input
+                  type="text"
+                  placeholder="Job title"
+                  value={customRole}
+                  onChange={(e) => { setCustomRole(e.target.value); setSelectedJob(null); }}
+                  style={{ flex: 1, background: '#050a14', border: '1px solid #1e293b', borderRadius: 8, padding: '8px 12px', color: '#f1f5f9', fontSize: 14, outline: 'none' }}
+                />
+              </div>
+            </div>
+
+            {/* Jobs list */}
+            {feedQuery.isLoading ? (
+              <div style={{ textAlign: 'center', color: '#64748b', fontSize: 13, padding: '12px 0' }}>
+                <div style={{ width: 18, height: 18, border: '2px solid #6366f1', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 6px' }} />
+                Loading jobs…
+              </div>
+            ) : feedQuery.data && feedQuery.data.length > 0 ? (
+              <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>OR PICK A JOB</p>
+                <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {feedQuery.data.map((j) => (
+                    <button
+                      key={j.id}
+                      onClick={() => { setSelectedJob({ id: j.id, title: j.title, company: j.company, description: j.description }); setCustomCompany(''); setCustomRole(''); }}
+                      style={{ background: selectedJob?.id === j.id ? 'rgba(99,102,241,0.2)' : '#050a14', border: `1px solid ${selectedJob?.id === j.id ? '#6366f1' : '#1e293b'}`, borderRadius: 8, padding: '9px 14px', textAlign: 'left', cursor: 'pointer', color: '#f1f5f9', transition: 'all 0.15s' }}
+                    >
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{j.title}</div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>{j.company}{j.location ? ` · ${j.location}` : ''}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Join button */}
+            <button
+              disabled={!canJoin}
+              onClick={() => void joinCall()}
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                background: 'linear-gradient(135deg, #6366f1, #3b82f6)',
+                padding: '14px 0',
+                background: canJoin ? 'linear-gradient(135deg, #22c55e, #16a34a)' : '#1e293b',
+                border: 'none',
+                borderRadius: 12,
+                color: canJoin ? '#fff' : '#475569',
+                fontWeight: 700,
+                fontSize: 16,
+                cursor: canJoin ? 'pointer' : 'not-allowed',
+                transition: 'all 0.2s',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                gap: 10,
               }}
             >
-              <Briefcase style={{ width: 20, height: 20, color: '#fff' }} />
-            </div>
-            <div>
-              <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>AI Interview Practice</h1>
-              <p style={{ fontSize: 13, color: '#6b7280', margin: 0 }}>Video-call style with a live AI interviewer</p>
-            </div>
+              {canJoin ? `📞 Join Interview — ${job.title} at ${job.company}` : 'Select a job or enter a custom role'}
+            </button>
           </div>
-
-          {/* Custom job */}
-          <div
-            style={{
-              background: '#1f2937',
-              borderRadius: 12,
-              padding: 16,
-              marginBottom: 16,
-            }}
-          >
-            <p style={{ fontSize: 13, color: '#9ca3af', marginBottom: 10, fontWeight: 600 }}>CUSTOM ROLE</p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Company name"
-                value={customCompany}
-                onChange={(e) => { setCustomCompany(e.target.value); setSelectedJob(null); }}
-                style={{
-                  flex: 1,
-                  background: '#111827',
-                  border: '1px solid #374151',
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  color: '#f9fafb',
-                  fontSize: 14,
-                  outline: 'none',
-                }}
-              />
-              <input
-                type="text"
-                placeholder="Job title"
-                value={customRole}
-                onChange={(e) => { setCustomRole(e.target.value); setSelectedJob(null); }}
-                style={{
-                  flex: 1,
-                  background: '#111827',
-                  border: '1px solid #374151',
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  color: '#f9fafb',
-                  fontSize: 14,
-                  outline: 'none',
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Jobs from feed */}
-          {feedQuery.isLoading ? (
-            <div style={{ textAlign: 'center', padding: '20px 0', color: '#6b7280', fontSize: 14 }}>
-              <div
-                style={{
-                  width: 20,
-                  height: 20,
-                  border: '2px solid #6366f1',
-                  borderTop: '2px solid transparent',
-                  borderRadius: '50%',
-                  animation: 'spin 0.8s linear infinite',
-                  margin: '0 auto 8px',
-                }}
-              />
-              Loading jobs...
-            </div>
-          ) : feedQuery.data && feedQuery.data.length > 0 ? (
-            <div>
-              <p style={{ fontSize: 13, color: '#9ca3af', marginBottom: 8, fontWeight: 600 }}>OR PICK A JOB</p>
-              <div
-                style={{
-                  maxHeight: 260,
-                  overflowY: 'auto',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 6,
-                }}
-              >
-                {feedQuery.data.map((j) => (
-                  <button
-                    key={j.id}
-                    onClick={() => {
-                      setSelectedJob({ id: j.id, title: j.title, company: j.company, description: j.description });
-                      setCustomCompany('');
-                      setCustomRole('');
-                    }}
-                    style={{
-                      background: selectedJob?.id === j.id ? 'rgba(99,102,241,0.2)' : '#1f2937',
-                      border: `1px solid ${selectedJob?.id === j.id ? '#6366f1' : '#374151'}`,
-                      borderRadius: 8,
-                      padding: '10px 14px',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      color: '#f9fafb',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{j.title}</div>
-                    <div style={{ fontSize: 12, color: '#9ca3af' }}>{j.company} {j.location ? `· ${j.location}` : ''}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          <button
-            disabled={!canStart}
-            onClick={() => void startInterview()}
-            style={{
-              marginTop: 20,
-              width: '100%',
-              padding: '12px 0',
-              background: canStart ? 'linear-gradient(135deg, #6366f1, #3b82f6)' : '#374151',
-              border: 'none',
-              borderRadius: 10,
-              color: canStart ? '#fff' : '#6b7280',
-              fontWeight: 700,
-              fontSize: 15,
-              cursor: canStart ? 'pointer' : 'not-allowed',
-              transition: 'opacity 0.15s',
-            }}
-          >
-            {canStart
-              ? `Start Interview — ${job.title} at ${job.company}`
-              : 'Select a job or enter a custom role'}
-          </button>
         </div>
       </div>
     );
   }
 
-  // ── Complete screen ─────────────────────────────────────────────────────────
+  // ── CONNECTING SCREEN ──────────────────────────────────────────────────────
+
+  if (phase === 'connecting') {
+    const job = getJob();
+    return (
+      <div style={{ minHeight: '100vh', background: '#050a14', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 28 }}>
+        <style>{AVATAR_STYLES}</style>
+        <Avatar state="thinking" />
+        <div style={{ textAlign: 'center' }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: '#f1f5f9', margin: 0 }}>Connecting…</h2>
+          <p style={{ fontSize: 14, color: '#64748b', margin: '6px 0 0' }}>{job.title} at {job.company}</p>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {[0, 150, 300].map((d, i) => (
+            <div key={i} style={{ width: 9, height: 9, borderRadius: '50%', background: '#6366f1', animation: 'bounce-dot 0.9s ease-in-out infinite', animationDelay: `${d}ms` }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── COMPLETE / SUMMARY SCREEN ──────────────────────────────────────────────
 
   if (phase === 'complete') {
-    const lastAI = [...messages].reverse().find((m) => m.role === 'assistant')?.content ?? '';
+    const job = getJob();
     return (
-      <div
-        className="min-h-screen flex items-center justify-center p-4"
-        style={{ background: '#0a0f1e' }}
-      >
-        <div
-          style={{
-            background: '#111827',
-            border: '1px solid #1f2937',
-            borderRadius: 16,
-            padding: 40,
-            width: '100%',
-            maxWidth: 520,
-            color: '#f9fafb',
-            textAlign: 'center',
-          }}
-        >
-          <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
-          <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Interview Complete!</h2>
-          <p style={{ color: '#9ca3af', marginBottom: 24 }}>
-            {exchangeCount} exchange{exchangeCount !== 1 ? 's' : ''} with your AI interviewer
-          </p>
-          {lastAI && (
-            <div
-              style={{
-                background: '#1f2937',
-                borderRadius: 10,
-                padding: 16,
-                textAlign: 'left',
-                marginBottom: 24,
-                fontSize: 14,
-                lineHeight: 1.6,
-                color: '#d1d5db',
-              }}
-            >
-              <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 6, fontWeight: 600 }}>LAST MESSAGE</p>
-              {lastAI}
-            </div>
-          )}
-          <div className="flex gap-3">
+      <div style={{ minHeight: '100vh', background: '#050a14', color: '#f1f5f9', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <style>{AVATAR_STYLES}</style>
+        <div style={{ width: '100%', maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* Summary card */}
+          <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 32, textAlign: 'center' }}>
+            <div style={{ fontSize: 52, marginBottom: 12 }}>🎙️</div>
+            <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 6px' }}>Interview Complete</h2>
+            <p style={{ fontSize: 14, color: '#64748b', margin: 0 }}>
+              {job.title} at {job.company} · {formatTime(callSeconds)} · {exchangeCount} exchange{exchangeCount !== 1 ? 's' : ''}
+            </p>
+
+            {adaptiveInsights && adaptiveInsights.sessionCount > 0 && (
+              <div style={{ marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 20, padding: '5px 14px', fontSize: 12, color: '#a5b4fc' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#6366f1', display: 'inline-block' }} />
+                Session #{adaptiveInsights.sessionCount + 1} · Avg score: {adaptiveInsights.averageScore}/100 across history
+              </div>
+            )}
+          </div>
+
+          {/* Transcript toggle */}
+          <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 16, overflow: 'hidden' }}>
             <button
-              onClick={() => void startInterview()}
-              style={{
-                flex: 1,
-                padding: '12px 0',
-                background: 'linear-gradient(135deg, #6366f1, #3b82f6)',
-                border: 'none',
-                borderRadius: 10,
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: 14,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-              }}
+              onClick={() => setShowTranscript((v) => !v)}
+              style={{ width: '100%', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', color: '#f1f5f9', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+            >
+              <span>📝 Full conversation transcript</span>
+              {showTranscript ? <ChevronUp style={{ width: 16, height: 16, color: '#64748b' }} /> : <ChevronDown style={{ width: 16, height: 16, color: '#64748b' }} />}
+            </button>
+            {showTranscript && (
+              <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 360, overflowY: 'auto' }}>
+                {messages.map((msg, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <div style={{ flexShrink: 0, fontSize: 18 }}>{msg.role === 'assistant' ? '🤖' : '👤'}</div>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: msg.role === 'assistant' ? '#818cf8' : '#34d399', marginBottom: 3, letterSpacing: '0.05em' }}>
+                        {msg.role === 'assistant' ? 'INTERVIEWER' : 'YOU'}
+                      </div>
+                      <div style={{ fontSize: 14, lineHeight: 1.6, color: '#cbd5e1' }}>{msg.content}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 12 }}>
+            <button
+              onClick={() => void joinCall()}
+              style={{ flex: 1, padding: '13px 0', background: 'linear-gradient(135deg,#6366f1,#3b82f6)', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
             >
               <RefreshCw style={{ width: 16, height: 16 }} /> Practice Again
             </button>
             <button
               onClick={resetAll}
-              style={{
-                flex: 1,
-                padding: '12px 0',
-                background: '#1f2937',
-                border: '1px solid #374151',
-                borderRadius: 10,
-                color: '#d1d5db',
-                fontWeight: 700,
-                fontSize: 14,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-              }}
+              style={{ flex: 1, padding: '13px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, color: '#cbd5e1', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
             >
-              <Briefcase style={{ width: 16, height: 16 }} /> View Jobs
+              <Briefcase style={{ width: 16, height: 16 }} /> Change Role
             </button>
           </div>
         </div>
@@ -905,402 +918,312 @@ export default function InterviewPractice() {
     );
   }
 
-  // ── Video call UI ───────────────────────────────────────────────────────────
+  // ── CALL SCREEN (main video-call layout) ────────────────────────────────────
 
   const job = getJob();
   const userTurnActive = phase === 'user-turn';
+  const statusLabel =
+    phase === 'ai-speaking' ? 'Speaking' :
+    phase === 'processing' ? 'Thinking…' :
+    phase === 'user-turn' ? 'Listening' : 'Ready';
+  const statusColor =
+    phase === 'ai-speaking' ? '#818cf8' :
+    phase === 'processing' ? '#fbbf24' :
+    phase === 'user-turn' ? '#4ade80' : '#94a3b8';
+  const statusBg =
+    phase === 'ai-speaking' ? 'rgba(99,102,241,0.2)' :
+    phase === 'processing' ? 'rgba(251,191,36,0.2)' :
+    phase === 'user-turn' ? 'rgba(34,197,94,0.2)' : 'rgba(148,163,184,0.15)';
 
   return (
     <div
       style={{
-        minHeight: '100vh',
-        background: '#0a0f1e',
-        color: '#f9fafb',
-        display: 'flex',
-        flexDirection: 'column',
-        padding: 16,
-        gap: 16,
+        position: 'fixed',
+        inset: 0,
+        background: '#050a14',
+        color: '#f1f5f9',
+        overflow: 'hidden',
       }}
     >
-      {/* Keyframes */}
       <style>{AVATAR_STYLES}</style>
 
-      {/* Main panels row */}
-      <div style={{ display: 'flex', gap: 16, flex: 1, minHeight: 0 }}>
-        {/* AI Panel (left, ~60%) */}
-        <div
-          style={{
-            flex: 3,
-            background: '#111827',
-            border: '1px solid #1f2937',
-            borderRadius: 16,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            padding: 24,
-            position: 'relative',
-            minHeight: 360,
-          }}
-        >
-          {/* Header */}
-          <div
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              marginBottom: 24,
-            }}
-          >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #6366f1, #3b82f6)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 700,
-                fontSize: 14,
-                flexShrink: 0,
-              }}
-            >
-              {job.company.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>Interviewing for {job.title}</div>
-              <div style={{ fontSize: 12, color: '#6b7280' }}>{job.company}</div>
-            </div>
-            <div
-              style={{
-                marginLeft: 'auto',
-                background:
-                  phase === 'ai-speaking'
-                    ? 'rgba(99,102,241,0.2)'
-                    : phase === 'user-turn'
-                    ? 'rgba(34,197,94,0.2)'
-                    : 'rgba(107,114,128,0.2)',
-                border: `1px solid ${
-                  phase === 'ai-speaking' ? '#6366f1' : phase === 'user-turn' ? '#22c55e' : '#6b7280'
-                }`,
-                borderRadius: 20,
-                padding: '3px 10px',
-                fontSize: 11,
-                fontWeight: 600,
-                color:
-                  phase === 'ai-speaking' ? '#818cf8' : phase === 'user-turn' ? '#4ade80' : '#9ca3af',
-              }}
-            >
-              {phase === 'ai-speaking'
-                ? 'Speaking'
-                : phase === 'processing'
-                ? 'Thinking...'
-                : phase === 'user-turn'
-                ? 'Listening'
-                : 'Ready'}
-            </div>
+      {/* ── AI Tile (fills entire screen) ───────────────────────────────────── */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'radial-gradient(ellipse at 50% 40%, #0d1a2e 0%, #050a14 100%)',
+        }}
+      >
+        {/* Avatar */}
+        <Avatar state={avatarState} />
+
+        {/* Adaptive insights chip */}
+        {adaptiveInsights && adaptiveInsights.sessionCount > 0 && (
+          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 20, padding: '4px 12px', fontSize: 12, color: '#a5b4fc' }} title={adaptiveInsights.adaptationNote ?? ''}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#6366f1', display: 'inline-block' }} />
+            Adapting · Avg {adaptiveInsights.averageScore}/100
           </div>
+        )}
+      </div>
 
-          {/* Avatar */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
-            <Avatar state={avatarState} />
+      {/* ── Top bar ─────────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          padding: '14px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          background: 'linear-gradient(to bottom, rgba(5,10,20,0.95), transparent)',
+          zIndex: 10,
+        }}
+      >
+        {/* Recording dot + timer */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: '4px 12px' }}>
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444', animation: 'ping-dot 1.2s ease-in-out infinite' }} />
+          <span style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: '#f1f5f9' }}>{formatTime(callSeconds)}</span>
+        </div>
 
-            {/* Adaptive insights badge */}
-            {adaptiveInsights && adaptiveInsights.sessionCount > 0 && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  background: 'rgba(99,102,241,0.15)',
-                  border: '1px solid rgba(99,102,241,0.4)',
-                  borderRadius: 20,
-                  padding: '4px 12px',
-                  fontSize: 12,
-                  color: '#a5b4fc',
-                  fontWeight: 500,
-                }}
-                title={adaptiveInsights.adaptationNote ?? ''}
-              >
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#6366f1', display: 'inline-block', flexShrink: 0 }} />
-                Adapting to your history{adaptiveInsights.averageScore > 0 ? ` • Avg score: ${adaptiveInsights.averageScore}/100` : ''}
-              </div>
-            )}
-
-            {/* Live transcript */}
-            {(currentTranscript || phase === 'processing') && (
-              <div
-                style={{
-                  maxWidth: 380,
-                  textAlign: 'center',
-                  fontSize: 15,
-                  lineHeight: 1.6,
-                  color: '#e5e7eb',
-                  minHeight: 60,
-                  padding: '0 8px',
-                }}
-              >
-                {phase === 'processing' ? (
-                  <span style={{ color: '#9ca3af' }}>Processing your answer...</span>
-                ) : (
-                  currentTranscript
-                )}
-              </div>
-            )}
+        {/* Job info */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>
+            {job.company.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9', lineHeight: 1.2 }}>{job.title}</div>
+            <div style={{ fontSize: 11, color: '#64748b' }}>{job.company}</div>
           </div>
         </div>
 
-        {/* User Panel (right, ~40%) */}
-        <div
-          style={{
-            flex: 2,
-            background: '#111827',
-            border: '1px solid #1f2937',
-            borderRadius: 16,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            minHeight: 360,
-          }}
-        >
-          {/* Camera */}
-          <div
-            style={{
-              flex: 1,
-              background: '#0f172a',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-              overflow: 'hidden',
-              borderRadius: '16px 16px 0 0',
-            }}
-          >
-            {cameraActive ? (
-              <video
-                ref={videoRef}
-                muted
-                playsInline
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  transform: 'scaleX(-1)',
-                }}
-              />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                <div
-                  style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: '50%',
-                    background: '#1f2937',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 36,
-                  }}
-                >
-                  👤
-                </div>
-                <span style={{ fontSize: 12, color: '#6b7280' }}>Camera unavailable</span>
-              </div>
-            )}
-            {/* Mic level overlay */}
-            {isRecording && (
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: 12,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  background: 'rgba(0,0,0,0.6)',
-                  borderRadius: 20,
-                  padding: '6px 14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                }}
-              >
-                <MicLevelBars levels={micLevels} />
-              </div>
-            )}
-          </div>
+        {/* Status pill */}
+        <div style={{ background: statusBg, border: `1px solid ${statusColor}33`, borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 600, color: statusColor }}>
+          {statusLabel}
+        </div>
 
-          {/* Status */}
-          <div
-            style={{
-              padding: '10px 14px',
-              borderTop: '1px solid #1f2937',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            <div
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: isRecording ? '#22c55e' : userTurnActive ? '#f59e0b' : '#374151',
-                animation: isRecording ? 'ping-dot 0.8s ease-in-out infinite' : 'none',
-              }}
-            />
-            <span style={{ fontSize: 12, color: '#9ca3af', fontWeight: 600 }}>
-              {isRecording ? 'Recording...' : userTurnActive ? 'Your turn' : 'Waiting...'}
-            </span>
-            {micDenied && (
-              <span style={{ fontSize: 11, color: '#ef4444', marginLeft: 4 }}>Mic denied</span>
-            )}
-          </div>
+        {/* Exchange counter */}
+        <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>
+          {exchangeCount}/{MAX_EXCHANGES}
         </div>
       </div>
 
-      {/* Bottom bar */}
-      <div
-        style={{
-          background: '#111827',
-          border: '1px solid #1f2937',
-          borderRadius: 16,
-          padding: 16,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 12,
-        }}
-      >
-        {/* Conversation log */}
+      {/* ── Subtitle area (live transcript) ─────────────────────────────────── */}
+      {(currentTranscript || phase === 'processing') && (
         <div
-          ref={logRef}
           style={{
-            maxHeight: 160,
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 6,
-            paddingRight: 4,
+            position: 'absolute',
+            bottom: 100,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            maxWidth: 640,
+            width: 'calc(100% - 48px)',
+            zIndex: 10,
+            textAlign: 'center',
           }}
         >
-          {messages.length === 0 && (
-            <p style={{ color: '#4b5563', fontSize: 12, textAlign: 'center', padding: '8px 0' }}>
-              Conversation will appear here...
-            </p>
-          )}
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-              }}
-            >
-              <div
-                style={{
-                  maxWidth: '75%',
-                  padding: '7px 12px',
-                  borderRadius: msg.role === 'user' ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
-                  background: msg.role === 'user' ? 'rgba(99,102,241,0.3)' : '#1f2937',
-                  border: `1px solid ${msg.role === 'user' ? '#6366f1' : '#374151'}`,
-                  fontSize: 13,
-                  lineHeight: 1.5,
-                  color: '#e5e7eb',
-                }}
-              >
-                {msg.content}
-              </div>
-            </div>
-          ))}
-          {error && (
-            <div
-              style={{
-                background: 'rgba(239,68,68,0.1)',
-                border: '1px solid #ef4444',
-                borderRadius: 8,
-                padding: '6px 12px',
-                fontSize: 12,
-                color: '#fca5a5',
-              }}
-            >
-              {error}
-            </div>
-          )}
+          <div
+            style={{
+              display: 'inline-block',
+              background: 'rgba(0,0,0,0.72)',
+              backdropFilter: 'blur(8px)',
+              borderRadius: 12,
+              padding: '10px 18px',
+              fontSize: 16,
+              lineHeight: 1.6,
+              color: '#f1f5f9',
+              maxWidth: '100%',
+            }}
+          >
+            {phase === 'processing'
+              ? <span style={{ color: '#94a3b8' }}>Processing your answer…</span>
+              : currentTranscript}
+          </div>
+        </div>
+      )}
+
+      {/* Error toast */}
+      {error && (
+        <div style={{ position: 'absolute', top: 70, right: 20, zIndex: 20, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.5)', borderRadius: 10, padding: '8px 14px', fontSize: 13, color: '#fca5a5', maxWidth: 320 }}>
+          {error}
+        </div>
+      )}
+
+      {/* ── User PiP (bottom-right) ──────────────────────────────────────────── */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 100,
+          right: 20,
+          width: 200,
+          height: 150,
+          borderRadius: 14,
+          overflow: 'hidden',
+          border: '2px solid rgba(255,255,255,0.12)',
+          background: '#0f172a',
+          zIndex: 10,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+        }}
+      >
+        {cameraActive && cameraOn ? (
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+          />
+        ) : (
+          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <div style={{ fontSize: 32 }}>👤</div>
+            <span style={{ fontSize: 11, color: '#475569' }}>{!cameraOn ? 'Camera off' : 'No camera'}</span>
+          </div>
+        )}
+
+        {/* "You" label */}
+        <div style={{ position: 'absolute', bottom: 8, left: 10, background: 'rgba(0,0,0,0.6)', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600, color: '#e2e8f0' }}>
+          You
         </div>
 
-        {/* Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Exchange counter */}
-          <span
-            style={{
-              fontSize: 12,
-              color: '#6b7280',
-              fontWeight: 600,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {exchangeCount} / {MAX_EXCHANGES}
-          </span>
+        {/* Mic level overlay when recording */}
+        {isRecording && (
+          <div style={{ position: 'absolute', bottom: 8, right: 10, display: 'flex', alignItems: 'flex-end', gap: 2 }}>
+            <MicLevelBars levels={micLevels} />
+          </div>
+        )}
 
-          {/* Speak button */}
-          <button
-            disabled={!userTurnActive && !isRecording}
-            onClick={toggleRecording}
-            style={{
-              flex: 1,
-              padding: '12px 0',
-              background: isRecording
-                ? 'linear-gradient(135deg, #dc2626, #b91c1c)'
-                : userTurnActive
-                ? 'linear-gradient(135deg, #6366f1, #3b82f6)'
-                : '#1f2937',
-              border: 'none',
-              borderRadius: 10,
-              color: userTurnActive || isRecording ? '#fff' : '#4b5563',
-              fontWeight: 700,
-              fontSize: 15,
-              cursor: userTurnActive || isRecording ? 'pointer' : 'not-allowed',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              transition: 'all 0.15s',
-            }}
-          >
-            {isRecording ? (
-              <>
-                <MicOff style={{ width: 18, height: 18 }} />
-                Stop Recording
-              </>
-            ) : (
-              <>
-                <Mic style={{ width: 18, height: 18 }} />
-                {userTurnActive ? '🎤 Speak' : 'Waiting...'}
-              </>
-            )}
-          </button>
+        {/* Mic denied badge */}
+        {micDenied && (
+          <div style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(239,68,68,0.9)', borderRadius: 6, padding: '2px 7px', fontSize: 10, color: '#fff', fontWeight: 600 }}>
+            MIC ✗
+          </div>
+        )}
+      </div>
 
-          {/* End button */}
-          <button
-            onClick={endInterview}
-            style={{
-              padding: '12px 16px',
-              background: 'rgba(239,68,68,0.15)',
-              border: '1px solid rgba(239,68,68,0.4)',
-              borderRadius: 10,
-              color: '#f87171',
-              fontWeight: 600,
-              fontSize: 13,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <PhoneOff style={{ width: 16, height: 16 }} />
-            End
-          </button>
-        </div>
+      {/* ── Floating controls bar ────────────────────────────────────────────── */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 28,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          background: 'rgba(15,23,42,0.85)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: 999,
+          padding: '10px 20px',
+          zIndex: 20,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        }}
+      >
+        {/* Camera toggle */}
+        <button
+          onClick={toggleCamera}
+          title={cameraOn ? 'Turn off camera' : 'Turn on camera'}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: '50%',
+            background: cameraOn ? 'rgba(99,102,241,0.15)' : 'rgba(239,68,68,0.2)',
+            border: `1px solid ${cameraOn ? 'rgba(99,102,241,0.3)' : 'rgba(239,68,68,0.4)'}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: cameraOn ? '#818cf8' : '#f87171',
+            transition: 'all 0.2s',
+          }}
+        >
+          {cameraOn ? <Video style={{ width: 18, height: 18 }} /> : <VideoOff style={{ width: 18, height: 18 }} />}
+        </button>
+
+        {/* Mic / Speak button (main action) */}
+        <button
+          disabled={!userTurnActive && !isRecording}
+          onClick={toggleRecording}
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: '50%',
+            background: isRecording
+              ? 'linear-gradient(135deg,#dc2626,#b91c1c)'
+              : userTurnActive
+              ? 'linear-gradient(135deg,#22c55e,#16a34a)'
+              : '#1e293b',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: userTurnActive || isRecording ? 'pointer' : 'not-allowed',
+            color: userTurnActive || isRecording ? '#fff' : '#475569',
+            transition: 'all 0.2s',
+            boxShadow: isRecording ? '0 0 24px rgba(220,38,38,0.5)' : userTurnActive ? '0 0 24px rgba(34,197,94,0.4)' : 'none',
+          }}
+          title={isRecording ? 'Stop speaking' : userTurnActive ? 'Start speaking' : 'Wait for your turn'}
+        >
+          {isRecording
+            ? <MicOff style={{ width: 24, height: 24 }} />
+            : <Mic style={{ width: 24, height: 24 }} />}
+        </button>
+
+        {/* Mute toggle */}
+        <button
+          onClick={() => setMicMuted((v) => !v)}
+          title={micMuted ? 'Unmute' : 'Mute'}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: '50%',
+            background: micMuted ? 'rgba(239,68,68,0.2)' : 'rgba(99,102,241,0.15)',
+            border: `1px solid ${micMuted ? 'rgba(239,68,68,0.4)' : 'rgba(99,102,241,0.3)'}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: micMuted ? '#f87171' : '#818cf8',
+            transition: 'all 0.2s',
+          }}
+        >
+          {micMuted ? <MicOff style={{ width: 18, height: 18 }} /> : <Mic style={{ width: 18, height: 18 }} />}
+        </button>
+
+        {/* Divider */}
+        <div style={{ width: 1, height: 32, background: 'rgba(255,255,255,0.08)' }} />
+
+        {/* End call button */}
+        <button
+          onClick={endCall}
+          style={{
+            width: 50,
+            height: 50,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg,#ef4444,#b91c1c)',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: '#fff',
+            transition: 'all 0.2s',
+            boxShadow: '0 4px 16px rgba(239,68,68,0.4)',
+          }}
+          title="End interview"
+        >
+          <PhoneOff style={{ width: 20, height: 20 }} />
+        </button>
+      </div>
+
+      {/* Label under mic button */}
+      <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 11, color: '#475569', whiteSpace: 'nowrap', zIndex: 20 }}>
+        {isRecording ? 'Tap to stop' : userTurnActive ? 'Tap to speak' : statusLabel}
       </div>
     </div>
   );
