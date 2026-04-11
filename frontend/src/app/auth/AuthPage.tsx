@@ -213,6 +213,9 @@ export default function AuthPage() {
   const [awaitingEmailCode, setAwaitingEmailCode] = useState(false);
   /** Sign-in with password succeeded but Clerk requires e.g. email_code first factor */
   const [awaitingSignInCode, setAwaitingSignInCode] = useState(false);
+  const [forgotStep, setForgotStep] = useState<'idle' | 'enter-email' | 'enter-code'>('idle');
+  const [forgotCode, setForgotCode] = useState('');
+  const [forgotNewPassword, setForgotNewPassword] = useState('');
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -228,6 +231,9 @@ export default function AuthPage() {
     setAwaitingSignInCode(false);
     setEmailCode('');
     setInfoMessage(null);
+    setForgotStep('idle');
+    setForgotCode('');
+    setForgotNewPassword('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -408,6 +414,59 @@ export default function AuthPage() {
       setInfoMessage('A new code was sent to your email.');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Could not resend code';
+      setError(msg.replace(/^Error: /, ''));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPasswordRequest = async () => {
+    if (!signInLoaded || !signIn) return;
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError('Enter your email address above, then click "Forgot password?".');
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    try {
+      await signIn.create({ strategy: 'reset_password_email_code', identifier: trimmedEmail });
+      setForgotStep('enter-code');
+      setInfoMessage('We sent a reset code to your email. Enter it below together with a new password.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Could not send reset email';
+      setError(msg.replace(/^Error: /, ''));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!signInLoaded || !signIn) return;
+    const code = forgotCode.trim();
+    const newPw = forgotNewPassword.trim();
+    if (!code || !newPw) {
+      setError('Enter both the reset code and your new password.');
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await signIn.attemptFirstFactor({
+        strategy: 'reset_password_email_code',
+        code,
+        password: newPw,
+      });
+      if (result.status === 'complete' && result.createdSessionId) {
+        await setActive({ session: result.createdSessionId });
+        resetVerification();
+        void navigate('/dashboard');
+      } else {
+        setError(`Could not complete password reset (${result.status}). Please try again.`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Password reset failed';
       setError(msg.replace(/^Error: /, ''));
     } finally {
       setIsLoading(false);
@@ -648,8 +707,66 @@ export default function AuthPage() {
           {/* MIDDLE — fits between welcome and policy; no scroll on full layout */}
           <div className="flex min-h-0 flex-1 flex-col justify-center gap-0 overflow-hidden py-4 lg:py-5">
 
+            {/* Forgot password flow */}
+            {forgotStep !== 'idle' ? (
+              <form onSubmit={(e) => void handleForgotPasswordSubmit(e)} className="space-y-3">
+                <div className="rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-2.5 text-xs text-indigo-200">
+                  {infoMessage}
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="forgot-code" className="block text-xs font-medium text-slate-400">Reset code</label>
+                  <input
+                    id="forgot-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="6-digit code from email"
+                    value={forgotCode}
+                    onChange={(e) => setForgotCode(e.target.value.replace(/\s/g, ''))}
+                    className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm tracking-widest text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="forgot-newpw" className="block text-xs font-medium text-slate-400">New password</label>
+                  <input
+                    id="forgot-newpw"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="New password"
+                    value={forgotNewPassword}
+                    onChange={(e) => setForgotNewPassword(e.target.value)}
+                    className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
+                  />
+                </div>
+                {error && (
+                  <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-xs text-red-400">
+                    {error}
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white transition-all hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-500/25 disabled:opacity-60 active:scale-[0.98]"
+                >
+                  {isLoading ? 'Setting new password…' : 'Set new password & sign in'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setForgotStep('idle'); setError(null); setInfoMessage(null); }}
+                  className="w-full rounded-xl border border-white/10 py-2.5 text-xs font-medium text-slate-300 transition hover:bg-white/5"
+                >
+                  Back to sign in
+                </button>
+              </form>
+            ) : (
+              <>
             {/* Passkey */}
-            <button className="mb-2.5 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-2.5 text-sm font-medium text-emerald-400 transition-all hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/10">
+            <button
+              type="button"
+              onClick={() => void handlePasskey()}
+              disabled={isLoading}
+              className="mb-2.5 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-2.5 text-sm font-medium text-emerald-400 transition-all hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/10 disabled:opacity-60"
+            >
               <KeyRound className="h-4 w-4" />
               Continue with Passkey
             </button>
@@ -829,7 +946,9 @@ export default function AuthPage() {
                   <div className="text-right">
                     <button
                       type="button"
-                      className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                      disabled={isLoading}
+                      onClick={() => void handleForgotPasswordRequest()}
+                      className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors disabled:opacity-60"
                     >
                       Forgot password?
                     </button>
@@ -882,6 +1001,8 @@ export default function AuthPage() {
                 {mode === 'sign-in' ? 'Create one' : 'Sign in'}
               </button>
             </p>
+            </>
+            )}
           </div>
 
           {/* BOTTOM — policy, comfortable margin from viewport bottom */}
