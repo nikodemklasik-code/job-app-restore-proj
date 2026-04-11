@@ -414,10 +414,29 @@ export default function AuthPage() {
     }
   };
 
+  const handlePasskey = async () => {
+    if (!signInLoaded || !signIn) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      // @ts-expect-error — authenticateWithPasskey available in Clerk v5
+      const result = await signIn.authenticateWithPasskey({ flow: 'discoverable' });
+      if (result.status === 'complete' && result.createdSessionId) {
+        await setActive({ session: result.createdSessionId });
+        void navigate('/dashboard');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Passkey sign-in failed. Try email/password or a social provider.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleOAuth = async (
     provider: 'oauth_google' | 'oauth_apple' | 'oauth_facebook' | 'oauth_linkedin_oidc',
   ) => {
     if (!signInLoaded || !signUpLoaded || !signIn || !signUp) return;
+    setError(null);
     try {
       const redirect = {
         strategy: provider,
@@ -430,7 +449,12 @@ export default function AuthPage() {
         await signIn.authenticateWithRedirect(redirect);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign-in with provider failed. Please try again.');
+      const raw = err instanceof Error ? err.message : '';
+      if (raw.includes('DOCTYPE') || raw.includes('not valid JSON') || raw.includes('Unexpected token')) {
+        setError('Social sign-in is not available right now. Please use email and password.');
+      } else {
+        setError(raw || 'Sign-in with provider failed. Please try again.');
+      }
     }
   };
 
@@ -493,7 +517,7 @@ export default function AuthPage() {
         {/* ══════════════════════════════════════════════════════════════════════
             LEFT PANEL — visual (fixed viewport: logo → ticker → monitor → copy)
         ══════════════════════════════════════════════════════════════════════ */}
-        <div className="relative hidden min-h-0 flex-1 flex-col overflow-hidden bg-[#020617] lg:flex lg:h-full">
+        <div className="relative hidden min-h-0 flex-col overflow-hidden bg-[#020617] lg:flex lg:h-full lg:flex-1 lg:max-w-[620px]">
           {/* Background image */}
           <img
             src="https://images.pexels.com/photos/1181467/pexels-photo-1181467.jpeg?auto=compress&cs=tinysrgb&w=1600"
@@ -600,7 +624,7 @@ export default function AuthPage() {
             RIGHT PANEL — auth form
         ══════════════════════════════════════════════════════════════════════ */}
         <div
-          className="relative z-20 flex w-full min-w-0 max-w-[440px] shrink-0 flex-col overflow-y-auto overflow-x-hidden border-l border-white/5 bg-[#0a0f1e] px-7 lg:h-screen lg:min-h-0 lg:overflow-hidden lg:px-8"
+          className="relative z-20 flex w-full min-w-0 max-w-full shrink-0 flex-col overflow-y-auto overflow-x-hidden border-l border-white/5 bg-[#0a0f1e] px-7 lg:h-screen lg:min-h-0 lg:max-w-[520px] lg:overflow-hidden lg:px-8"
           style={{ minHeight: '100vh' }}
         >
           {/* TOP — welcome block, fixed margin from top */}
