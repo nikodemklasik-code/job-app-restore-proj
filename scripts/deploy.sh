@@ -3,7 +3,17 @@
 # Builds frontend + backend, rsync to VPS, reloads PM2, runs smoke test.
 #
 # Usage (from repo root):
-#   bash scripts/deploy.sh
+#   bash scripts/deploy.sh [token]
+#
+#   The deploy token can be supplied in three ways (checked in order):
+#     1. As the first positional argument:  bash scripts/deploy.sh mytoken
+#     2. Via DEPLOY_TOKEN env var:          DEPLOY_TOKEN=mytoken bash scripts/deploy.sh
+#     3. Interactive prompt (if neither above is set)
+#
+#   Set the expected token on the VPS:
+#     echo 'export DEPLOY_TOKEN="mytoken"' >> ~/.bashrc
+#   Keep it in a local .env file (never commit):
+#     echo 'DEPLOY_TOKEN=mytoken' >> .env.local
 #
 # Required env (or ~/.ssh config):
 #   DEPLOY_HOST   e.g. root@147.93.86.209   (default: root@147.93.86.209)
@@ -11,6 +21,37 @@
 #
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# ─── Token guard ─────────────────────────────────────────────────────────────
+# Load .env.local if present (ignored by git)
+if [[ -f "$ROOT/.env.local" ]]; then
+  # shellcheck disable=SC1091
+  set -o allexport; source "$ROOT/.env.local"; set +o allexport
+fi
+
+# Positional arg overrides env var
+DEPLOY_TOKEN="${1:-${DEPLOY_TOKEN:-}}"
+
+if [[ -z "$DEPLOY_TOKEN" ]]; then
+  read -r -s -p "Deploy token: " DEPLOY_TOKEN
+  echo ""
+fi
+
+# Verify token against DEPLOY_TOKEN_HASH (sha256) stored in .deploy-token-hash
+# If no hash file exists, skip verification (first-time setup)
+HASH_FILE="$ROOT/.deploy-token-hash"
+if [[ -f "$HASH_FILE" ]]; then
+  EXPECTED_HASH=$(cat "$HASH_FILE")
+  ACTUAL_HASH=$(printf '%s' "$DEPLOY_TOKEN" | sha256sum | awk '{print $1}')
+  if [[ "$ACTUAL_HASH" != "$EXPECTED_HASH" ]]; then
+    echo "❌  Invalid deploy token." >&2
+    exit 1
+  fi
+else
+  echo "⚠️   No .deploy-token-hash found — skipping token verification."
+  echo "    To set one: printf '%s' 'yourtoken' | sha256sum | awk '{print \$1}' > .deploy-token-hash"
+fi
+
 HOST="${DEPLOY_HOST:-root@147.93.86.209}"
 REMOTE_BASE="/var/www/multivohub-jobapp"
 REMOTE_FRONTEND_DIST="${REMOTE_FRONTEND_DIST:-${REMOTE_BASE}/frontend/dist}"
