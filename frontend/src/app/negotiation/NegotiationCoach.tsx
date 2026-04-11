@@ -182,7 +182,7 @@ export default function NegotiationCoach() {
         setSimComplete(true);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      setError('Something went wrong. Please try again.');
     } finally {
       setIsStreaming(false);
     }
@@ -213,8 +213,8 @@ export default function NegotiationCoach() {
       const fullText = await streamNegotiationSimulation([], offer, (partial) => setStreamingContent(partial));
       setMessages([{ role: 'assistant', content: fullText }]);
       setStreamingContent('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.');
+    } catch {
+      setError('Something went wrong. Please try again.');
     } finally {
       setIsStreaming(false);
     }

@@ -9,7 +9,7 @@
 set -euo pipefail
 
 API_BASE="${API_BASE:-http://127.0.0.1:3001}"
-FRONTEND_URL="${FRONTEND_URL:-https://jobapp.multivohub.com}"
+FRONTEND_URL="${FRONTEND_URL:-https://jobs.multivohub.com}"
 MAX_RETRIES=5
 RETRY_DELAY=4   # seconds between retries
 

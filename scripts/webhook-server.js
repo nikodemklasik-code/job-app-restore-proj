@@ -9,7 +9,7 @@
  *   DEPLOY_TOKEN=mysecret node scripts/webhook-server.js
  *
  * Trigger a deploy from anywhere (local machine, CI, Slack bot, etc.):
- *   curl -X POST "https://jobapp.multivohub.com/webhook/deploy?token=mysecret"
+ *   curl -X POST "https://jobs.multivohub.com/webhook/deploy?token=mysecret"
  *   # or via the helper script:
  *   bash scripts/trigger-deploy.sh mysecret
  *
@@ -70,9 +70,17 @@ function log(msg) {
 
 async function runDeploy() {
   const steps = [
+    // 1. Pull latest code
     ['git', ['-C', APP_DIR, 'fetch', 'origin', BRANCH]],
     ['git', ['-C', APP_DIR, 'reset', '--hard', `origin/${BRANCH}`]],
+    // 2. Install ALL deps (including devDeps needed for build)
+    ['npm', ['ci', '--prefix', APP_DIR]],
+    // 3. Build frontend (Vite) and backend (tsc)
+    ['npm', ['run', 'build:frontend', '--prefix', APP_DIR]],
+    ['npm', ['run', 'build:backend', '--prefix', APP_DIR]],
+    // 4. Prune to production deps only
     ['npm', ['ci', '--omit=dev', '--prefix', path.join(APP_DIR, 'backend')]],
+    // 5. Reload PM2
     ['pm2', ['reload', path.join(APP_DIR, 'infra/ecosystem.config.cjs'), '--update-env']],
     ['pm2', ['save']],
   ];

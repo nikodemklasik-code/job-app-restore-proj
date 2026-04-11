@@ -354,8 +354,8 @@ export default function ProfilePage() {
             </button>
           )}
         </div>
-        {uploadCvMutation.isError && <p className="text-sm text-red-400">{uploadCvMutation.error instanceof Error ? uploadCvMutation.error.message : 'Upload failed'}</p>}
-        {downloadCvMutation.isError && <p className="text-sm text-red-400">{downloadCvMutation.error instanceof Error ? downloadCvMutation.error.message : 'Download failed'}</p>}
+        {uploadCvMutation.isError && <p className="text-sm text-red-400">CV upload failed. Please try again.</p>}
+        {downloadCvMutation.isError && <p className="text-sm text-red-400">CV download failed. Please try again.</p>}
 
         {parsedCv && uploadedCvId && (
           <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
@@ -390,7 +390,7 @@ export default function ProfilePage() {
                 Import to Profile
               </button>
             </div>
-            {importToProfileMutation.isError && <p className="text-sm text-red-400">{importToProfileMutation.error instanceof Error ? importToProfileMutation.error.message : 'Import failed'}</p>}
+            {importToProfileMutation.isError && <p className="text-sm text-red-400">Import failed. Please try again.</p>}
             {importToProfileMutation.isSuccess && <p className="text-sm text-emerald-400">Profile updated from CV!</p>}
           </div>
         )}
@@ -492,8 +492,8 @@ export default function ProfilePage() {
                     {exp.description && <p className="mt-2 text-sm text-slate-300 line-clamp-2">{exp.description}</p>}
                   </div>
                   <div className="flex shrink-0 gap-1.5">
-                    <button onClick={() => handleEditExp(idx)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white/10 hover:text-slate-300"><Pencil className="h-3.5 w-3.5" /></button>
-                    <button onClick={() => void handleDeleteExp(idx)} disabled={isSaving} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-40"><Trash2 className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => handleEditExp(idx)} aria-label="Edit experience entry" title="Edit" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white/10 hover:text-slate-300"><Pencil className="h-3.5 w-3.5" aria-hidden="true" /></button>
+                    <button onClick={() => void handleDeleteExp(idx)} disabled={isSaving} aria-label="Delete experience entry" title="Delete" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-40"><Trash2 className="h-3.5 w-3.5" aria-hidden="true" /></button>
                   </div>
                 </div>
               )}
@@ -562,8 +562,8 @@ export default function ProfilePage() {
                     <p className="text-xs text-slate-500 mt-0.5">{edu.startDate}{edu.endDate ? ` — ${edu.endDate}` : ''}</p>
                   </div>
                   <div className="flex shrink-0 gap-1.5">
-                    <button onClick={() => handleEditEdu(idx)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white/10 hover:text-slate-300"><Pencil className="h-3.5 w-3.5" /></button>
-                    <button onClick={() => void handleDeleteEdu(idx)} disabled={isSaving} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-40"><Trash2 className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => handleEditEdu(idx)} aria-label="Edit education entry" title="Edit" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white/10 hover:text-slate-300"><Pencil className="h-3.5 w-3.5" aria-hidden="true" /></button>
+                    <button onClick={() => void handleDeleteEdu(idx)} disabled={isSaving} aria-label="Delete education entry" title="Delete" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-40"><Trash2 className="h-3.5 w-3.5" aria-hidden="true" /></button>
                   </div>
                 </div>
               )}
@@ -633,8 +633,8 @@ export default function ProfilePage() {
                     {train.credentialUrl && <a href={train.credentialUrl} target="_blank" rel="noopener noreferrer" className="mt-1 text-xs text-indigo-400 hover:underline truncate block">View credential</a>}
                   </div>
                   <div className="flex shrink-0 gap-1.5">
-                    <button onClick={() => handleEditTrain(idx)} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white/10 hover:text-slate-300"><Pencil className="h-3.5 w-3.5" /></button>
-                    <button onClick={() => void handleDeleteTrain(idx)} disabled={isSaving} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-40"><Trash2 className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => handleEditTrain(idx)} aria-label="Edit certification entry" title="Edit" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white/10 hover:text-slate-300"><Pencil className="h-3.5 w-3.5" aria-hidden="true" /></button>
+                    <button onClick={() => void handleDeleteTrain(idx)} disabled={isSaving} aria-label="Delete certification entry" title="Delete" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-red-500/10 hover:text-red-400 disabled:opacity-40"><Trash2 className="h-3.5 w-3.5" aria-hidden="true" /></button>
                   </div>
                 </div>
               )}

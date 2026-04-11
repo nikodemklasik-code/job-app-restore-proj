@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import type { JobSourceProvider, DiscoveryInput, ProviderContext, SourceJob } from '../types.js';
 
 function norm(v: unknown): string {

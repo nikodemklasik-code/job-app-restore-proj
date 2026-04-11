@@ -13,7 +13,7 @@
  *
  * Webhook trigger (from any machine):
  *   bash scripts/trigger-deploy.sh
- *   # or: curl -X POST "https://jobapp.multivohub.com/webhook/deploy?token=SECRET"
+ *   # or: curl -X POST "https://jobs.multivohub.com/webhook/deploy?token=SECRET"
  * Nginx must proxy /webhook/ → http://127.0.0.1:9000/
  */
 

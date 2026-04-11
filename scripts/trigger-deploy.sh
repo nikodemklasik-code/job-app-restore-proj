@@ -16,7 +16,7 @@
 #   Webhook URL can come from:
 #     1. Second positional arg
 #     2. WEBHOOK_URL env var
-#     3. Default: https://jobapp.multivohub.com/webhook/deploy
+#     3. Default: https://jobs.multivohub.com/webhook/deploy
 #
 set -euo pipefail
 
@@ -37,7 +37,7 @@ if [[ -z "$DEPLOY_TOKEN" ]]; then
 fi
 
 # ─── Resolve webhook URL ─────────────────────────────────────────────────────
-WEBHOOK_URL="${2:-${WEBHOOK_URL:-https://jobapp.multivohub.com/webhook/deploy}}"
+WEBHOOK_URL="${2:-${WEBHOOK_URL:-https://jobs.multivohub.com/webhook/deploy}}"
 
 # ─── Fire! ───────────────────────────────────────────────────────────────────
 echo "🚀  Triggering deploy…"

@@ -42,8 +42,8 @@ export const useCareerAssistantStore = create<CareerAssistantStore>((set, get) =
         status: 'idle',
         error: null,
       });
-    } catch (e: unknown) {
-      set({ status: 'error', error: e instanceof Error ? e.message : 'Failed to load' });
+    } catch {
+      set({ status: 'error', error: 'Could not load conversation history. Please refresh.' });
     }
   },
 
@@ -83,11 +83,11 @@ export const useCareerAssistantStore = create<CareerAssistantStore>((set, get) =
         status: 'idle',
         error: null,
       }));
-    } catch (e: unknown) {
+    } catch {
       set((s) => ({
         messages: s.messages.filter((m) => m.id !== optimistic.id),
         status: 'error',
-        error: e instanceof Error ? e.message : 'Failed',
+        error: 'Message could not be sent. Please try again.',
       }));
     }
   },

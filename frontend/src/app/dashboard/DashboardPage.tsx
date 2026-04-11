@@ -36,10 +36,10 @@ function LiveTicker() {
   if (prefersReducedMotion) {
     return (
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2">
-        <span className="shrink-0 text-[11px] font-bold uppercase tracking-widest text-red-400">
+        <span className="shrink-0 text-xs font-bold uppercase tracking-widest text-red-400">
           Live
         </span>
-        {jobs.slice(0, 5).map((job) => {
+        {jobs.slice(0, 5).map((job: { id: string; company: string; title: string; fitScore?: number | null }) => {
           const score = job.fitScore ?? 60;
           return (
             <span key={job.id} className="text-[12px] text-slate-300">
@@ -62,7 +62,7 @@ function LiveTicker() {
         {/* Fixed label */}
         <div className="flex shrink-0 items-center gap-1.5 border-r border-white/10 bg-white/5 px-3 h-full">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
-          <span className="text-[11px] font-bold tracking-widest text-red-400 uppercase">Live</span>
+          <span className="text-xs font-bold tracking-widest text-red-400 uppercase">Live</span>
         </div>
 
         {/* Scrolling track — pauses on hover or keyboard focus; keyboard-focusable for keyboard users */}
@@ -270,7 +270,7 @@ export default function DashboardPage() {
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-white">{action.title}</span>
-                  <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-medium text-indigo-400">
+                  <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-400">
                     {action.badge}
                   </span>
                 </div>

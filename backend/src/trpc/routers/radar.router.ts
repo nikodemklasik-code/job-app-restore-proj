@@ -33,13 +33,13 @@ export const radarRouter = router({
 
       // Gather recent application job titles to infer sector
       const recentApps = await db
-        .select({ title: applications.title, company: applications.company })
+        .select({ jobTitle: applications.jobTitle, company: applications.company })
         .from(applications)
         .where(eq(applications.userId, userId))
         .orderBy(desc(applications.createdAt))
         .limit(30);
 
-      const jobTitles = recentApps.map((a) => a.title).filter(Boolean).slice(0, 20);
+      const jobTitles = recentApps.map((a) => a.jobTitle).filter(Boolean).slice(0, 20);
       const sectorHint = input.sector ?? (jobTitles.length > 0 ? `roles including: ${jobTitles.slice(0, 8).join(', ')}` : 'general professional roles');
 
       const openai = getOpenAI();

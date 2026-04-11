@@ -79,7 +79,7 @@ function SkillBar({ name, level }: SkillBarProps) {
         <button
           onClick={handleToggle}
           title="Suggest courses"
-          className="ml-1 flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-1.5 py-1 text-[10px] text-slate-400 hover:border-indigo-500/40 hover:text-indigo-300 transition-all"
+          className="ml-1 flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-1.5 py-1 text-xs text-slate-400 hover:border-indigo-500/40 hover:text-indigo-300 transition-all"
         >
           {suggestMutation.isPending ? (
             <Loader2 className="h-3 w-3 animate-spin" />
@@ -99,7 +99,7 @@ function SkillBar({ name, level }: SkillBarProps) {
             </div>
           ) : courses && courses.length > 0 ? (
             <div className="pt-2 space-y-1.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Suggested Courses</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Suggested Courses</p>
               {courses.map((c, i) => (
                 <a
                   key={i}
@@ -113,7 +113,7 @@ function SkillBar({ name, level }: SkillBarProps) {
                     <span className="ml-2 text-slate-500">· {c.provider}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="rounded px-1.5 py-0.5 text-[10px] font-medium"
+                    <span className="rounded px-1.5 py-0.5 text-xs font-medium"
                       style={{ background: c.level === 'Beginner' ? 'rgba(52,211,153,0.15)' : c.level === 'Advanced' ? 'rgba(248,113,113,0.15)' : 'rgba(251,191,36,0.15)', color: c.level === 'Beginner' ? '#34d399' : c.level === 'Advanced' ? '#f87171' : '#fbbf24' }}>
                       {c.level}
                     </span>
@@ -213,7 +213,7 @@ function GapAnalysisPanel({ result, targetInput }: { result: AnalysisResult; tar
             {targetWords.map((w) => (
               <span
                 key={w}
-                className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] font-medium text-slate-300"
+                className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-medium text-slate-300"
               >
                 {w}
               </span>
@@ -329,7 +329,7 @@ export default function SkillsLab() {
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-white">My Skills</h2>
             {skillItems.length > 0 && (
-              <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[11px] font-medium text-indigo-400">
+              <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-400">
                 {skillItems.length} skills
               </span>
             )}
@@ -359,15 +359,15 @@ export default function SkillsLab() {
           <div className="flex items-center gap-4 border-t border-white/10 pt-4">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-3 rounded-sm bg-emerald-400" />
-              <span className="text-[11px] text-slate-500">Proficient (80%+)</span>
+              <span className="text-xs text-slate-500">Proficient (80%+)</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-3 rounded-sm bg-amber-400" />
-              <span className="text-[11px] text-slate-500">Developing (50–79%)</span>
+              <span className="text-xs text-slate-500">Developing (50–79%)</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-3 rounded-sm bg-red-400" />
-              <span className="text-[11px] text-slate-500">Beginner (&lt;50%)</span>
+              <span className="text-xs text-slate-500">Beginner (&lt;50%)</span>
             </div>
           </div>
         </div>

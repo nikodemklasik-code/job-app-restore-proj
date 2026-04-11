@@ -685,7 +685,7 @@ export default function InterviewPractice() {
 
   // ── Camera setup / teardown ────────────────────────────────────────────────
 
-  const startCamera = useCallback(async (targetRef: React.RefObject<HTMLVideoElement>) => {
+  const startCamera = useCallback(async (targetRef: React.RefObject<HTMLVideoElement | null>) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       cameraStreamRef.current = stream;
@@ -812,9 +812,8 @@ export default function InterviewPractice() {
           userId,
           selectedMode,
         );
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Network error';
-        setError(`AI error: ${msg}`);
+      } catch {
+        setError('Something went wrong. Please try again.');
         setAvatarState('idle');
         setPhase('user-turn');
         return;
@@ -879,9 +878,8 @@ export default function InterviewPractice() {
         setExchangeCount(1);
         setPhase('user-turn');
         setAvatarState('listening');
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Network error';
-        setError(`Could not start interview: ${msg}`);
+      } catch {
+        setError('Could not start the interview session. Please try again.');
         setAvatarState('idle');
         setPhase('lobby');
       }
@@ -972,9 +970,8 @@ export default function InterviewPractice() {
             setPhase('user-turn');
             setAvatarState('listening');
           }
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : 'Network error';
-          setError(`AI error: ${msg}`);
+        } catch {
+          setError('Something went wrong. Please try again.');
           setAvatarState('idle');
           setPhase('user-turn');
         }
@@ -1340,7 +1337,7 @@ export default function InterviewPractice() {
                                 'Add quantified outcomes to each response',
                                 'Reduce filler words and pause instead',
                               ];
-                              void api.interview.downloadCredential.mutate({ sessionId: s.id, growthAreas }).then((res) => {
+                              void trpcClient.interview.downloadCredential.mutate({ sessionId: s.id, growthAreas }).then((res: { base64: string; filename: string }) => {
                                 const bytes = Uint8Array.from(atob(res.base64), (c) => c.charCodeAt(0));
                                 const blob = new Blob([bytes], { type: 'application/pdf' });
                                 const url = URL.createObjectURL(blob);

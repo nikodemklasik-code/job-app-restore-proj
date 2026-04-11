@@ -59,7 +59,7 @@ export function usePushNotifications(userId: string): UsePushNotificationsResult
 
       const subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(keyData.publicKey),
+        applicationServerKey: urlBase64ToUint8Array(keyData.publicKey) as unknown as ArrayBuffer,
       });
 
       const json = subscription.toJSON();

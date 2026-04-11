@@ -21,7 +21,7 @@ interface JobSourceSettingsStore {
   toggle(userId: string, providerName: string, isEnabled: boolean): Promise<void>;
 }
 
-export const useJobSourceSettingsStore = create<JobSourceSettingsStore>((set, get) => ({
+export const useJobSourceSettingsStore = create<JobSourceSettingsStore>((set, _get) => ({
   providers: [],
   isLoading: false,
 
@@ -35,7 +35,7 @@ export const useJobSourceSettingsStore = create<JobSourceSettingsStore>((set, ge
           label: p.label,
           icon: p.icon,
           description: p.description,
-          isEnabled: p.isEnabled,
+          isEnabled: Boolean(p.isEnabled),
           category: p.category,
           readiness: p.readiness,
           requiresSession: p.requiresSession,

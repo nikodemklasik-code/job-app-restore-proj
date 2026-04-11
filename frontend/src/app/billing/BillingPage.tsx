@@ -80,8 +80,8 @@ export default function BillingPage() {
           setStatusMessage({ type: 'success', text: `${plan.charAt(0).toUpperCase() + plan.slice(1)} plan activated via PayPal!` });
           void loadBillingData(userId);
         })
-        .catch((err: unknown) => {
-          setStatusMessage({ type: 'error', text: err instanceof Error ? err.message : 'PayPal capture failed.' });
+        .catch((_err: unknown) => {
+          setStatusMessage({ type: 'error', text: 'Payment capture failed. Please contact support.' });
         })
         .finally(() => setCapturingPayPal(false));
     } else if (paypalStatus === 'cancel') {
@@ -111,14 +111,14 @@ export default function BillingPage() {
       } else {
         const priceId = STRIPE_PRICE_IDS[planId];
         if (!priceId) {
-          setStatusMessage({ type: 'error', text: 'Stripe price not configured. Contact support.' });
+          setStatusMessage({ type: 'error', text: 'This plan is not available right now. Please contact support.' });
           return;
         }
         const { url } = await trpcClient.billing.createCheckoutSession.mutate({ userId, priceId, customerEmail: userEmail });
         window.location.href = url;
       }
-    } catch (err) {
-      setStatusMessage({ type: 'error', text: err instanceof Error ? err.message : 'Upgrade failed.' });
+    } catch {
+      setStatusMessage({ type: 'error', text: 'Upgrade failed. Please try again or contact support.' });
     } finally {
       setUpgradingPlan(null);
     }
@@ -337,12 +337,19 @@ export default function BillingPage() {
               <span className="inline-flex w-fit items-center rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
                 {item.saving}
               </span>
-              <div className="mt-auto flex items-center justify-center rounded-lg border border-white/10 bg-white/5 py-2 text-xs font-medium text-slate-500">
-                Coming Soon
+              <div className="mt-auto flex items-center justify-center rounded-lg border border-white/10 bg-white/5 py-2 text-xs font-medium text-slate-500"
+                title="This billing period will be available soon. Sign up for notifications below.">
+                Notify me when available →
               </div>
             </div>
           ))}
         </div>
+        <p className="text-xs text-slate-500 text-center">
+          Want to be notified when annual plans launch?{' '}
+          <a href="mailto:hello@multivohub.com?subject=Annual plan notification" className="text-indigo-400 hover:underline">
+            Let us know →
+          </a>
+        </p>
       </div>
 
       {/* Billing history */}

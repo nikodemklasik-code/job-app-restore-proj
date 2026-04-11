@@ -1,4 +1,4 @@
-import { scoreJobFit } from '../../aiPersonalizer.js';
+import { scoreJobFit } from '../aiPersonalizer.js';
 import { logScrape } from './scrapeLogStore.js';
 import { getProviders } from './providerRegistry.js';
 import type { DiscoveryInput, DiscoveryResult, ProviderContext, SourceJob } from './types.js';

@@ -334,9 +334,9 @@ function ExplainFitModal({ jobId, userId, onClose }: { jobId: string; userId: st
           </div>
         )}
 
-        {explainQuery.isError && (
+            {explainQuery.isError && (
           <p className="text-sm text-red-400">
-            {explainQuery.error instanceof Error ? explainQuery.error.message : 'Failed to analyse fit'}
+            Could not analyse fit. Please try again.
           </p>
         )}
 
@@ -448,7 +448,7 @@ function SessionPanel({ provider, status, userId }: {
         void utils.jobSessions.getStatus.invalidate();
       }
     },
-    onError: (e) => { setMsg(String(e)); setStep('error'); },
+    onError: () => { setMsg('Connection failed. Please check your credentials and try again.'); setStep('error'); },
   });
 
   const submitIndeedCode = api.jobSessions.submitIndeedCode.useMutation({
@@ -456,7 +456,7 @@ function SessionPanel({ provider, status, userId }: {
       if (data.success) { setStep('success'); void utils.jobSessions.getStatus.invalidate(); }
       else { setMsg(data.error ?? 'Code rejected'); setStep('error'); }
     },
-    onError: (e) => { setMsg(String(e)); setStep('error'); },
+    onError: () => { setMsg('Connection failed. Please check your credentials and try again.'); setStep('error'); },
   });
 
   const startGumtree = api.jobSessions.startGumtreeLogin.useMutation({
@@ -465,7 +465,7 @@ function SessionPanel({ provider, status, userId }: {
       if (data.success) { setStep('success'); void utils.jobSessions.getStatus.invalidate(); return; }
       if (data.requiresCode) { setCodeSentTo(data.codeSentTo ?? null); setStep('awaitingCode'); }
     },
-    onError: (e) => { setMsg(String(e)); setStep('error'); },
+    onError: () => { setMsg('Connection failed. Please check your credentials and try again.'); setStep('error'); },
   });
 
   const submitGumtreeCode = api.jobSessions.submitGumtreeCode.useMutation({
@@ -473,7 +473,7 @@ function SessionPanel({ provider, status, userId }: {
       if (data.success) { setStep('success'); void utils.jobSessions.getStatus.invalidate(); }
       else { setMsg(data.error ?? 'Code rejected'); setStep('error'); }
     },
-    onError: (e) => { setMsg(String(e)); setStep('error'); },
+    onError: () => { setMsg('Connection failed. Please check your credentials and try again.'); setStep('error'); },
   });
 
   const testMutation = api.jobSessions.testSession.useMutation({
@@ -612,7 +612,7 @@ function SessionPanel({ provider, status, userId }: {
               >
                 {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Connecting…</> : `Connect ${meta.label}`}
               </button>
-              <p className="text-[10px] text-slate-600 text-center">Password is used only to log in and is not saved to the database.</p>
+              <p className="text-xs text-slate-600 text-center">Your password is used only to connect and is never stored by us.</p>
             </div>
           )}
         </div>
@@ -790,7 +790,9 @@ export default function JobsDiscovery() {
                 />
                 <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${meta.color}`}>
                   {meta.label}
-                  {needsSession && !hasSession && <span className="ml-1 text-[9px] opacity-60">(no session)</span>}
+                  {needsSession && !hasSession && (
+                    <span className="ml-1 text-xs opacity-60" title="Connect this job board in Settings to enable job search here">⚠</span>
+                  )}
                 </span>
               </label>
             );
@@ -799,9 +801,9 @@ export default function JobsDiscovery() {
       </div>
 
       {/* Error */}
-      {searchQuery.isError && (
+        {searchQuery.isError && (
         <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400">
-          {searchQuery.error instanceof Error ? searchQuery.error.message : 'Search failed'}
+          Search failed. Please try again.
         </p>
       )}
 

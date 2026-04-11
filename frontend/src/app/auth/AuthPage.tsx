@@ -69,7 +69,23 @@ const DEFAULT_DEMO_VIDEOS = [
   'https://github.com/user-attachments/assets/fe7b5210-b949-4eb8-b1f4-3d4449ab53f1',
 ];
 
-/* ─── Monitor with looping video(s) / animated fallback ───────────────────── */
+/* ─── Clerk error sanitizer ────────────────────────────────────────────────── */
+/**
+ * Clerk SDK returns user-friendly messages in most cases, but occasionally
+ * leaks technical details. This strips anything that looks internal.
+ */
+function sanitizeAuthError(err: unknown, fallback: string): string {
+  const raw = err instanceof Error ? err.message : '';
+  // Strip the "Error: " prefix that Clerk sometimes prepends
+  const msg = raw.replace(/^Error:\s*/i, '').trim();
+  // If the message contains technical patterns, use the fallback
+  const TECHNICAL = /request\.body|CLERKJS|clerkError|status:\s*\d{3}|DOCTYPE|JSON|Unexpected token|FAILED_REQUEST|network|fetch|http/i;
+  if (!msg || TECHNICAL.test(msg)) return fallback;
+  // Capitalise first letter for consistency
+  return msg.charAt(0).toUpperCase() + msg.slice(1);
+}
+
+
 function DeviceMockup() {
   const multiRaw = (import.meta.env.VITE_AUTH_DEMO_VIDEO_URLS as string | undefined)?.trim() ?? '';
   const singleRaw = (import.meta.env.VITE_AUTH_DEMO_VIDEO_URL as string | undefined)?.trim() ?? '';
@@ -163,7 +179,7 @@ function DeviceMockup() {
                 <div className="flex gap-2 mt-1">
                   {(['96%', '89%', '92%'] as const).map((v, i) => (
                     <div key={v} className="flex-1 rounded-xl bg-white/5 border border-white/10 p-2">
-                      <div className="text-[10px] font-bold text-indigo-300">{v}</div>
+                      <div className="text-xs font-bold text-indigo-300">{v}</div>
                       <div
                         className="mt-1 h-1 rounded bg-indigo-500/50 bar-grow"
                         style={{ animationDelay: `${i * 0.4}s` }}
@@ -176,11 +192,11 @@ function DeviceMockup() {
                   <div className="flex-1 h-12 rounded-xl bg-indigo-600/20 border border-indigo-500/20" />
                 </div>
                 <div className="mt-auto flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[9px] font-medium text-emerald-400">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-400">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 live-dot" />
                     Live
                   </span>
-                  <span className="text-[9px] text-slate-400">Multivohub workspace</span>
+                  <span className="text-xs text-slate-400">Multivohub workspace</span>
                 </div>
               </div>
             </>
@@ -308,7 +324,7 @@ export default function AuthPage() {
         }
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Authentication failed';
+      const msg = sanitizeAuthError(err, 'Sign-in failed. Please check your email and password.');
       setError(msg.replace(/^Error: /, ''));
     } finally {
       setIsLoading(false);
@@ -335,7 +351,7 @@ export default function AuthPage() {
         setError('Could not complete sign-up. Please try again or request a new code.');
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Verification failed';
+      const msg = sanitizeAuthError(err, 'Verification failed. Please check the code and try again.');
       setError(msg.replace(/^Error: /, ''));
     } finally {
       setIsLoading(false);
@@ -350,7 +366,7 @@ export default function AuthPage() {
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
       setInfoMessage('A new code was sent to your email.');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Could not resend code';
+      const msg = sanitizeAuthError(err, 'Could not resend code. Please try again.');
       setError(msg.replace(/^Error: /, ''));
     } finally {
       setIsLoading(false);
@@ -386,7 +402,7 @@ export default function AuthPage() {
         );
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Verification failed';
+      const msg = sanitizeAuthError(err, 'Verification failed. Please check the code and try again.');
       setError(msg.replace(/^Error: /, ''));
     } finally {
       setIsLoading(false);
@@ -413,7 +429,7 @@ export default function AuthPage() {
       });
       setInfoMessage('A new code was sent to your email.');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Could not resend code';
+      const msg = sanitizeAuthError(err, 'Could not resend code. Please try again.');
       setError(msg.replace(/^Error: /, ''));
     } finally {
       setIsLoading(false);
@@ -434,7 +450,7 @@ export default function AuthPage() {
       setForgotStep('enter-code');
       setInfoMessage('We sent a reset code to your email. Enter it below together with a new password.');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Could not send reset email';
+      const msg = sanitizeAuthError(err, 'Could not send reset email. Please try again.');
       setError(msg.replace(/^Error: /, ''));
     } finally {
       setIsLoading(false);
@@ -466,7 +482,7 @@ export default function AuthPage() {
         setError(`Could not complete password reset (${result.status}). Please try again.`);
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Password reset failed';
+      const msg = sanitizeAuthError(err, 'Password reset failed. Please try again.');
       setError(msg.replace(/^Error: /, ''));
     } finally {
       setIsLoading(false);
@@ -478,14 +494,14 @@ export default function AuthPage() {
     setIsLoading(true);
     setError(null);
     try {
-      // @ts-expect-error — authenticateWithPasskey available in Clerk v5
-      const result = await signIn.authenticateWithPasskey({ flow: 'discoverable' });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await (signIn as any).authenticateWithPasskey({ flow: 'discoverable' });
       if (result.status === 'complete' && result.createdSessionId) {
         await setActive({ session: result.createdSessionId });
         void navigate('/dashboard');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Passkey sign-in failed. Try email/password or a social provider.');
+      setError(sanitizeAuthError(err, 'Passkey sign-in failed. Please try email/password or a social provider.'));
     } finally {
       setIsLoading(false);
     }
@@ -508,12 +524,7 @@ export default function AuthPage() {
         await signIn.authenticateWithRedirect(redirect);
       }
     } catch (err) {
-      const raw = err instanceof Error ? err.message : '';
-      if (raw.includes('DOCTYPE') || raw.includes('not valid JSON') || raw.includes('Unexpected token')) {
-        setError('Social sign-in is not available right now. Please use email and password.');
-      } else {
-        setError(raw || 'Sign-in with provider failed. Please try again.');
-      }
+      setError(sanitizeAuthError(err, 'Social sign-in is not available right now. Please use email and password.'));
     }
   };
 
@@ -619,7 +630,7 @@ export default function AuthPage() {
               <Sparkles className="h-4 w-4 text-white" />
             </div>
             <span className="text-base font-semibold tracking-tight text-white">MultivoHub</span>
-            <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-medium text-indigo-400">
+            <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-400">
               Career workspace
             </span>
           </div>
@@ -1007,7 +1018,7 @@ export default function AuthPage() {
 
           {/* BOTTOM — policy, comfortable margin from viewport bottom */}
           <div className="shrink-0 pb-5 pt-2 lg:pb-6">
-            <p className="text-center text-[10px] leading-relaxed text-slate-600">
+            <p className="text-center text-xs leading-relaxed text-slate-600">
               By continuing you agree to our{' '}
               <a
                 href="/terms"

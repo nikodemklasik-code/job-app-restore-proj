@@ -50,6 +50,10 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    /* Explicit font-family fallback for non-Tailwind rendering contexts */
+    font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif);
+    /* Comfortable minimum size for readability */
+    font-size: 16px;
     /* Improved readability: comfortable line-height and gentle letter-spacing */
     line-height: 1.6;
     letter-spacing: 0.008em;

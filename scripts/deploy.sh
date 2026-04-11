@@ -121,4 +121,4 @@ ssh "${HOST}" "bash ${REMOTE_BASE}/scripts/smoke-test.sh"
 
 echo ""
 echo "✅  Deploy complete — $(date -u '+%Y-%m-%d %H:%M UTC')"
-echo "    https://jobapp.multivohub.com"
+echo "    https://jobs.multivohub.com"
