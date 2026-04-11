@@ -576,21 +576,21 @@ export default function AuthPage() {
         {/* ══════════════════════════════════════════════════════════════════════
             LEFT PANEL — visual (fixed viewport: logo → ticker → monitor → copy)
         ══════════════════════════════════════════════════════════════════════ */}
-        <div className="relative hidden min-h-0 flex-col overflow-hidden bg-[#020617] lg:flex lg:h-full lg:flex-1 lg:max-w-[620px]">
+        <div className="relative hidden min-h-0 flex-col overflow-hidden bg-[#020617] lg:flex lg:h-full lg:flex-1">
           {/* Background image */}
           <img
             src="https://images.pexels.com/photos/1181467/pexels-photo-1181467.jpeg?auto=compress&cs=tinysrgb&w=1600"
             alt=""
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.10]"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.15]"
           />
           <div
             className="pointer-events-none absolute inset-0"
             style={{
-              background: 'linear-gradient(135deg, #020617 0%, rgba(15,23,42,.92) 55%, rgba(30,27,75,.72) 100%)',
+              background: 'linear-gradient(135deg, #020617 0%, rgba(15,23,42,.88) 55%, rgba(30,27,75,.65) 100%)',
             }}
           />
           <div
-            className="pointer-events-none absolute inset-0 opacity-[0.035]"
+            className="pointer-events-none absolute inset-0 opacity-[0.06]"
             style={{
               backgroundImage:
                 'linear-gradient(#6366f1 1px,transparent 1px),linear-gradient(90deg,#6366f1 1px,transparent 1px)',
@@ -598,10 +598,10 @@ export default function AuthPage() {
             }}
           />
           <div
-            className="blob-pulse pointer-events-none absolute left-[18%] top-[22%] h-80 w-80 rounded-full bg-indigo-500/20 blur-[80px]"
+            className="blob-pulse pointer-events-none absolute left-[18%] top-[22%] h-80 w-80 rounded-full bg-indigo-500/25 blur-[80px]"
           />
           <div
-            className="blob-pulse pointer-events-none absolute bottom-[28%] right-[22%] h-64 w-64 rounded-full bg-violet-600/15 blur-[80px]"
+            className="blob-pulse pointer-events-none absolute bottom-[28%] right-[22%] h-64 w-64 rounded-full bg-violet-600/20 blur-[80px]"
             style={{ animationDelay: '3.5s' }}
           />
 
@@ -654,14 +654,14 @@ export default function AuthPage() {
               <DeviceMockup />
             </div>
 
-            <div className="animate-floatIn mx-auto max-w-lg shrink-0 space-y-2.5 px-2 text-center lg:space-y-3">
-              <h1 className="text-xl font-bold leading-tight text-white lg:text-2xl">
+            <div className="animate-floatIn mx-auto max-w-lg shrink-0 space-y-3 px-2 text-center lg:space-y-4">
+              <h1 className="text-2xl font-bold leading-tight text-white lg:text-3xl">
                 Your career process,{' '}
                 <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
                   in one clear space.
                 </span>
               </h1>
-              <p className="mx-auto text-xs leading-relaxed text-slate-400 sm:text-sm">
+              <p className="mx-auto text-sm leading-relaxed text-slate-300 sm:text-base">
                 From CV and profile through discovery, applications, and interview practice — structured tools with
                 UK-oriented job search in mind.
               </p>
@@ -669,7 +669,7 @@ export default function AuthPage() {
                 {['Profile & CV', 'Interview Ready', 'Career AI', 'Job Tracking', 'Auto-Apply'].map((pill) => (
                   <span
                     key={pill}
-                    className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] text-slate-300 sm:px-3 sm:py-1 sm:text-xs"
+                    className="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-xs font-medium text-slate-200 sm:px-3.5"
                   >
                     {pill}
                   </span>
@@ -683,7 +683,7 @@ export default function AuthPage() {
             RIGHT PANEL — auth form
         ══════════════════════════════════════════════════════════════════════ */}
         <div
-          className="relative z-20 flex w-full min-w-0 max-w-full shrink-0 flex-col overflow-y-auto overflow-x-hidden border-l border-white/5 bg-[#0a0f1e] px-7 lg:h-screen lg:min-h-0 lg:max-w-[520px] lg:overflow-hidden lg:px-8"
+          className="relative z-20 flex w-full min-w-0 flex-col overflow-y-auto overflow-x-hidden border-l border-white/5 bg-[#0a0f1e] px-7 lg:h-screen lg:min-h-0 lg:w-[460px] lg:flex-none lg:overflow-hidden lg:px-8"
           style={{ minHeight: '100vh' }}
         >
           {/* TOP — welcome block, fixed margin from top */}
