@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { useThemeStore } from '@/stores/themeStore';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import OnboardingModal, { hasCompletedOnboarding } from '../onboarding/OnboardingModal';
 
 // ─── Text-to-Speech floating button ──────────────────────────────────────────
 function TTSButton() {
@@ -68,6 +69,7 @@ export default function AppShell() {
   const { focusMode } = useThemeStore();
   const ensureFromClerk = api.profile.ensureFromClerk.useMutation();
   const ensuredForClerkId = useRef<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     if (!userLoaded || !user) return;
@@ -80,6 +82,9 @@ export default function AppShell() {
       [user.firstName, user.lastName].filter(Boolean).join(' ').trim() ||
       undefined;
     ensureFromClerk.mutate({ userId: user.id, email, fullName: display });
+    if (!hasCompletedOnboarding()) {
+      setShowOnboarding(true);
+    }
   }, [userLoaded, user, ensureFromClerk]);
 
   if (!isLoaded) {
@@ -111,6 +116,7 @@ export default function AppShell() {
         </main>
       </div>
       <TTSButton />
+      {showOnboarding && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
     </div>
   );
 }

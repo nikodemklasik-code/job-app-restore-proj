@@ -68,6 +68,10 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
   interview:        { label: 'Interview',      color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
   accepted:         { label: 'Offer',          color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
   rejected:         { label: 'Rejected',       color: 'bg-red-500/20 text-red-400 border-red-500/30' },
+  expired:          { label: 'Expired',        color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
+  closed:           { label: 'Closed',         color: 'bg-slate-600/20 text-slate-500 border-slate-600/30' },
+  archived:         { label: 'Archived',       color: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30' },
+  unavailable:      { label: 'Unavailable',    color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' },
 };
 
 function ApplicationStatusBadge({ status }: { status: string }) {

@@ -333,7 +333,7 @@ export default function ProfilePage() {
             <FileText className="h-5 w-5 text-indigo-400" />
           </div>
           <div>
-            <h2 className="font-semibold text-white">Upload CV (PDF)</h2>
+            <h2 className="font-semibold text-white">CV Studio</h2>
             <p className="text-xs text-slate-400">Upload your CV to auto-fill your profile</p>
           </div>
         </div>
