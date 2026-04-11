@@ -105,6 +105,11 @@ jobs:
             --exclude='node_modules' \
             backend/dist/ \
             ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/multivohub-jobapp/dist/backend/
+          # Package manifests required so npm ci can install/update node_modules on the VPS
+          rsync -avz \
+            backend/package.json \
+            backend/package-lock.json \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/multivohub-jobapp/backend/
           rsync -avz \
             infra/ecosystem.config.cjs \
             lib/envSchema.mjs \
@@ -115,7 +120,7 @@ jobs:
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} '
             set -e
             cd /var/www/multivohub-jobapp
-            npm ci --omit=dev --prefix backend 2>/dev/null || true
+            npm ci --omit=dev --prefix backend
             pm2 reload infra/ecosystem.config.cjs --update-env || pm2 start infra/ecosystem.config.cjs
             pm2 save
           '

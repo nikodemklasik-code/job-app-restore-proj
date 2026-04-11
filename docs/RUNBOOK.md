@@ -8,6 +8,7 @@
 
 | Task | Command |
 |------|---------|
+| **Fresh VPS setup** | `bash scripts/setup-vps.sh` |
 | Deploy (local) | `bash scripts/deploy.sh` |
 | Rollback frontend | `bash scripts/rollback.sh` (on VPS) |
 | Smoke test | `bash scripts/smoke-test.sh` (on VPS) |
@@ -19,7 +20,32 @@
 
 ---
 
-## 1. Deploy
+## 1. Fresh VPS setup
+
+Run this **once** when deploying to a blank server (or after a full wipe):
+
+```bash
+# From repo root (builds locally, then wipes + bootstraps the VPS)
+bash scripts/setup-vps.sh
+```
+
+What it does:
+1. Builds frontend + backend locally
+2. Wipes `/var/www/multivohub-jobapp/` (backs up `.env` if present)
+3. Syncs all files: dist, backend `package.json`/`package-lock.json`, infra, scripts, nginx config
+4. Runs `npm ci --omit=dev` on the VPS to install backend production deps
+5. Starts PM2 (`pm2 start infra/ecosystem.config.cjs`)
+6. Symlinks the nginx config and reloads nginx
+7. Runs a smoke test
+
+**After setup:**
+- If `.env` didn't exist yet: `scp .env.production root@<VPS>:/var/www/multivohub-jobapp/.env`, then reload PM2
+- SSL (first time): `ssh root@<VPS> 'certbot --nginx -d jobs.multivohub.com'`
+- Subsequent deploys: `bash scripts/deploy.sh` or push to `main`
+
+---
+
+## 2. Deploy
 
 ### Automated (GitHub Actions)
 
@@ -63,7 +89,7 @@ DEPLOY_HOST=root@147.93.86.209 bash scripts/deploy.sh
 
 ---
 
-## 2. Rollback
+## 3. Rollback
 
 Frontend rollback (restores previous dist backup):
 
@@ -81,7 +107,7 @@ Backend rollback: re-run the previous deploy or checkout the previous commit and
 
 ---
 
-## 3. Smoke test
+## 4. Smoke test
 
 ```bash
 # On VPS
@@ -98,7 +124,7 @@ Checks:
 
 ---
 
-## 4. Environment variables
+## 5. Environment variables
 
 ### Validate
 
@@ -128,7 +154,7 @@ See `.env.example` in the repo root. Required variables:
 
 ---
 
-## 5. PM2
+## 6. PM2
 
 ### Processes
 
@@ -164,7 +190,7 @@ pm2 startup   # follow the printed command to register PM2 as a system service
 
 ---
 
-## 6. Nginx
+## 7. Nginx
 
 Config: `infra/nginx/multivohub-jobapp.conf`
 
@@ -182,7 +208,7 @@ certbot --nginx -d jobapp.multivohub.com
 
 ---
 
-## 7. Database
+## 8. Database
 
 ```bash
 # Push schema changes (Drizzle)
@@ -194,7 +220,7 @@ bash scripts/db-push-on-vps.sh
 
 ---
 
-## 8. Auto-apply worker
+## 9. Auto-apply worker
 
 The `jobapp-worker` PM2 process polls `auto_apply_queue` every 30 seconds.
 
@@ -212,7 +238,7 @@ If the worker crashes, PM2 restarts it automatically. Jobs stuck in `processing`
 
 ---
 
-## 9. Troubleshooting
+## 10. Troubleshooting
 
 ### Backend won't start
 ```bash

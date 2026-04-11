@@ -95,6 +95,12 @@ rsync -avz --delete \
   --exclude='node_modules' \
   "$ROOT/backend/dist/" "${HOST}:${REMOTE_BASE}/dist/backend/"
 
+# Package manifests needed so npm ci can install/update node_modules on the server
+rsync -avz \
+  "$ROOT/backend/package.json" \
+  "$ROOT/backend/package-lock.json" \
+  "${HOST}:${REMOTE_BASE}/backend/"
+
 rsync -avz \
   "$ROOT/infra/ecosystem.config.cjs" \
   "$ROOT/lib/envSchema.mjs" \
@@ -105,11 +111,12 @@ rsync -avz \
   "$ROOT/scripts/rollback.sh" \
   "${HOST}:${REMOTE_BASE}/scripts/"
 
-# 5. Reload PM2
-echo "[5/6] Reloading PM2 on VPS…"
+# 5. Install production deps + reload PM2
+echo "[5/6] Installing backend deps + reloading PM2 on VPS…"
 ssh "${HOST}" '
   set -e
   cd '"${REMOTE_BASE}"'
+  npm ci --omit=dev --prefix backend
   pm2 reload infra/ecosystem.config.cjs --update-env \
     || pm2 start infra/ecosystem.config.cjs
   pm2 save
