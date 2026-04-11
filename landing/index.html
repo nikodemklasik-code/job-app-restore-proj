@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MultivoHub — Career Workspace</title>
+  <meta name="description" content="Your career process, in one clear space. CV, job tracking, interview practice and AI tools — UK-oriented." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #020617;
+      --surface:  #0a0f1e;
+      --border:   rgba(255,255,255,.08);
+      --indigo:   #6366f1;
+      --indigo-h: #4f46e5;
+      --purple:   #a855f7;
+      --text:     #f1f5f9;
+      --muted:    #94a3b8;
+      --app-url:  "https://jobs.multivohub.com/auth";
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 50;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .9rem 5%;
+      border-bottom: 1px solid var(--border);
+      background: rgba(2,6,23,.85);
+      backdrop-filter: blur(14px);
+    }
+    .nav-logo { display: flex; align-items: center; gap: .6rem; text-decoration: none; }
+    .nav-logo-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--indigo), var(--purple));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .nav-logo-text { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700; font-size: 1rem; color: var(--text); }
+    .nav-cta {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .5rem 1.2rem; border-radius: 10px;
+      background: var(--indigo); color: #fff;
+      font-size: .85rem; font-weight: 600; text-decoration: none;
+      transition: background .2s, transform .15s;
+    }
+    .nav-cta:hover { background: var(--indigo-h); transform: translateY(-1px); }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center;
+      padding: 6rem 5% 5rem;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 60% 45% at 50% 0%, rgba(99,102,241,.18) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 30% at 80% 60%, rgba(168,85,247,.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero > * { position: relative; z-index: 1; }
+    .badge {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .3rem .9rem; border-radius: 999px;
+      border: 1px solid rgba(99,102,241,.35); background: rgba(99,102,241,.1);
+      font-size: .75rem; font-weight: 600; color: #a5b4fc;
+      margin-bottom: 1.5rem;
+    }
+    .hero-headline {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: clamp(2.2rem, 5vw, 3.8rem);
+      font-weight: 800; line-height: 1.15;
+      max-width: 760px;
+    }
+    .hero-headline span { background: linear-gradient(90deg, var(--indigo), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero-sub {
+      margin: 1.4rem 0 2.4rem;
+      max-width: 540px; font-size: 1.05rem;
+      line-height: 1.7; color: var(--muted);
+    }
+    .hero-ctas { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .85rem 2rem; border-radius: 12px;
+      background: var(--indigo); color: #fff;
+      font-size: 1rem; font-weight: 700; text-decoration: none;
+      transition: background .2s, box-shadow .2s, transform .15s;
+      box-shadow: 0 0 0 0 rgba(99,102,241,0);
+    }
+    .btn-primary:hover {
+      background: var(--indigo-h);
+      box-shadow: 0 8px 32px rgba(99,102,241,.4);
+      transform: translateY(-2px);
+    }
+    .btn-secondary {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .85rem 2rem; border-radius: 12px;
+      border: 1px solid var(--border); background: rgba(255,255,255,.04);
+      color: var(--text); font-size: 1rem; font-weight: 600; text-decoration: none;
+      transition: background .2s, transform .15s;
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,.08); transform: translateY(-2px); }
+
+    /* ── TRUST BAR ── */
+    .trust {
+      display: flex; align-items: center; justify-content: center;
+      gap: .5rem; flex-wrap: wrap;
+      margin-top: 3rem; padding-top: 2rem;
+      border-top: 1px solid var(--border);
+      font-size: .8rem; color: var(--muted);
+    }
+    .trust-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--muted); opacity: .4; }
+
+    /* ── FEATURES ── */
+    .section { padding: 5rem 5%; }
+    .section-label { text-align: center; font-size: .8rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: #a5b4fc; margin-bottom: 1rem; }
+    .section-title { text-align: center; font-family: 'Plus Jakarta Sans', sans-serif; font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 800; line-height: 1.2; max-width: 640px; margin: 0 auto 1rem; }
+    .section-sub { text-align: center; color: var(--muted); font-size: 1rem; max-width: 480px; margin: 0 auto 3.5rem; line-height: 1.7; }
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; max-width: 1100px; margin: 0 auto; }
+    .feature-card {
+      padding: 1.6rem;
+      border: 1px solid var(--border); border-radius: 16px;
+      background: var(--surface);
+      transition: border-color .2s, transform .2s;
+    }
+    .feature-card:hover { border-color: rgba(99,102,241,.4); transform: translateY(-3px); }
+    .feature-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; margin-bottom: 1rem;
+    }
+    .feature-card h3 { font-size: .95rem; font-weight: 700; margin-bottom: .4rem; }
+    .feature-card p { font-size: .85rem; color: var(--muted); line-height: 1.65; }
+
+    /* ── HOW IT WORKS ── */
+    .steps { display: flex; flex-direction: column; gap: 1.5rem; max-width: 680px; margin: 0 auto; }
+    .step { display: flex; gap: 1.2rem; align-items: flex-start; }
+    .step-num {
+      flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--indigo), var(--purple));
+      display: flex; align-items: center; justify-content: center;
+      font-size: .8rem; font-weight: 800; color: #fff;
+    }
+    .step-body h4 { font-weight: 700; font-size: .95rem; margin-bottom: .3rem; }
+    .step-body p { color: var(--muted); font-size: .85rem; line-height: 1.6; }
+
+    /* ── CTA BLOCK ── */
+    .cta-block {
+      margin: 0 5% 5rem;
+      padding: 3.5rem 2rem;
+      border-radius: 24px;
+      border: 1px solid rgba(99,102,241,.25);
+      background: linear-gradient(135deg, rgba(99,102,241,.1) 0%, rgba(168,85,247,.07) 100%);
+      text-align: center;
+    }
+    .cta-block h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 800; margin-bottom: .8rem; }
+    .cta-block p { color: var(--muted); margin-bottom: 2rem; font-size: .95rem; }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem 5%;
+      display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: center;
+      font-size: .8rem; color: var(--muted);
+    }
+    footer a { color: var(--muted); text-decoration: none; transition: color .2s; }
+    footer a:hover { color: var(--text); }
+    .footer-links { display: flex; gap: 1.4rem; flex-wrap: wrap; }
+
+    @media (max-width: 600px) {
+      .hero { padding: 4rem 5% 3.5rem; }
+      .btn-primary, .btn-secondary { width: 100%; justify-content: center; }
+      .hero-ctas { flex-direction: column; align-items: stretch; width: 100%; max-width: 340px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <a href="https://jobs.multivohub.com/auth" class="nav-logo">
+      <div class="nav-logo-icon">⚡</div>
+      <span class="nav-logo-text">MultivoHub</span>
+    </a>
+    <a href="https://jobs.multivohub.com/auth" class="nav-cta">Sign In →</a>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="badge">⚡ UK-oriented career tools</div>
+    <h1 class="hero-headline">
+      Your career process,<br>
+      <span>in one clear space.</span>
+    </h1>
+    <p class="hero-sub">
+      From CV and profile through job discovery, application tracking, and AI-powered interview practice — everything in one structured workspace.
+    </p>
+    <div class="hero-ctas">
+      <a href="https://jobs.multivohub.com/auth" class="btn-primary">Get Started Free →</a>
+      <a href="https://jobs.multivohub.com/auth" class="btn-secondary">Sign In</a>
+    </div>
+    <div class="trust">
+      <span>Free to use</span>
+      <span class="trust-dot"></span>
+      <span>No credit card required</span>
+      <span class="trust-dot"></span>
+      <span>UK job market focus</span>
+      <span class="trust-dot"></span>
+      <span>Your data, your control</span>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="section">
+    <div class="section-label">Everything you need</div>
+    <h2 class="section-title">One workspace for your entire job search</h2>
+    <p class="section-sub">No more juggling spreadsheets, browser tabs, and notes. MultivoHub keeps your career process structured and clear.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(99,102,241,.15);">👤</div>
+        <h3>Profile &amp; CV Builder</h3>
+        <p>Build a structured profile once. Generate tailored CVs for every job with one click, powered by AI.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(16,185,129,.15);">🔍</div>
+        <h3>Job Discovery</h3>
+        <p>Search multiple UK job boards in one place. See job-fit scores based on your profile before you apply.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(245,158,11,.15);">📋</div>
+        <h3>Application Tracking</h3>
+        <p>Track every application — status, notes, follow-ups. Never lose track of where you stand.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(168,85,247,.15);">🎙️</div>
+        <h3>Interview Practice</h3>
+        <p>AI-powered mock interviews with real-time STAR feedback. Behavioural, technical, HR — all modes covered.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(239,68,68,.15);">✍️</div>
+        <h3>Cover Letter AI</h3>
+        <p>Generate cover letters matched to the job description in seconds. Edit, rewrite, and download as PDF.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(14,165,233,.15);">💡</div>
+        <h3>Career AI Assistant</h3>
+        <p>Ask anything — salary advice, skill gaps, negotiation tips. Your personal career advisor, always on.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="section" style="padding-top:0">
+    <div class="section-label">How it works</div>
+    <h2 class="section-title">Up and running in minutes</h2>
+    <p class="section-sub">No onboarding calls. No setup fees. Just sign in and start.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Create your account</h4>
+          <p>Sign up with email, Google, or Apple. Your workspace is ready instantly — no credit card needed.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Build your profile</h4>
+          <p>Add your work history, skills, and preferences once. The AI uses it to tailor every CV and cover letter.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Discover &amp; track jobs</h4>
+          <p>Search UK job boards, see match scores, apply — and track every application in your pipeline.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Prepare &amp; win</h4>
+          <p>Practice interviews with AI feedback, negotiate better offers, and land your next role with confidence.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA BLOCK -->
+  <div class="cta-block">
+    <h2>Ready to take control of your job search?</h2>
+    <p>Join MultivoHub and bring structure to your career process — free to start.</p>
+    <a href="https://jobs.multivohub.com/auth" class="btn-primary" style="font-size:.95rem;">Create Free Account →</a>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <span>© 2025 MultivoHub. UK-oriented career tools.</span>
+    <div class="footer-links">
+      <a href="https://jobs.multivohub.com/auth">Sign In</a>
+      <a href="https://jobs.multivohub.com/privacy">Privacy</a>
+      <a href="https://jobs.multivohub.com/terms">Terms</a>
+      <a href="mailto:support@multivohub.com">Contact</a>
+    </div>
+  </footer>
+
+</body>
+</html>
