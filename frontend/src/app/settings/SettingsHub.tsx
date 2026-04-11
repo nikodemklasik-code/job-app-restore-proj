@@ -22,6 +22,8 @@ import {
   Moon,
   Monitor,
   PanelLeftClose,
+  Cloud,
+  Anchor,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -705,6 +707,20 @@ const THEME_OPTIONS = [
     label: 'Focus (calm blue)',
     description:
       'Minimal blue-grey palette with all animations removed. Reduces distractions for ADHD and hypersensitivity.',
+  },
+  {
+    id: 'sky' as const,
+    Icon: Cloud,
+    label: 'Sky',
+    description:
+      'Light blue background with vivid sky-blue accents. A fresh, airy feel for daytime use.',
+  },
+  {
+    id: 'navy' as const,
+    Icon: Anchor,
+    label: 'Navy',
+    description:
+      'Deep navy background with bright blue accents. A rich dark theme with a nautical warmth.',
   },
 ];
 

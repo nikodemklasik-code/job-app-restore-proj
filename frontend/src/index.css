@@ -289,6 +289,50 @@
   border: 1px solid hsl(var(--border)) !important;
 }
 
+/* ─── Sky theme (jasny błękit / light blue) ─────────────────────────────────── */
+.theme-sky {
+  --background: 201 70% 96%;       /* very light sky blue */
+  --foreground: 215 45% 18%;       /* dark navy text */
+  --card: 201 55% 98%;             /* near-white blue card */
+  --card-foreground: 215 45% 18%;
+  --border: 201 40% 84%;           /* soft blue border */
+  --input: 201 40% 92%;
+  --primary: 201 80% 42%;          /* vivid sky blue */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 201 40% 90%;
+  --secondary-foreground: 215 45% 20%;
+  --muted: 201 40% 92%;
+  --muted-foreground: 215 25% 50%;
+  --accent: 201 50% 86%;
+  --accent-foreground: 215 45% 18%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 201 80% 42%;
+  --radius: 0.75rem;
+}
+
+/* ─── Navy theme (granatowy / dark navy) ────────────────────────────────────── */
+.theme-navy {
+  --background: 222 47% 11%;       /* deep navy */
+  --foreground: 214 35% 88%;       /* light blue-grey text */
+  --card: 222 40% 15%;             /* slightly lighter navy for cards */
+  --card-foreground: 214 35% 88%;
+  --border: 222 30% 22%;           /* subtle navy border */
+  --input: 222 30% 18%;
+  --primary: 214 100% 65%;         /* bright cornflower blue */
+  --primary-foreground: 222 47% 8%;
+  --secondary: 222 30% 20%;
+  --secondary-foreground: 214 35% 85%;
+  --muted: 222 30% 20%;
+  --muted-foreground: 214 25% 60%;
+  --accent: 222 35% 25%;
+  --accent-foreground: 214 35% 88%;
+  --destructive: 0 62.8% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 214 100% 65%;
+  --radius: 0.75rem;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

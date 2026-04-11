@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type Theme = 'light' | 'dark' | 'system' | 'neurodiversity' | 'high-contrast' | 'focus';
+type Theme = 'light' | 'dark' | 'system' | 'neurodiversity' | 'high-contrast' | 'focus' | 'sky' | 'navy';
 
 interface ThemeStore {
   theme: Theme;
@@ -10,7 +10,7 @@ interface ThemeStore {
   initTheme: () => void;
 }
 
-const THEME_CLASSES: Theme[] = ['light', 'dark', 'system', 'neurodiversity', 'high-contrast', 'focus'];
+const THEME_CLASSES: Theme[] = ['light', 'dark', 'system', 'neurodiversity', 'high-contrast', 'focus', 'sky', 'navy'];
 
 const applyTheme = (theme: Theme) => {
   const root = document.documentElement;
@@ -26,7 +26,7 @@ const applyTheme = (theme: Theme) => {
   } else if (theme === 'system') {
     const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     root.classList.toggle('dark', isDark);
-  } else if (theme === 'neurodiversity' || theme === 'high-contrast' || theme === 'focus') {
+  } else if (theme !== 'light') {
     root.classList.add(`theme-${theme}`);
   }
   // 'light' — no classes needed, default CSS vars apply
