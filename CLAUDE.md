@@ -42,10 +42,23 @@ ssh root@147.93.86.209 "pm2 restart jobapp-server"
 - Web server: Nginx (config: `infra/nginx/multivohub-jobapp.conf`)
 
 ## Workflow z wieloma agentami
-- **Claude** → gałąź `claude/improvements`
-- **GitHub Copilot / inny agent** → gałąź `copilot/*` lub `neurodiversity`
-- Właściciel projektu merguje PRy do `main`
-- Przed nową sesją: `git pull origin main` (lub merge `main` do swojej gałęzi)
+
+### Zasady (potwierdzone przez oba agenty)
+| Agent | Gałąź | PR | Merge |
+|---|---|---|---|
+| **Claude** | `claude/improvements` (lub `claude/<temat>`) | otwiera PR | właściciel |
+| **GitHub Copilot** | `copilot/<temat>` | otwiera PR | właściciel |
+| **main** | zawsze stabilny | — | tylko właściciel |
+
+### Reguły dla Claude'a
+- Na początku każdej sesji: `git fetch origin && git merge origin/main` (sync z mainem)
+- Nigdy nie commituj do `main` ani do gałęzi `copilot/*`
+- Jeden PR = jeden temat (nie mieszaj niezwiązanych zmian)
+- Konflikty rozwiązuje właściciel podczas merge PR
+
+### Kiedy mogą być konflikty
+Tylko podczas merge PR — kontrolowany proces po stronie właściciela.
+Ryzyko: Claude i Copilot edytują ten sam plik w tym samym czasie → właściciel rozwiązuje przy merge.
 
 ## Kluczowe endpointy backendu
 - `/api/interview/transcribe` — Whisper STT (FormData: `audio` blob)
