@@ -17,6 +17,10 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 // ─── Fail-fast ENV validation ─────────────────────────────────────────────────
 // Skip in test environment to allow partial ENV in unit tests
 if (process.env.NODE_ENV !== 'test') {
+  // Path resolves correctly at runtime from dist/backend/src/ → repo root
+  // (compile-time path differs from runtime path due to rootDir: ".." in tsconfig)
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   const { requireValidEnv } = await import('../../../../lib/envSchema.mjs');
   requireValidEnv();
 }
