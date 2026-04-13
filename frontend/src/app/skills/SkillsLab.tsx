@@ -1,9 +1,219 @@
 import { useState, useEffect } from 'react';
-import { FlaskConical, Loader2, ChevronRight, AlertCircle, BookOpen, ChevronDown, ExternalLink, Zap } from 'lucide-react';
+import { FlaskConical, Loader2, ChevronRight, AlertCircle, BookOpen, ChevronDown, ExternalLink, Zap, TrendingUp, Clock, Award } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import { useProfileStore } from '@/stores/profileStore';
 import { useBillingStore } from '@/stores/billingStore';
+
+// ── Mock data for Skills Gap & Courses sections ───────────────────────────
+
+const MY_SKILLS_MOCK = [
+  { name: 'React', current: 80 },
+  { name: 'Node.js', current: 60 },
+  { name: 'TypeScript', current: 75 },
+  { name: 'AWS', current: 30 },
+  { name: 'Docker', current: 45 },
+  { name: 'SQL', current: 70 },
+];
+
+const MARKET_REQUIREMENTS_MOCK = [
+  { name: 'React', required: 90 },
+  { name: 'Node.js', required: 85 },
+  { name: 'TypeScript', required: 80 },
+  { name: 'AWS', required: 60 },
+  { name: 'Docker', required: 65 },
+  { name: 'SQL', required: 70 },
+];
+
+const COURSES_MOCK = [
+  { name: 'AWS Certified Developer – Associate', platform: 'Udemy', duration: '30h', url: '#', skills: ['AWS'] },
+  { name: 'Docker & Kubernetes: The Complete Guide', platform: 'Udemy', duration: '22h', url: '#', skills: ['Docker'] },
+  { name: 'Node.js: Advanced Concepts', platform: 'Udemy', duration: '16h', url: '#', skills: ['Node.js'] },
+  { name: 'React – The Complete Guide', platform: 'Coursera', duration: '48h', url: '#', skills: ['React', 'TypeScript'] },
+  { name: 'The Web Developer Bootcamp', platform: 'freeCodeCamp', duration: '60h', url: '#', skills: ['Node.js', 'SQL'] },
+];
+
+function gapColor(current: number, required: number): string {
+  const diff = required - current;
+  if (diff <= 0) return '#34d399'; // green — meets or exceeds
+  if (diff < 15) return '#f97316'; // orange — close
+  return '#f87171'; // red — significant gap
+}
+
+// ── Monetisation Zone ─────────────────────────────────────────────────────
+
+function MonetisationZone() {
+  return (
+    <div className="space-y-4">
+      {/* Salary cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {/* Current valuation */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Obecna wycena rynkowa</p>
+          <p className="text-2xl font-black text-white">£42,000 – £55,000</p>
+          <p className="text-sm font-medium text-slate-400">/ rok</p>
+          <p className="text-xs text-slate-500 mt-1">Na podstawie Twoich obecnych kwalifikacji</p>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-emerald-400" style={{ width: '62%' }} />
+          </div>
+        </div>
+        {/* Max potential */}
+        <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-5 space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
+            <TrendingUp className="inline h-3.5 w-3.5 mr-1" />
+            Potencjał max
+          </p>
+          <p className="text-2xl font-black text-white">£65,000 – £85,000</p>
+          <p className="text-sm font-medium text-indigo-300">/ rok</p>
+          <p className="text-xs text-slate-500 mt-1">Po osiągnięciu celów kariery</p>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" style={{ width: '88%' }} />
+          </div>
+        </div>
+      </div>
+      {/* Disclaimer */}
+      <p className="text-xs text-slate-500 leading-relaxed">
+        ⚠️ Wartości szacunkowe. Rzeczywiste wynagrodzenie zależy od wielu czynników — lokalizacji, firmy, negocjacji.{' '}
+        <a href="#" className="underline hover:text-slate-300 transition-colors">Szczegóły metodologii: Warunki</a>
+      </p>
+    </div>
+  );
+}
+
+// ── Skills Gap Split ──────────────────────────────────────────────────────
+
+function SkillsGapSplit() {
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {/* Left — My skills */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
+        <h3 className="font-semibold text-white text-sm uppercase tracking-wider">Twoje skille</h3>
+        <div className="space-y-3">
+          {MY_SKILLS_MOCK.map((skill) => {
+            const req = MARKET_REQUIREMENTS_MOCK.find((r) => r.name === skill.name)?.required ?? 70;
+            const color = gapColor(skill.current, req);
+            return (
+              <div key={skill.name} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-300">{skill.name}</span>
+                  <span className="font-semibold" style={{ color }}>{skill.current}%</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${skill.current}%`, backgroundColor: color }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {/* Right — Market requirements */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
+        <h3 className="font-semibold text-white text-sm uppercase tracking-wider">Wymagania rynkowe</h3>
+        <div className="space-y-3">
+          {MARKET_REQUIREMENTS_MOCK.map((req) => {
+            const mine = MY_SKILLS_MOCK.find((s) => s.name === req.name)?.current ?? 0;
+            const color = gapColor(mine, req.required);
+            return (
+              <div key={req.name} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-300">{req.name}</span>
+                  <span className="font-semibold text-slate-400">{req.required}% wymagane</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${req.required}%`, backgroundColor: color }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {/* Legend */}
+        <div className="flex flex-wrap items-center gap-3 border-t border-white/10 pt-3">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-3 rounded-sm bg-emerald-400" />
+            <span className="text-xs text-slate-500">Spełnione</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-3 rounded-sm bg-orange-400" />
+            <span className="text-xs text-slate-500">Bliskie (&lt;15%)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-3 rounded-sm bg-red-400" />
+            <span className="text-xs text-slate-500">Luka (&gt;15%)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Recommended Courses ───────────────────────────────────────────────────
+
+const PLATFORM_COLORS: Record<string, string> = {
+  Udemy: 'rgba(167,139,250,0.15)',
+  Coursera: 'rgba(59,130,246,0.15)',
+  freeCodeCamp: 'rgba(52,211,153,0.15)',
+};
+const PLATFORM_TEXT: Record<string, string> = {
+  Udemy: '#a78bfa',
+  Coursera: '#93c5fd',
+  freeCodeCamp: '#34d399',
+};
+
+function RecommendedCourses() {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Award className="h-5 w-5 text-indigo-400" />
+        <h2 className="font-semibold text-white">Rekomendowane kursy</h2>
+        <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-400">
+          {COURSES_MOCK.length} kursów
+        </span>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {COURSES_MOCK.map((course, i) => (
+          <a
+            key={i}
+            href={course.url}
+            className="group rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3 hover:border-indigo-500/40 hover:bg-white/[0.08] transition-all"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-semibold text-white leading-snug group-hover:text-indigo-200 transition-colors">
+                {course.name}
+              </p>
+              <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-600 group-hover:text-indigo-400 transition-colors mt-0.5" />
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <span
+                className="rounded-md px-2 py-0.5 font-medium"
+                style={{ background: PLATFORM_COLORS[course.platform] ?? 'rgba(255,255,255,0.08)', color: PLATFORM_TEXT[course.platform] ?? '#e2e8f0' }}
+              >
+                {course.platform}
+              </span>
+              <Clock className="h-3 w-3 text-slate-500" />
+              <span className="text-slate-500">{course.duration}</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {course.skills.map((s) => (
+                <span
+                  key={s}
+                  className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-medium text-slate-400"
+                >
+                  {s}
+                </span>
+              ))}
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -321,6 +531,15 @@ export default function SkillsLab() {
           </a>
         </div>
       )}
+
+      {/* ── GÓRNA STREFA — CV / Skill Monetisation ── */}
+      <MonetisationZone />
+
+      {/* ── ŚRODKOWA STREFA — Skills Gap Split ── */}
+      <SkillsGapSplit />
+
+      {/* ── DOLNA STREFA — Rekomendowane kursy ── */}
+      <RecommendedCourses />
 
       {/* 2-column layout */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
