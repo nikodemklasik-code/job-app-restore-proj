@@ -3,8 +3,10 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useThemeStore } from '@/stores/themeStore';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import OnboardingModal, { hasCompletedOnboarding } from '../onboarding/OnboardingModal';
 
 // ─── Text-to-Speech floating button ──────────────────────────────────────────
 function TTSButton() {
@@ -64,8 +66,10 @@ function TTSButton() {
 export default function AppShell() {
   const { isSignedIn, isLoaded } = useAuth();
   const { user, isLoaded: userLoaded } = useUser();
+  const { focusMode } = useThemeStore();
   const ensureFromClerk = api.profile.ensureFromClerk.useMutation();
   const ensuredForClerkId = useRef<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     if (!userLoaded || !user) return;
@@ -78,6 +82,9 @@ export default function AppShell() {
       [user.firstName, user.lastName].filter(Boolean).join(' ').trim() ||
       undefined;
     ensureFromClerk.mutate({ userId: user.id, email, fullName: display });
+    if (!hasCompletedOnboarding()) {
+      setShowOnboarding(true);
+    }
   }, [userLoaded, user, ensureFromClerk]);
 
   if (!isLoaded) {
@@ -94,16 +101,22 @@ export default function AppShell() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
-      <Sidebar />
+      {/* Skip-to-content link for keyboard / screen-reader users */}
+      <a href="#main-content" className="skip-to-content">
+        Skip to main content
+      </a>
+
+      {!focusMode && <Sidebar />}
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto">
+        <main id="main-content" className="flex-1 overflow-y-auto" tabIndex={-1}>
           <div className="mx-auto max-w-6xl p-6 lg:p-8">
             <Outlet />
           </div>
         </main>
       </div>
       <TTSButton />
+      {showOnboarding && <OnboardingModal onClose={() => setShowOnboarding(false)} />}
     </div>
   );
 }

@@ -13,6 +13,13 @@ dotenv.config({ path: path.resolve(__dirname, '../../../../.env') }); // dist/ba
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });        // dist/ → repo root (legacy)
 dotenv.config({ path: path.resolve(__dirname, '../.env') });            // local dev fallback
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+// ─── Fail-fast ENV validation ─────────────────────────────────────────────────
+// Skip in test environment to allow partial ENV in unit tests
+if (process.env.NODE_ENV !== 'test') {
+  const { requireValidEnv } = await import('../../../../lib/envSchema.mjs');
+  requireValidEnv();
+}
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -33,12 +40,14 @@ const generalLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' },
 });
 
-// TODO: apply aiLimiter to /api/assistant/* when AI streaming routes are added
-// const aiLimiter = rateLimit({
-//   windowMs: 60 * 1000, // 1 min
-//   max: 10,
-//   message: { error: 'AI rate limit exceeded. Please wait.' },
-// });
+// Tighter limiter for AI-heavy endpoints (interview, negotiation, assistant)
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 min
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'AI rate limit exceeded. Please wait a moment and try again.' },
+});
 
 const port = parseInt(process.env.PORT ?? '3001', 10);
 const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
@@ -102,6 +111,12 @@ app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (r
 app.use(express.json());
 app.use(generalLimiter);
 
+// Strict rate limit for AI-heavy endpoints (streaming, TTS, STT, negotiation, assistant)
+app.use('/api/interview', aiLimiter);
+app.use('/api/negotiation', aiLimiter);
+// tRPC assistant.sendMessage — path is /trpc/assistant.sendMessage or /trpc/assistant.getHistory
+app.use('/trpc/assistant.sendMessage', aiLimiter);
+
 app.use('/trpc', createExpressMiddleware({ router: appRouter, createContext }));
 
 const apiRouter = express.Router();
@@ -120,10 +135,11 @@ app.get('/health', (_req, res) => {
 
 // Interview conversation SSE stream
 app.post('/api/interview/stream', async (req, res) => {
-  const { messages, job, userId } = req.body as {
+  const { messages, job, userId, mode } = req.body as {
     messages: Array<{ role: string; content: string }>;
     job: { title: string; company: string; description?: string; requirements?: string[] };
     userId?: string;
+    mode?: string;
   };
 
   if (!messages || !job?.title || !job?.company) {
@@ -147,7 +163,7 @@ app.post('/api/interview/stream', async (req, res) => {
       const { buildCandidateInsights } = await import('./services/adaptiveInterviewer.js');
       const { buildAdaptiveInterviewerSystemPrompt } = await import('./services/interviewConversation.js');
       const insights = await buildCandidateInsights(userId);
-      const systemPrompt = buildAdaptiveInterviewerSystemPrompt(job, insights);
+      const systemPrompt = buildAdaptiveInterviewerSystemPrompt(job, insights, mode);
 
       // Send insights metadata as first SSE event
       res.write(`data: ${JSON.stringify({ type: 'insights', ...insights })}\n\n`);
@@ -158,14 +174,14 @@ app.post('/api/interview/stream', async (req, res) => {
         messages: [{ role: 'system', content: systemPrompt }, ...validMessages],
         stream: true,
         temperature: 0.7,
-        max_tokens: 200,
+        max_tokens: 2000,
       });
       for await (const chunk of stream) {
         const content = chunk.choices[0]?.delta?.content;
         if (content) res.write(`data: ${JSON.stringify({ chunk: content })}\n\n`);
       }
     } else {
-      for await (const chunk of streamInterviewResponse(validMessages, job)) {
+      for await (const chunk of streamInterviewResponse(validMessages, job, mode)) {
         res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
       }
     }
@@ -240,6 +256,78 @@ app.post('/api/interview/transcribe', upload.single('audio'), async (req, res) =
   } catch (err) {
     console.error('[Whisper STT]', err);
     res.status(500).json({ error: 'Transcription failed' });
+  }
+});
+
+// ─── Negotiation coaching stream ──────────────────────────────────────────────
+app.post('/api/negotiation/stream', async (req, res) => {
+  const { messages } = req.body as {
+    messages: Array<{ role: string; content: string }>;
+  };
+
+  if (!messages || !Array.isArray(messages)) {
+    res.status(400).json({ error: 'Missing messages' });
+    return;
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  try {
+    const { streamNegotiationResponse } = await import('./services/negotiationConversation.js');
+    const validMessages = messages
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+    for await (const chunk of streamNegotiationResponse(validMessages)) {
+      res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+    }
+
+    res.write('data: [DONE]\n\n');
+  } catch (err) {
+    console.error('[Negotiation Stream]', err);
+    res.write(`data: ${JSON.stringify({ error: 'Stream failed' })}\n\n`);
+  } finally {
+    res.end();
+  }
+});
+
+app.post('/api/negotiation/simulate', async (req, res) => {
+  const { messages, offer } = req.body as {
+    messages: Array<{ role: string; content: string }>;
+    offer: { role: string; company: string; offeredSalary: number; currency: string; targetSalary: number; marketRate?: number; benefits?: string };
+  };
+
+  if (!messages || !Array.isArray(messages) || !offer) {
+    res.status(400).json({ error: 'Missing messages or offer' });
+    return;
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  try {
+    const { streamNegotiationSimulation } = await import('./services/negotiationConversation.js');
+    const validMessages = messages
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+    for await (const chunk of streamNegotiationSimulation(validMessages, offer)) {
+      res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+    }
+
+    res.write('data: [DONE]\n\n');
+  } catch (err) {
+    console.error('[Negotiation Simulate]', err);
+    res.write(`data: ${JSON.stringify({ error: 'Stream failed' })}\n\n`);
+  } finally {
+    res.end();
   }
 });
 

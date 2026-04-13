@@ -3,7 +3,7 @@ import { useClerk } from '@clerk/clerk-react';
 import {
   LayoutDashboard, Briefcase, ClipboardList, FileText,
   MessageSquare, Mic, User, CreditCard, Settings,
-  Shield, Palette, LogOut, Sparkles, Calculator, Scale, BarChart2, Zap, FlaskConical,
+  Shield, Palette, LogOut, Sparkles, Calculator, Scale, BarChart2, Zap, FlaskConical, Handshake, Radar, Flame, HelpCircle,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -24,15 +24,18 @@ const MAIN_FLOW: NavItem[] = [
 const AI_GROWTH: NavItem[] = [
   { path: '/assistant', label: 'AI Assistant', icon: MessageSquare },
   { path: '/interview', label: 'Interview Ready', icon: Mic },
+  { path: '/warmup', label: 'Daily Warmup', icon: Flame },
+  { path: '/negotiation', label: 'Negotiation Coach', icon: Handshake },
+  { path: '/skills', label: 'Skills Lab', icon: FlaskConical },
+  { path: '/radar', label: 'Job Radar', icon: Radar },
 ];
 
 const PROFILE_DOCS: NavItem[] = [
-  { path: '/profile', label: 'Profile & CV', icon: User },
+  { path: '/profile', label: 'CV Studio', icon: User },
   { path: '/style-studio', label: 'Style Studio', icon: Palette },
 ];
 
 const TOOLS: NavItem[] = [
-  { path: '/skills', label: 'Skills Lab', icon: FlaskConical },
   { path: '/salary', label: 'Salary Calculator', icon: Calculator },
   { path: '/legal', label: 'Legal Hub', icon: Scale },
   { path: '/reports', label: 'Reports', icon: BarChart2 },
@@ -46,6 +49,7 @@ const TECHNICAL: NavItem[] = [
   { path: '/settings', label: 'Settings', icon: Settings },
   { path: '/security', label: 'Security', icon: Shield },
   { path: '/billing', label: 'Billing', icon: CreditCard },
+  { path: '/faq', label: 'FAQ', icon: HelpCircle },
 ];
 
 interface NavSectionProps {

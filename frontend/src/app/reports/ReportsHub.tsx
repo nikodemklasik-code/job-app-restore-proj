@@ -1,3 +1,4 @@
+import React from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import {
@@ -362,9 +363,15 @@ function TopCompanies({ apps }: TopCompaniesProps) {
 interface DataExportProps {
   apps: Application[];
   isLoading: boolean;
+  userId: string;
 }
 
-function DataExport({ apps, isLoading }: DataExportProps) {
+function DataExport({ apps, isLoading, userId }: DataExportProps) {
+  const [pdfError, setPdfError] = React.useState<string | null>(null);
+  const downloadReportMutation = api.applications.downloadCandidateReport.useMutation({
+    onError: (err) => setPdfError(err.message),
+  });
+
   const handleExportJSON = () => {
     const json = JSON.stringify(apps, null, 2);
     const date = new Date().toISOString().slice(0, 10);
@@ -376,6 +383,26 @@ function DataExport({ apps, isLoading }: DataExportProps) {
     const date = new Date().toISOString().slice(0, 10);
     downloadBlob(csv, `applications-${date}.csv`, 'text/csv');
   };
+
+  async function handleDownloadPdfReport() {
+    if (!userId) return;
+    setPdfError(null);
+    try {
+      const result = await downloadReportMutation.mutateAsync({ userId });
+      const binary = atob(result.base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `job-search-report-${new Date().toISOString().slice(0, 10)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // handled in onError
+    }
+  }
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
@@ -389,7 +416,7 @@ function DataExport({ apps, isLoading }: DataExportProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <button
           onClick={handleExportJSON}
           disabled={isLoading || apps.length === 0}
@@ -416,7 +443,26 @@ function DataExport({ apps, isLoading }: DataExportProps) {
             <p className="text-xs text-slate-500">{apps.length} applications</p>
           </div>
         </button>
+        <button
+          onClick={() => void handleDownloadPdfReport()}
+          disabled={isLoading || apps.length === 0 || downloadReportMutation.isPending}
+          className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-5 py-4 text-left hover:border-indigo-500/30 hover:bg-white/[0.07] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <div className="inline-flex rounded-lg bg-indigo-500/10 p-2">
+            {downloadReportMutation.isPending
+              ? <Loader2 className="h-5 w-5 text-indigo-400 animate-spin" />
+              : <FileText className="h-5 w-5 text-indigo-400" />}
+          </div>
+          <div>
+            <p className="text-sm font-medium text-white">PDF Report</p>
+            <p className="text-xs text-slate-500">Full analytics + methodology</p>
+          </div>
+        </button>
       </div>
+
+      {pdfError && (
+        <p className="text-xs text-red-400 mt-3">{pdfError}</p>
+      )}
 
       {apps.length === 0 && !isLoading && (
         <p className="text-xs text-slate-500 mt-3">No applications to export yet.</p>
@@ -529,7 +575,7 @@ export default function ReportsHub() {
           </div>
 
           {/* Export */}
-          <DataExport apps={apps} isLoading={allAppsQuery.isLoading} />
+          <DataExport apps={apps} isLoading={allAppsQuery.isLoading} userId={userId} />
         </>
       )}
 

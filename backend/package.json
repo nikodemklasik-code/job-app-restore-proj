@@ -18,6 +18,8 @@
     "express": "^4.21.0",
     "express-rate-limit": "^7.5.1",
     "helmet": "^8.1.0",
+    "imap": "^0.8.19",
+    "mailparser": "^3.9.8",
     "mammoth": "^1.12.0",
     "multer": "^2.1.1",
     "mysql2": "^3.11.0",
@@ -29,15 +31,19 @@
     "resend": "^4.0.0",
     "stripe": "^17.0.0",
     "superjson": "^2.0.0",
+    "web-push": "^3.6.7",
     "zod": "^3.24.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
+    "@types/imap": "^0.8.43",
+    "@types/mailparser": "^3.4.6",
     "@types/node": "^22.0.0",
     "@types/nodemailer": "^6.4.23",
     "@types/pdf-parse": "^1.1.4",
     "@types/pdfkit": "^0.13.9",
+    "@types/web-push": "^3.6.4",
     "drizzle-kit": "^0.30.0",
     "tsx": "^4.0.0",
     "typescript": "^5.5.0"

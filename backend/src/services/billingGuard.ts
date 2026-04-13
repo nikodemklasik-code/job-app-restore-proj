@@ -8,6 +8,7 @@ export const PLAN_FEATURES: Record<PlanTier, string[]> = {
   free: [
     'basic_jobs', 'profile', 'cv_upload', 'applications_10',
     'salary_calculator', 'legal_hub',
+    'auto_apply',
   ],
   pro: [
     'basic_jobs', 'profile', 'cv_upload', 'applications_unlimited',
@@ -15,6 +16,7 @@ export const PLAN_FEATURES: Record<PlanTier, string[]> = {
     'interview_practice', 'skills_lab', 'style_studio',
     'salary_calculator', 'legal_hub', 'reports',
     'follow_up_copilot', 'job_fit_explain',
+    'auto_apply',
   ],
   autopilot: [
     'basic_jobs', 'profile', 'cv_upload', 'applications_unlimited',
@@ -27,10 +29,10 @@ export const PLAN_FEATURES: Record<PlanTier, string[]> = {
   ],
 };
 
-export const PLAN_LIMITS: Record<PlanTier, { applications: number; aiCredits: number }> = {
-  free: { applications: 10, aiCredits: 20 },
-  pro: { applications: -1, aiCredits: 500 },
-  autopilot: { applications: -1, aiCredits: 2000 },
+export const PLAN_LIMITS: Record<PlanTier, { applications: number; aiCredits: number; weeklyAutoApply: number }> = {
+  free:      { applications: 10,  aiCredits: 20,   weeklyAutoApply: 3  },
+  pro:       { applications: -1,  aiCredits: 500,  weeklyAutoApply: 15 },
+  autopilot: { applications: -1,  aiCredits: 2000, weeklyAutoApply: 50 },
 };
 
 export const PLAN_PRICES: Record<PlanTier, { monthly: string; label: string }> = {

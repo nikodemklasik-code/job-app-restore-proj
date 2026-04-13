@@ -192,6 +192,7 @@ export default function ApplicationsPipeline() {
   const [recipientEmail, setRecipientEmail] = useState('');
   const [followUpAppId, setFollowUpAppId] = useState<string | null>(null);
   const [followUpText, setFollowUpText] = useState('');
+  const [monitoringMap, setMonitoringMap] = useState<Record<string, boolean>>({});
 
   const appsQuery = api.applications.getAll.useQuery(
     { userId },
@@ -243,6 +244,18 @@ export default function ApplicationsPipeline() {
     },
   });
 
+  const grantMonitoringMutation = api.emailMonitoring.grant.useMutation({
+    onSuccess: (_data, variables) => {
+      setMonitoringMap(prev => ({ ...prev, [variables.applicationId]: true }));
+    },
+  });
+
+  const revokeMonitoringMutation = api.emailMonitoring.revoke.useMutation({
+    onSuccess: (_data, variables) => {
+      setMonitoringMap(prev => ({ ...prev, [variables.applicationId]: false }));
+    },
+  });
+
   if (!isLoaded) {
     return (
       <div className="flex h-48 items-center justify-center">
@@ -272,11 +285,11 @@ export default function ApplicationsPipeline() {
   const activeStageApps = activeStage ? apps.filter(a => a.status === activeStage) : [];
   const activeStageConfig = activeStage ? STAGES.find(s => s.key === activeStage)! : null;
 
-  const themeOptions: { value: 'dark' | 'neurodiversity' | 'high-contrast' | 'focus'; label: string }[] = [
-    { value: 'dark', label: 'Default' },
-    { value: 'neurodiversity', label: 'Neurodiversity' },
-    { value: 'high-contrast', label: 'High Contrast' },
-    { value: 'focus', label: 'Focus' },
+  const themeOptions: { value: 'light' | 'dark' | 'overstimulated' | 'visually-impaired'; label: string }[] = [
+    { value: 'light',             label: 'Jasny' },
+    { value: 'dark',              label: 'Granatowy' },
+    { value: 'overstimulated',    label: 'Spokojny' },
+    { value: 'visually-impaired', label: 'Kontrast' },
   ];
 
   return (
@@ -363,7 +376,7 @@ export default function ApplicationsPipeline() {
       {/* Errors / Loading */}
       {appsQuery.isError && (
         <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400">
-          {appsQuery.error instanceof Error ? appsQuery.error.message : 'Failed to load applications'}
+          {appsQuery.error ? 'Unable to load applications. Please refresh the page.' : 'Failed to load applications'}
         </p>
       )}
       {appsQuery.isLoading && (
@@ -452,9 +465,11 @@ export default function ApplicationsPipeline() {
             </div>
             <button
               onClick={() => setActiveStage(null)}
+              aria-label="Close panel"
+              title="Close"
               className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white/10 hover:text-slate-300"
             >
-              <XCircle className="h-4 w-4" />
+              <XCircle className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
 
@@ -495,6 +510,15 @@ export default function ApplicationsPipeline() {
                       setFollowUpAppId(app.id);
                       setFollowUpText('');
                       generateFollowUpMutation.mutate({ userId, applicationId: app.id });
+                    }}
+                    monitoringActive={monitoringMap[app.id] ?? false}
+                    onToggleMonitoring={() => {
+                      const active = monitoringMap[app.id] ?? false;
+                      if (active) {
+                        revokeMonitoringMutation.mutate({ userId, applicationId: app.id });
+                      } else {
+                        grantMonitoringMutation.mutate({ userId, applicationId: app.id });
+                      }
                     }}
                   />
                 ))}
@@ -543,7 +567,7 @@ export default function ApplicationsPipeline() {
             </div>
             {createMutation.isError && (
               <p className="text-sm text-red-400">
-                {createMutation.error instanceof Error ? createMutation.error.message : 'Failed to create'}
+                {createMutation.isError ? 'Could not create application. Please try again.' : ''}
               </p>
             )}
             <div className="flex gap-3 pt-2">
@@ -572,8 +596,8 @@ export default function ApplicationsPipeline() {
           <div className="flex max-h-[80vh] w-full max-w-2xl flex-col space-y-4 rounded-2xl border border-white/10 bg-[#020617] p-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">Cover Letter Preview</h2>
-              <button onClick={() => setShowCoverLetter(null)} className="text-slate-400 hover:text-white">
-                <XCircle className="h-5 w-5" />
+              <button onClick={() => setShowCoverLetter(null)} aria-label="Close cover letter preview" title="Close" className="text-slate-400 hover:text-white">
+                <XCircle className="h-5 w-5" aria-hidden="true" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto rounded-xl border border-white/10 bg-white/5 p-4">
@@ -593,9 +617,11 @@ export default function ApplicationsPipeline() {
               <h2 className="text-lg font-semibold text-white">Follow-up Email</h2>
               <button
                 onClick={() => { setFollowUpAppId(null); setFollowUpText(''); }}
+                aria-label="Close follow-up"
+                title="Close"
                 className="text-slate-400 hover:text-white"
               >
-                <XCircle className="h-5 w-5" />
+                <XCircle className="h-5 w-5" aria-hidden="true" />
               </button>
             </div>
             {generateFollowUpMutation.isPending ? (
@@ -608,12 +634,10 @@ export default function ApplicationsPipeline() {
             ) : (
               <>
                 {generateFollowUpMutation.isError && (
-                  <p className="text-sm text-red-400">
-                    {generateFollowUpMutation.error instanceof Error
-                      ? generateFollowUpMutation.error.message
-                      : 'Failed to generate follow-up'}
-                  </p>
-                )}
+                   <p className="text-sm text-red-400">
+                     Could not generate follow-up email. Please try again.
+                   </p>
+                 )}
                 <textarea
                   value={followUpText}
                   onChange={(e) => setFollowUpText(e.target.value)}
@@ -665,7 +689,7 @@ export default function ApplicationsPipeline() {
             </div>
             {sendEmailMutation.isError && (
               <p className="text-sm text-red-400">
-                {sendEmailMutation.error instanceof Error ? sendEmailMutation.error.message : 'Failed to send'}
+                {sendEmailMutation.isError ? 'Could not send email. Please try again.' : ''}
               </p>
             )}
             {sendEmailMutation.isSuccess && (
@@ -716,6 +740,8 @@ function AppCard({
   onViewCoverLetter,
   onSendEmail,
   onFollowUp,
+  onToggleMonitoring,
+  monitoringActive,
 }: {
   app: Application;
   stage: StageConfig;
@@ -726,6 +752,8 @@ function AppCard({
   onViewCoverLetter: () => void;
   onSendEmail: () => void;
   onFollowUp: () => void;
+  onToggleMonitoring: () => void;
+  monitoringActive: boolean;
 }) {
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-white/20 hover:bg-white/8">
@@ -832,6 +860,22 @@ function AppCard({
               Rejected
             </button>
           </div>
+        )}
+
+        {/* IMAP monitoring toggle — available for sent applications */}
+        {stage.key === 'sent' && (
+          <button
+            onClick={onToggleMonitoring}
+            title={monitoringActive ? 'Disable inbox monitoring for this application' : 'Enable inbox monitoring — app will detect employer replies and update status automatically'}
+            className={`flex w-full items-center justify-center gap-1.5 rounded-xl py-1.5 text-xs font-medium transition ${
+              monitoringActive
+                ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+                : 'border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10'
+            }`}
+          >
+            <Mail className="h-3 w-3" />
+            {monitoringActive ? 'Inbox monitored ✓' : 'Monitor inbox replies'}
+          </button>
         )}
 
         {stage.key === 'interview' && (

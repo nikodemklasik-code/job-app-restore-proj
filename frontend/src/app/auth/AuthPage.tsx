@@ -56,7 +56,36 @@ function TickerCard({
   );
 }
 
-/* ─── Monitor with looping video(s) / animated fallback ───────────────────── */
+/* ─── Default demo clips (GitHub user-attachments) ─────────────────────────── */
+const DEFAULT_DEMO_VIDEOS = [
+  'https://github.com/user-attachments/assets/5c8ac658-4640-46d7-96dc-a59b5e4f7c37',
+  'https://github.com/user-attachments/assets/ed7c9e22-8c6a-42df-b742-213dfe4506f1',
+  'https://github.com/user-attachments/assets/283d4ac4-55d8-47a1-ba08-4c6ab6dc6491',
+  'https://github.com/user-attachments/assets/0dceb343-d3d4-449f-8768-646a609db683',
+  'https://github.com/user-attachments/assets/8d14fc65-7f8a-42c3-a9d9-33d04eb0ecfc',
+  'https://github.com/user-attachments/assets/b3bbbd6b-5e8c-4052-a57c-d80ce337272c',
+  'https://github.com/user-attachments/assets/0746d7f6-a6b5-4f27-8db0-7e7381b2dcec',
+  'https://github.com/user-attachments/assets/7ea8eeb7-5b43-4fd3-bca6-3ed20c1f4ff9',
+  'https://github.com/user-attachments/assets/fe7b5210-b949-4eb8-b1f4-3d4449ab53f1',
+];
+
+/* ─── Clerk error sanitizer ────────────────────────────────────────────────── */
+/**
+ * Clerk SDK returns user-friendly messages in most cases, but occasionally
+ * leaks technical details. This strips anything that looks internal.
+ */
+function sanitizeAuthError(err: unknown, fallback: string): string {
+  const raw = err instanceof Error ? err.message : '';
+  // Strip the "Error: " prefix that Clerk sometimes prepends
+  const msg = raw.replace(/^Error:\s*/i, '').trim();
+  // If the message contains technical patterns, use the fallback
+  const TECHNICAL = /request\.body|CLERKJS|clerkError|status:\s*\d{3}|DOCTYPE|JSON|Unexpected token|FAILED_REQUEST|network|fetch|http/i;
+  if (!msg || TECHNICAL.test(msg)) return fallback;
+  // Capitalise first letter for consistency
+  return msg.charAt(0).toUpperCase() + msg.slice(1);
+}
+
+
 function DeviceMockup() {
   const multiRaw = (import.meta.env.VITE_AUTH_DEMO_VIDEO_URLS as string | undefined)?.trim() ?? '';
   const singleRaw = (import.meta.env.VITE_AUTH_DEMO_VIDEO_URL as string | undefined)?.trim() ?? '';
@@ -66,7 +95,7 @@ function DeviceMockup() {
         ? multiRaw.split(',').map((s) => s.trim()).filter(Boolean)
         : singleRaw
           ? [singleRaw]
-          : [],
+          : DEFAULT_DEMO_VIDEOS,
     [multiRaw, singleRaw],
   );
   const [clipIndex, setClipIndex] = useState(0);
@@ -75,13 +104,9 @@ function DeviceMockup() {
     setClipIndex(0);
   }, [urlList]);
 
-  useEffect(() => {
-    if (urlList.length <= 1) return;
-    const t = window.setInterval(() => {
-      setClipIndex((i) => (i + 1) % urlList.length);
-    }, 8000);
-    return () => window.clearInterval(t);
-  }, [urlList]);
+  const handleVideoEnded = () => {
+    setClipIndex((i) => (i + 1) % urlList.length);
+  };
 
   const rawUrl = urlList[clipIndex] ?? '';
 
@@ -101,7 +126,9 @@ function DeviceMockup() {
   }
 
   const embedUrl = rawUrl ? toEmbedUrl(rawUrl) : null;
-  const isDirectVideo = /\.(mp4|webm|ogg)(\?|$)/i.test(rawUrl);
+  const isDirectVideo =
+    /\.(mp4|webm|ogg)(\?|$)/i.test(rawUrl) ||
+    rawUrl.includes('github.com/user-attachments/assets/');
 
   return (
     <div className="relative w-[320px] shrink-0">
@@ -130,9 +157,9 @@ function DeviceMockup() {
               className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700"
               src={rawUrl}
               autoPlay
-              loop
               muted
               playsInline
+              onEnded={handleVideoEnded}
             />
           ) : (
             <>
@@ -152,7 +179,7 @@ function DeviceMockup() {
                 <div className="flex gap-2 mt-1">
                   {(['96%', '89%', '92%'] as const).map((v, i) => (
                     <div key={v} className="flex-1 rounded-xl bg-white/5 border border-white/10 p-2">
-                      <div className="text-[10px] font-bold text-indigo-300">{v}</div>
+                      <div className="text-xs font-bold text-indigo-300">{v}</div>
                       <div
                         className="mt-1 h-1 rounded bg-indigo-500/50 bar-grow"
                         style={{ animationDelay: `${i * 0.4}s` }}
@@ -165,11 +192,11 @@ function DeviceMockup() {
                   <div className="flex-1 h-12 rounded-xl bg-indigo-600/20 border border-indigo-500/20" />
                 </div>
                 <div className="mt-auto flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[9px] font-medium text-emerald-400">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-400">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 live-dot" />
                     Live
                   </span>
-                  <span className="text-[9px] text-slate-400">Multivohub workspace</span>
+                  <span className="text-xs text-slate-400">Multivohub workspace</span>
                 </div>
               </div>
             </>
@@ -202,6 +229,9 @@ export default function AuthPage() {
   const [awaitingEmailCode, setAwaitingEmailCode] = useState(false);
   /** Sign-in with password succeeded but Clerk requires e.g. email_code first factor */
   const [awaitingSignInCode, setAwaitingSignInCode] = useState(false);
+  const [forgotStep, setForgotStep] = useState<'idle' | 'enter-email' | 'enter-code'>('idle');
+  const [forgotCode, setForgotCode] = useState('');
+  const [forgotNewPassword, setForgotNewPassword] = useState('');
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -217,6 +247,9 @@ export default function AuthPage() {
     setAwaitingSignInCode(false);
     setEmailCode('');
     setInfoMessage(null);
+    setForgotStep('idle');
+    setForgotCode('');
+    setForgotNewPassword('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -291,7 +324,7 @@ export default function AuthPage() {
         }
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Authentication failed';
+      const msg = sanitizeAuthError(err, 'Sign-in failed. Please check your email and password.');
       setError(msg.replace(/^Error: /, ''));
     } finally {
       setIsLoading(false);
@@ -318,7 +351,7 @@ export default function AuthPage() {
         setError('Could not complete sign-up. Please try again or request a new code.');
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Verification failed';
+      const msg = sanitizeAuthError(err, 'Verification failed. Please check the code and try again.');
       setError(msg.replace(/^Error: /, ''));
     } finally {
       setIsLoading(false);
@@ -333,7 +366,7 @@ export default function AuthPage() {
       await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
       setInfoMessage('A new code was sent to your email.');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Could not resend code';
+      const msg = sanitizeAuthError(err, 'Could not resend code. Please try again.');
       setError(msg.replace(/^Error: /, ''));
     } finally {
       setIsLoading(false);
@@ -369,7 +402,7 @@ export default function AuthPage() {
         );
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Verification failed';
+      const msg = sanitizeAuthError(err, 'Verification failed. Please check the code and try again.');
       setError(msg.replace(/^Error: /, ''));
     } finally {
       setIsLoading(false);
@@ -396,8 +429,79 @@ export default function AuthPage() {
       });
       setInfoMessage('A new code was sent to your email.');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Could not resend code';
+      const msg = sanitizeAuthError(err, 'Could not resend code. Please try again.');
       setError(msg.replace(/^Error: /, ''));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPasswordRequest = async () => {
+    if (!signInLoaded || !signIn) return;
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError('Enter your email address above, then click "Forgot password?".');
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    try {
+      await signIn.create({ strategy: 'reset_password_email_code', identifier: trimmedEmail });
+      setForgotStep('enter-code');
+      setInfoMessage('We sent a reset code to your email. Enter it below together with a new password.');
+    } catch (err) {
+      const msg = sanitizeAuthError(err, 'Could not send reset email. Please try again.');
+      setError(msg.replace(/^Error: /, ''));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!signInLoaded || !signIn) return;
+    const code = forgotCode.trim();
+    const newPw = forgotNewPassword.trim();
+    if (!code || !newPw) {
+      setError('Enter both the reset code and your new password.');
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await signIn.attemptFirstFactor({
+        strategy: 'reset_password_email_code',
+        code,
+        password: newPw,
+      });
+      if (result.status === 'complete' && result.createdSessionId) {
+        await setActive({ session: result.createdSessionId });
+        resetVerification();
+        void navigate('/dashboard');
+      } else {
+        setError(`Could not complete password reset (${result.status}). Please try again.`);
+      }
+    } catch (err) {
+      const msg = sanitizeAuthError(err, 'Password reset failed. Please try again.');
+      setError(msg.replace(/^Error: /, ''));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePasskey = async () => {
+    if (!signInLoaded || !signIn) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await (signIn as any).authenticateWithPasskey({ flow: 'discoverable' });
+      if (result.status === 'complete' && result.createdSessionId) {
+        await setActive({ session: result.createdSessionId });
+        void navigate('/dashboard');
+      }
+    } catch (err) {
+      setError(sanitizeAuthError(err, 'Passkey sign-in failed. Please try email/password or a social provider.'));
     } finally {
       setIsLoading(false);
     }
@@ -407,6 +511,7 @@ export default function AuthPage() {
     provider: 'oauth_google' | 'oauth_apple' | 'oauth_facebook' | 'oauth_linkedin_oidc',
   ) => {
     if (!signInLoaded || !signUpLoaded || !signIn || !signUp) return;
+    setError(null);
     try {
       const redirect = {
         strategy: provider,
@@ -419,7 +524,7 @@ export default function AuthPage() {
         await signIn.authenticateWithRedirect(redirect);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign-in with provider failed. Please try again.');
+      setError(sanitizeAuthError(err, 'Social sign-in is not available right now. Please use email and password.'));
     }
   };
 
@@ -462,12 +567,15 @@ export default function AuthPage() {
           0%, 100% { opacity: 1;   transform: scale(1);   }
           50%       { opacity: .4; transform: scale(1.4); }
         }
-        .animate-float   { animation: float 4s ease-in-out infinite; }
-        .animate-floatIn { animation: floatIn .6s ease both; }
-        .blob-pulse      { animation: blobPulse 7s ease-in-out infinite; }
-        .ticker-strip    { animation: marqueeLoop 42s linear infinite; }
-        .bar-grow        { animation: barGrow 2.4s ease-in-out infinite; transform-origin: left; }
-        .live-dot        { animation: fakePulse 1.6s ease-in-out infinite; }
+        /* All decorative animations are gated behind prefers-reduced-motion */
+        @media (prefers-reduced-motion: no-preference) {
+          .animate-float   { animation: float 4s ease-in-out infinite; }
+          .animate-floatIn { animation: floatIn .6s ease both; }
+          .blob-pulse      { animation: blobPulse 7s ease-in-out infinite; }
+          .ticker-strip    { animation: marqueeLoop 42s linear infinite; }
+          .bar-grow        { animation: barGrow 2.4s ease-in-out infinite; transform-origin: left; }
+          .live-dot        { animation: fakePulse 1.6s ease-in-out infinite; }
+        }
       `}</style>
 
       {/* Root — desktop: fixed viewport, no scroll; mobile: allow vertical scroll if needed */}
@@ -479,21 +587,21 @@ export default function AuthPage() {
         {/* ══════════════════════════════════════════════════════════════════════
             LEFT PANEL — visual (fixed viewport: logo → ticker → monitor → copy)
         ══════════════════════════════════════════════════════════════════════ */}
-        <div className="relative hidden min-h-0 flex-1 flex-col overflow-hidden bg-[#020617] lg:flex lg:h-full">
+        <div className="relative hidden min-h-0 flex-col overflow-hidden bg-[#020617] lg:flex lg:h-full lg:flex-1">
           {/* Background image */}
           <img
             src="https://images.pexels.com/photos/1181467/pexels-photo-1181467.jpeg?auto=compress&cs=tinysrgb&w=1600"
             alt=""
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.10]"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.15]"
           />
           <div
             className="pointer-events-none absolute inset-0"
             style={{
-              background: 'linear-gradient(135deg, #020617 0%, rgba(15,23,42,.92) 55%, rgba(30,27,75,.72) 100%)',
+              background: 'linear-gradient(135deg, #020617 0%, rgba(15,23,42,.88) 55%, rgba(30,27,75,.65) 100%)',
             }}
           />
           <div
-            className="pointer-events-none absolute inset-0 opacity-[0.035]"
+            className="pointer-events-none absolute inset-0 opacity-[0.06]"
             style={{
               backgroundImage:
                 'linear-gradient(#6366f1 1px,transparent 1px),linear-gradient(90deg,#6366f1 1px,transparent 1px)',
@@ -501,10 +609,10 @@ export default function AuthPage() {
             }}
           />
           <div
-            className="blob-pulse pointer-events-none absolute left-[18%] top-[22%] h-80 w-80 rounded-full bg-indigo-500/20 blur-[80px]"
+            className="blob-pulse pointer-events-none absolute left-[18%] top-[22%] h-80 w-80 rounded-full bg-indigo-500/25 blur-[80px]"
           />
           <div
-            className="blob-pulse pointer-events-none absolute bottom-[28%] right-[22%] h-64 w-64 rounded-full bg-violet-600/15 blur-[80px]"
+            className="blob-pulse pointer-events-none absolute bottom-[28%] right-[22%] h-64 w-64 rounded-full bg-violet-600/20 blur-[80px]"
             style={{ animationDelay: '3.5s' }}
           />
 
@@ -522,7 +630,7 @@ export default function AuthPage() {
               <Sparkles className="h-4 w-4 text-white" />
             </div>
             <span className="text-base font-semibold tracking-tight text-white">MultivoHub</span>
-            <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-medium text-indigo-400">
+            <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-400">
               Career workspace
             </span>
           </div>
@@ -557,14 +665,14 @@ export default function AuthPage() {
               <DeviceMockup />
             </div>
 
-            <div className="animate-floatIn mx-auto max-w-lg shrink-0 space-y-2.5 px-2 text-center lg:space-y-3">
-              <h1 className="text-xl font-bold leading-tight text-white lg:text-2xl">
+            <div className="animate-floatIn mx-auto max-w-lg shrink-0 space-y-3 px-2 text-center lg:space-y-4">
+              <h1 className="text-2xl font-bold leading-tight text-white lg:text-3xl">
                 Your career process,{' '}
                 <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
                   in one clear space.
                 </span>
               </h1>
-              <p className="mx-auto text-xs leading-relaxed text-slate-400 sm:text-sm">
+              <p className="mx-auto text-sm leading-relaxed text-slate-300 sm:text-base">
                 From CV and profile through discovery, applications, and interview practice — structured tools with
                 UK-oriented job search in mind.
               </p>
@@ -572,7 +680,7 @@ export default function AuthPage() {
                 {['Profile & CV', 'Interview Ready', 'Career AI', 'Job Tracking', 'Auto-Apply'].map((pill) => (
                   <span
                     key={pill}
-                    className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] text-slate-300 sm:px-3 sm:py-1 sm:text-xs"
+                    className="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-xs font-medium text-slate-200 sm:px-3.5"
                   >
                     {pill}
                   </span>
@@ -586,7 +694,7 @@ export default function AuthPage() {
             RIGHT PANEL — auth form
         ══════════════════════════════════════════════════════════════════════ */}
         <div
-          className="relative z-20 flex w-full min-w-0 max-w-[440px] shrink-0 flex-col overflow-y-auto overflow-x-hidden border-l border-white/5 bg-[#0a0f1e] px-7 lg:h-screen lg:min-h-0 lg:overflow-hidden lg:px-8"
+          className="relative z-20 flex w-full min-w-0 flex-col overflow-y-auto overflow-x-hidden border-l border-white/5 bg-[#0a0f1e] px-7 lg:h-screen lg:min-h-0 lg:w-[460px] lg:flex-none lg:overflow-hidden lg:px-8"
           style={{ minHeight: '100vh' }}
         >
           {/* TOP — welcome block, fixed margin from top */}
@@ -610,8 +718,66 @@ export default function AuthPage() {
           {/* MIDDLE — fits between welcome and policy; no scroll on full layout */}
           <div className="flex min-h-0 flex-1 flex-col justify-center gap-0 overflow-hidden py-4 lg:py-5">
 
+            {/* Forgot password flow */}
+            {forgotStep !== 'idle' ? (
+              <form onSubmit={(e) => void handleForgotPasswordSubmit(e)} className="space-y-3">
+                <div className="rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-2.5 text-xs text-indigo-200">
+                  {infoMessage}
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="forgot-code" className="block text-xs font-medium text-slate-400">Reset code</label>
+                  <input
+                    id="forgot-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="6-digit code from email"
+                    value={forgotCode}
+                    onChange={(e) => setForgotCode(e.target.value.replace(/\s/g, ''))}
+                    className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm tracking-widest text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="forgot-newpw" className="block text-xs font-medium text-slate-400">New password</label>
+                  <input
+                    id="forgot-newpw"
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="New password"
+                    value={forgotNewPassword}
+                    onChange={(e) => setForgotNewPassword(e.target.value)}
+                    className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
+                  />
+                </div>
+                {error && (
+                  <div role="alert" className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-xs text-red-400">
+                    {error}
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-semibold text-white transition-all hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-500/25 disabled:opacity-60 active:scale-[0.98]"
+                >
+                  {isLoading ? 'Setting new password…' : 'Set new password & sign in'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setForgotStep('idle'); setError(null); setInfoMessage(null); }}
+                  className="w-full rounded-xl border border-white/10 py-2.5 text-xs font-medium text-slate-300 transition hover:bg-white/5"
+                >
+                  Back to sign in
+                </button>
+              </form>
+            ) : (
+              <>
             {/* Passkey */}
-            <button className="mb-2.5 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-2.5 text-sm font-medium text-emerald-400 transition-all hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/10">
+            <button
+              type="button"
+              onClick={() => void handlePasskey()}
+              disabled={isLoading}
+              className="mb-2.5 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-2.5 text-sm font-medium text-emerald-400 transition-all hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/10 disabled:opacity-60"
+            >
               <KeyRound className="h-4 w-4" />
               Continue with Passkey
             </button>
@@ -674,21 +840,36 @@ export default function AuthPage() {
                 className="space-y-3"
               >
                 {infoMessage && (
-                  <div className="rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-2.5 text-xs text-indigo-200">
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    className="rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-2.5 text-xs text-indigo-200"
+                  >
                     {infoMessage}
                   </div>
                 )}
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  placeholder="6-digit code from email"
-                  value={emailCode}
-                  onChange={(e) => setEmailCode(e.target.value.replace(/\s/g, ''))}
-                  className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm tracking-widest text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
-                />
+                <div className="space-y-1">
+                  <label htmlFor="auth-code" className="block text-xs font-medium text-slate-400">
+                    Verification code
+                  </label>
+                  <input
+                    id="auth-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="6-digit code"
+                    value={emailCode}
+                    onChange={(e) => setEmailCode(e.target.value.replace(/\s/g, ''))}
+                    aria-describedby={error ? 'auth-error' : undefined}
+                    className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm tracking-widest text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
+                  />
+                </div>
                 {error && (
-                  <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-xs text-red-400">
+                  <div
+                    id="auth-error"
+                    role="alert"
+                    className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-xs text-red-400"
+                  >
                     {error}
                   </div>
                 )}
@@ -713,48 +894,72 @@ export default function AuthPage() {
             ) : (
               <form onSubmit={(e) => void handleSubmit(e)} className="space-y-3">
                 {mode === 'sign-up' && (
+                  <div className="space-y-1">
+                    <label htmlFor="auth-fullname" className="block text-xs font-medium text-slate-400">
+                      Full name <span className="text-slate-600">(optional)</span>
+                    </label>
+                    <input
+                      id="auth-fullname"
+                      type="text"
+                      placeholder="Alex Morgan"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      autoComplete="name"
+                      className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
+                    />
+                  </div>
+                )}
+                <div className="space-y-1">
+                  <label htmlFor="auth-email" className="block text-xs font-medium text-slate-400">
+                    Email address
+                  </label>
                   <input
-                    type="text"
-                    placeholder="Full name (optional)"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    autoComplete="name"
+                    id="auth-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                    aria-describedby={error ? 'auth-error' : undefined}
                     className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
                   />
-                )}
-                <input
-                  type="email"
-                  placeholder="Email address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
-                />
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'}
-                    className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 pr-11 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="auth-password" className="block text-xs font-medium text-slate-400">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="auth-password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder={mode === 'sign-up' ? 'Create a password' : 'Your password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      autoComplete={mode === 'sign-up' ? 'new-password' : 'current-password'}
+                      aria-describedby={error ? 'auth-error' : undefined}
+                      className="flex h-11 w-full rounded-xl border border-white/10 bg-white/5 px-4 pr-11 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      aria-pressed={showPassword}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 {mode === 'sign-in' && (
                   <div className="text-right">
                     <button
                       type="button"
-                      className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                      disabled={isLoading}
+                      onClick={() => void handleForgotPasswordRequest()}
+                      className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors disabled:opacity-60"
                     >
                       Forgot password?
                     </button>
@@ -762,7 +967,11 @@ export default function AuthPage() {
                 )}
 
                 {error && (
-                  <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-xs text-red-400">
+                  <div
+                    id="auth-error"
+                    role="alert"
+                    className="rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-xs text-red-400"
+                  >
                     {error}
                   </div>
                 )}
@@ -803,11 +1012,13 @@ export default function AuthPage() {
                 {mode === 'sign-in' ? 'Create one' : 'Sign in'}
               </button>
             </p>
+            </>
+            )}
           </div>
 
           {/* BOTTOM — policy, comfortable margin from viewport bottom */}
           <div className="shrink-0 pb-5 pt-2 lg:pb-6">
-            <p className="text-center text-[10px] leading-relaxed text-slate-600">
+            <p className="text-center text-xs leading-relaxed text-slate-600">
               By continuing you agree to our{' '}
               <a
                 href="/terms"

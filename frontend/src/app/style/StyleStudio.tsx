@@ -193,6 +193,15 @@ export default function StyleStudio() {
   const [isRewritingSummary, setIsRewritingSummary] = useState(false);
   const [isRewritingSkills, setIsRewritingSkills] = useState(false);
 
+  // Generate from Job state
+  const [genType, setGenType] = useState<'cv' | 'coverletter'>('cv');
+  const [genJobId, setGenJobId] = useState<string | null>(null);
+  const [genJobTitle, setGenJobTitle] = useState('');
+  const [genCompany, setGenCompany] = useState('');
+  const [genJobDesc, setGenJobDesc] = useState('');
+  const [genResult, setGenResult] = useState<string | null>(null);
+  const [genPdfError, setGenPdfError] = useState<string | null>(null);
+
   // tRPC — style router (may not exist yet; access is guarded via styleApi)
   const analyzeDocMutation = styleApi?.analyzeDocument.useMutation();
   const rewriteMutation = styleApi?.rewriteSection.useMutation();
@@ -215,11 +224,25 @@ export default function StyleStudio() {
     onError: (err) => setDownloadError(err.message),
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const generateFromJobMutation = (api as any).style.generateFromJob.useMutation({
+    onSuccess: (data: { text: string }) => setGenResult(data.text),
+    onError: () => setGenResult(''),
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const downloadCoverLetterPdfMutation = (api as any).applications.downloadCoverLetterPdf?.useMutation?.({
+    onError: (err: Error) => setGenPdfError(err.message),
+  });
+
   // latest uploads list
   const latestQuery = api.cv.getLatest.useQuery(
     { userId: userId ?? '' },
     { enabled: Boolean(userId) },
   );
+
+  // jobs feed for generate from job picker
+  const jobsFeedQuery = api.jobs.getFeed.useQuery({ limit: 30 }, { enabled: Boolean(userId) });
 
   // ── handlers ───────────────────────────────────────────────────────────────
 
@@ -334,6 +357,62 @@ export default function StyleStudio() {
       a.download = 'CV.pdf';
       a.click();
       URL.revokeObjectURL(url);
+    } catch {
+      // handled in onError
+    }
+  }
+
+  async function handleGenerate() {
+    if (!userId) return;
+    setGenResult(null);
+    setGenPdfError(null);
+    const profileData = profileQuery.data;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const skillNames = ((profileData as any)?.skills ?? []).map((s: { name?: string } | string) => typeof s === 'string' ? s : s.name ?? '').filter(Boolean) as string[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    generateFromJobMutation.mutate({
+      userId,
+      type: genType,
+      jobTitle: genJobTitle || 'this role',
+      jobDescription: genJobDesc || undefined,
+      company: genCompany || undefined,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      profileSummary: (profileData as any)?.summary ?? undefined,
+      skills: skillNames,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      senderName: (profileData as any)?.fullName ?? undefined,
+    });
+  }
+
+  async function handleDownloadGenPdf() {
+    if (!genResult || !userId) return;
+    setGenPdfError(null);
+    try {
+      if (genType === 'cv') {
+        const result = await downloadCvMutation.mutateAsync({ userId });
+        const binary = atob(result.base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'CV-generated.pdf';
+        a.click();
+        URL.revokeObjectURL(url);
+      } else if (downloadCoverLetterPdfMutation) {
+        const result = await downloadCoverLetterPdfMutation.mutateAsync({ userId, text: genResult, company: genCompany, role: genJobTitle });
+        const binary = atob(result.base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'CoverLetter-generated.pdf';
+        a.click();
+        URL.revokeObjectURL(url);
+      }
     } catch {
       // handled in onError
     }
@@ -764,6 +843,123 @@ export default function StyleStudio() {
                 </tr>
               </tbody>
             </table>
+          )}
+        </div>
+      </section>
+
+      {/* ── Generate from Job section ── */}
+      <section>
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-500">
+          Generate from Job
+        </h2>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-5">
+          <p className="text-xs text-slate-400">Pick a job from your feed (or enter details manually) and let AI generate a tailored CV summary or cover letter.</p>
+
+          {/* Type toggle */}
+          <div className="flex gap-2">
+            {(['cv', 'coverletter'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => { setGenType(t); setGenResult(null); }}
+                className={`rounded-lg border px-4 py-2 text-sm font-semibold transition-all ${genType === t ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300' : 'border-white/10 bg-white/5 text-slate-400 hover:border-indigo-500/30'}`}
+              >
+                {t === 'cv' ? '📄 CV Summary' : '✉️ Cover Letter'}
+              </button>
+            ))}
+          </div>
+
+          {/* Job picker */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <p className="mb-1.5 text-xs font-semibold text-slate-500">Job Title</p>
+              <input
+                type="text"
+                value={genJobTitle}
+                onChange={(e) => setGenJobTitle(e.target.value)}
+                placeholder="e.g. Senior Frontend Engineer"
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/50"
+              />
+            </div>
+            <div>
+              <p className="mb-1.5 text-xs font-semibold text-slate-500">Company</p>
+              <input
+                type="text"
+                value={genCompany}
+                onChange={(e) => setGenCompany(e.target.value)}
+                placeholder="e.g. Acme Corp"
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/50"
+              />
+            </div>
+          </div>
+
+          {/* Or pick from feed */}
+          {jobsFeedQuery.data && jobsFeedQuery.data.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-semibold text-slate-500">Or pick from your job feed</p>
+              <div className="max-h-36 overflow-y-auto space-y-1.5">
+                {(jobsFeedQuery.data as { id: string; title: string; company: string; description?: string | null }[]).map((j) => (
+                  <button
+                    key={j.id}
+                    onClick={() => { setGenJobId(j.id); setGenJobTitle(j.title); setGenCompany(j.company); setGenJobDesc(j.description ?? ''); }}
+                    className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-all ${genJobId === j.id ? 'border-indigo-500 bg-indigo-500/15 text-indigo-200' : 'border-white/[0.06] bg-white/[0.02] text-slate-300 hover:border-indigo-500/30'}`}
+                  >
+                    <span className="font-medium">{j.title}</span>
+                    <span className="ml-2 text-xs text-slate-500">{j.company}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Job description */}
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-slate-500">Job Description (optional)</p>
+            <textarea
+              rows={3}
+              value={genJobDesc}
+              onChange={(e) => setGenJobDesc(e.target.value)}
+              placeholder="Paste the job description for better tailoring…"
+              className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/50"
+            />
+          </div>
+
+          <button
+            onClick={() => void handleGenerate()}
+            disabled={!genJobTitle.trim() || generateFromJobMutation.isPending}
+            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {generateFromJobMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {generateFromJobMutation.isPending ? 'Generating…' : `Generate ${genType === 'cv' ? 'CV Summary' : 'Cover Letter'}`}
+          </button>
+
+          {/* Result */}
+          {genResult !== null && (
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Generated Output</p>
+              <textarea
+                rows={10}
+                value={genResult}
+                onChange={(e) => setGenResult(e.target.value)}
+                className="w-full resize-y rounded-xl border border-indigo-500/30 bg-white/5 px-3.5 py-2.5 text-sm text-slate-200 outline-none focus:border-indigo-500/50"
+              />
+              <div className="flex gap-3 flex-wrap">
+                <button
+                  onClick={() => { void navigator.clipboard.writeText(genResult ?? ''); }}
+                  className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-300 hover:border-indigo-500/30 hover:text-white transition"
+                >
+                  Copy to Clipboard
+                </button>
+                <button
+                  onClick={() => void handleDownloadGenPdf()}
+                  disabled={downloadCvMutation.isPending}
+                  className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-500 disabled:opacity-50 transition"
+                >
+                  {downloadCvMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                  Download PDF
+                </button>
+              </div>
+              {genPdfError && <p className="text-xs text-red-400">{genPdfError}</p>}
+            </div>
           )}
         </div>
       </section>

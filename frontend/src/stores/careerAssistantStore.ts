@@ -14,6 +14,7 @@ interface CareerAssistantStore {
   loadHistory: () => Promise<void>;
   sendMessage: (text: string, mode?: 'general' | 'cv' | 'interview' | 'salary') => Promise<void>;
   resetError: () => void;
+  clearMessages: () => void;
 }
 
 function sortAsc(msgs: AssistantHistoryMessage[]): AssistantHistoryMessage[] {
@@ -42,8 +43,8 @@ export const useCareerAssistantStore = create<CareerAssistantStore>((set, get) =
         status: 'idle',
         error: null,
       });
-    } catch (e: unknown) {
-      set({ status: 'error', error: e instanceof Error ? e.message : 'Failed to load' });
+    } catch {
+      set({ status: 'error', error: 'Could not load conversation history. Please refresh.' });
     }
   },
 
@@ -83,16 +84,21 @@ export const useCareerAssistantStore = create<CareerAssistantStore>((set, get) =
         status: 'idle',
         error: null,
       }));
-    } catch (e: unknown) {
+    } catch {
       set((s) => ({
         messages: s.messages.filter((m) => m.id !== optimistic.id),
         status: 'error',
-        error: e instanceof Error ? e.message : 'Failed',
+        error: 'Message could not be sent. Please try again.',
       }));
     }
   },
 
   resetError() {
     set({ status: 'idle', error: null });
+  },
+
+  clearMessages() {
+    // Clears local view only — starts fresh conversation thread on next message
+    set({ messages: [], conversationId: null, status: 'idle', error: null });
   },
 }));

@@ -14,10 +14,18 @@ import {
   AlertTriangle,
   Send,
   Loader2,
+  Accessibility,
+  Sun,
+  Anchor,
+  Film,
+  Leaf,
+  Sparkles,
+  PanelLeftClose,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useThemeStore } from '@/stores/themeStore';
 import { api } from '@/lib/api';
 
 // ---------------------------------------------------------------------------
@@ -654,6 +662,175 @@ function SystemReadinessTab({ userId }: { userId: string }) {
 }
 
 // ---------------------------------------------------------------------------
+// Accessibility Tab
+// ---------------------------------------------------------------------------
+
+const THEME_OPTIONS = [
+  {
+    id: 'light' as const,
+    Icon: Sun,
+    label: 'Jasny',
+    badge: 'Standard',
+    description:
+      'Czyste białe tło, niebieskie akcenty. Standardowy dzienny motyw — przejrzysty i energiczny.',
+  },
+  {
+    id: 'dark' as const,
+    Icon: Anchor,
+    label: 'Granatowy',
+    badge: 'Standard',
+    description:
+      'Głęboki granat z jasnoniebieskimi akcentami. Standardowy nocny motyw — ciepły i elegancki.',
+  },
+  {
+    id: 'visually-impaired' as const,
+    Icon: Eye,
+    label: 'Słabowidzący',
+    badge: 'Dostępność',
+    description:
+      'Czarne tło, żółty tekst, kontrast 21:1 (WCAG AAA). Pogrubione obramowania, duże czcionki i wielkie strefy klikalne dla maksymalnej czytelności.',
+  },
+  {
+    id: 'overstimulated' as const,
+    Icon: Leaf,
+    label: 'Przebodźcowany',
+    badge: 'Dostępność',
+    description:
+      'Ciepłe, nisko nasycone barwy (kamień/piasek), miękkie zaokrąglenia i zero animacji. Dla osób łatwo przebodźcowanych, z ADHD lub nadwrażliwością sensoryczną.',
+  },
+  {
+    id: 'noir' as const,
+    Icon: Film,
+    label: 'Noir',
+    badge: 'Styl',
+    description:
+      'Czerń cinc-950, biała typografia, ostre geometryczne krawędzie. Kinowy, high-contrast klimat rodem z kina noir.',
+  },
+  {
+    id: 'elegant' as const,
+    Icon: Sparkles,
+    label: 'Elegancki',
+    badge: 'Styl',
+    description:
+      'Kremowe alabastrowe tło (#FDFBF7), węglowo-czarny tekst i przytłumione złote akcenty (#C5A880). Luksusowy, minimalistyczny design.',
+  },
+];
+
+function AccessibilityTab() {
+  const { theme, setTheme, focusMode, setFocusMode } = useThemeStore();
+
+  return (
+    <div className="space-y-6">
+      {/* Theme picker */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Accessibility className="h-4 w-4" /> Motyw kolorystyczny
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+            Wybierz motyw najwygodniejszy dla Ciebie. Szybki przełącznik znajdziesz też w nagłówku.
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {THEME_OPTIONS.map(({ id, Icon, label, badge, description }) => {
+              const isActive = theme === id;
+              const badgeColour =
+                badge === 'Standard'   ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' :
+                badge === 'Dostępność' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' :
+                                        'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300';
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTheme(id)}
+                  aria-pressed={isActive}
+                  className={`flex flex-col items-start gap-2 rounded-2xl border p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
+                    isActive
+                      ? 'border-indigo-400 bg-indigo-50 dark:border-indigo-600 dark:bg-indigo-950/40'
+                      : 'border-slate-100 bg-white hover:border-indigo-100 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900'
+                  }`}
+                >
+                  <div className="flex w-full items-center gap-2">
+                    <Icon className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                    <span className="font-medium text-slate-800 dark:text-slate-200">{label}</span>
+                    <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${badgeColour}`}>
+                      {isActive ? '✓ Aktywny' : badge}
+                    </span>
+                  </div>
+                  <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">{description}</p>
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Focus mode */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <PanelLeftClose className="h-4 w-4" /> Focus Mode
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <label className="flex cursor-pointer items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Hide sidebar navigation</p>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                Hides the left sidebar so you can concentrate on the current task without
+                distraction. The sidebar button in the header lets you toggle it on and off at
+                any time.
+              </p>
+            </div>
+            <Toggle checked={focusMode} onChange={() => setFocusMode(!focusMode)} />
+          </label>
+        </CardContent>
+      </Card>
+
+      {/* Reduced motion info */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Reduced Motion</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            MultivoHub automatically respects your operating system's{' '}
+            <strong className="font-semibold text-slate-700 dark:text-slate-300">
+              Reduce Motion
+            </strong>{' '}
+            accessibility setting. When enabled, all animations and transitions are disabled
+            throughout the app. You can find this setting in:
+          </p>
+          <ul className="mt-3 space-y-1 text-sm text-slate-500 dark:text-slate-400">
+            <li>
+              <strong className="text-slate-700 dark:text-slate-300">macOS:</strong> System
+              Settings → Accessibility → Display → Reduce Motion
+            </li>
+            <li>
+              <strong className="text-slate-700 dark:text-slate-300">Windows:</strong> Settings
+              → Accessibility → Visual effects → Animation effects
+            </li>
+            <li>
+              <strong className="text-slate-700 dark:text-slate-300">Android:</strong> Settings
+              → Accessibility → Remove animations
+            </li>
+            <li>
+              <strong className="text-slate-700 dark:text-slate-300">iOS / iPadOS:</strong>{' '}
+              Settings → Accessibility → Motion → Reduce Motion
+            </li>
+          </ul>
+          <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+            Selecting the <strong className="text-slate-700 dark:text-slate-300">Focus</strong>{' '}
+            colour theme above also removes animations regardless of your OS setting.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main SettingsHub
 // ---------------------------------------------------------------------------
 
@@ -679,6 +856,7 @@ export default function SettingsHub() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="accessibility">Accessibility</TabsTrigger>
           <TabsTrigger value="email">Email &amp; SMTP</TabsTrigger>
           <TabsTrigger value="telegram">Telegram</TabsTrigger>
           <TabsTrigger value="sources">Job Sources</TabsTrigger>
@@ -721,6 +899,11 @@ export default function SettingsHub() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* ACCESSIBILITY */}
+        <TabsContent value="accessibility">
+          <AccessibilityTab />
         </TabsContent>
 
         {/* EMAIL */}

@@ -115,9 +115,9 @@ export default function SecurityPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-slate-600 dark:text-slate-400">Add an extra layer of security to your account.</p>
-              <Badge variant="secondary" className="mt-1">Coming soon</Badge>
+              <p className="mt-1 text-xs text-slate-400">Two-factor authentication is managed through your sign-in provider (e.g. Google, Apple). Enable it there to protect your account.</p>
             </div>
-            <Button variant="outline" disabled>Enable 2FA</Button>
+            <Button variant="outline" disabled title="Manage 2FA through your sign-in provider">Not available yet</Button>
           </div>
         </CardContent>
       </Card>

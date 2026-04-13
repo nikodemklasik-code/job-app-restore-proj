@@ -8,3 +8,8 @@ frontend/dist/
 .DS_Store
 ios/
 android/
+
+# Deploy secrets (never commit)
+.env.local
+.env.production
+.deploy-token-hash

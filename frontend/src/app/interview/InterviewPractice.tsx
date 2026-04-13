@@ -1,7 +1,10 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { api } from '@/lib/api';
-import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase } from 'lucide-react';
+import { api, trpcClient } from '@/lib/api';
+import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, BookOpen, Clock, TrendingUp, FileDown, StickyNote, Star, Lock, Zap } from 'lucide-react';
+import { interviewModeLabels } from '../../../../shared/interview';
+import type { InterviewMode } from '../../../../shared/interview';
+import { useBillingStore } from '@/stores/billingStore';
 
 // ─── Wave/avatar keyframes injected once ─────────────────────────────────────
 const AVATAR_STYLES = `
@@ -45,13 +48,21 @@ const AVATAR_STYLES = `
     0%, 100% { height: 4px; transform: scaleY(0.5); }
     50% { height: 20px; transform: scaleY(1); }
   }
+  @keyframes slide-up {
+    from { transform: translate(-50%, 20px); opacity: 0; }
+    to   { transform: translate(-50%, 0);   opacity: 1; }
+  }
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
 `;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Phase =
-  | 'job-select'
-  | 'idle'
+  | 'lobby'       // pre-call: job select + camera preview
+  | 'connecting'  // brief "Connecting…" animation
   | 'ai-speaking'
   | 'user-turn'
   | 'processing'
@@ -81,10 +92,208 @@ interface AdaptiveInsights {
   strongAreas?: string[];
 }
 
+interface TurnFeedback {
+  score: number;
+  starPresence: { situation: boolean; task: boolean; action: boolean; result: boolean };
+  improvementTip: string;
+  clarityScore: number;
+  confidenceNote: string;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 const MAX_EXCHANGES = 8;
+
+// ─── Live Interview Summary type ──────────────────────────────────────────────
+
+interface LiveInterviewSummary {
+  summary: string;
+  strengths: string[];
+  weaknesses: string[];
+  communicationNotes: string;
+  nextFocus: string[];
+}
+
+// ─── Client-side STAR helpers (fast, no network) ─────────────────────────────
+
+function detectStarClient(t: string): TurnFeedback['starPresence'] {
+  const s = t.toLowerCase();
+  return {
+    situation: /\b(when|at the time|there was|we were|our team|last year|during|in my previous|at \w+ company|back in)\b/.test(s),
+    task: /\b(i needed to|my (task|goal|job|responsibility) was|i was responsible|i had to|assigned to|my role was|tasked with)\b/.test(s),
+    action: /\b(i (did|decided|implemented|built|led|created|wrote|fixed|reached out|set up|introduced|proposed|developed|organized|designed))\b/.test(s),
+    result: /\b(result(ed)?( in)?|achiev|improv|reduc|increas|saved|success|by \d|percent|outcome|we (launched|delivered|hit|exceeded|met))\b/.test(s),
+  };
+}
+
+function starTipClient(star: TurnFeedback['starPresence'], t: string): string {
+  const missing = (Object.entries(star) as [string, boolean][]).filter(([, v]) => !v).map(([k]) => k);
+  if (missing.length === 0) return t.length < 120 ? 'Good coverage — add more detail and a quantified result.' : 'Excellent STAR structure. Consider adding a measurable outcome.';
+  const tips: Record<string, string> = {
+    situation: 'Add context — briefly describe the situation or project.',
+    task: 'Clarify your specific responsibility — what were YOU tasked with?',
+    action: 'Emphasise your own actions — use "I did…" statements.',
+    result: 'Always close with the outcome — numbers, impact, or what was learned.',
+  };
+  return tips[missing[0]] ?? 'Structure your answer: Situation → Task → Action → Result.';
+}
+
+function scoreTurnClient(transcript: string): TurnFeedback {
+  const star = detectStarClient(transcript);
+  const starCount = Object.values(star).filter(Boolean).length;
+  const baseScore = 55 + starCount * 10 + Math.min(transcript.length / 30, 10);
+  const score = Math.round(Math.min(100, Math.max(30, baseScore)));
+  const fillers = (transcript.toLowerCase().match(/\b(um|uh|like|you know|kind of|sort of)\b/g) ?? []).length;
+  const clarityScore = Math.max(30, Math.min(100, 75 - fillers * 8 + (transcript.length > 200 ? 10 : 0)));
+  const confidenceNote =
+    fillers >= 5 ? 'Many filler words detected — try pausing instead of saying "um".' :
+    transcript.length < 60 ? 'Very brief answer — expand with a specific example.' :
+    'Delivery is solid. Ground your answer in concrete specifics.';
+  return { score, starPresence: star, improvementTip: starTipClient(star, transcript), clarityScore, confidenceNote };
+}
+
+// ─── Coaching plan generator (client-side, from all user messages) ────────────
+
+function generateCoachingPlan(userMessages: string[]): { area: string; action: string; priority: 'high' | 'medium' | 'low' }[] {
+  const combined = userMessages.join(' ').toLowerCase();
+  const plan: { area: string; action: string; priority: 'high' | 'medium' | 'low' }[] = [];
+
+  const starScores = userMessages.map((m) => {
+    const s = detectStarClient(m);
+    return Object.values(s).filter(Boolean).length;
+  });
+  const avgStar = starScores.reduce((a, b) => a + b, 0) / (starScores.length || 1);
+  if (avgStar < 2.5) plan.push({ area: 'STAR Structure', action: 'Practise structuring every answer with Situation → Task → Action → Result. Record yourself answering 3 behavioral questions this week.', priority: 'high' });
+
+  const fillers = (combined.match(/\b(um|uh|like|you know|kind of)\b/g) ?? []).length;
+  if (fillers >= 6) plan.push({ area: 'Filler Words', action: 'Record your answers and count filler words. Replace each "um" with a deliberate pause — it sounds more confident.', priority: 'high' });
+
+  const hasNumbers = /\b\d+\s*(percent|%|people|users|days|weeks|months|k|million|thousand)\b/.test(combined);
+  if (!hasNumbers) plan.push({ area: 'Quantified Results', action: 'Add metrics to at least 3 answers. For every achievement, ask: "By how much?" or "How many people were impacted?"', priority: 'high' });
+
+  const hasSituation = userMessages.filter((m) => detectStarClient(m).situation).length;
+  if (hasSituation < userMessages.length * 0.5) plan.push({ area: 'Storytelling', action: 'Open every answer with a brief scene-setting sentence. E.g. "At my previous company, we were facing X…"', priority: 'medium' });
+
+  const avgLen = userMessages.reduce((a, b) => a + b.length, 0) / (userMessages.length || 1);
+  if (avgLen < 120) plan.push({ area: 'Answer Depth', action: 'Aim for 90-120 seconds per answer. After each answer in practice, ask yourself: "What one extra detail would make this stronger?"', priority: 'medium' });
+
+  if (plan.length < 3) plan.push({ area: 'Active Listening', action: 'In your next practice, consciously reference the interviewer\'s exact words in your response to show engagement.', priority: 'low' });
+
+  return plan.slice(0, 5);
+}
+
+// ─── Markdown report generator ────────────────────────────────────────────────
+
+function generateMarkdownReport(params: {
+  job: JobOption;
+  mode: InterviewMode;
+  messages: Message[];
+  callSeconds: number;
+  exchangeCount: number;
+  notes: string;
+  modeLabel: string;
+}): string {
+  const { job, messages, callSeconds, exchangeCount, notes, modeLabel } = params;
+  const date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  const duration = `${Math.floor(callSeconds / 60)}m ${callSeconds % 60}s`;
+  const userMsgs = messages.filter((m) => m.role === 'user').map((m) => m.content);
+  const coachingPlan = generateCoachingPlan(userMsgs);
+
+  let md = `# Interview Practice Report\n\n`;
+  md += `**Role:** ${job.title} at ${job.company}\n`;
+  md += `**Mode:** ${modeLabel}\n`;
+  md += `**Date:** ${date}\n`;
+  md += `**Duration:** ${duration} · ${exchangeCount} exchanges\n\n`;
+  md += `---\n\n## Transcript\n\n`;
+  messages.forEach((m) => {
+    const speaker = m.role === 'assistant' ? `**AI Interviewer**` : `**You**`;
+    md += `${speaker}: ${m.content}\n\n`;
+  });
+  md += `---\n\n## Coaching Plan\n\n`;
+  coachingPlan.forEach((item, i) => {
+    md += `### ${i + 1}. ${item.area} _(${item.priority} priority)_\n${item.action}\n\n`;
+  });
+  if (notes.trim()) { md += `---\n\n## Your Notes\n\n${notes}\n`; }
+  return md;
+}
+
+// ─── Question Bank data ────────────────────────────────────────────────────────
+
+const QUESTION_BANK: Record<InterviewMode, string[]> = {
+  behavioral: [
+    'Tell me about yourself and the experience most relevant to this role.',
+    'Describe a time you handled conflicting priorities under pressure.',
+    'Tell me about a mistake you made and how you fixed it.',
+    'Describe a project where you influenced a team decision without formal authority.',
+    'Tell me about a time you had to learn something quickly to deliver a project.',
+    'Give an example of when you showed leadership without being a manager.',
+    'Tell me about a time you disagreed with your manager. How did you handle it?',
+    'Describe a situation where you went above and beyond for a stakeholder.',
+    'Tell me about a time you had to deliver bad news. How did you approach it?',
+    'Describe your biggest professional failure and what you learned from it.',
+  ],
+  technical: [
+    'Walk me through a technical decision you made recently and why.',
+    'Describe a production issue you investigated and how you resolved it.',
+    'How do you approach debugging performance problems?',
+    'How would you design a URL shortening service from scratch?',
+    'What is your approach to testing strategy in a growing codebase?',
+    'Explain the trade-off between consistency and availability in distributed systems.',
+    'How do you ensure code quality in a fast-moving team?',
+    'Describe your approach to database schema design.',
+    'How would you scale a system from 1K to 1M users?',
+    'What does good API design look like to you?',
+  ],
+  general: [
+    'What are you looking for in your next role and why now?',
+    'Why does this opportunity interest you?',
+    'What strengths would your recent teammates highlight first?',
+    'What type of environment helps you do your best work?',
+    'What is one area you are actively improving right now?',
+    'How do you prioritise when everything feels urgent?',
+    'Where do you see yourself in three years?',
+    'What motivates you most in a role?',
+    'How do you define success in a new position?',
+    'What questions do you have for us?',
+  ],
+  hr: [
+    'What are your salary expectations for this role?',
+    'When are you available to start?',
+    'Are you currently interviewing elsewhere?',
+    'How do you prefer to receive feedback from a manager?',
+    'Describe your ideal work-life balance.',
+    'Tell me about a time you navigated a difficult colleague relationship.',
+    'What does recognition at work mean to you?',
+    'Are you open to relocation or travel if required?',
+    'How do you handle feedback you disagree with?',
+    'What type of management style brings out your best work?',
+  ],
+  'case-study': [
+    "A client's revenue has dropped 20% in 3 months. Walk me through how you'd diagnose this.",
+    'Your company wants to enter a new market. How would you evaluate the opportunity?',
+    'You have a £500k marketing budget for a product launch. How do you allocate it?',
+    'Estimate the number of Uber rides taken in London on a typical weekday.',
+    "You're the PM for a feature that's been live 2 weeks and has low adoption. What do you do?",
+    'How would you prioritise a product backlog of 40 items with capacity for only 5 this sprint?',
+    "A competitor just launched a feature your team has been building. What's your response?",
+    'How do you measure whether a new feature was successful?',
+    'Walk me through how you would restructure a declining product.',
+    'Design a loyalty programme for a retail bank. How would you approach this?',
+  ],
+  'language-check': [
+    'Introduce yourself in 2 minutes — tell me about your background and why you\'re here.',
+    'Describe the most complex project you\'ve delivered, focusing on clear explanation.',
+    'Explain a technical concept you know well to a non-technical stakeholder.',
+    'Tell me about a time you adapted your communication style for a different audience.',
+    'What is your approach to written communication in a remote team?',
+    'Summarise your career story in three sentences.',
+    'How do you present complex data to senior leadership clearly?',
+    'Describe a situation where miscommunication caused a problem and how you resolved it.',
+    'What makes a great presentation, in your view?',
+    'How do you ensure alignment across teams with different communication styles?',
+  ],
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -94,11 +303,12 @@ async function streamAIResponse(
   onChunk: (fullText: string) => void,
   onInsights: (insights: AdaptiveInsights) => void,
   userId?: string,
+  mode?: string,
 ): Promise<string> {
   const response = await fetch(`${API_BASE}/api/interview/stream`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, job, userId: userId ?? undefined }),
+    body: JSON.stringify({ messages, job, userId: userId ?? undefined, mode }),
     credentials: 'include',
   });
   if (!response.ok || !response.body) throw new Error(`Stream error ${response.status}`);
@@ -402,11 +612,19 @@ export default function InterviewPractice() {
   const { user } = useUser();
   const userId = user?.id ?? undefined;
 
+  // Billing / plan gate
+  const { currentPlan, loadBillingData } = useBillingStore();
+  useEffect(() => {
+    if (userId && !currentPlan) void loadBillingData(userId);
+  }, [userId, currentPlan, loadBillingData]);
+  const isPremium = currentPlan ? currentPlan.plan !== 'free' : null; // null = loading
+
   // Phase / conversation
-  const [phase, setPhase] = useState<Phase>('job-select');
+  const [phase, setPhase] = useState<Phase>('lobby');
   const [selectedJob, setSelectedJob] = useState<JobOption | null>(null);
   const [customCompany, setCustomCompany] = useState('');
   const [customRole, setCustomRole] = useState('');
+  const [selectedMode, setSelectedMode] = useState<InterviewMode>('behavioral');
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [avatarState, setAvatarState] = useState<AvatarState>('idle');
@@ -414,56 +632,139 @@ export default function InterviewPractice() {
   const [error, setError] = useState<string | null>(null);
   const [adaptiveInsights, setAdaptiveInsights] = useState<AdaptiveInsights | null>(null);
 
+  // Per-turn feedback
+  const [turnFeedback, setTurnFeedback] = useState<TurnFeedback | null>(null);
+
+  // Post-session
+  const [sessionNotes, setSessionNotes] = useState('');
+  const [showNotesSaved, setShowNotesSaved] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showQuestionBank, setShowQuestionBank] = useState(false);
+  const [qbMode, setQbMode] = useState<InterviewMode>('behavioral');
+
   // Recording
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [micDenied, setMicDenied] = useState(false);
+  const [micMuted, setMicMuted] = useState(false);
 
   // Camera
   const videoRef = useRef<HTMLVideoElement>(null);
+  const lobbyVideoRef = useRef<HTMLVideoElement>(null);
   const [cameraActive, setCameraActive] = useState(false);
+  const [cameraOn, setCameraOn] = useState(true);
+  const cameraStreamRef = useRef<MediaStream | null>(null);
 
   // Mic level
   const animFrameRef = useRef<number>(0);
   const [micLevels, setMicLevels] = useState<number[]>([0.1, 0.2, 0.1, 0.2, 0.1]);
 
-  // Conversation log scroll
-  const logRef = useRef<HTMLDivElement>(null);
+  // Call timer
+  const [callSeconds, setCallSeconds] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Jobs feed
-  const feedQuery = api.jobs.getFeed.useQuery({ limit: 20 }, { enabled: phase === 'job-select' });
+  // Transcript toggle (for complete screen)
+  const [showTranscript, setShowTranscript] = useState(false);
 
-  // Auto-scroll log
+  // Live Interview engine state
+  const [useLiveMode, setUseLiveMode] = useState(true);
+  const liveSessionIdRef = useRef<string | null>(null);
+  const [liveInterviewSummary, setLiveInterviewSummary] = useState<LiveInterviewSummary | null>(null);
+
+  // Jobs feed & history
+  const feedQuery = api.jobs.getFeed.useQuery({ limit: 20 }, { enabled: phase === 'lobby' });
+  const historyQuery = api.interview.getHistory.useQuery(undefined, { enabled: showHistory });
+
+  // Feedback auto-dismiss timer
   useEffect(() => {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight;
-    }
-  }, [messages, currentTranscript]);
+    if (!turnFeedback) return;
+    const t = setTimeout(() => setTurnFeedback(null), 5000);
+    return () => clearTimeout(t);
+  }, [turnFeedback]);
 
-  // Camera setup
-  useEffect(() => {
-    if (phase === 'job-select') return;
-    let stream: MediaStream | null = null;
-    (async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
-          setCameraActive(true);
-        }
-      } catch {
-        setCameraActive(false);
+  // ── Camera setup / teardown ────────────────────────────────────────────────
+
+  const startCamera = useCallback(async (targetRef: React.RefObject<HTMLVideoElement | null>) => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      cameraStreamRef.current = stream;
+      if (targetRef.current) {
+        targetRef.current.srcObject = stream;
+        await targetRef.current.play();
+        setCameraActive(true);
       }
-    })();
-    return () => {
-      if (stream) stream.getTracks().forEach((t) => t.stop());
+    } catch {
       setCameraActive(false);
+    }
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
+    cameraStreamRef.current = null;
+    setCameraActive(false);
+  }, []);
+
+  // Lobby: start camera for preview
+  useEffect(() => {
+    if (phase === 'lobby') {
+      void startCamera(lobbyVideoRef);
+    }
+    return () => {
+      if (phase !== 'lobby') stopCamera();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
-  // Mic level animation
+  // Call: move stream to call video ref when transitioning into call
+  useEffect(() => {
+    if (phase === 'ai-speaking' || phase === 'user-turn' || phase === 'processing') {
+      if (!cameraStreamRef.current) {
+        void startCamera(videoRef);
+      } else if (videoRef.current) {
+        videoRef.current.srcObject = cameraStreamRef.current;
+        void videoRef.current.play().then(() => {
+          setCameraActive(true); // stream reused from lobby — mark as active
+        }).catch(() => {
+          setCameraActive(true); // still mark active even if autoplay needs gesture
+        });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  // Toggle camera on/off during call
+  const toggleCamera = useCallback(() => {
+    const stream = cameraStreamRef.current;
+    if (!stream) return;
+    const videoTrack = stream.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      setCameraOn(videoTrack.enabled);
+    }
+  }, []);
+
+  // ── Call timer ─────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (phase === 'ai-speaking' || phase === 'user-turn' || phase === 'processing') {
+      if (!timerRef.current) {
+        timerRef.current = setInterval(() => setCallSeconds((s) => s + 1), 1000);
+      }
+    } else {
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    }
+    return () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
+  }, [phase]);
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60).toString().padStart(2, '0');
+    const sec = (s % 60).toString().padStart(2, '0');
+    return `${m}:${sec}`;
+  };
+
+  // ── Mic level animation ────────────────────────────────────────────────────
+
   const startMicLevelAnimation = useCallback((analyser: AnalyserNode) => {
     const data = new Uint8Array(analyser.frequencyBinCount);
     const tick = () => {
@@ -485,7 +786,7 @@ export default function InterviewPractice() {
     setMicLevels([0.1, 0.2, 0.1, 0.2, 0.1]);
   }, []);
 
-  // ── Core conversation flow ──────────────────────────────────────────────────
+  // ── Core conversation flow ─────────────────────────────────────────────────
 
   const getJob = useCallback((): JobOption => {
     if (selectedJob) return selectedJob;
@@ -513,10 +814,10 @@ export default function InterviewPractice() {
           (text) => setCurrentTranscript(text),
           (insights) => setAdaptiveInsights(insights),
           userId,
+          selectedMode,
         );
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Network error';
-        setError(`AI error: ${msg}`);
+      } catch {
+        setError('Something went wrong. Please try again.');
         setAvatarState('idle');
         setPhase('user-turn');
         return;
@@ -534,22 +835,63 @@ export default function InterviewPractice() {
       if (newExchangeCount >= MAX_EXCHANGES) {
         setPhase('complete');
         setAvatarState('idle');
+        stopCamera();
       } else {
         setPhase('user-turn');
         setAvatarState('listening');
       }
     },
-    [getJob, userId],
+    [getJob, userId, stopCamera, selectedMode],
   );
 
-  const startInterview = useCallback(async () => {
+  const joinCall = useCallback(async () => {
     setMessages([]);
     setExchangeCount(0);
+    setCallSeconds(0);
     setError(null);
-    setPhase('idle');
+    setTurnFeedback(null);
+    setSessionNotes('');
+    setShowNotesSaved(false);
+    setLiveInterviewSummary(null);
+    liveSessionIdRef.current = null;
+    setPhase('connecting');
     setAvatarState('thinking');
-    await runAITurn([]);
-  }, [runAITurn]);
+    await new Promise((r) => setTimeout(r, 1800));
+
+    if (useLiveMode) {
+      // ── Live Interview engine path ──────────────────────────────────────────
+      const job = getJob();
+      try {
+        const { sessionId } = await trpcClient.liveInterview.createSession.mutate({
+          mode: selectedMode as 'behavioral' | 'technical' | 'general' | 'hr' | 'case-study' | 'language-check',
+          roleContext: {
+            targetRole: job.title,
+            company: job.company,
+            description: job.description ?? undefined,
+          },
+        });
+        liveSessionIdRef.current = sessionId;
+
+        const { assistantMessage } = await trpcClient.liveInterview.startSession.mutate({ sessionId });
+        const firstMsg: Message = { role: 'assistant', content: assistantMessage };
+        setMessages([firstMsg]);
+        setCurrentTranscript('');
+        setPhase('ai-speaking');
+        setAvatarState('speaking');
+        await playTTS(assistantMessage);
+        setExchangeCount(1);
+        setPhase('user-turn');
+        setAvatarState('listening');
+      } catch {
+        setError('Could not start the interview session. Please try again.');
+        setAvatarState('idle');
+        setPhase('lobby');
+      }
+    } else {
+      // ── Coaching mode (legacy stream path) ─────────────────────────────────
+      await runAITurn([]);
+    }
+  }, [runAITurn, useLiveMode, getJob, selectedMode]);
 
   const startRecording = useCallback(async () => {
     setError(null);
@@ -562,7 +904,6 @@ export default function InterviewPractice() {
       return;
     }
 
-    // Set up analyser for level visualisation
     const ctx = new AudioContext();
     const source = ctx.createMediaStreamSource(stream);
     const analyser = ctx.createAnalyser();
@@ -595,12 +936,53 @@ export default function InterviewPractice() {
         return;
       }
 
+      // Show instant per-turn feedback
+      const feedback = scoreTurnClient(transcript);
+      setTurnFeedback(feedback);
+
       const updatedMsgs: Message[] = [
         ...messages,
         { role: 'user', content: transcript },
       ];
       setMessages(updatedMsgs);
-      await runAITurn(updatedMsgs);
+
+      if (useLiveMode && liveSessionIdRef.current) {
+        // ── Live Interview engine path ────────────────────────────────────────
+        setPhase('processing');
+        setAvatarState('thinking');
+        try {
+          const result = await trpcClient.liveInterview.respond.mutate({
+            sessionId: liveSessionIdRef.current,
+            userMessage: transcript,
+          });
+
+          const aiMsg: Message = { role: 'assistant', content: result.assistantMessage };
+          const withAi: Message[] = [...updatedMsgs, aiMsg];
+          setMessages(withAi);
+          setExchangeCount(withAi.filter((m) => m.role === 'assistant').length);
+
+          setPhase('ai-speaking');
+          setAvatarState('speaking');
+          await playTTS(result.assistantMessage);
+
+          if (result.isComplete) {
+            if (result.summary) setLiveInterviewSummary(result.summary as LiveInterviewSummary);
+            setPhase('complete');
+            setAvatarState('idle');
+            stopCamera();
+          } else {
+            setPhase('user-turn');
+            setAvatarState('listening');
+          }
+        } catch {
+          setError('Something went wrong. Please try again.');
+          setAvatarState('idle');
+          setPhase('user-turn');
+        }
+      } else {
+        // ── Coaching mode (legacy stream path) ───────────────────────────────
+        await runAITurn(updatedMsgs);
+      }
     };
 
     recorder.start(250);
@@ -608,7 +990,7 @@ export default function InterviewPractice() {
     setIsRecording(true);
     setAvatarState('listening');
     setPhase('user-turn');
-  }, [messages, runAITurn, startMicLevelAnimation, stopMicLevelAnimation]);
+  }, [messages, runAITurn, useLiveMode, stopCamera, startMicLevelAnimation, stopMicLevelAnimation]);
 
   const stopRecording = useCallback(() => {
     recorderRef.current?.stop();
@@ -622,685 +1004,960 @@ export default function InterviewPractice() {
     }
   }, [isRecording, startRecording, stopRecording]);
 
-  const endInterview = useCallback(() => {
+  const endCall = useCallback(() => {
     recorderRef.current?.stop();
-    setPhase('complete');
-    setAvatarState('idle');
     setIsRecording(false);
     stopMicLevelAnimation();
-  }, [stopMicLevelAnimation]);
+    stopCamera();
+
+    if (useLiveMode && liveSessionIdRef.current) {
+      const sessionId = liveSessionIdRef.current;
+      void trpcClient.liveInterview.complete.mutate({ sessionId }).then((res) => {
+        if (res.summary) setLiveInterviewSummary(res.summary as LiveInterviewSummary);
+      }).catch(() => {
+        // non-fatal — show complete screen without AI summary
+      });
+    }
+
+    setPhase('complete');
+    setAvatarState('idle');
+  }, [useLiveMode, stopMicLevelAnimation, stopCamera]);
 
   const resetAll = useCallback(() => {
-    setPhase('job-select');
+    setPhase('lobby');
     setSelectedJob(null);
     setCustomCompany('');
     setCustomRole('');
     setMessages([]);
     setCurrentTranscript('');
     setExchangeCount(0);
+    setCallSeconds(0);
     setError(null);
     setAvatarState('idle');
     setIsRecording(false);
     setAdaptiveInsights(null);
+    setShowTranscript(false);
+    setTurnFeedback(null);
+    setSessionNotes('');
+    setShowNotesSaved(false);
+    setShowHistory(false);
+    setLiveInterviewSummary(null);
+    liveSessionIdRef.current = null;
   }, []);
 
-  // ── Job-select screen ──────────────────────────────────────────────────────
+  // ── LOBBY SCREEN ───────────────────────────────────────────────────────────
 
-  if (phase === 'job-select') {
+  if (phase === 'lobby') {
     const job = getJob();
-    const canStart = (selectedJob !== null) || (customCompany.trim() !== '' && customRole.trim() !== '');
+    const canJoin = (selectedJob !== null) || (customCompany.trim() !== '' && customRole.trim() !== '');
 
     return (
-      <div
-        className="min-h-screen flex items-center justify-center p-4"
-        style={{ background: '#0a0f1e' }}
-      >
+      <div style={{ minHeight: '100vh', background: '#050a14', color: '#f9fafb', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <style>{AVATAR_STYLES}</style>
 
-        <div
-          style={{
-            background: '#111827',
-            border: '1px solid #1f2937',
-            borderRadius: 16,
-            padding: 32,
-            width: '100%',
-            maxWidth: 560,
-            color: '#f9fafb',
-          }}
-        >
-          <div className="flex items-center gap-3 mb-6">
-            <div
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 10,
-                background: 'linear-gradient(135deg, #6366f1, #3b82f6)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+        {/* Credits bar */}
+        {currentPlan && (
+          <div style={{ width: '100%', maxWidth: 880, marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 12, padding: '10px 18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Zap style={{ width: 16, height: 16, color: '#818cf8' }} />
+              <span style={{ fontSize: 13, color: '#94a3b8' }}>AI credits remaining:</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{currentPlan.credits.toLocaleString()}</span>
+            </div>
+            <a
+              href="/billing"
+              style={{ fontSize: 12, fontWeight: 600, color: '#a5b4fc', textDecoration: 'none', padding: '5px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: 8, transition: 'opacity 0.15s' }}
             >
-              <Briefcase style={{ width: 20, height: 20, color: '#fff' }} />
+              Buy Credits →
+            </a>
+          </div>
+        )}
+
+        <div style={{ width: '100%', maxWidth: 880, display: 'flex', gap: 24, flexWrap: 'wrap', justifyContent: 'center' }}>
+
+          {/* Left: camera preview tile */}
+          <div style={{ flex: '1 1 340px', minHeight: 320, background: '#0f172a', borderRadius: 20, border: '1px solid #1e293b', overflow: 'hidden', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {/* actual video */}
+            <video
+              ref={lobbyVideoRef}
+              muted
+              playsInline
+              style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', position: 'absolute', inset: 0 }}
+            />
+            {!cameraActive && (
+              <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>👤</div>
+                <span style={{ fontSize: 13, color: '#64748b' }}>Camera unavailable</span>
+              </div>
+            )}
+            {/* "You" label */}
+            <div style={{ position: 'absolute', bottom: 14, left: 14, background: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600, color: '#e2e8f0', zIndex: 2 }}>
+              You
             </div>
-            <div>
-              <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>AI Interview Practice</h1>
-              <p style={{ fontSize: 13, color: '#6b7280', margin: 0 }}>Video-call style with a live AI interviewer</p>
-            </div>
+            {/* Camera indicator */}
+            <div style={{ position: 'absolute', top: 14, right: 14, zIndex: 2, width: 10, height: 10, borderRadius: '50%', background: cameraActive ? '#22c55e' : '#64748b', boxShadow: cameraActive ? '0 0 8px #22c55e' : 'none' }} />
           </div>
 
-          {/* Custom job */}
-          <div
-            style={{
-              background: '#1f2937',
-              borderRadius: 12,
-              padding: 16,
-              marginBottom: 16,
-            }}
-          >
-            <p style={{ fontSize: 13, color: '#9ca3af', marginBottom: 10, fontWeight: 600 }}>CUSTOM ROLE</p>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Company name"
-                value={customCompany}
-                onChange={(e) => { setCustomCompany(e.target.value); setSelectedJob(null); }}
-                style={{
-                  flex: 1,
-                  background: '#111827',
-                  border: '1px solid #374151',
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  color: '#f9fafb',
-                  fontSize: 14,
-                  outline: 'none',
-                }}
-              />
-              <input
-                type="text"
-                placeholder="Job title"
-                value={customRole}
-                onChange={(e) => { setCustomRole(e.target.value); setSelectedJob(null); }}
-                style={{
-                  flex: 1,
-                  background: '#111827',
-                  border: '1px solid #374151',
-                  borderRadius: 8,
-                  padding: '8px 12px',
-                  color: '#f9fafb',
-                  fontSize: 14,
-                  outline: 'none',
-                }}
-              />
+          {/* Right: job selector + join */}
+          <div style={{ flex: '1 1 340px', display: 'flex', flexDirection: 'column', gap: 16, justifyContent: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#6366f1,#3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Briefcase style={{ width: 22, height: 22, color: '#fff' }} />
+              </div>
+              <div>
+                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>AI Interview Coach</h1>
+                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Share your answers — get structured coaching reports</p>
+              </div>
             </div>
-          </div>
 
-          {/* Jobs from feed */}
-          {feedQuery.isLoading ? (
-            <div style={{ textAlign: 'center', padding: '20px 0', color: '#6b7280', fontSize: 14 }}>
-              <div
-                style={{
-                  width: 20,
-                  height: 20,
-                  border: '2px solid #6366f1',
-                  borderTop: '2px solid transparent',
-                  borderRadius: '50%',
-                  animation: 'spin 0.8s linear infinite',
-                  margin: '0 auto 8px',
-                }}
-              />
-              Loading jobs...
+            {/* Custom role */}
+            <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>CUSTOM ROLE</p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  type="text"
+                  placeholder="Company name"
+                  value={customCompany}
+                  onChange={(e) => { setCustomCompany(e.target.value); setSelectedJob(null); }}
+                  style={{ flex: 1, background: '#050a14', border: '1px solid #1e293b', borderRadius: 8, padding: '8px 12px', color: '#f1f5f9', fontSize: 14, outline: 'none' }}
+                />
+                <input
+                  type="text"
+                  placeholder="Job title"
+                  value={customRole}
+                  onChange={(e) => { setCustomRole(e.target.value); setSelectedJob(null); }}
+                  style={{ flex: 1, background: '#050a14', border: '1px solid #1e293b', borderRadius: 8, padding: '8px 12px', color: '#f1f5f9', fontSize: 14, outline: 'none' }}
+                />
+              </div>
             </div>
-          ) : feedQuery.data && feedQuery.data.length > 0 ? (
-            <div>
-              <p style={{ fontSize: 13, color: '#9ca3af', marginBottom: 8, fontWeight: 600 }}>OR PICK A JOB</p>
-              <div
-                style={{
-                  maxHeight: 260,
-                  overflowY: 'auto',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 6,
-                }}
-              >
-                {feedQuery.data.map((j) => (
+
+            {/* Interview mode selector */}
+            <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>INTERVIEW MODE</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                {(Object.entries(interviewModeLabels) as [InterviewMode, typeof interviewModeLabels[InterviewMode]][]).map(([modeKey, meta]) => (
                   <button
-                    key={j.id}
-                    onClick={() => {
-                      setSelectedJob({ id: j.id, title: j.title, company: j.company, description: j.description });
-                      setCustomCompany('');
-                      setCustomRole('');
-                    }}
+                    key={modeKey}
+                    onClick={() => setSelectedMode(modeKey)}
+                    title={meta.description}
                     style={{
-                      background: selectedJob?.id === j.id ? 'rgba(99,102,241,0.2)' : '#1f2937',
-                      border: `1px solid ${selectedJob?.id === j.id ? '#6366f1' : '#374151'}`,
+                      background: selectedMode === modeKey ? 'rgba(99,102,241,0.22)' : '#050a14',
+                      border: `1px solid ${selectedMode === modeKey ? '#6366f1' : '#1e293b'}`,
                       borderRadius: 8,
-                      padding: '10px 14px',
-                      textAlign: 'left',
+                      padding: '8px 6px',
                       cursor: 'pointer',
-                      color: '#f9fafb',
+                      color: selectedMode === modeKey ? '#a5b4fc' : '#94a3b8',
+                      textAlign: 'center',
                       transition: 'all 0.15s',
                     }}
                   >
-                    <div style={{ fontWeight: 600, fontSize: 14 }}>{j.title}</div>
-                    <div style={{ fontSize: 12, color: '#9ca3af' }}>{j.company} {j.location ? `· ${j.location}` : ''}</div>
+                    <div style={{ fontSize: 18 }}>{meta.emoji}</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, marginTop: 2 }}>{meta.label}</div>
                   </button>
                 ))}
               </div>
+              <p style={{ fontSize: 11, color: '#475569', marginTop: 8, marginBottom: 0 }}>{interviewModeLabels[selectedMode].description}</p>
             </div>
-          ) : null}
 
-          <button
-            disabled={!canStart}
-            onClick={() => void startInterview()}
-            style={{
-              marginTop: 20,
-              width: '100%',
-              padding: '12px 0',
-              background: canStart ? 'linear-gradient(135deg, #6366f1, #3b82f6)' : '#374151',
-              border: 'none',
-              borderRadius: 10,
-              color: canStart ? '#fff' : '#6b7280',
-              fontWeight: 700,
-              fontSize: 15,
-              cursor: canStart ? 'pointer' : 'not-allowed',
-              transition: 'opacity 0.15s',
-            }}
-          >
-            {canStart
-              ? `Start Interview — ${job.title} at ${job.company}`
-              : 'Select a job or enter a custom role'}
-          </button>
+            {/* Jobs list */}
+            {feedQuery.isLoading ? (
+              <div style={{ textAlign: 'center', color: '#64748b', fontSize: 13, padding: '12px 0' }}>
+                <div style={{ width: 18, height: 18, border: '2px solid #6366f1', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 6px' }} />
+                Loading jobs…
+              </div>
+            ) : feedQuery.data && feedQuery.data.length > 0 ? (
+              <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>OR PICK A JOB</p>
+                <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {feedQuery.data.map((j: { id: string; title: string; company: string; description?: string | null; location?: string | null }) => (
+                    <button
+                      key={j.id}
+                      onClick={() => { setSelectedJob({ id: j.id, title: j.title, company: j.company, description: j.description }); setCustomCompany(''); setCustomRole(''); }}
+                      style={{ background: selectedJob?.id === j.id ? 'rgba(99,102,241,0.2)' : '#050a14', border: `1px solid ${selectedJob?.id === j.id ? '#6366f1' : '#1e293b'}`, borderRadius: 8, padding: '9px 14px', textAlign: 'left', cursor: 'pointer', color: '#f1f5f9', transition: 'all 0.15s' }}
+                    >
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{j.title}</div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>{j.company}{j.location ? ` · ${j.location}` : ''}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Premium gate — show upgrade prompt for free users */}
+            {isPremium === false ? (
+              <div style={{ background: 'linear-gradient(135deg,rgba(99,102,241,0.18),rgba(59,130,246,0.12))', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 14, padding: '20px 20px', textAlign: 'center' }}>
+                <Lock style={{ width: 28, height: 28, color: '#a5b4fc', margin: '0 auto 10px' }} />
+                <p style={{ fontWeight: 700, fontSize: 15, color: '#e2e8f0', marginBottom: 6 }}>AI Interview Practice is a Pro feature</p>
+                <p style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>Upgrade to Pro or Autopilot to unlock unlimited mock interviews, coaching plans, and session history.</p>
+                <a
+                  href="/billing"
+                  style={{ display: 'inline-block', padding: '10px 28px', background: 'linear-gradient(135deg,#6366f1,#3b82f6)', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}
+                >
+                  Upgrade to Pro →
+                </a>
+              </div>
+            ) : (
+            <>
+            {/* Mode toggle: Live Interview vs Coaching */}
+            <div style={{ background: '#0f172a', borderRadius: 10, border: '1px solid #1e293b', padding: '8px', display: 'flex', gap: 4 }}>
+              <button
+                onClick={() => setUseLiveMode(true)}
+                style={{
+                  flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13,
+                  background: useLiveMode ? 'linear-gradient(135deg,#6366f1,#3b82f6)' : 'transparent',
+                  color: useLiveMode ? '#fff' : '#64748b',
+                  transition: 'all 0.15s',
+                }}
+              >
+                🎙️ Live Interview
+              </button>
+              <button
+                onClick={() => setUseLiveMode(false)}
+                style={{
+                  flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13,
+                  background: !useLiveMode ? 'rgba(99,102,241,0.18)' : 'transparent',
+                  color: !useLiveMode ? '#a5b4fc' : '#64748b',
+                  transition: 'all 0.15s',
+                }}
+              >
+                🧑‍🏫 Coaching Mode
+              </button>
+            </div>
+            {useLiveMode && (
+              <p style={{ margin: 0, fontSize: 12, color: '#64748b', textAlign: 'center' }}>
+                Real interview flow — structured questions, follow-ups, session memory, and summary
+              </p>
+            )}
+
+            {/* Join button */}
+            <button
+              disabled={!canJoin}
+              onClick={() => void joinCall()}
+              style={{
+                padding: '14px 0',
+                background: canJoin ? 'linear-gradient(135deg, #22c55e, #16a34a)' : '#1e293b',
+                border: 'none',
+                borderRadius: 12,
+                color: canJoin ? '#fff' : '#475569',
+                fontWeight: 700,
+                fontSize: 16,
+                cursor: canJoin ? 'pointer' : 'not-allowed',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+              }}
+            >
+              {canJoin ? `📞 Join Interview — ${job.title} at ${job.company}` : 'Select a job or enter a custom role'}
+            </button>
+            </>
+            )}
+
+            {/* Bottom action links */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowQuestionBank(true)}
+                style={{ flex: 1, padding: '10px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, color: '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              >
+                <BookOpen style={{ width: 14, height: 14 }} /> Question Bank
+              </button>
+              <button
+                onClick={() => setShowHistory(true)}
+                style={{ flex: 1, padding: '10px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, color: '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              >
+                <Clock style={{ width: 14, height: 14 }} /> History
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Question Bank modal */}
+        {showQuestionBank && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ width: '100%', maxWidth: 600, background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 28, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>📚 Question Bank</h2>
+                <button onClick={() => setShowQuestionBank(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>✕</button>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+                {(Object.keys(QUESTION_BANK) as InterviewMode[]).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setQbMode(m)}
+                    style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${qbMode === m ? '#6366f1' : '#1e293b'}`, background: qbMode === m ? 'rgba(99,102,241,0.2)' : '#050a14', color: qbMode === m ? '#a5b4fc' : '#94a3b8', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    {interviewModeLabels[m].emoji} {interviewModeLabels[m].label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {QUESTION_BANK[qbMode].map((q, i) => (
+                  <div key={i} style={{ background: '#050a14', border: '1px solid #1e293b', borderRadius: 10, padding: '12px 16px', fontSize: 14, color: '#e2e8f0', lineHeight: 1.5 }}>
+                    <span style={{ color: '#475569', fontSize: 12, fontWeight: 700, marginRight: 8 }}>Q{i + 1}</span>{q}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* History modal */}
+        {showHistory && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ width: '100%', maxWidth: 600, background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 28, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>🕐 Interview History</h2>
+                <button onClick={() => setShowHistory(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>✕</button>
+              </div>
+              {historyQuery.isLoading ? (
+                <div style={{ textAlign: 'center', color: '#64748b', padding: 40 }}>Loading…</div>
+              ) : !historyQuery.data || historyQuery.data.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#475569', padding: 40 }}>No sessions yet. Complete your first interview to see history here.</div>
+              ) : (
+                <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(historyQuery.data as Array<{ id: string; mode: string; difficulty: string; score: number | null; createdAt: string; answers: unknown[] }>).map((s) => {
+                    const modeLabel = interviewModeLabels[s.mode as InterviewMode] ?? { emoji: '💼', label: s.mode };
+                    const score = s.score;
+                    const scoreColor = score === null ? '#64748b' : score >= 80 ? '#34d399' : score >= 60 ? '#fbbf24' : '#f87171';
+                    return (
+                      <div key={s.id} style={{ background: '#050a14', border: '1px solid #1e293b', borderRadius: 10, padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>{modeLabel.emoji} {modeLabel.label}</span>
+                            <span style={{ fontSize: 11, color: '#475569', marginLeft: 10 }}>{new Date(s.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                          </div>
+                          {score !== null && (
+                            <span style={{ fontSize: 16, fontWeight: 800, color: scoreColor }}>{score}/100</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>
+                          {s.answers.length} answer{s.answers.length !== 1 ? 's' : ''} · {s.difficulty}
+                        </div>
+                        {score !== null && (
+                          <button
+                            onClick={() => {
+                              const growthAreas = [
+                                'Structure answers with clear STAR format',
+                                'Add quantified outcomes to each response',
+                                'Reduce filler words and pause instead',
+                              ];
+                              void trpcClient.interview.downloadCredential.mutate({ sessionId: s.id, growthAreas }).then((res: { base64: string; filename: string }) => {
+                                const bytes = Uint8Array.from(atob(res.base64), (c) => c.charCodeAt(0));
+                                const blob = new Blob([bytes], { type: 'application/pdf' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url; a.download = res.filename; a.click();
+                                URL.revokeObjectURL(url);
+                              });
+                            }}
+                            style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 7, padding: '5px 10px', color: '#818cf8', fontSize: 11, cursor: 'pointer' }}
+                          >
+                            <FileDown style={{ width: 12, height: 12 }} /> Download Credential PDF
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {/* Progress trend */}
+                  {(historyQuery.data as Array<{ score: number | null }>).filter((s) => s.score !== null).length >= 2 && (
+                    <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 10, padding: 16, marginTop: 8 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#a5b4fc', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><TrendingUp style={{ width: 14, height: 14 }} /> Score Trend</div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: 48 }}>
+                        {(historyQuery.data as Array<{ id: string; score: number | null }>).filter((s) => s.score !== null).slice(0, 10).reverse().map((s, i) => {
+                          const pct = ((s.score ?? 0) / 100) * 48;
+                          const c = (s.score ?? 0) >= 80 ? '#34d399' : (s.score ?? 0) >= 60 ? '#fbbf24' : '#f87171';
+                          return (
+                            <div key={i} title={`${s.score}/100`} style={{ flex: 1, height: `${pct}px`, background: c, borderRadius: 3, minHeight: 4 }} />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── CONNECTING SCREEN ──────────────────────────────────────────────────────
+
+  if (phase === 'connecting') {
+    const job = getJob();
+    return (
+      <div style={{ minHeight: '100vh', background: '#050a14', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 28 }}>
+        <style>{AVATAR_STYLES}</style>
+        <Avatar state="thinking" />
+        <div style={{ textAlign: 'center' }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: '#f1f5f9', margin: 0 }}>Connecting…</h2>
+          <p style={{ fontSize: 14, color: '#64748b', margin: '6px 0 0' }}>{job.title} at {job.company}</p>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {[0, 150, 300].map((d, i) => (
+            <div key={i} style={{ width: 9, height: 9, borderRadius: '50%', background: '#6366f1', animation: 'bounce-dot 0.9s ease-in-out infinite', animationDelay: `${d}ms` }} />
+          ))}
         </div>
       </div>
     );
   }
 
-  // ── Complete screen ─────────────────────────────────────────────────────────
+  // ── COMPLETE / SUMMARY SCREEN ──────────────────────────────────────────────
 
   if (phase === 'complete') {
-    const lastAI = [...messages].reverse().find((m) => m.role === 'assistant')?.content ?? '';
+    const job = getJob();
+    const modeInfo = interviewModeLabels[selectedMode];
+    const userMessages = messages.filter((m) => m.role === 'user').map((m) => m.content);
+    const coachingPlan = generateCoachingPlan(userMessages);
+    const avgScore = userMessages.length > 0
+      ? Math.round(userMessages.reduce((acc, t) => acc + scoreTurnClient(t).score, 0) / userMessages.length)
+      : null;
+    const scoreColor = avgScore === null ? '#64748b' : avgScore >= 80 ? '#34d399' : avgScore >= 60 ? '#fbbf24' : '#f87171';
+
+    const handleExport = () => {
+      const md = generateMarkdownReport({ job, mode: selectedMode, messages, callSeconds, exchangeCount, notes: sessionNotes, modeLabel: modeInfo.label });
+      const blob = new Blob([md], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeName = job.company.replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').toLowerCase() || 'company';
+      a.download = `interview-report-${safeName}-${new Date().toISOString().slice(0, 10)}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    const handleSaveNotes = () => {
+      setShowNotesSaved(true);
+      setTimeout(() => setShowNotesSaved(false), 2500);
+    };
+
     return (
-      <div
-        className="min-h-screen flex items-center justify-center p-4"
-        style={{ background: '#0a0f1e' }}
-      >
-        <div
-          style={{
-            background: '#111827',
-            border: '1px solid #1f2937',
-            borderRadius: 16,
-            padding: 40,
-            width: '100%',
-            maxWidth: 520,
-            color: '#f9fafb',
-            textAlign: 'center',
-          }}
-        >
-          <div style={{ fontSize: 56, marginBottom: 16 }}>🎉</div>
-          <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Interview Complete!</h2>
-          <p style={{ color: '#9ca3af', marginBottom: 24 }}>
-            {exchangeCount} exchange{exchangeCount !== 1 ? 's' : ''} with your AI interviewer
-          </p>
-          {lastAI && (
-            <div
-              style={{
-                background: '#1f2937',
-                borderRadius: 10,
-                padding: 16,
-                textAlign: 'left',
-                marginBottom: 24,
-                fontSize: 14,
-                lineHeight: 1.6,
-                color: '#d1d5db',
-              }}
-            >
-              <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 6, fontWeight: 600 }}>LAST MESSAGE</p>
-              {lastAI}
+      <div style={{ minHeight: '100vh', background: '#050a14', color: '#f1f5f9', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <style>{AVATAR_STYLES}</style>
+        <div style={{ width: '100%', maxWidth: 680, display: 'flex', flexDirection: 'column', gap: 18 }}>
+
+          {/* Summary header card */}
+          <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 28, textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 10 }}>🎙️</div>
+            <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>Interview Complete</h2>
+            <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 14px' }}>
+              {modeInfo.emoji} {modeInfo.label} · {job.title} at {job.company}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 20, flexWrap: 'wrap' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 26, fontWeight: 800, color: scoreColor }}>{avgScore !== null ? `${avgScore}/100` : '—'}</div>
+                <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>Avg Score</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 26, fontWeight: 800, color: '#a5b4fc' }}>{formatTime(callSeconds)}</div>
+                <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>Duration</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 26, fontWeight: 800, color: '#34d399' }}>{exchangeCount}</div>
+                <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>Exchanges</div>
+              </div>
+            </div>
+            {adaptiveInsights && adaptiveInsights.sessionCount > 0 && (
+              <div style={{ marginTop: 14, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 20, padding: '5px 14px', fontSize: 12, color: '#a5b4fc' }}>
+                <TrendingUp style={{ width: 12, height: 12 }} />
+                Session #{adaptiveInsights.sessionCount + 1} · Historical avg: {adaptiveInsights.averageScore}/100
+              </div>
+            )}
+          </div>
+
+          {/* Live Interview Summary (when live mode was used) */}
+          {useLiveMode && liveInterviewSummary && (
+            <div style={{ background: '#0f172a', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 16, padding: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <span style={{ fontSize: 16 }}>🎙️</span>
+                <span style={{ fontWeight: 700, fontSize: 15 }}>Interview Summary</span>
+              </div>
+              <p style={{ margin: '0 0 14px', fontSize: 14, color: '#94a3b8', lineHeight: 1.7 }}>{liveInterviewSummary.summary}</p>
+              {liveInterviewSummary.strengths.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#34d399', letterSpacing: '0.08em', marginBottom: 6 }}>STRENGTHS</div>
+                  {liveInterviewSummary.strengths.map((s, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 4 }}>
+                      <span style={{ color: '#34d399', flexShrink: 0 }}>✓</span>
+                      <span style={{ fontSize: 13, color: '#e2e8f0' }}>{s}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {liveInterviewSummary.weaknesses.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#f87171', letterSpacing: '0.08em', marginBottom: 6 }}>AREAS TO IMPROVE</div>
+                  {liveInterviewSummary.weaknesses.map((w, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 4 }}>
+                      <span style={{ color: '#f87171', flexShrink: 0 }}>→</span>
+                      <span style={{ fontSize: 13, color: '#e2e8f0' }}>{w}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {liveInterviewSummary.nextFocus.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#fbbf24', letterSpacing: '0.08em', marginBottom: 6 }}>NEXT PRACTICE FOCUS</div>
+                  {liveInterviewSummary.nextFocus.map((f, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 4 }}>
+                      <span style={{ color: '#fbbf24', flexShrink: 0 }}>•</span>
+                      <span style={{ fontSize: 13, color: '#e2e8f0' }}>{f}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {liveInterviewSummary.communicationNotes && (
+                <p style={{ margin: '12px 0 0', fontSize: 12, color: '#64748b', fontStyle: 'italic' }}>{liveInterviewSummary.communicationNotes}</p>
+              )}
             </div>
           )}
-          <div className="flex gap-3">
+
+          {/* Coaching Plan (shown only in coaching mode) */}
+          {!useLiveMode && coachingPlan.length > 0 && (
+            <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 16, padding: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <Star style={{ width: 16, height: 16, color: '#fbbf24' }} />
+                <span style={{ fontWeight: 700, fontSize: 15 }}>Your Coaching Plan</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {coachingPlan.map((item, i) => {
+                  const priorityColor = item.priority === 'high' ? '#f87171' : item.priority === 'medium' ? '#fbbf24' : '#34d399';
+                  return (
+                    <div key={i} style={{ background: '#050a14', border: '1px solid #1e293b', borderRadius: 10, padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: priorityColor, background: `${priorityColor}20`, borderRadius: 4, padding: '2px 7px', letterSpacing: '0.05em' }}>{item.priority.toUpperCase()}</span>
+                        <span style={{ fontWeight: 700, fontSize: 13, color: '#e2e8f0' }}>{item.area}</span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: 13, color: '#94a3b8', lineHeight: 1.6 }}>{item.action}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Transcript toggle */}
+          <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 16, overflow: 'hidden' }}>
             <button
-              onClick={() => void startInterview()}
-              style={{
-                flex: 1,
-                padding: '12px 0',
-                background: 'linear-gradient(135deg, #6366f1, #3b82f6)',
-                border: 'none',
-                borderRadius: 10,
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: 14,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-              }}
+              onClick={() => setShowTranscript((v) => !v)}
+              style={{ width: '100%', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', color: '#f1f5f9', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+            >
+              <span>📝 Full conversation transcript</span>
+              {showTranscript ? <ChevronUp style={{ width: 16, height: 16, color: '#64748b' }} /> : <ChevronDown style={{ width: 16, height: 16, color: '#64748b' }} />}
+            </button>
+            {showTranscript && (
+              <div style={{ padding: '0 20px 20px', display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 340, overflowY: 'auto' }}>
+                {messages.map((msg, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <div style={{ flexShrink: 0, fontSize: 18 }}>{msg.role === 'assistant' ? '🤖' : '👤'}</div>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: msg.role === 'assistant' ? '#818cf8' : '#34d399', marginBottom: 3, letterSpacing: '0.05em' }}>
+                        {msg.role === 'assistant' ? 'INTERVIEWER' : 'YOU'}
+                      </div>
+                      <div style={{ fontSize: 14, lineHeight: 1.6, color: '#cbd5e1' }}>{msg.content}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Session Notes */}
+          <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 16, padding: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <StickyNote style={{ width: 15, height: 15, color: '#fbbf24' }} />
+              <span style={{ fontWeight: 700, fontSize: 14 }}>Session Notes</span>
+              {showNotesSaved && <span style={{ fontSize: 11, color: '#34d399', marginLeft: 'auto' }}>✓ Saved</span>}
+            </div>
+            <textarea
+              value={sessionNotes}
+              onChange={(e) => setSessionNotes(e.target.value)}
+              placeholder="Add your own observations, things to remember, follow-up actions…"
+              rows={4}
+              style={{ width: '100%', background: '#050a14', border: '1px solid #1e293b', borderRadius: 8, padding: '10px 12px', color: '#e2e8f0', fontSize: 13, resize: 'vertical', outline: 'none', boxSizing: 'border-box', lineHeight: 1.6 }}
+            />
+            <button
+              onClick={handleSaveNotes}
+              style={{ marginTop: 8, padding: '7px 18px', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8, color: '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+            >
+              Save Notes
+            </button>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => void joinCall()}
+              style={{ flex: '1 1 160px', padding: '13px 0', background: 'linear-gradient(135deg,#6366f1,#3b82f6)', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
             >
               <RefreshCw style={{ width: 16, height: 16 }} /> Practice Again
             </button>
             <button
-              onClick={resetAll}
-              style={{
-                flex: 1,
-                padding: '12px 0',
-                background: '#1f2937',
-                border: '1px solid #374151',
-                borderRadius: 10,
-                color: '#d1d5db',
-                fontWeight: 700,
-                fontSize: 14,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-              }}
+              onClick={handleExport}
+              style={{ flex: '1 1 160px', padding: '13px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, color: '#94a3b8', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
             >
-              <Briefcase style={{ width: 16, height: 16 }} /> View Jobs
+              <FileDown style={{ width: 16, height: 16 }} /> Export Report
+            </button>
+            <button
+              onClick={resetAll}
+              style={{ flex: '1 1 160px', padding: '13px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, color: '#cbd5e1', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+            >
+              <Briefcase style={{ width: 16, height: 16 }} /> Change Role
             </button>
           </div>
+
         </div>
       </div>
     );
   }
 
-  // ── Video call UI ───────────────────────────────────────────────────────────
+  // ── CALL SCREEN (main video-call layout) ────────────────────────────────────
 
   const job = getJob();
   const userTurnActive = phase === 'user-turn';
+  const statusLabel =
+    phase === 'ai-speaking' ? 'Speaking' :
+    phase === 'processing' ? 'Thinking…' :
+    phase === 'user-turn' ? 'Listening' : 'Ready';
+  const statusColor =
+    phase === 'ai-speaking' ? '#818cf8' :
+    phase === 'processing' ? '#fbbf24' :
+    phase === 'user-turn' ? '#4ade80' : '#94a3b8';
+  const statusBg =
+    phase === 'ai-speaking' ? 'rgba(99,102,241,0.2)' :
+    phase === 'processing' ? 'rgba(251,191,36,0.2)' :
+    phase === 'user-turn' ? 'rgba(34,197,94,0.2)' : 'rgba(148,163,184,0.15)';
 
   return (
     <div
       style={{
-        minHeight: '100vh',
-        background: '#0a0f1e',
-        color: '#f9fafb',
-        display: 'flex',
-        flexDirection: 'column',
-        padding: 16,
-        gap: 16,
+        position: 'fixed',
+        inset: 0,
+        background: '#050a14',
+        color: '#f1f5f9',
+        overflow: 'hidden',
       }}
     >
-      {/* Keyframes */}
       <style>{AVATAR_STYLES}</style>
 
-      {/* Main panels row */}
-      <div style={{ display: 'flex', gap: 16, flex: 1, minHeight: 0 }}>
-        {/* AI Panel (left, ~60%) */}
-        <div
-          style={{
-            flex: 3,
-            background: '#111827',
-            border: '1px solid #1f2937',
-            borderRadius: 16,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            padding: 24,
-            position: 'relative',
-            minHeight: 360,
-          }}
-        >
-          {/* Header */}
-          <div
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              marginBottom: 24,
-            }}
-          >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #6366f1, #3b82f6)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 700,
-                fontSize: 14,
-                flexShrink: 0,
-              }}
-            >
-              {job.company.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: 14 }}>Interviewing for {job.title}</div>
-              <div style={{ fontSize: 12, color: '#6b7280' }}>{job.company}</div>
-            </div>
-            <div
-              style={{
-                marginLeft: 'auto',
-                background:
-                  phase === 'ai-speaking'
-                    ? 'rgba(99,102,241,0.2)'
-                    : phase === 'user-turn'
-                    ? 'rgba(34,197,94,0.2)'
-                    : 'rgba(107,114,128,0.2)',
-                border: `1px solid ${
-                  phase === 'ai-speaking' ? '#6366f1' : phase === 'user-turn' ? '#22c55e' : '#6b7280'
-                }`,
-                borderRadius: 20,
-                padding: '3px 10px',
-                fontSize: 11,
-                fontWeight: 600,
-                color:
-                  phase === 'ai-speaking' ? '#818cf8' : phase === 'user-turn' ? '#4ade80' : '#9ca3af',
-              }}
-            >
-              {phase === 'ai-speaking'
-                ? 'Speaking'
-                : phase === 'processing'
-                ? 'Thinking...'
-                : phase === 'user-turn'
-                ? 'Listening'
-                : 'Ready'}
-            </div>
+      {/* ── AI Tile (fills entire screen) ───────────────────────────────────── */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'radial-gradient(ellipse at 50% 40%, #0d1a2e 0%, #050a14 100%)',
+        }}
+      >
+        {/* Avatar */}
+        <Avatar state={avatarState} />
+
+        {/* Adaptive insights chip */}
+        {adaptiveInsights && adaptiveInsights.sessionCount > 0 && (
+          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 20, padding: '4px 12px', fontSize: 12, color: '#a5b4fc' }} title={adaptiveInsights.adaptationNote ?? ''}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#6366f1', display: 'inline-block' }} />
+            Adapting · Avg {adaptiveInsights.averageScore}/100
           </div>
+        )}
+      </div>
 
-          {/* Avatar */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
-            <Avatar state={avatarState} />
+      {/* ── Top bar ─────────────────────────────────────────────────────────── */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          padding: '14px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          background: 'linear-gradient(to bottom, rgba(5,10,20,0.95), transparent)',
+          zIndex: 10,
+        }}
+      >
+        {/* Recording dot + timer */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(0,0,0,0.5)', borderRadius: 20, padding: '4px 12px' }}>
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#ef4444', animation: 'ping-dot 1.2s ease-in-out infinite' }} />
+          <span style={{ fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: '#f1f5f9' }}>{formatTime(callSeconds)}</span>
+        </div>
 
-            {/* Adaptive insights badge */}
-            {adaptiveInsights && adaptiveInsights.sessionCount > 0 && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  background: 'rgba(99,102,241,0.15)',
-                  border: '1px solid rgba(99,102,241,0.4)',
-                  borderRadius: 20,
-                  padding: '4px 12px',
-                  fontSize: 12,
-                  color: '#a5b4fc',
-                  fontWeight: 500,
-                }}
-                title={adaptiveInsights.adaptationNote ?? ''}
-              >
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#6366f1', display: 'inline-block', flexShrink: 0 }} />
-                Adapting to your history{adaptiveInsights.averageScore > 0 ? ` • Avg score: ${adaptiveInsights.averageScore}/100` : ''}
-              </div>
-            )}
-
-            {/* Live transcript */}
-            {(currentTranscript || phase === 'processing') && (
-              <div
-                style={{
-                  maxWidth: 380,
-                  textAlign: 'center',
-                  fontSize: 15,
-                  lineHeight: 1.6,
-                  color: '#e5e7eb',
-                  minHeight: 60,
-                  padding: '0 8px',
-                }}
-              >
-                {phase === 'processing' ? (
-                  <span style={{ color: '#9ca3af' }}>Processing your answer...</span>
-                ) : (
-                  currentTranscript
-                )}
-              </div>
-            )}
+        {/* Job info */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>
+            {job.company.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#f1f5f9', lineHeight: 1.2 }}>{job.title}</div>
+            <div style={{ fontSize: 11, color: '#64748b' }}>{job.company}</div>
           </div>
         </div>
 
-        {/* User Panel (right, ~40%) */}
-        <div
-          style={{
-            flex: 2,
-            background: '#111827',
-            border: '1px solid #1f2937',
-            borderRadius: 16,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            minHeight: 360,
-          }}
-        >
-          {/* Camera */}
-          <div
-            style={{
-              flex: 1,
-              background: '#0f172a',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-              overflow: 'hidden',
-              borderRadius: '16px 16px 0 0',
-            }}
-          >
-            {cameraActive ? (
-              <video
-                ref={videoRef}
-                muted
-                playsInline
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  transform: 'scaleX(-1)',
-                }}
-              />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                <div
-                  style={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: '50%',
-                    background: '#1f2937',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 36,
-                  }}
-                >
-                  👤
-                </div>
-                <span style={{ fontSize: 12, color: '#6b7280' }}>Camera unavailable</span>
-              </div>
-            )}
-            {/* Mic level overlay */}
-            {isRecording && (
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: 12,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  background: 'rgba(0,0,0,0.6)',
-                  borderRadius: 20,
-                  padding: '6px 14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                }}
-              >
-                <MicLevelBars levels={micLevels} />
-              </div>
-            )}
-          </div>
+        {/* Status pill */}
+        <div style={{ background: statusBg, border: `1px solid ${statusColor}33`, borderRadius: 20, padding: '4px 12px', fontSize: 12, fontWeight: 600, color: statusColor }}>
+          {statusLabel}
+        </div>
 
-          {/* Status */}
-          <div
-            style={{
-              padding: '10px 14px',
-              borderTop: '1px solid #1f2937',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            <div
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: isRecording ? '#22c55e' : userTurnActive ? '#f59e0b' : '#374151',
-                animation: isRecording ? 'ping-dot 0.8s ease-in-out infinite' : 'none',
-              }}
-            />
-            <span style={{ fontSize: 12, color: '#9ca3af', fontWeight: 600 }}>
-              {isRecording ? 'Recording...' : userTurnActive ? 'Your turn' : 'Waiting...'}
-            </span>
-            {micDenied && (
-              <span style={{ fontSize: 11, color: '#ef4444', marginLeft: 4 }}>Mic denied</span>
-            )}
-          </div>
+        {/* Mode badge */}
+        <div style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 20, padding: '4px 10px', fontSize: 12, fontWeight: 600, color: '#818cf8', display: 'flex', alignItems: 'center', gap: 4 }}>
+          {interviewModeLabels[selectedMode].emoji} {interviewModeLabels[selectedMode].label}
+        </div>
+
+        {/* Exchange counter */}
+        <div style={{ fontSize: 12, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>
+          {exchangeCount}/{MAX_EXCHANGES}
         </div>
       </div>
 
-      {/* Bottom bar */}
-      <div
-        style={{
-          background: '#111827',
-          border: '1px solid #1f2937',
-          borderRadius: 16,
-          padding: 16,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 12,
-        }}
-      >
-        {/* Conversation log */}
+      {/* ── Subtitle area (live transcript) ─────────────────────────────────── */}
+      {(currentTranscript || phase === 'processing') && (
         <div
-          ref={logRef}
           style={{
-            maxHeight: 160,
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 6,
-            paddingRight: 4,
+            position: 'absolute',
+            bottom: 100,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            maxWidth: 640,
+            width: 'calc(100% - 48px)',
+            zIndex: 10,
+            textAlign: 'center',
           }}
         >
-          {messages.length === 0 && (
-            <p style={{ color: '#4b5563', fontSize: 12, textAlign: 'center', padding: '8px 0' }}>
-              Conversation will appear here...
-            </p>
-          )}
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-              }}
-            >
-              <div
-                style={{
-                  maxWidth: '75%',
-                  padding: '7px 12px',
-                  borderRadius: msg.role === 'user' ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
-                  background: msg.role === 'user' ? 'rgba(99,102,241,0.3)' : '#1f2937',
-                  border: `1px solid ${msg.role === 'user' ? '#6366f1' : '#374151'}`,
-                  fontSize: 13,
-                  lineHeight: 1.5,
-                  color: '#e5e7eb',
-                }}
-              >
-                {msg.content}
-              </div>
-            </div>
-          ))}
-          {error && (
-            <div
-              style={{
-                background: 'rgba(239,68,68,0.1)',
-                border: '1px solid #ef4444',
-                borderRadius: 8,
-                padding: '6px 12px',
-                fontSize: 12,
-                color: '#fca5a5',
-              }}
-            >
-              {error}
-            </div>
-          )}
+          <div
+            style={{
+              display: 'inline-block',
+              background: 'rgba(0,0,0,0.72)',
+              backdropFilter: 'blur(8px)',
+              borderRadius: 12,
+              padding: '10px 18px',
+              fontSize: 16,
+              lineHeight: 1.6,
+              color: '#f1f5f9',
+              maxWidth: '100%',
+            }}
+          >
+            {phase === 'processing'
+              ? <span style={{ color: '#94a3b8' }}>Processing your answer…</span>
+              : currentTranscript}
+          </div>
+        </div>
+      )}
+
+      {/* Error toast */}
+      {error && (
+        <div style={{ position: 'absolute', top: 70, right: 20, zIndex: 20, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.5)', borderRadius: 10, padding: '8px 14px', fontSize: 13, color: '#fca5a5', maxWidth: 320 }}>
+          {error}
+        </div>
+      )}
+
+      {/* Per-turn feedback overlay */}
+      {turnFeedback && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 120,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 25,
+            background: 'rgba(15,23,42,0.92)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(99,102,241,0.4)',
+            borderRadius: 16,
+            padding: '14px 20px',
+            width: 340,
+            maxWidth: 'calc(100vw - 260px)',
+            animation: 'slide-up 0.3s ease',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#a5b4fc', letterSpacing: '0.05em' }}>⚡ INSTANT FEEDBACK</span>
+            <span style={{ fontSize: 18, fontWeight: 800, color: turnFeedback.score >= 80 ? '#34d399' : turnFeedback.score >= 60 ? '#fbbf24' : '#f87171' }}>{turnFeedback.score}/100</span>
+          </div>
+          {/* STAR indicators */}
+          <div style={{ display: 'flex', gap: 5, marginBottom: 8 }}>
+            {(['situation', 'task', 'action', 'result'] as const).map((k) => (
+              <span key={k} style={{ flex: 1, textAlign: 'center', fontSize: 10, fontWeight: 700, padding: '3px 0', borderRadius: 5, background: turnFeedback.starPresence[k] ? 'rgba(52,211,153,0.2)' : 'rgba(100,116,139,0.15)', color: turnFeedback.starPresence[k] ? '#34d399' : '#475569', letterSpacing: '0.04em' }}>
+                {k[0].toUpperCase()}
+              </span>
+            ))}
+          </div>
+          <p style={{ margin: 0, fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>{turnFeedback.improvementTip}</p>
+        </div>
+      )}
+
+      {/* ── User PiP (bottom-right) ──────────────────────────────────────────── */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 100,
+          right: 20,
+          width: 200,
+          height: 150,
+          borderRadius: 14,
+          overflow: 'hidden',
+          border: '2px solid rgba(255,255,255,0.12)',
+          background: '#0f172a',
+          zIndex: 10,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+        }}
+      >
+        {cameraActive && cameraOn ? (
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+          />
+        ) : (
+          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <div style={{ fontSize: 32 }}>👤</div>
+            <span style={{ fontSize: 11, color: '#475569' }}>{!cameraOn ? 'Camera off' : 'No camera'}</span>
+          </div>
+        )}
+
+        {/* "You" label */}
+        <div style={{ position: 'absolute', bottom: 8, left: 10, background: 'rgba(0,0,0,0.6)', borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 600, color: '#e2e8f0' }}>
+          You
         </div>
 
-        {/* Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Exchange counter */}
-          <span
-            style={{
-              fontSize: 12,
-              color: '#6b7280',
-              fontWeight: 600,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {exchangeCount} / {MAX_EXCHANGES}
-          </span>
+        {/* Mic level overlay when recording */}
+        {isRecording && (
+          <div style={{ position: 'absolute', bottom: 8, right: 10, display: 'flex', alignItems: 'flex-end', gap: 2 }}>
+            <MicLevelBars levels={micLevels} />
+          </div>
+        )}
 
-          {/* Speak button */}
-          <button
-            disabled={!userTurnActive && !isRecording}
-            onClick={toggleRecording}
-            style={{
-              flex: 1,
-              padding: '12px 0',
-              background: isRecording
-                ? 'linear-gradient(135deg, #dc2626, #b91c1c)'
-                : userTurnActive
-                ? 'linear-gradient(135deg, #6366f1, #3b82f6)'
-                : '#1f2937',
-              border: 'none',
-              borderRadius: 10,
-              color: userTurnActive || isRecording ? '#fff' : '#4b5563',
-              fontWeight: 700,
-              fontSize: 15,
-              cursor: userTurnActive || isRecording ? 'pointer' : 'not-allowed',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              transition: 'all 0.15s',
-            }}
-          >
-            {isRecording ? (
-              <>
-                <MicOff style={{ width: 18, height: 18 }} />
-                Stop Recording
-              </>
-            ) : (
-              <>
-                <Mic style={{ width: 18, height: 18 }} />
-                {userTurnActive ? '🎤 Speak' : 'Waiting...'}
-              </>
-            )}
-          </button>
+        {/* Mic denied badge */}
+        {micDenied && (
+          <div style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(239,68,68,0.9)', borderRadius: 6, padding: '2px 7px', fontSize: 10, color: '#fff', fontWeight: 600 }}>
+            MIC ✗
+          </div>
+        )}
+      </div>
 
-          {/* End button */}
-          <button
-            onClick={endInterview}
-            style={{
-              padding: '12px 16px',
-              background: 'rgba(239,68,68,0.15)',
-              border: '1px solid rgba(239,68,68,0.4)',
-              borderRadius: 10,
-              color: '#f87171',
-              fontWeight: 600,
-              fontSize: 13,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <PhoneOff style={{ width: 16, height: 16 }} />
-            End
-          </button>
-        </div>
+      {/* ── Floating controls bar ────────────────────────────────────────────── */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 28,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          background: 'rgba(15,23,42,0.85)',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: 999,
+          padding: '10px 20px',
+          zIndex: 20,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+        }}
+      >
+        {/* Camera toggle */}
+        <button
+          onClick={toggleCamera}
+          title={cameraOn ? 'Turn off camera' : 'Turn on camera'}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: '50%',
+            background: cameraOn ? 'rgba(99,102,241,0.15)' : 'rgba(239,68,68,0.2)',
+            border: `1px solid ${cameraOn ? 'rgba(99,102,241,0.3)' : 'rgba(239,68,68,0.4)'}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: cameraOn ? '#818cf8' : '#f87171',
+            transition: 'all 0.2s',
+          }}
+        >
+          {cameraOn ? <Video style={{ width: 18, height: 18 }} /> : <VideoOff style={{ width: 18, height: 18 }} />}
+        </button>
+
+        {/* Mic / Speak button (main action) */}
+        <button
+          disabled={!userTurnActive && !isRecording}
+          onClick={toggleRecording}
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: '50%',
+            background: isRecording
+              ? 'linear-gradient(135deg,#dc2626,#b91c1c)'
+              : userTurnActive
+              ? 'linear-gradient(135deg,#22c55e,#16a34a)'
+              : '#1e293b',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: userTurnActive || isRecording ? 'pointer' : 'not-allowed',
+            color: userTurnActive || isRecording ? '#fff' : '#475569',
+            transition: 'all 0.2s',
+            boxShadow: isRecording ? '0 0 24px rgba(220,38,38,0.5)' : userTurnActive ? '0 0 24px rgba(34,197,94,0.4)' : 'none',
+          }}
+          title={isRecording ? 'Stop speaking' : userTurnActive ? 'Start speaking' : 'Wait for your turn'}
+        >
+          {isRecording
+            ? <MicOff style={{ width: 24, height: 24 }} />
+            : <Mic style={{ width: 24, height: 24 }} />}
+        </button>
+
+        {/* Mute toggle */}
+        <button
+          onClick={() => setMicMuted((v) => !v)}
+          title={micMuted ? 'Unmute' : 'Mute'}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: '50%',
+            background: micMuted ? 'rgba(239,68,68,0.2)' : 'rgba(99,102,241,0.15)',
+            border: `1px solid ${micMuted ? 'rgba(239,68,68,0.4)' : 'rgba(99,102,241,0.3)'}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: micMuted ? '#f87171' : '#818cf8',
+            transition: 'all 0.2s',
+          }}
+        >
+          {micMuted ? <MicOff style={{ width: 18, height: 18 }} /> : <Mic style={{ width: 18, height: 18 }} />}
+        </button>
+
+        {/* Divider */}
+        <div style={{ width: 1, height: 32, background: 'rgba(255,255,255,0.08)' }} />
+
+        {/* End call button */}
+        <button
+          onClick={endCall}
+          style={{
+            width: 50,
+            height: 50,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg,#ef4444,#b91c1c)',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: '#fff',
+            transition: 'all 0.2s',
+            boxShadow: '0 4px 16px rgba(239,68,68,0.4)',
+          }}
+          title="End interview"
+        >
+          <PhoneOff style={{ width: 20, height: 20 }} />
+        </button>
+      </div>
+
+      {/* Label under mic button */}
+      <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 11, color: '#475569', whiteSpace: 'nowrap', zIndex: 20 }}>
+        {isRecording ? 'Tap to stop' : userTurnActive ? 'Tap to speak' : statusLabel}
       </div>
     </div>
   );

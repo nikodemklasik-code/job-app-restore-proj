@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { Briefcase, TrendingUp, MessageSquare, Award, ChevronRight, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -22,7 +23,34 @@ function LiveTicker() {
   const feedQuery = api.jobs.getFeed.useQuery({ limit: 20 });
   const jobs = feedQuery.data ?? [];
 
+  const prefersReducedMotion = useMemo(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    [],
+  );
+
   if (feedQuery.isLoading || jobs.length === 0) return null;
+
+  // If the user prefers reduced motion, show a static list instead of a ticker
+  if (prefersReducedMotion) {
+    return (
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-white/10 bg-white/5 px-4 py-2">
+        <span className="shrink-0 text-xs font-bold uppercase tracking-widest text-red-400">
+          Live
+        </span>
+        {jobs.slice(0, 5).map((job: { id: string; company: string; title: string; fitScore?: number | null }) => {
+          const score = job.fitScore ?? 60;
+          return (
+            <span key={job.id} className="text-[12px] text-slate-300">
+              {job.company} — {job.title}{' '}
+              <span className={`font-semibold ${fitColor(score)}`}>{score}% fit</span>
+            </span>
+          );
+        })}
+      </div>
+    );
+  }
 
   // Duplicate items so the seamless infinite scroll works (we translate -50%)
   const items = [...jobs, ...jobs];
@@ -34,13 +62,17 @@ function LiveTicker() {
         {/* Fixed label */}
         <div className="flex shrink-0 items-center gap-1.5 border-r border-white/10 bg-white/5 px-3 h-full">
           <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
-          <span className="text-[11px] font-bold tracking-widest text-red-400 uppercase">Live</span>
+          <span className="text-xs font-bold tracking-widest text-red-400 uppercase">Live</span>
         </div>
 
-        {/* Scrolling track */}
-        <div className="relative flex-1 overflow-hidden">
+        {/* Scrolling track — pauses on hover or keyboard focus; keyboard-focusable for keyboard users */}
+        <div
+          className="relative flex-1 overflow-hidden group"
+          tabIndex={0}
+          aria-label="Live job feed — press Tab to pause scrolling"
+        >
           <div
-            className="flex whitespace-nowrap"
+            className="flex whitespace-nowrap group-hover:[animation-play-state:paused] group-focus-within:[animation-play-state:paused]"
             style={{
               animation: `ticker-scroll ${jobs.length * 3}s linear infinite`,
               willChange: 'transform',
@@ -238,7 +270,7 @@ export default function DashboardPage() {
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-white">{action.title}</span>
-                  <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[10px] font-medium text-indigo-400">
+                  <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-400">
                     {action.badge}
                   </span>
                 </div>

@@ -158,13 +158,252 @@ export async function generateCoverLetterPdf(text: string, meta: CoverLetterMeta
   doc.rect(70, y, 455, 1).fill('#e2e8f0');
   y += 16;
 
-  // Body text
+  // Body text — supports **bold** markdown inline
   const paragraphs = text.split('\n\n').filter((p) => p.trim());
   for (const para of paragraphs) {
-    doc.fillColor(DARK).font('Helvetica').fontSize(10.5)
-      .text(para.replace(/\n/g, ' ').trim(), 70, y, { width: 455, align: 'justify', lineGap: 3 });
+    const parts = para.replace(/\n/g, ' ').trim().split(/(\*\*[^*]+\*\*)/g);
+    const hasMarkdown = parts.some((p) => p.startsWith('**') && p.endsWith('**'));
+
+    if (!hasMarkdown || parts.length <= 1) {
+      // Plain paragraph
+      doc.fillColor(DARK).font('Helvetica').fontSize(10.5)
+        .text(parts.join('').replace(/\*\*/g, ''), 70, y, { width: 455, align: 'justify', lineGap: 3 });
+    } else {
+      // Mixed bold/plain paragraph
+      let firstSeg = true;
+      for (let i = 0; i < parts.length; i++) {
+        const seg = parts[i];
+        if (!seg) continue;
+        const isBold = seg.startsWith('**') && seg.endsWith('**');
+        const content = isBold ? seg.slice(2, -2) : seg;
+        const isLast = i === parts.length - 1;
+        doc.fillColor(DARK).font(isBold ? 'Helvetica-Bold' : 'Helvetica').fontSize(10.5);
+        if (firstSeg) {
+          doc.text(content, 70, y, { width: 455, align: 'justify', lineGap: 3, continued: !isLast });
+          firstSeg = false;
+        } else {
+          doc.text(content, { width: 455, align: 'justify', lineGap: 3, continued: !isLast });
+        }
+      }
+    }
     y = doc.y + 14;
   }
+
+  doc.end();
+  return promise;
+}
+
+// ── Interview Credential PDF ──────────────────────────────────────────────────
+
+export interface InterviewCredentialData {
+  candidateName: string;
+  mode: string;
+  date: string;
+  score: number;
+  questionCount: number;
+  growthAreas: string[];
+  sessionId: string;
+}
+
+export async function generateInterviewCredentialPdf(data: InterviewCredentialData): Promise<Buffer> {
+  const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 60, right: 60 } });
+  const promise = bufferFromStream(doc);
+  const W = doc.page.width;
+
+  // Dark header
+  doc.rect(0, 0, W, 110).fill(DARK);
+  doc.rect(0, 110, W, 4).fill(INDIGO);
+
+  // Badge area
+  doc.rect(60, 22, 66, 66).fill(INDIGO).roundedRect(60, 22, 66, 66, 8).fill(INDIGO);
+  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(28).text(`${data.score}`, 60, 38, { width: 66, align: 'center' });
+  doc.fillColor('#a5b4fc').font('Helvetica').fontSize(9).text('SCORE', 60, 68, { width: 66, align: 'center' });
+
+  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(18).text('Interview Progress Certificate', 140, 26, { width: W - 200 });
+  doc.fillColor('#94a3b8').font('Helvetica').fontSize(10).text(`Issued to: ${data.candidateName}`, 140, 52);
+  doc.fillColor('#64748b').font('Helvetica').fontSize(9).text(`Session ID: ${data.sessionId}`, 140, 70);
+
+  let y = 130;
+
+  // Session details
+  doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(11).text('SESSION DETAILS', 60, y);
+  y += 14;
+  doc.rect(60, y - 2, W - 120, 1).fill(INDIGO);
+  y += 10;
+
+  const details: [string, string][] = [
+    ['Date', data.date],
+    ['Mode', data.mode],
+    ['Questions Answered', String(data.questionCount)],
+    ['Readiness Score', `${data.score} / 100`],
+  ];
+  for (const [label, value] of details) {
+    doc.fillColor(MUTED).font('Helvetica').fontSize(10).text(label, 60, y, { width: 180 });
+    doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10).text(value, 240, y);
+    y = doc.y + 4;
+  }
+  y += 12;
+
+  // Growth areas
+  if (data.growthAreas.length > 0) {
+    doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(11).text('TOP 3 GROWTH AREAS', 60, y);
+    y += 14;
+    doc.rect(60, y - 2, W - 120, 1).fill(INDIGO);
+    y += 10;
+    data.growthAreas.slice(0, 3).forEach((area, i) => {
+      doc.rect(60, y, 8, 8).fill(INDIGO);
+      doc.fillColor(DARK).font('Helvetica').fontSize(10).text(`${i + 1}.  ${area}`, 76, y, { width: W - 150 });
+      y = doc.y + 6;
+    });
+    y += 10;
+  }
+
+  // Disclaimer box
+  doc.rect(60, y, W - 120, 52).fill('#f8fafc').stroke('#e2e8f0');
+  doc.fillColor(MUTED).font('Helvetica').fontSize(8).text(
+    'This certificate records interview preparation activity completed on the MultivoHub platform. It reflects self-reported practice session data and is not a hiring assessment, candidate selection recommendation, or guarantee of interview outcome.',
+    68, y + 10, { width: W - 136, align: 'justify' },
+  );
+  y += 68;
+
+  // Footer
+  doc.rect(0, doc.page.height - 32, W, 32).fill(LIGHT_BG);
+  doc.fillColor(MUTED).font('Helvetica').fontSize(8).text(
+    `MultivoHub Interview Progress Certificate  ·  ${data.date}`,
+    0, doc.page.height - 20, { align: 'center', width: W },
+  );
+
+  doc.end();
+  return promise;
+}
+
+interface CandidateReportData {
+  fullName?: string;
+  email?: string;
+  totalApplications: number;
+  interviews: number;
+  offers: number;
+  responseRate: number;
+  topCompanies: string[];
+  topStatuses: { status: string; count: number }[];
+  generatedAt?: string;
+}
+
+export async function generateCandidateReport(data: CandidateReportData): Promise<Buffer> {
+  const doc = new PDFDocument({ size: 'A4', margins: { top: 40, bottom: 40, left: 50, right: 50 } });
+  const promise = bufferFromStream(doc);
+
+  // Header
+  doc.rect(0, 0, doc.page.width, 80).fill(DARK);
+  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(20).text('Job Search Report', 50, 22, { width: 350 });
+  const candidate = data.fullName ?? 'Candidate';
+  doc.fillColor('#94a3b8').font('Helvetica').fontSize(10).text(`${candidate}${data.email ? '  ·  ' + data.email : ''}`, 50, 48);
+  doc.rect(0, 80, doc.page.width, 4).fill(INDIGO);
+
+  let y = 104;
+
+  // Generated date
+  const generatedAt = data.generatedAt ?? new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  doc.fillColor(MUTED).font('Helvetica').fontSize(9).text(`Report generated: ${generatedAt}`, 50, y, { align: 'right', width: 495 });
+  y += 24;
+
+  // ── Section: Key Metrics ─────────────────────────────────────────────────
+  doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(11).text('KEY METRICS', 50, y);
+  y += 14;
+  doc.rect(50, y - 2, 495, 1).fill(INDIGO);
+  y += 10;
+
+  const metrics = [
+    { label: 'Total Applications', value: String(data.totalApplications) },
+    { label: 'Interviews Secured', value: String(data.interviews) },
+    { label: 'Offers Received', value: String(data.offers) },
+    { label: 'Response Rate', value: `${data.responseRate}%` },
+  ];
+
+  const colW = 110;
+  let mx = 50;
+  for (const m of metrics) {
+    doc.rect(mx, y, 100, 52).fill('#f8fafc').stroke('#e2e8f0');
+    doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(18).text(m.value, mx + 6, y + 8, { width: 88, align: 'center' });
+    doc.fillColor(MUTED).font('Helvetica').fontSize(8).text(m.label, mx + 6, y + 34, { width: 88, align: 'center' });
+    mx += colW;
+  }
+  y += 72;
+
+  // ── Section: Conversion Funnel ───────────────────────────────────────────
+  doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(11).text('CONVERSION FUNNEL', 50, y);
+  y += 14;
+  doc.rect(50, y - 2, 495, 1).fill(INDIGO);
+  y += 8;
+
+  const funnelSteps = [
+    { label: 'Applied', count: data.totalApplications, color: '#6366f1' },
+    { label: 'Interview', count: data.interviews, color: '#f59e0b' },
+    { label: 'Offer', count: data.offers, color: '#10b981' },
+  ];
+  const maxCount = Math.max(data.totalApplications, 1);
+  for (const step of funnelSteps) {
+    const barW = Math.round((step.count / maxCount) * 340);
+    doc.rect(50, y, barW, 16).fill(step.color);
+    doc.fillColor(DARK).font('Helvetica').fontSize(9).text(`${step.label}: ${step.count}`, 50 + barW + 6, y + 3);
+    y += 24;
+  }
+  y += 8;
+
+  // ── Section: Application Status Breakdown ────────────────────────────────
+  if (data.topStatuses.length > 0) {
+    doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(11).text('STATUS BREAKDOWN', 50, y);
+    y += 14;
+    doc.rect(50, y - 2, 495, 1).fill(INDIGO);
+    y += 8;
+    for (const s of data.topStatuses.slice(0, 8)) {
+      const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1).replace(/_/g, ' ');
+      doc.fillColor(DARK).font('Helvetica').fontSize(10).text(`${capitalize(s.status)}:`, 50, y, { width: 160 });
+      doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(10).text(String(s.count), 220, y, { width: 60 });
+      y = doc.y + 4;
+    }
+    y += 8;
+  }
+
+  // ── Section: Top Companies ───────────────────────────────────────────────
+  if (data.topCompanies.length > 0) {
+    doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(11).text('TOP COMPANIES APPLIED TO', 50, y);
+    y += 14;
+    doc.rect(50, y - 2, 495, 1).fill(INDIGO);
+    y += 8;
+    const cols = 3;
+    const cw = 160;
+    let cx = 50;
+    let rowY = y;
+    data.topCompanies.slice(0, 9).forEach((company, i) => {
+      doc.fillColor(DARK).font('Helvetica').fontSize(9).text(`▪  ${company}`, cx, rowY, { width: cw - 10 });
+      if ((i + 1) % cols === 0) { rowY = doc.y + 4; cx = 50; } else { cx += cw; }
+    });
+    y = rowY + 18;
+  }
+
+  // ── Section: Methodology ─────────────────────────────────────────────────
+  doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(11).text('SEARCH METHODOLOGY', 50, y);
+  y += 14;
+  doc.rect(50, y - 2, 495, 1).fill(INDIGO);
+  y += 8;
+  const methodology = [
+    '• Applications tracked via MultivoHub pipeline with status updates at each stage.',
+    '• Response Rate = (Interviews + Offers) / Total Applications × 100.',
+    '• Interview Conversion = Offers / Interviews × 100.',
+    '• Data reflects all applications recorded in the platform up to the report generation date.',
+  ];
+  for (const line of methodology) {
+    doc.fillColor(DARK).font('Helvetica').fontSize(9).text(line, 50, y, { width: 495 });
+    y = doc.y + 4;
+  }
+
+  // Footer
+  doc.rect(0, doc.page.height - 30, doc.page.width, 30).fill(LIGHT_BG);
+  doc.fillColor(MUTED).font('Helvetica').fontSize(8).text(
+    `MultivoHub Job Search Report  ·  ${generatedAt}`,
+    0, doc.page.height - 20, { align: 'center', width: doc.page.width },
+  );
 
   doc.end();
   return promise;

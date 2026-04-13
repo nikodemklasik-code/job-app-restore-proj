@@ -1,15 +1,41 @@
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
-import { eq, desc, sql } from 'drizzle-orm';
+import { eq, desc, sql, and, gte } from 'drizzle-orm';
+import { TRPCError } from '@trpc/server';
 import { publicProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
 import { autoApplyQueue, users } from '../../db/schema.js';
+import { getUserPlan, PLAN_LIMITS } from '../../services/billingGuard.js';
 
 async function getLocalUserId(clerkId: string): Promise<string | null> {
   const row = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, clerkId)).limit(1);
   return row[0]?.id ?? null;
 }
 
+/** Returns the Monday of the current ISO week at 00:00:00 UTC */
+function startOfCurrentWeek(): Date {
+  const now = new Date();
+  const day = now.getUTCDay(); // 0 = Sun, 1 = Mon …
+  const diffToMonday = (day === 0 ? -6 : 1 - day);
+  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + diffToMonday));
+  return monday;
+}
+
+/** Count jobs queued (pending/processing/applied) since Monday of this week */
+async function countThisWeekUsage(localUserId: string): Promise<number> {
+  const weekStart = startOfCurrentWeek();
+  const rows = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(autoApplyQueue)
+    .where(
+      and(
+        eq(autoApplyQueue.userId, localUserId),
+        gte(autoApplyQueue.createdAt, weekStart),
+        sql`${autoApplyQueue.status} IN ('pending', 'processing', 'applied')`,
+      ),
+    );
+  return Number(rows[0]?.count ?? 0);
+}
 
 export const autoApplyRouter = router({
   getQueue: publicProcedure
@@ -31,11 +57,26 @@ export const autoApplyRouter = router({
       jobTitle: z.string().min(1),
       company: z.string().min(1),
       applyUrl: z.string().url(),
+      applyEmail: z.string().email().optional(),
       source: z.string().optional(),
     }))
     .mutation(async ({ input }) => {
       const localId = await getLocalUserId(input.userId);
-      if (!localId) throw new Error('User not found');
+      if (!localId) throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found' });
+
+      // ── Weekly cap enforcement ──────────────────────────────────────────────
+      const plan = await getUserPlan(input.userId);
+      const weeklyLimit = PLAN_LIMITS[plan].weeklyAutoApply;
+      const weeklyUsed = await countThisWeekUsage(localId);
+
+      if (weeklyUsed >= weeklyLimit) {
+        const planLabels: Record<string, string> = { free: 'Free (3/week)', pro: 'Pro (15/week)', autopilot: 'Autopilot (50/week)' };
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: `Weekly auto-apply limit reached for your ${planLabels[plan] ?? plan} plan. Resets every Monday. Upgrade for a higher limit.`,
+        });
+      }
+      // ───────────────────────────────────────────────────────────────────────
 
       const id = randomUUID();
       await db.insert(autoApplyQueue).values({
@@ -45,6 +86,7 @@ export const autoApplyRouter = router({
         jobTitle: input.jobTitle,
         company: input.company,
         applyUrl: input.applyUrl,
+        applyEmail: input.applyEmail ?? null,
         source: input.source ?? 'indeed',
         status: 'pending',
       });
@@ -86,14 +128,20 @@ export const autoApplyRouter = router({
     .input(z.object({ userId: z.string() }))
     .query(async ({ input }) => {
       const localId = await getLocalUserId(input.userId);
-      if (!localId) return { pending: 0, processing: 0, applied: 0, failed: 0, skipped: 0, total: 0 };
+      if (!localId) {
+        return { pending: 0, processing: 0, applied: 0, failed: 0, skipped: 0, total: 0, weeklyUsed: 0, weeklyLimit: 3, plan: 'free' as const };
+      }
 
-      const rows = await db.select({
-        status: autoApplyQueue.status,
-        count: sql<number>`COUNT(*)`,
-      }).from(autoApplyQueue)
-        .where(eq(autoApplyQueue.userId, localId))
-        .groupBy(autoApplyQueue.status);
+      const [rows, plan, weeklyUsed] = await Promise.all([
+        db.select({
+          status: autoApplyQueue.status,
+          count: sql<number>`COUNT(*)`,
+        }).from(autoApplyQueue)
+          .where(eq(autoApplyQueue.userId, localId))
+          .groupBy(autoApplyQueue.status),
+        getUserPlan(input.userId),
+        countThisWeekUsage(localId),
+      ]);
 
       const stats: Record<string, number> = { pending: 0, processing: 0, applied: 0, failed: 0, skipped: 0 };
       let total = 0;
@@ -103,6 +151,13 @@ export const autoApplyRouter = router({
         total += Number(row.count);
       }
 
-      return { ...stats, total };
+      return {
+        ...stats,
+        total,
+        weeklyUsed,
+        weeklyLimit: PLAN_LIMITS[plan].weeklyAutoApply,
+        plan,
+      };
     }),
 });
+
