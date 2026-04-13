@@ -21,9 +21,10 @@
 ### Frontend (statyczne pliki)
 ```bash
 cd frontend && npm run build
-rsync -az --delete dist/ root@147.93.86.209:/root/project/frontend/dist/
+rsync -az --delete dist/ root@147.93.86.209:/var/www/multivohub/
 ```
-- Nginx serwuje `frontend/dist/` bezpośrednio — **bez restartu**
+- Nginx serwuje z `/var/www/multivohub/` — **bez restartu**
+- ⚠️ NIE deployuj do `/root/project/frontend/dist/` — tam Nginx nie zagląda
 - Zmiana widoczna od razu po rsync
 
 ### Backend (Node.js / tRPC / Express)
