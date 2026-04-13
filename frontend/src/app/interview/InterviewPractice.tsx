@@ -649,6 +649,12 @@ export default function InterviewPractice() {
   const [micDenied, setMicDenied] = useState(false);
   const [micMuted, setMicMuted] = useState(false);
 
+  // VAD (Voice Activity Detection)
+  const vadIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const silenceStartRef = useRef<number | null>(null);
+  const recordingStartTimeRef = useRef<number>(0);
+  const [vadCountdown, setVadCountdown] = useState<number | null>(null);
+
   // Camera
   const videoRef = useRef<HTMLVideoElement>(null);
   const lobbyVideoRef = useRef<HTMLVideoElement>(null);
@@ -682,6 +688,15 @@ export default function InterviewPractice() {
     const t = setTimeout(() => setTurnFeedback(null), 5000);
     return () => clearTimeout(t);
   }, [turnFeedback]);
+
+  // Auto-start recording when it's the user's turn
+  useEffect(() => {
+    if (phase === 'user-turn' && !isRecording) {
+      const t = setTimeout(() => void startRecording(), 400);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
 
   // ── Camera setup / teardown ────────────────────────────────────────────────
 
@@ -911,6 +926,35 @@ export default function InterviewPractice() {
     source.connect(analyser);
     startMicLevelAnimation(analyser);
 
+    // ── Voice Activity Detection ───────────────────────────────────────────
+    const VAD_SILENCE_THRESHOLD = 0.04; // RMS below this = silence
+    const VAD_MIN_RECORDING_MS = 1200;  // don't trigger VAD for first 1.2s
+    const VAD_SILENCE_MS = 2000;        // 2s of silence → auto-stop
+    recordingStartTimeRef.current = Date.now();
+    silenceStartRef.current = null;
+    setVadCountdown(null);
+
+    vadIntervalRef.current = setInterval(() => {
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(data);
+      const rms = Math.sqrt(data.reduce((s, v) => s + v * v, 0) / data.length) / 255;
+      const elapsed = Date.now() - recordingStartTimeRef.current;
+      if (elapsed < VAD_MIN_RECORDING_MS) return;
+
+      if (rms < VAD_SILENCE_THRESHOLD) {
+        if (!silenceStartRef.current) silenceStartRef.current = Date.now();
+        const silent = Date.now() - silenceStartRef.current;
+        const countdown = Math.ceil((VAD_SILENCE_MS - silent) / 1000);
+        setVadCountdown(countdown > 0 ? countdown : 1);
+        if (silent >= VAD_SILENCE_MS) {
+          recorderRef.current?.stop();
+        }
+      } else {
+        silenceStartRef.current = null;
+        setVadCountdown(null);
+      }
+    }, 100);
+
     const recorder = new MediaRecorder(stream);
     chunksRef.current = [];
 
@@ -922,6 +966,9 @@ export default function InterviewPractice() {
       stream.getTracks().forEach((t) => t.stop());
       void ctx.close();
       stopMicLevelAnimation();
+      if (vadIntervalRef.current) { clearInterval(vadIntervalRef.current); vadIntervalRef.current = null; }
+      silenceStartRef.current = null;
+      setVadCountdown(null);
 
       const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
       setPhase('processing');
@@ -993,6 +1040,9 @@ export default function InterviewPractice() {
   }, [messages, runAITurn, useLiveMode, stopCamera, startMicLevelAnimation, stopMicLevelAnimation]);
 
   const stopRecording = useCallback(() => {
+    if (vadIntervalRef.current) { clearInterval(vadIntervalRef.current); vadIntervalRef.current = null; }
+    silenceStartRef.current = null;
+    setVadCountdown(null);
     recorderRef.current?.stop();
   }, []);
 
@@ -1956,8 +2006,14 @@ export default function InterviewPractice() {
       </div>
 
       {/* Label under mic button */}
-      <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 11, color: '#475569', whiteSpace: 'nowrap', zIndex: 20 }}>
-        {isRecording ? 'Tap to stop' : userTurnActive ? 'Tap to speak' : statusLabel}
+      <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 11, whiteSpace: 'nowrap', zIndex: 20, color: vadCountdown !== null ? '#f59e0b' : '#475569' }}>
+        {vadCountdown !== null
+          ? `Finishing in ${vadCountdown}s…`
+          : isRecording
+          ? 'Speak freely — stops on silence'
+          : userTurnActive
+          ? 'Starting mic…'
+          : statusLabel}
       </div>
     </div>
   );
