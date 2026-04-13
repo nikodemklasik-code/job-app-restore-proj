@@ -21,10 +21,13 @@ const MAIN_FLOW: NavItem[] = [
   { path: '/review', label: 'Review Queue', icon: FileText },
 ];
 
+const INTERVIEW: NavItem[] = [
+  { path: '/interview', label: 'Interview Practice', icon: Mic },
+  { path: '/warmup', label: 'Daily Warmup', icon: Flame },
+];
+
 const AI_GROWTH: NavItem[] = [
   { path: '/assistant', label: 'AI Assistant', icon: MessageSquare },
-  { path: '/interview', label: 'Interview Ready', icon: Mic },
-  { path: '/warmup', label: 'Daily Warmup', icon: Flame },
   { path: '/negotiation', label: 'Negotiation Coach', icon: Handshake },
   { path: '/skills', label: 'Skills Lab', icon: FlaskConical },
   { path: '/radar', label: 'Job Radar', icon: Radar },
@@ -106,6 +109,7 @@ export default function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto p-3">
         <NavSection label="Main Flow" items={MAIN_FLOW} />
+        <NavSection label="Interview" items={INTERVIEW} />
         <NavSection label="AI & Growth" items={AI_GROWTH} />
         <NavSection label="Profile & Documents" items={PROFILE_DOCS} />
         <NavSection label="Tools & Insights" items={TOOLS} />
