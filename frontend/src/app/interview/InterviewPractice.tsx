@@ -689,14 +689,8 @@ export default function InterviewPractice() {
     return () => clearTimeout(t);
   }, [turnFeedback]);
 
-  // Auto-start recording when it's the user's turn
-  useEffect(() => {
-    if (phase === 'user-turn' && !isRecording) {
-      const t = setTimeout(() => void startRecording(), 400);
-      return () => clearTimeout(t);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase]);
+  // Auto-start recording when it's the user's turn (ref filled in after startRecording is defined)
+  const startRecordingRef = useRef<(() => Promise<void>) | null>(null);
 
   // ── Camera setup / teardown ────────────────────────────────────────────────
 
@@ -1053,6 +1047,18 @@ export default function InterviewPractice() {
       void startRecording();
     }
   }, [isRecording, startRecording, stopRecording]);
+
+  // Keep ref always pointing to latest startRecording
+  startRecordingRef.current = startRecording;
+
+  // Auto-start recording when it's the user's turn
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (phase === 'user-turn') {
+      const t = setTimeout(() => void startRecordingRef.current?.(), 400);
+      return () => clearTimeout(t);
+    }
+  }, [phase]);
 
   const endCall = useCallback(() => {
     recorderRef.current?.stop();
@@ -1667,14 +1673,17 @@ export default function InterviewPractice() {
   const job = getJob();
   const userTurnActive = phase === 'user-turn';
   const statusLabel =
+    isRecording ? '● REC' :
     phase === 'ai-speaking' ? 'Speaking' :
     phase === 'processing' ? 'Thinking…' :
-    phase === 'user-turn' ? 'Listening' : 'Ready';
+    phase === 'user-turn' ? 'Your turn…' : 'Ready';
   const statusColor =
+    isRecording ? '#f87171' :
     phase === 'ai-speaking' ? '#818cf8' :
     phase === 'processing' ? '#fbbf24' :
     phase === 'user-turn' ? '#4ade80' : '#94a3b8';
   const statusBg =
+    isRecording ? 'rgba(239,68,68,0.2)' :
     phase === 'ai-speaking' ? 'rgba(99,102,241,0.2)' :
     phase === 'processing' ? 'rgba(251,191,36,0.2)' :
     phase === 'user-turn' ? 'rgba(34,197,94,0.2)' : 'rgba(148,163,184,0.15)';
@@ -1705,6 +1714,28 @@ export default function InterviewPractice() {
       >
         {/* Avatar */}
         <Avatar state={avatarState} />
+
+        {/* Recording indicator — prominent pulsing bar */}
+        {isRecording && (
+          <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+            {/* Wave bars */}
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 32 }}>
+              {micLevels.map((level, i) => (
+                <div key={i} style={{
+                  width: 5,
+                  height: Math.max(6, level * 32),
+                  borderRadius: 3,
+                  background: vadCountdown !== null ? '#f59e0b' : '#ef4444',
+                  transition: 'height 0.08s ease, background 0.2s',
+                  opacity: 0.9,
+                }} />
+              ))}
+            </div>
+            <div style={{ fontSize: 12, color: vadCountdown !== null ? '#f59e0b' : '#f87171', fontWeight: 600, letterSpacing: 1 }}>
+              {vadCountdown !== null ? `Finishing in ${vadCountdown}s…` : 'Recording — speak freely'}
+            </div>
+          </div>
+        )}
 
         {/* Adaptive insights chip */}
         {adaptiveInsights && adaptiveInsights.sessionCount > 0 && (
@@ -2006,14 +2037,8 @@ export default function InterviewPractice() {
       </div>
 
       {/* Label under mic button */}
-      <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 11, whiteSpace: 'nowrap', zIndex: 20, color: vadCountdown !== null ? '#f59e0b' : '#475569' }}>
-        {vadCountdown !== null
-          ? `Finishing in ${vadCountdown}s…`
-          : isRecording
-          ? 'Speak freely — stops on silence'
-          : userTurnActive
-          ? 'Starting mic…'
-          : statusLabel}
+      <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 11, whiteSpace: 'nowrap', zIndex: 20, color: isRecording ? '#f87171' : '#475569' }}>
+        {isRecording ? 'Tap to stop early' : userTurnActive ? 'Starting mic…' : statusLabel}
       </div>
     </div>
   );
