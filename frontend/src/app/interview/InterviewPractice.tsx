@@ -723,7 +723,11 @@ export default function InterviewPractice() {
         void startCamera(videoRef);
       } else if (videoRef.current) {
         videoRef.current.srcObject = cameraStreamRef.current;
-        void videoRef.current.play();
+        void videoRef.current.play().then(() => {
+          setCameraActive(true); // stream reused from lobby — mark as active
+        }).catch(() => {
+          setCameraActive(true); // still mark active even if autoplay needs gesture
+        });
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

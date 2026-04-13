@@ -156,17 +156,26 @@ Use real, current courses from Coursera, Udemy, LinkedIn Learning, Pluralsight, 
           };
         }
         return {
-          text: `Dear Hiring Team,\n\nI am writing to apply for the ${input.jobTitle} position${input.company ? ` at ${input.company}` : ''}. With my background in ${skillList || 'relevant technologies'}, I am confident in my ability to contribute effectively.\n\nI look forward to discussing this opportunity further.\n\nYours sincerely,\n${input.senderName ?? 'Applicant'}`,
+          text: `Dear Hiring Team,\n\nI am writing to apply for the **${input.jobTitle}** position${input.company ? ` at **${input.company}**` : ''}. With my background in **${skillList || 'relevant technologies'}**, I am confident in my ability to contribute effectively to your team.\n\nI look forward to discussing this opportunity further.\n\nYours sincerely,\n${input.senderName ?? ''}`,
         };
       }
 
+      const senderDisplayName = input.senderName ?? 'the applicant';
+
       const systemPrompt = input.type === 'cv'
         ? `You are an expert UK CV writer. Generate a professional, tailored CV summary and skills section (no template headings, pure prose sections ready to paste). Tailor it specifically to the job description provided. Use British English.`
-        : `You are an expert UK cover letter writer. Write a concise, compelling cover letter (3 paragraphs, no placeholders, ready to send). Match the tone to the company and role. Use British English.`;
+        : `You are an expert UK cover letter writer. Write a concise, compelling cover letter (3 short paragraphs, ready to send).
+Rules:
+- Do NOT include any placeholders like [Your Address], [City], [Postcode], [Date], [Company Address], [Hiring Manager Name], or any square-bracket tokens
+- Start the letter body directly with the opening paragraph (e.g. "Dear Hiring Team," then the first paragraph)
+- Bold (**text**) the 2–3 most important keywords or achievements in each paragraph so they stand out
+- End the letter with: "Yours sincerely,\\n${senderDisplayName}"
+- Use British English throughout
+- Output only the letter body — no preamble, no explanations`;
 
       const userPrompt = input.type === 'cv'
         ? `Job: ${input.jobTitle}${input.company ? ` at ${input.company}` : ''}\nJob description: ${input.jobDescription ?? 'Not provided'}\n\nCandidate profile:\n${profileContext}\n\nWrite a tailored CV professional summary section and highlight the most relevant skills.`
-        : `Job: ${input.jobTitle}${input.company ? ` at ${input.company}` : ''}\nJob description: ${input.jobDescription ?? 'Not provided'}\n\nCandidate profile:\n${profileContext}\nApplicant name: ${input.senderName ?? 'Applicant'}\n\nWrite a compelling cover letter.`;
+        : `Job: ${input.jobTitle}${input.company ? ` at ${input.company}` : ''}\nJob description: ${input.jobDescription ?? 'Not provided'}\n\nCandidate profile:\n${profileContext}\nApplicant name: ${senderDisplayName}\n\nWrite a compelling cover letter addressed to the hiring team at ${input.company ?? 'the company'}.`;
 
       try {
         const resp = await openai.chat.completions.create({

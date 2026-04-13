@@ -1,6 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
-import { Sun, Moon, Monitor, Brain, Contrast, Focus, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { Sun, Anchor, Eye, Leaf, Film, Sparkles, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { useThemeStore } from '@/stores/themeStore';
 import { api } from '@/lib/api';
 
@@ -37,15 +37,15 @@ export default function Header() {
     '';
 
   const standardThemes = [
-    { id: 'light' as const, Icon: Sun, label: 'Light' },
-    { id: 'system' as const, Icon: Monitor, label: 'System default' },
-    { id: 'dark' as const, Icon: Moon, label: 'Dark' },
+    { id: 'light' as const,  Icon: Sun,    label: 'Jasny (Light)' },
+    { id: 'dark' as const,   Icon: Anchor, label: 'Granatowy (Dark Navy)' },
   ];
 
-  const a11yThemes = [
-    { id: 'neurodiversity' as const, Icon: Brain, label: 'Neurodiversity (warm cream)' },
-    { id: 'high-contrast' as const, Icon: Contrast, label: 'High contrast' },
-    { id: 'focus' as const, Icon: Focus, label: 'Focus mode (reduced colour)' },
+  const specThemes = [
+    { id: 'visually-impaired' as const, Icon: Eye,      label: 'Słabowidzący (High Contrast)' },
+    { id: 'overstimulated' as const,    Icon: Leaf,     label: 'Przebodźcowany (Calm Stone)' },
+    { id: 'noir' as const,              Icon: Film,     label: 'Noir (Cinematic)' },
+    { id: 'elegant' as const,           Icon: Sparkles, label: 'Elegancki (Gold Cream)' },
   ];
 
   return (
@@ -102,13 +102,13 @@ export default function Header() {
           ))}
         </div>
 
-        {/* Accessibility theme toggle */}
+        {/* Spec theme toggle */}
         <div
           className="flex items-center gap-1 rounded-xl border border-slate-100 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800"
           role="group"
-          aria-label="Accessibility theme"
+          aria-label="Visual theme"
         >
-          {a11yThemes.map(({ id, Icon, label }) => (
+          {specThemes.map(({ id, Icon, label }) => (
             <button
               key={id}
               onClick={() => setTheme(id)}

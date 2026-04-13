@@ -15,15 +15,12 @@ import {
   Send,
   Loader2,
   Accessibility,
-  Brain,
-  Contrast,
-  Focus,
   Sun,
-  Moon,
-  Monitor,
-  PanelLeftClose,
-  Cloud,
   Anchor,
+  Film,
+  Leaf,
+  Sparkles,
+  PanelLeftClose,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -672,55 +669,50 @@ const THEME_OPTIONS = [
   {
     id: 'light' as const,
     Icon: Sun,
-    label: 'Light',
-    description: 'Standard bright white interface.',
+    label: 'Jasny',
+    badge: 'Standard',
+    description:
+      'Czyste białe tło, niebieskie akcenty. Standardowy dzienny motyw — przejrzysty i energiczny.',
   },
   {
     id: 'dark' as const,
-    Icon: Moon,
-    label: 'Dark',
-    description: 'Dark background to reduce eye strain in low light.',
-  },
-  {
-    id: 'system' as const,
-    Icon: Monitor,
-    label: 'System default',
-    description: 'Follows your operating system preference automatically.',
-  },
-  {
-    id: 'neurodiversity' as const,
-    Icon: Brain,
-    label: 'Neurodiversity',
-    description:
-      'Soft cream background, warm tones, rounded corners, and comfortable line spacing. Designed to reduce visual stress for dyslexia and sensory sensitivity.',
-  },
-  {
-    id: 'high-contrast' as const,
-    Icon: Contrast,
-    label: 'High contrast',
-    description:
-      'Black background with bright yellow text and thick borders. Maximises legibility for low vision.',
-  },
-  {
-    id: 'focus' as const,
-    Icon: Focus,
-    label: 'Focus (calm blue)',
-    description:
-      'Minimal blue-grey palette with all animations removed. Reduces distractions for ADHD and hypersensitivity.',
-  },
-  {
-    id: 'sky' as const,
-    Icon: Cloud,
-    label: 'Sky',
-    description:
-      'Light blue background with vivid sky-blue accents. A fresh, airy feel for daytime use.',
-  },
-  {
-    id: 'navy' as const,
     Icon: Anchor,
-    label: 'Navy',
+    label: 'Granatowy',
+    badge: 'Standard',
     description:
-      'Deep navy background with bright blue accents. A rich dark theme with a nautical warmth.',
+      'Głęboki granat z jasnoniebieskimi akcentami. Standardowy nocny motyw — ciepły i elegancki.',
+  },
+  {
+    id: 'visually-impaired' as const,
+    Icon: Eye,
+    label: 'Słabowidzący',
+    badge: 'Dostępność',
+    description:
+      'Czarne tło, żółty tekst, kontrast 21:1 (WCAG AAA). Pogrubione obramowania, duże czcionki i wielkie strefy klikalne dla maksymalnej czytelności.',
+  },
+  {
+    id: 'overstimulated' as const,
+    Icon: Leaf,
+    label: 'Przebodźcowany',
+    badge: 'Dostępność',
+    description:
+      'Ciepłe, nisko nasycone barwy (kamień/piasek), miękkie zaokrąglenia i zero animacji. Dla osób łatwo przebodźcowanych, z ADHD lub nadwrażliwością sensoryczną.',
+  },
+  {
+    id: 'noir' as const,
+    Icon: Film,
+    label: 'Noir',
+    badge: 'Styl',
+    description:
+      'Czerń cinc-950, biała typografia, ostre geometryczne krawędzie. Kinowy, high-contrast klimat rodem z kina noir.',
+  },
+  {
+    id: 'elegant' as const,
+    Icon: Sparkles,
+    label: 'Elegancki',
+    badge: 'Styl',
+    description:
+      'Kremowe alabastrowe tło (#FDFBF7), węglowo-czarny tekst i przytłumione złote akcenty (#C5A880). Luksusowy, minimalistyczny design.',
   },
 ];
 
@@ -733,17 +725,20 @@ function AccessibilityTab() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Accessibility className="h-4 w-4" /> Colour &amp; Visual Theme
+            <Accessibility className="h-4 w-4" /> Motyw kolorystyczny
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-            Choose the theme that is most comfortable for you. Accessibility themes are also
-            available in the quick-access buttons in the header.
+            Wybierz motyw najwygodniejszy dla Ciebie. Szybki przełącznik znajdziesz też w nagłówku.
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {THEME_OPTIONS.map(({ id, Icon, label, description }) => {
+            {THEME_OPTIONS.map(({ id, Icon, label, badge, description }) => {
               const isActive = theme === id;
+              const badgeColour =
+                badge === 'Standard'   ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' :
+                badge === 'Dostępność' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' :
+                                        'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300';
               return (
                 <button
                   key={id}
@@ -759,11 +754,9 @@ function AccessibilityTab() {
                   <div className="flex w-full items-center gap-2">
                     <Icon className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                     <span className="font-medium text-slate-800 dark:text-slate-200">{label}</span>
-                    {isActive && (
-                      <span className="ml-auto rounded-full bg-indigo-600 px-2 py-0.5 text-[11px] font-semibold text-white">
-                        Active
-                      </span>
-                    )}
+                    <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${badgeColour}`}>
+                      {isActive ? '✓ Aktywny' : badge}
+                    </span>
                   </div>
                   <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">{description}</p>
                 </button>

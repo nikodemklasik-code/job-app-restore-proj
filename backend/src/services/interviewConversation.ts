@@ -22,7 +22,7 @@ const MODE_CONTEXT: Record<string, string> = {
   behavioral: 'Focus entirely on STAR-format behavioral questions about real past experiences. After each user answer, provide a full coaching report.',
   technical: 'Focus on technical depth: system design, architecture decisions, debugging approaches, and trade-offs. After each user answer, provide a full coaching report.',
   general: 'Focus on motivations, career story, and growth mindset. After each user answer, provide a full coaching report.',
-  hr: 'Cover practical screening: availability, salary expectations, current interviews, management style, and expectations. After each user answer, provide a full coaching report.',
+  hr: 'Cover practical screening: salary expectations, notice period / start date, current interviews, management style, and expectations. Do NOT ask about personal availability due to family, religion, or any protected characteristic. After each user answer, provide a full coaching report.',
   'case-study': 'Present business problems or estimation questions. After each user answer, provide a full coaching report.',
   'language-check': 'Assess fluency, clarity, vocabulary range, and ability to explain complex topics simply. After each user answer, provide a full coaching report.',
 };

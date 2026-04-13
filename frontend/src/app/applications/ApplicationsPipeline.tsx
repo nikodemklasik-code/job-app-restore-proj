@@ -285,11 +285,11 @@ export default function ApplicationsPipeline() {
   const activeStageApps = activeStage ? apps.filter(a => a.status === activeStage) : [];
   const activeStageConfig = activeStage ? STAGES.find(s => s.key === activeStage)! : null;
 
-  const themeOptions: { value: 'dark' | 'neurodiversity' | 'high-contrast' | 'focus'; label: string }[] = [
-    { value: 'dark', label: 'Default' },
-    { value: 'neurodiversity', label: 'Neurodiversity' },
-    { value: 'high-contrast', label: 'High Contrast' },
-    { value: 'focus', label: 'Focus' },
+  const themeOptions: { value: 'light' | 'dark' | 'overstimulated' | 'visually-impaired'; label: string }[] = [
+    { value: 'light',             label: 'Jasny' },
+    { value: 'dark',              label: 'Granatowy' },
+    { value: 'overstimulated',    label: 'Spokojny' },
+    { value: 'visually-impaired', label: 'Kontrast' },
   ];
 
   return (
