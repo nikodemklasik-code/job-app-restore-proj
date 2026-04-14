@@ -33,6 +33,7 @@ import { createContext } from './trpc/trpc.js';
 import { runRetentionJob } from './services/retentionJob.js';
 
 const app = express();
+app.set('trust proxy', 1); // Trust nginx reverse proxy — required for rate-limit + X-Forwarded-For
 
 app.use(helmet({ contentSecurityPolicy: false })); // CSP disabled — frontend is separate
 
