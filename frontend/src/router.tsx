@@ -25,6 +25,7 @@ const SkillsLab = lazy(() => import('./app/skills/SkillsLab'));
 const NegotiationCoach = lazy(() => import('./app/negotiation/NegotiationCoach'));
 const JobRadar = lazy(() => import('./app/radar/JobRadar'));
 const InterviewWarmup = lazy(() => import('./app/warmup/InterviewWarmup'));
+const CoachPage = lazy(() => import('./app/coach/CoachPage'));
 const FAQPage = lazy(() => import('./app/faq/FAQPage'));
 const DocumentLab = lazy(() => import('./app/documents/DocumentLab'));
 
@@ -93,6 +94,7 @@ export const router = createBrowserRouter([
       { path: 'negotiation', element: withSuspense(NegotiationCoach) },
       { path: 'radar', element: withSuspense(JobRadar) },
       { path: 'warmup', element: withSuspense(InterviewWarmup) },
+      { path: 'coach', element: withSuspense(CoachPage) },
       { path: 'faq', element: withSuspense(FAQPage) },
       { path: 'documents', element: withSuspense(DocumentLab) },
     ],
