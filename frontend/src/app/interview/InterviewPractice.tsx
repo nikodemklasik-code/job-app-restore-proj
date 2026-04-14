@@ -715,13 +715,10 @@ export default function InterviewPractice() {
     setCameraActive(false);
   }, []);
 
-  // Lobby: start camera for preview
+  // Camera only starts when interview begins — NOT on lobby load
   useEffect(() => {
-    if (phase === 'lobby') {
-      void startCamera(lobbyVideoRef);
-    }
     return () => {
-      if (phase !== 'lobby') stopCamera();
+      if (phase === 'complete') stopCamera();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
@@ -1125,17 +1122,14 @@ export default function InterviewPractice() {
 
         <div style={{ width: '100%', maxWidth: 880, display: 'flex', gap: 24, flexWrap: 'wrap', justifyContent: 'center' }}>
 
-          {/* Left: camera preview */}
+          {/* Left: camera placeholder — camera starts only after clicking Start */}
           <div style={{ flex: '1 1 340px', minHeight: 320, background: '#0f172a', borderRadius: 20, border: '1px solid #1e293b', overflow: 'hidden', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <video ref={lobbyVideoRef} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', position: 'absolute', inset: 0 }} />
-            {!cameraActive && (
-              <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>👤</div>
-                <span style={{ fontSize: 13, color: '#64748b' }}>Camera unavailable</span>
-              </div>
-            )}
+            <video ref={lobbyVideoRef} muted playsInline style={{ display: 'none' }} />
+            <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>👤</div>
+              <span style={{ fontSize: 13, color: '#64748b' }}>Camera starts when you begin</span>
+            </div>
             <div style={{ position: 'absolute', bottom: 14, left: 14, background: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600, color: '#e2e8f0', zIndex: 2 }}>You</div>
-            <div style={{ position: 'absolute', top: 14, right: 14, zIndex: 2, width: 10, height: 10, borderRadius: '50%', background: cameraActive ? '#22c55e' : '#64748b', boxShadow: cameraActive ? '0 0 8px #22c55e' : 'none' }} />
           </div>
 
           {/* Right: simplified join panel */}
@@ -1733,17 +1727,20 @@ export default function InterviewPractice() {
           boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
         }}
       >
-        {cameraActive && cameraOn ? (
-          <video
-            ref={videoRef}
-            muted
-            playsInline
-            style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
-          />
-        ) : (
-          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+        {/* Always keep video in DOM so ref is always available for startCamera */}
+        <video
+          ref={videoRef}
+          muted
+          playsInline
+          style={{
+            width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)',
+            display: cameraActive && cameraOn ? 'block' : 'none',
+          }}
+        />
+        {(!cameraActive || !cameraOn) && (
+          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, position: 'absolute', inset: 0 }}>
             <div style={{ fontSize: 32 }}>👤</div>
-            <span style={{ fontSize: 11, color: '#475569' }}>{!cameraOn ? 'Camera off' : 'No camera'}</span>
+            <span style={{ fontSize: 11, color: '#475569' }}>{!cameraOn ? 'Camera off' : 'Starting camera…'}</span>
           </div>
         )}
 
