@@ -15,55 +15,47 @@ interface NavItem {
   badge?: number;
 }
 
-// 1. Mój Profil — kandydat, cele, mapa drogowa
-const PROFIL: NavItem[] = [
-  { path: '/dashboard', label: 'Profil & Cele', icon: LayoutDashboard },
+const PROFILE: NavItem[] = [
+  { path: '/dashboard', label: 'Profile & Goals', icon: LayoutDashboard },
 ];
 
-// 2-4. Poszukiwanie Pracy — oferty → aplikacje → analiza
 const JOB_SEARCH: NavItem[] = [
-  { path: '/jobs', label: 'Oferty Pracy', icon: Briefcase },
-  { path: '/applications', label: 'Aplikacje', icon: ClipboardList },
+  { path: '/jobs', label: 'Job Listings', icon: Briefcase },
+  { path: '/applications', label: 'Applications', icon: ClipboardList },
   { path: '/review', label: 'Applications Review', icon: FileText },
 ];
 
-// 5. Umiejętności & Wycena
 const SKILLS: NavItem[] = [
   { path: '/skills', label: 'Skills Lab', icon: FlaskConical },
 ];
 
-// 6. AI Narzędzia
 const AI_TOOLS: NavItem[] = [
-  { path: '/assistant', label: 'AI Asystent', icon: MessageSquare },
+  { path: '/assistant', label: 'AI Assistant', icon: MessageSquare },
   { path: '/radar', label: 'Job Radar', icon: Radar },
 ];
 
-// 7-9. Rozmowy & Coaching — trener, rozmowa, negocjacje (wspólna pamięć PDF)
 const COACHING: NavItem[] = [
-  { path: '/interview', label: 'Rozmowa Kwalifikacyjna', icon: Mic },
-  { path: '/warmup', label: 'Trener', icon: GraduationCap },
-  { path: '/negotiation', label: 'Negocjacje', icon: Handshake },
+  { path: '/interview', label: 'Interview', icon: Mic },
+  { path: '/warmup', label: 'Coach', icon: GraduationCap },
+  { path: '/negotiation', label: 'Negotiation', icon: Handshake },
 ];
 
-// 10-11. Dokumenty
 const DOCUMENTS: NavItem[] = [
   { path: '/documents', label: 'Document Lab', icon: FolderOpen },
   { path: '/style-studio', label: 'Style Studio', icon: Palette },
 ];
 
-// 12-15. Narzędzia & Automatyzacja
 const TOOLS: NavItem[] = [
   { path: '/salary', label: 'Salary Calculator', icon: Calculator },
   { path: '/legal', label: 'Legal Hub', icon: Scale },
-  { path: '/reports', label: 'Raporty', icon: BarChart2 },
+  { path: '/reports', label: 'Reports', icon: BarChart2 },
   { path: '/auto-apply', label: 'Auto Apply', icon: Zap },
 ];
 
-// 16-17 + Security + FAQ. Konto
 const ACCOUNT: NavItem[] = [
-  { path: '/settings', label: 'Ustawienia', icon: Settings },
+  { path: '/settings', label: 'Settings', icon: Settings },
   { path: '/billing', label: 'Billing', icon: CreditCard },
-  { path: '/security', label: 'Bezpiecze\u0144stwo', icon: Shield },
+  { path: '/security', label: 'Security', icon: Shield },
   { path: '/faq', label: 'FAQ', icon: HelpCircle },
 ];
 
@@ -120,14 +112,14 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto p-3">
-        <NavSection label="Profil" items={PROFIL} />
-        <NavSection label="Poszukiwanie Pracy" items={JOB_SEARCH} />
-        <NavSection label="Umiej\u0119tno\u015bci" items={SKILLS} />
-        <NavSection label="AI Narz\u0119dzia" items={AI_TOOLS} />
-        <NavSection label="Rozmowy & Coaching" items={COACHING} />
-        <NavSection label="Dokumenty" items={DOCUMENTS} />
-        <NavSection label="Narz\u0119dzia" items={TOOLS} />
-        <NavSection label="Konto" items={ACCOUNT} />
+        <NavSection label="Profile" items={PROFILE} />
+        <NavSection label="Job Search" items={JOB_SEARCH} />
+        <NavSection label="Skills" items={SKILLS} />
+        <NavSection label="AI Tools" items={AI_TOOLS} />
+        <NavSection label="Interviews & Coaching" items={COACHING} />
+        <NavSection label="Documents" items={DOCUMENTS} />
+        <NavSection label="Tools" items={TOOLS} />
+        <NavSection label="Account" items={ACCOUNT} />
       </nav>
 
       {/* Sign out */}
