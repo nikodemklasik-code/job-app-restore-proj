@@ -55,6 +55,13 @@ jobs:
           path: backend/dist/
           retention-days: 1
 
+      - name: Upload scripts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-scripts
+          path: scripts/
+          retention-days: 1
+
   # ─── 2. Deploy (self-hosted runner on VPS) ──────────────────────────────────
   deploy:
     name: Deploy to VPS
@@ -72,6 +79,19 @@ jobs:
         with:
           name: backend-dist
           path: /tmp/backend-dist/
+
+      - name: Download scripts
+        uses: actions/download-artifact@v4
+        with:
+          name: deploy-scripts
+          path: /root/project/scripts/
+
+      - name: Make scripts executable
+        run: chmod +x /root/project/scripts/*.sh
+
+      - name: Backup current deployment
+        run: |
+          bash /root/project/scripts/backup.sh || true
 
       - name: Deploy frontend → /var/www/multivohub
         run: |
