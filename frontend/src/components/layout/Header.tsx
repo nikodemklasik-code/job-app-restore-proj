@@ -32,7 +32,7 @@ const PAGE_TITLES: Record<string, string> = {
 export default function Header() {
   const { pathname } = useLocation();
   const { user } = useUser();
-  const { theme, setTheme, focusMode, setFocusMode } = useThemeStore();
+  const { setTheme, focusMode, setFocusMode } = useThemeStore();
   const creditsQuery = api.billing.getCurrentPlan.useQuery(
     { userId: user?.id ?? '' },
     { enabled: !!user?.id, staleTime: 60_000 },

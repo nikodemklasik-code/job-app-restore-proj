@@ -217,7 +217,7 @@ export default function CoachPage() {
     try {
       const result = await evaluateMutation.mutateAsync({
         userId,
-        category: category!,
+        category: category! as 'behavioural' | 'technical' | 'motivation' | 'situational',
         question: currentQ.q,
         answer: txt,
       });

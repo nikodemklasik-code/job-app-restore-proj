@@ -187,10 +187,7 @@ export default function NegotiationCoach() {
 
   // Voice state
   const [voiceMode, setVoiceMode] = useState(true);  // voice is default
-  const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
 
   // VAD state
   const [vadActive, setVadActive] = useState(false);
@@ -406,35 +403,7 @@ export default function NegotiationCoach() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); }
   };
 
-  const handleMicToggle = useCallback(async () => {
-    if (isRecording) {
-      // Stop recording
-      recorderRef.current?.stop();
-      setIsRecording(false);
-    } else {
-      // Start recording
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioChunksRef.current = [];
-        const recorder = new MediaRecorder(stream);
-        recorderRef.current = recorder;
-        recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
-        recorder.onstop = async () => {
-          stream.getTracks().forEach((t) => t.stop());
-          const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          if (blob.size < 1000) return; // too short
-          const transcript = await transcribeVoice(blob);
-          if (transcript.trim()) {
-            void handleSend(transcript.trim());
-          }
-        };
-        recorder.start();
-        setIsRecording(true);
-      } catch {
-        setError('Microphone access denied. Please allow microphone access.');
-      }
-    }
-  }, [isRecording, handleSend]);
+  // handleMicToggle — reserved for voice input, not yet wired to UI
 
   const handleReset = () => {
     setMessages([]);
