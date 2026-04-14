@@ -86,7 +86,7 @@ const LINE_HEIGHT_PX = 24;
 
 function TypingIndicator() {
   return (
-    <div className="flex items-end gap-3" style={{ animation: 'msgIn 0.25s ease-out both' }}>
+    <div className="flex items-end gap-3" style={{ opacity: 1 }}>
       {/* Avatar */}
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/20">
         <Sparkles className="h-4 w-4 text-white" />
@@ -96,8 +96,8 @@ function TypingIndicator() {
           {[0, 1, 2].map((i) => (
             <span
               key={i}
-              className="h-1.5 w-1.5 rounded-full bg-indigo-400"
-              style={{ animation: `dotBounce 1.2s ${i * 0.2}s infinite` }}
+              className="h-1.5 w-1.5 rounded-full bg-indigo-400 animate-bounce"
+              style={{ animationDelay: `${i * 0.15}s` }}
             />
           ))}
         </div>
@@ -122,7 +122,7 @@ function MessageBubble({
   return (
     <div
       className={`flex items-end gap-3 ${isUser ? 'flex-row-reverse' : ''}`}
-      style={{ animation: 'msgIn 0.25s ease-out both' }}
+      style={{ opacity: 1 }}
     >
       {/* Avatar */}
       <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-lg ${
@@ -313,19 +313,7 @@ export default function AssistantPage() {
   };
 
   return (
-    <>
-      <style>{`
-        @keyframes msgIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes dotBounce {
-          0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-          40%            { transform: translateY(-5px); opacity: 1; }
-        }
-      `}</style>
-
-      <div className="flex h-[calc(100vh-5rem)] flex-col gap-4">
+    <div className="flex h-[calc(100vh-10rem)] flex-col gap-4">
 
         {/* ── Header ──────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between">
@@ -379,8 +367,8 @@ export default function AssistantPage() {
               {[0, 1, 2].map((i) => (
                 <span
                   key={i}
-                  className="h-2 w-2 rounded-full bg-indigo-400"
-                  style={{ animation: `dotBounce 1.2s ${i * 0.2}s infinite` }}
+                  className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce"
+                  style={{ animationDelay: `${i * 0.15}s` }}
                 />
               ))}
             </div>
@@ -452,7 +440,6 @@ export default function AssistantPage() {
         <p className="text-center text-[11px] text-slate-600">
           Enter to send · Shift+Enter for new line · Mic for voice
         </p>
-      </div>
-    </>
+    </div>
   );
 }
