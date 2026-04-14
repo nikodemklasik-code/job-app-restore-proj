@@ -55,60 +55,39 @@ jobs:
           path: backend/dist/
           retention-days: 1
 
-  # ─── 2. Deploy ──────────────────────────────────────────────────────────────
+  # ─── 2. Deploy (self-hosted runner on VPS) ──────────────────────────────────
   deploy:
     name: Deploy to VPS
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, production]
     steps:
       - name: Download frontend dist
         uses: actions/download-artifact@v4
         with:
           name: frontend-dist
-          path: frontend/dist/
+          path: /tmp/frontend-dist/
 
       - name: Download backend dist
         uses: actions/download-artifact@v4
         with:
           name: backend-dist
-          path: backend/dist/
-
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          echo "Host ${{ secrets.VPS_HOST }}" >> ~/.ssh/config
-          echo "  StrictHostKeyChecking no" >> ~/.ssh/config
-          echo "  UserKnownHostsFile /dev/null" >> ~/.ssh/config
-          echo "  IdentityFile ~/.ssh/id_ed25519" >> ~/.ssh/config
-          chmod 600 ~/.ssh/config
+          path: /tmp/backend-dist/
 
       - name: Deploy frontend → /var/www/multivohub
         run: |
-          rsync -az --delete \
-            -e "ssh -i ~/.ssh/id_ed25519" \
-            frontend/dist/ \
-            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/multivohub/
+          rsync -az --delete /tmp/frontend-dist/ /var/www/multivohub/
 
       - name: Deploy backend → /root/project/backend/dist
         run: |
-          rsync -az --delete \
-            -e "ssh -i ~/.ssh/id_ed25519" \
-            backend/dist/ \
-            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/root/project/backend/dist/
+          rsync -az --delete /tmp/backend-dist/ /root/project/backend/dist/
 
       - name: Restart backend (PM2)
         run: |
-          ssh -i ~/.ssh/id_ed25519 \
-            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
-            "pm2 restart jobapp-server && pm2 save"
+          pm2 restart jobapp-server && pm2 save
 
       - name: Smoke test
         run: |
-          ssh -i ~/.ssh/id_ed25519 \
-            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
-            "bash /root/project/scripts/smoke-test.sh"
+          bash /root/project/scripts/smoke-test.sh
 
       - name: Notify success
         if: success()
