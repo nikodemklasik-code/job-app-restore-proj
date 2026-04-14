@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Send, Bot, User, RefreshCw, X, Volume2, VolumeX, MessageSquarePlus, Mic, MicOff } from 'lucide-react';
+import {
+  Send, Bot, User, RefreshCw, X, Volume2, VolumeX,
+  MessageSquarePlus, Mic, MicOff, Sparkles,
+  FileText, TrendingUp, Briefcase, DollarSign,
+} from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
-import { Button } from '@/components/ui/button';
 import { useCareerAssistantStore } from '@/stores/careerAssistantStore';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
@@ -11,16 +14,12 @@ async function transcribeAudio(blob: Blob): Promise<string> {
     const form = new FormData();
     form.append('audio', blob, 'audio.webm');
     const res = await fetch(`${API_BASE}/api/interview/transcribe`, {
-      method: 'POST',
-      body: form,
-      credentials: 'include',
+      method: 'POST', body: form, credentials: 'include',
     });
     if (!res.ok) return '';
     const data = await res.json() as { transcript?: string };
     return data.transcript ?? '';
-  } catch {
-    return '';
-  }
+  } catch { return ''; }
 }
 
 async function speakText(text: string): Promise<void> {
@@ -37,23 +36,194 @@ async function speakText(text: string): Promise<void> {
     await new Promise<void>((resolve) => {
       const audio = new Audio(url);
       audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
-      audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+      audio.onerror  = () => { URL.revokeObjectURL(url); resolve(); };
       void audio.play().catch(() => resolve());
     });
-  } catch {
-    // TTS is non-fatal
-  }
+  } catch { /* TTS is non-fatal */ }
 }
 
-const QUICK_ACTIONS: { prompt: string; mode: 'general' | 'cv' | 'interview' | 'salary' }[] = [
-  { prompt: 'Review my CV for a Senior Frontend role', mode: 'cv' },
-  { prompt: 'How should I negotiate salary?', mode: 'salary' },
-  { prompt: 'Prepare me for a behavioural interview', mode: 'interview' },
-  { prompt: 'What are the best job search strategies right now?', mode: 'general' },
+// ── Quick actions ─────────────────────────────────────────────────────────────
+
+const QUICK_ACTIONS = [
+  {
+    icon: FileText,
+    label: 'CV Review',
+    prompt: 'Review my CV for a Senior Frontend role',
+    mode: 'cv' as const,
+    color: 'text-indigo-400',
+    bg: 'bg-indigo-500/10 border-indigo-500/20',
+  },
+  {
+    icon: DollarSign,
+    label: 'Salary Negotiation',
+    prompt: 'How should I negotiate my salary effectively?',
+    mode: 'salary' as const,
+    color: 'text-emerald-400',
+    bg: 'bg-emerald-500/10 border-emerald-500/20',
+  },
+  {
+    icon: Briefcase,
+    label: 'Interview Prep',
+    prompt: 'Prepare me for a behavioural interview',
+    mode: 'interview' as const,
+    color: 'text-amber-400',
+    bg: 'bg-amber-500/10 border-amber-500/20',
+  },
+  {
+    icon: TrendingUp,
+    label: 'Job Strategy',
+    prompt: 'What are the best job search strategies right now?',
+    mode: 'general' as const,
+    color: 'text-violet-400',
+    bg: 'bg-violet-500/10 border-violet-500/20',
+  },
 ];
 
 const MAX_TEXTAREA_ROWS = 5;
 const LINE_HEIGHT_PX = 24;
+
+// ── Typing indicator ──────────────────────────────────────────────────────────
+
+function TypingIndicator() {
+  return (
+    <div className="flex items-end gap-3" style={{ animation: 'msgIn 0.25s ease-out both' }}>
+      {/* Avatar */}
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/20">
+        <Sparkles className="h-4 w-4 text-white" />
+      </div>
+      <div className="rounded-2xl rounded-bl-sm border border-white/8 bg-white/5 px-4 py-3">
+        <div className="flex gap-1.5 items-center h-4">
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="h-1.5 w-1.5 rounded-full bg-indigo-400"
+              style={{ animation: `dotBounce 1.2s ${i * 0.2}s infinite` }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Message bubble ────────────────────────────────────────────────────────────
+
+function MessageBubble({
+  msg,
+  speakingId,
+  onSpeak,
+}: {
+  msg: { id: string; role: string; text: string };
+  speakingId: string | null;
+  onSpeak: (id: string, text: string) => void;
+}) {
+  const isUser = msg.role === 'user';
+
+  return (
+    <div
+      className={`flex items-end gap-3 ${isUser ? 'flex-row-reverse' : ''}`}
+      style={{ animation: 'msgIn 0.25s ease-out both' }}
+    >
+      {/* Avatar */}
+      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-lg ${
+        isUser
+          ? 'bg-indigo-600 shadow-indigo-500/25'
+          : 'bg-gradient-to-br from-indigo-500 to-violet-600 shadow-indigo-500/20'
+      }`}>
+        {isUser
+          ? <User className="h-4 w-4 text-white" />
+          : <Sparkles className="h-4 w-4 text-white" />
+        }
+      </div>
+
+      {/* Bubble + actions */}
+      <div className={`flex max-w-[78%] flex-col gap-1.5 ${isUser ? 'items-end' : 'items-start'}`}>
+        <div className={`whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+          isUser
+            ? 'rounded-br-sm bg-indigo-600 text-white shadow-lg shadow-indigo-500/20'
+            : 'rounded-bl-sm border border-white/8 bg-white/5 text-slate-200'
+        }`}>
+          {msg.text}
+        </div>
+
+        {/* TTS for AI messages */}
+        {!isUser && (
+          <button
+            onClick={() => onSpeak(msg.id, msg.text)}
+            className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] text-slate-500 transition-colors hover:bg-white/5 hover:text-indigo-400"
+          >
+            {speakingId === msg.id
+              ? <><VolumeX className="h-3 w-3" /> Stop</>
+              : <><Volume2 className="h-3 w-3" /> Read aloud</>
+            }
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+
+function EmptyState({ onAction, isSending }: {
+  onAction: (prompt: string, mode: 'general' | 'cv' | 'interview' | 'salary') => void;
+  isSending: boolean;
+}) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-8 px-4 py-8">
+      {/* Hero */}
+      <div className="text-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-xl shadow-indigo-500/30">
+          <Sparkles className="h-8 w-8 text-white" />
+        </div>
+        <h2 className="text-xl font-bold text-white">AI Career Assistant</h2>
+        <p className="mt-1.5 text-sm text-slate-400">
+          Powered by GPT-4o · CV, interviews, salary, strategy
+        </p>
+        <div className="mx-auto mt-3 flex w-fit items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-xs font-medium text-emerald-400">Online</span>
+        </div>
+      </div>
+
+      {/* Quick actions */}
+      <div className="w-full max-w-lg">
+        <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">
+          Quick start
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {QUICK_ACTIONS.map((action) => {
+            const Icon = action.icon;
+            return (
+              <button
+                key={action.label}
+                onClick={() => !isSending && onAction(action.prompt, action.mode)}
+                disabled={isSending}
+                className={`group flex flex-col items-start gap-2 rounded-2xl border p-4 text-left transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50 ${action.bg}`}
+              >
+                <div className={`rounded-xl p-2 ${action.bg}`}>
+                  <Icon className={`h-4 w-4 ${action.color}`} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">{action.label}</p>
+                  <p className="mt-0.5 text-xs text-slate-500 leading-snug line-clamp-2">
+                    {action.prompt}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <p className="text-xs text-slate-600 text-center">
+        Follow-up messages keep full conversation context
+      </p>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 
 export default function AssistantPage() {
   const { isSignedIn } = useUser();
@@ -73,20 +243,15 @@ export default function AssistantPage() {
   const isSending = status === 'sending';
   const isLoading = status === 'syncing';
 
-  // Load history once when signed in
   useEffect(() => {
-    if (isSignedIn) {
-      void loadHistory();
-    }
+    if (isSignedIn) void loadHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn]);
 
-  // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isSending]);
 
-  // Auto-resize textarea
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -116,9 +281,7 @@ export default function AssistantPage() {
       recorderRef.current = recorder;
       recorder.start();
       setIsRecording(true);
-    } catch {
-      // mic denied or not available
-    }
+    } catch { /* mic denied */ }
   }, []);
 
   const stopRecording = useCallback(() => {
@@ -132,231 +295,164 @@ export default function AssistantPage() {
   }, [isRecording, startRecording, stopRecording]);
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isSending) return;
     const text = input;
     setInput('');
     await sendMessage(text, 'general');
   };
 
   const handleSpeak = async (msgId: string, text: string) => {
-    if (speakingMsgId === msgId) {
-      setSpeakingMsgId(null);
-      return;
-    }
+    if (speakingMsgId === msgId) { setSpeakingMsgId(null); return; }
     setSpeakingMsgId(msgId);
     await speakText(text);
     setSpeakingMsgId(null);
   };
 
-  const handleNewChat = () => {
-    if (typeof clearMessages === 'function') {
-      clearMessages();
-    }
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      void handleSend();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); }
   };
 
   return (
-    <div className="flex h-[calc(100vh-10rem)] flex-col space-y-4">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="font-display text-3xl font-bold text-slate-900 dark:text-white">
-            AI Career Assistant
-          </h1>
-          <p className="mt-1 text-slate-500">
-            Your personal career strategist powered by GPT-4o.
-          </p>
-          <p className="mt-1 text-xs text-slate-400">
-            Private messages from Instagram, Facebook, and LinkedIn are not used as AI input.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleNewChat}
-            title="Start new chat"
-            className="flex items-center gap-1.5 text-slate-500 hover:text-indigo-600"
-          >
-            <MessageSquarePlus className="h-4 w-4" />
-            <span className="hidden sm:inline text-xs">Nowy czat</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => void loadHistory()}
-            disabled={isLoading}
-            title="Refresh conversation"
-            className="flex items-center gap-1.5 text-slate-500 hover:text-indigo-600"
-          >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline text-xs">Odśwież</span>
-          </Button>
-        </div>
-      </div>
+    <>
+      <style>{`
+        @keyframes msgIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes dotBounce {
+          0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+          40%            { transform: translateY(-5px); opacity: 1; }
+        }
+      `}</style>
 
-      {/* Error banner */}
-      {error && (
-        <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-400">
-          <span>{error}</span>
-          <button
-            type="button"
-            onClick={resetError}
-            className="ml-3 shrink-0 rounded p-0.5 hover:bg-red-100 dark:hover:bg-red-900"
-            aria-label="Dismiss error"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
+      <div className="flex h-[calc(100vh-5rem)] flex-col gap-4">
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto rounded-2xl border border-slate-100 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
-        {isLoading ? (
-          <div className="flex h-full items-center justify-center">
-            <div className="flex gap-1">
+        {/* ── Header ──────────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25">
+              <Bot className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-white leading-tight">AI Career Assistant</h1>
+              <div className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-xs text-slate-400">GPT-4o · online</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => clearMessages?.()}
+              title="New conversation"
+              className="flex items-center gap-1.5 rounded-xl border border-white/8 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <MessageSquarePlus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">New chat</span>
+            </button>
+            <button
+              onClick={() => void loadHistory()}
+              disabled={isLoading}
+              title="Refresh"
+              className="flex items-center justify-center rounded-xl border border-white/8 bg-white/5 p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Error ───────────────────────────────────────────────────── */}
+        {error && (
+          <div className="flex items-center justify-between rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">
+            <span>{error}</span>
+            <button onClick={resetError} className="ml-3 rounded p-0.5 hover:bg-red-500/20">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        {/* ── Messages ────────────────────────────────────────────────── */}
+        <div className="flex-1 overflow-y-auto rounded-2xl border border-white/8 bg-white/[0.02]">
+          {isLoading ? (
+            <div className="flex h-full items-center justify-center gap-1.5">
               {[0, 1, 2].map((i) => (
-                <div
+                <span
                   key={i}
-                  className="h-2 w-2 animate-bounce rounded-full bg-slate-300"
-                  style={{ animationDelay: `${i * 0.15}s` }}
+                  className="h-2 w-2 rounded-full bg-indigo-400"
+                  style={{ animation: `dotBounce 1.2s ${i * 0.2}s infinite` }}
                 />
               ))}
             </div>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950">
-              <Bot className="h-7 w-7 text-indigo-600" />
-            </div>
-            <p className="text-slate-500">
-              Career, CV, interviews — follow-up messages keep conversation context.
-            </p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {QUICK_ACTIONS.map((action) => (
-                <button
-                  key={action.prompt}
-                  type="button"
-                  onClick={() => void sendMessage(action.prompt, action.mode)}
-                  className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 text-left text-xs text-slate-600 transition-colors hover:border-indigo-100 hover:bg-indigo-50 hover:text-indigo-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
-                >
-                  {action.prompt}
-                </button>
+          ) : messages.length === 0 ? (
+            <EmptyState
+              onAction={(prompt, mode) => void sendMessage(prompt, mode)}
+              isSending={isSending}
+            />
+          ) : (
+            <div className="space-y-5 p-5">
+              {messages.map((msg) => (
+                <MessageBubble
+                  key={msg.id}
+                  msg={msg}
+                  speakingId={speakingMsgId}
+                  onSpeak={(id, text) => void handleSpeak(id, text)}
+                />
               ))}
+              {isSending && <TypingIndicator />}
+              <div ref={messagesEndRef} />
             </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
-              >
-                <div
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                    msg.role === 'user'
-                      ? 'bg-indigo-600'
-                      : 'bg-slate-100 dark:bg-slate-800'
-                  }`}
-                >
-                  {msg.role === 'user' ? (
-                    <User className="h-4 w-4 text-white" />
-                  ) : (
-                    <Bot className="h-4 w-4 text-slate-500" />
-                  )}
-                </div>
-                <div className={`flex max-w-[80%] flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                  <div
-                    className={`whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm ${
-                      msg.role === 'user'
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200'
-                    }`}
-                  >
-                    {msg.text}
-                  </div>
-                  {/* TTS button for AI messages */}
-                  {msg.role === 'assistant' && (
-                    <button
-                      type="button"
-                      onClick={() => void handleSpeak(msg.id, msg.text)}
-                      title={speakingMsgId === msg.id ? 'Zatrzymaj czytanie' : 'Przeczytaj na głos'}
-                      className="flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-slate-400 transition-colors hover:bg-slate-100 hover:text-indigo-600 dark:hover:bg-slate-800 dark:hover:text-indigo-400"
-                    >
-                      {speakingMsgId === msg.id
-                        ? <VolumeX className="h-3 w-3" />
-                        : <Volume2 className="h-3 w-3" />}
-                      {speakingMsgId === msg.id ? 'Czyta…' : 'Czytaj'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-            {isSending && (
-              <div className="flex gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                  <Bot className="h-4 w-4 text-slate-500" />
-                </div>
-                <div className="rounded-2xl bg-slate-100 px-4 py-3 dark:bg-slate-800">
-                  <div className="flex gap-1">
-                    {[0, 1, 2].map((i) => (
-                      <div
-                        key={i}
-                        className="h-2 w-2 animate-bounce rounded-full bg-slate-400"
-                        style={{ animationDelay: `${i * 0.15}s` }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-        )}
-      </div>
+          )}
+        </div>
 
-      {/* Input */}
-      <div className="flex items-end gap-2">
-        <textarea
-          ref={textareaRef}
-          rows={1}
-          placeholder={isTranscribing ? 'Transcribing…' : isRecording ? 'Recording… click mic to stop' : 'Ask anything career-related… (Shift+Enter for new line)'}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={isSending || isTranscribing}
-          className="flex-1 resize-none rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500"
-          style={{ lineHeight: `${LINE_HEIGHT_PX}px`, overflowY: 'hidden' }}
-        />
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={toggleRecording}
-          disabled={isSending || isTranscribing}
-          title={isRecording ? 'Stop recording' : 'Record voice message'}
-          className={`shrink-0 rounded-xl border px-3 py-2.5 transition-colors ${
-            isRecording
-              ? 'border-red-300 bg-red-50 text-red-600 hover:bg-red-100 dark:border-red-800 dark:bg-red-950 dark:text-red-400'
-              : 'border-slate-200 text-slate-500 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:hover:border-indigo-700'
-          }`}
-        >
-          {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-        </Button>
-        <Button
-          onClick={() => void handleSend()}
-          disabled={isSending || !input.trim()}
-          className="shrink-0"
-        >
-          <Send className="h-4 w-4" />
-        </Button>
+        {/* ── Input bar ───────────────────────────────────────────────── */}
+        <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur-sm">
+          <textarea
+            ref={textareaRef}
+            rows={1}
+            placeholder={
+              isTranscribing ? 'Transcribing…' :
+              isRecording    ? 'Recording… click mic to stop' :
+                               'Ask anything career-related… (Shift+Enter for new line)'
+            }
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isSending || isTranscribing}
+            className="flex-1 resize-none bg-transparent text-sm text-white placeholder:text-slate-500 outline-none disabled:opacity-50"
+            style={{ lineHeight: `${LINE_HEIGHT_PX}px`, overflowY: 'hidden' }}
+          />
+
+          <div className="flex shrink-0 items-center gap-1.5">
+            {/* Mic */}
+            <button
+              onClick={toggleRecording}
+              disabled={isSending || isTranscribing}
+              title={isRecording ? 'Stop recording' : 'Voice input'}
+              className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all disabled:opacity-40 ${
+                isRecording
+                  ? 'bg-red-500/20 text-red-400 ring-2 ring-red-500/30 animate-pulse'
+                  : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </button>
+
+            {/* Send */}
+            <button
+              onClick={() => void handleSend()}
+              disabled={isSending || !input.trim()}
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 transition-all hover:bg-indigo-500 disabled:opacity-40 disabled:shadow-none"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        <p className="text-center text-[11px] text-slate-600">
+          Enter to send · Shift+Enter for new line · Mic for voice
+        </p>
       </div>
-      <p className="text-right text-xs text-slate-400">Enter to send · Shift+Enter for new line · Mic for voice</p>
-    </div>
+    </>
   );
 }
