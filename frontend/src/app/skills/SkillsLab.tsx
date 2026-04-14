@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FlaskConical, Loader2, ChevronRight, AlertCircle, BookOpen, ChevronDown, ExternalLink, Zap, TrendingUp, Clock, Award } from 'lucide-react';
+import { FlaskConical, Loader2, ChevronRight, AlertCircle, BookOpen, ChevronDown, ExternalLink, Zap, TrendingUp, Clock, Award, Info, X } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import { useProfileStore } from '@/stores/profileStore';
@@ -40,19 +40,70 @@ function gapColor(current: number, required: number): string {
   return '#f87171'; // red — significant gap
 }
 
+// ── Salary Methodology Modal ──────────────────────────────────────────────
+
+function SalaryMethodologyModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.7)' }}
+      onClick={onClose}
+    >
+      <div
+        className="relative max-w-lg w-full rounded-2xl border border-white/10 bg-slate-900 p-6 space-y-4 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-white">Salary methodology</h3>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1 text-slate-500 hover:text-white transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <p className="text-sm text-slate-300 leading-relaxed">
+          Estimates are based on aggregated UK job posting data from Reed, LinkedIn, Indeed and Adzuna (rolling
+          90-day window). The range shown reflects the 25th–75th percentile for your declared role, location
+          (default: UK national), and detected skill set.
+        </p>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+            Factors not included in this estimate:
+          </p>
+          <ul className="space-y-1 text-sm text-slate-400">
+            <li>• Company size, funding stage or sector</li>
+            <li>• Your specific years of experience</li>
+            <li>• Location premium (London vs regional)</li>
+            <li>• Benefits, equity or bonus components</li>
+            <li>• Your individual negotiation outcome</li>
+          </ul>
+        </div>
+        <p className="text-xs text-slate-500 leading-relaxed border-t border-white/10 pt-3">
+          These figures are indicative only. Use them as a starting point for market research, not as a
+          guarantee or floor for negotiations.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ── Monetisation Zone ─────────────────────────────────────────────────────
 
 function MonetisationZone() {
+  const [showMethodology, setShowMethodology] = useState(false);
+
   return (
     <div className="space-y-4">
+      {showMethodology && <SalaryMethodologyModal onClose={() => setShowMethodology(false)} />}
       {/* Salary cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {/* Current valuation */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Current market value</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Current Market Value</p>
           <p className="text-2xl font-black text-white">£42,000 – £55,000</p>
-          <p className="text-sm font-medium text-slate-400">/ yr</p>
-          <p className="text-xs text-slate-500 mt-1">Based on your current skills</p>
+          <p className="text-sm font-medium text-slate-400">/ year</p>
+          <p className="text-xs text-slate-500 mt-1">Based on your current qualifications</p>
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
             <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-emerald-400" style={{ width: '62%' }} />
           </div>
@@ -61,20 +112,27 @@ function MonetisationZone() {
         <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-5 space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
             <TrendingUp className="inline h-3.5 w-3.5 mr-1" />
-            Max potential
+            Max Potential
           </p>
           <p className="text-2xl font-black text-white">£65,000 – £85,000</p>
-          <p className="text-sm font-medium text-indigo-300">/ yr</p>
-          <p className="text-xs text-slate-500 mt-1">After reaching career goals</p>
+          <p className="text-sm font-medium text-indigo-300">/ year</p>
+          <p className="text-xs text-slate-500 mt-1">After reaching your career goals</p>
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
             <div className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" style={{ width: '88%' }} />
           </div>
         </div>
       </div>
       {/* Disclaimer */}
-      <p className="text-xs text-slate-500 leading-relaxed">
-        ⚠️ Estimated values. Actual salary depends on many factors — location, company, negotiation.{' '}
-        <a href="#" className="underline hover:text-slate-300 transition-colors">Methodology details</a>
+      <p className="text-xs text-slate-500 leading-relaxed flex items-center gap-1.5 flex-wrap">
+        <span>⚠️ Estimates only. Actual salary depends on location, company, experience and negotiation.</span>
+        <button
+          onClick={() => setShowMethodology(true)}
+          title="Salary methodology"
+          className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-1.5 py-0.5 text-xs text-slate-400 hover:border-indigo-500/40 hover:text-indigo-300 transition-all"
+        >
+          <Info className="h-3 w-3" />
+          Methodology
+        </button>
       </p>
     </div>
   );
@@ -532,13 +590,13 @@ export default function SkillsLab() {
         </div>
       )}
 
-      {/* ── GÓRNA STREFA — CV / Skill Monetisation ── */}
+      {/* ── TOP ZONE — CV / Skill Monetisation ── */}
       <MonetisationZone />
 
-      {/* ── ŚRODKOWA STREFA — Skills Gap Split ── */}
+      {/* ── MIDDLE ZONE — Skills Gap Split ── */}
       <SkillsGapSplit />
 
-      {/* ── DOLNA STREFA — Rekomendowane kursy ── */}
+      {/* ── BOTTOM ZONE — Recommended Courses ── */}
       <RecommendedCourses />
 
       {/* 2-column layout */}

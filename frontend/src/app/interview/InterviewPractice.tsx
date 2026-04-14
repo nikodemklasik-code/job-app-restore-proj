@@ -692,7 +692,7 @@ export default function InterviewPractice() {
     setCameraActive(false);
   }, []);
 
-  // Camera only starts when interview begins — NOT on lobby load
+  // Camera only starts when interview begins — not on lobby load
   useEffect(() => {
     return () => {
       if (phase === 'complete') stopCamera();
@@ -1132,7 +1132,7 @@ export default function InterviewPractice() {
                 {sessionFile && <span style={{ fontSize: 11, color: '#34d399', fontWeight: 600 }}>✓ {sessionFile.name}</span>}
               </div>
               <p style={{ margin: '0 0 8px', fontSize: 12, color: 'rgba(251,191,36,0.7)' }}>
-                Upload an encrypted PDF from a previous session so AI can continue your coaching
+                Upload an encrypted PDF from a previous session so the AI can continue your coaching
               </p>
               <input type="file" accept=".pdf" style={{ fontSize: 12, color: '#94a3b8' }} onChange={(e) => setSessionFile(e.target.files?.[0] ?? null)} />
             </div>

@@ -237,7 +237,7 @@ export default function InterviewWarmup() {
             <Flame style={{ width: 20, height: 20, color: '#fff' }} />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">Daily Warmup</h1>
+            <h1 className="text-xl font-bold text-white">Daily Coach</h1>
             <p className="text-xs text-slate-400">5-minute daily practice · one question · 60 seconds</p>
           </div>
         </div>
