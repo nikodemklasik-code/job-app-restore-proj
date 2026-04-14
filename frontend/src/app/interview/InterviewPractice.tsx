@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { api, trpcClient } from '@/lib/api';
+import { trpcClient } from '@/lib/api';
 import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, TrendingUp, FileDown, StickyNote, Star, Lock, Zap } from 'lucide-react';
 import { interviewModeLabels } from '../../../../shared/interview';
 import type { InterviewMode } from '../../../../shared/interview';
@@ -61,14 +61,23 @@ const AVATAR_STYLES = `
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Phase =
-  | 'lobby'       // pre-call: job select + camera preview
-  | 'connecting'  // brief "Connecting…" animation
+  | 'lobby'        // pre-call: job select + settings
+  | 'setup-check'  // mic/camera verification before starting
+  | 'connecting'   // brief "Connecting…" animation
   | 'ai-speaking'
   | 'user-turn'
   | 'processing'
   | 'complete';
 
 type AvatarState = 'idle' | 'speaking' | 'listening' | 'thinking';
+
+export type RecruiterPersona = 'hr' | 'hiring-manager' | 'tech-lead';
+
+export const PERSONA_CONFIG: Record<RecruiterPersona, { label: string; name: string; role: string; icon: string; color: string }> = {
+  'hr':             { label: 'HR Recruiter',   name: 'Sarah', role: 'HR Business Partner', icon: '👩‍💼', color: '#6366f1' },
+  'hiring-manager': { label: 'Hiring Manager', name: 'James', role: 'Engineering Manager',  icon: '👔',  color: '#3b82f6' },
+  'tech-lead':      { label: 'Tech Lead',      name: 'Alex',  role: 'Senior Tech Lead',      icon: '💻',  color: '#0ea5e9' },
+};
 
 interface Message {
   role: 'assistant' | 'user';
@@ -183,40 +192,6 @@ function generateCoachingPlan(userMessages: string[]): { area: string; action: s
   return plan.slice(0, 5);
 }
 
-// ─── Markdown report generator ────────────────────────────────────────────────
-
-function generateMarkdownReport(params: {
-  job: JobOption;
-  mode: InterviewMode;
-  messages: Message[];
-  callSeconds: number;
-  exchangeCount: number;
-  notes: string;
-  modeLabel: string;
-}): string {
-  const { job, messages, callSeconds, exchangeCount, notes, modeLabel } = params;
-  const date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-  const duration = `${Math.floor(callSeconds / 60)}m ${callSeconds % 60}s`;
-  const userMsgs = messages.filter((m) => m.role === 'user').map((m) => m.content);
-  const coachingPlan = generateCoachingPlan(userMsgs);
-
-  let md = `# Interview Practice Report\n\n`;
-  md += `**Role:** ${job.title} at ${job.company}\n`;
-  md += `**Mode:** ${modeLabel}\n`;
-  md += `**Date:** ${date}\n`;
-  md += `**Duration:** ${duration} · ${exchangeCount} exchanges\n\n`;
-  md += `---\n\n## Transcript\n\n`;
-  messages.forEach((m) => {
-    const speaker = m.role === 'assistant' ? `**AI Interviewer**` : `**You**`;
-    md += `${speaker}: ${m.content}\n\n`;
-  });
-  md += `---\n\n## Coaching Plan\n\n`;
-  coachingPlan.forEach((item, i) => {
-    md += `### ${i + 1}. ${item.area} _(${item.priority} priority)_\n${item.action}\n\n`;
-  });
-  if (notes.trim()) { md += `---\n\n## Your Notes\n\n${notes}\n`; }
-  return md;
-}
 
 // ─── Question Bank data (used by Trener/Warmup module) ────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -625,6 +600,10 @@ export default function InterviewPractice() {
   const [customCompany, setCustomCompany] = useState('');
   const [customRole, setCustomRole] = useState('');
   const [selectedMode] = useState<InterviewMode>('general');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_recruiterPersona, _setRecruiterPersona] = useState<RecruiterPersona>('hr');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_difficulty, _setDifficulty] = useState<'standard' | 'stretch' | 'senior'>('standard');
   // Session memory PDF
   const [sessionFile, setSessionFile] = useState<File | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
