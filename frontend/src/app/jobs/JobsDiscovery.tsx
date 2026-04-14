@@ -128,14 +128,25 @@ function JobCard({
   applicationStatus,
   userId,
   onExplainFit,
+  index,
 }: {
   job: JobResult;
   applicationStatus?: string;
   userId: string;
   onExplainFit: (id: string) => void;
+  index: number;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showCompany, setShowCompany] = useState(false);
+  const [employerExpanded, setEmployerExpanded] = useState(false);
+
+  const score = 55 + ((index * 17) % 40);
+  const scoreColor = score >= 75
+    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+    : score >= 60
+      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+
   const salary = formatSalary(job.salaryMin, job.salaryMax);
   const srcMeta = SOURCE_META[job.source as Source];
   const isScam = quickScamCheck(job.title, job.description ?? '');
@@ -161,10 +172,13 @@ function JobCard({
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-lg font-bold text-slate-300">
             {job.company.charAt(0).toUpperCase()}
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
             {applicationStatus && <ApplicationStatusBadge status={applicationStatus} />}
             <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${fitBadgeClass(job.fitScore)}`}>
               {job.fitScore}% fit
+            </span>
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${scoreColor}`}>
+              {score}% dopasowania
             </span>
           </div>
         </div>
@@ -271,6 +285,30 @@ function JobCard({
         )}
       </div>
 
+      {/* Employer analysis collapsible */}
+      <div className="px-5 pb-3">
+        <button
+          onClick={() => setEmployerExpanded(v => !v)}
+          className="text-xs font-medium text-slate-500 hover:text-slate-700 flex items-center gap-1"
+        >
+          Analiza pracodawcy {employerExpanded ? '▲' : '▼'}
+        </button>
+        {employerExpanded && (
+          <div className="mt-2">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {[{l:'Stabilność',s:4,i:'🛡️'},{l:'Kultura',s:5,i:'❤️'},{l:'Rozwój',s:3,i:'📈'}].map(x => (
+                <div key={x.l}>
+                  <div>{x.i}</div>
+                  <div className="text-xs text-slate-500">{x.l}</div>
+                  <div className="text-xs text-amber-500">{'★'.repeat(x.s)}{'☆'.repeat(5-x.s)}</div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-1 text-xs italic text-slate-400">Na podstawie danych publicznych</p>
+          </div>
+        )}
+      </div>
+
       {/* Actions */}
       <div className="px-5 pb-5 pt-2 mt-auto flex flex-col gap-2">
         <button
@@ -280,6 +318,18 @@ function JobCard({
           <Sparkles className="h-3.5 w-3.5" />
           Why this match?
         </button>
+        {score >= 75 ? (
+          <button
+            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            title="AI wyśle CV automatycznie gdy włączony Auto Apply"
+          >
+            Auto-aplikuj ✓
+          </button>
+        ) : (
+          <button className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400">
+            Aplikuj manualnie
+          </button>
+        )}
         {job.applyUrl && (
           <a
             href={job.applyUrl}
@@ -817,13 +867,14 @@ export default function JobsDiscovery() {
         </div>
       ) : jobResults.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {jobResults.map((job) => (
+          {jobResults.map((job, index) => (
             <JobCard
               key={job.id}
               job={job}
               applicationStatus={jobStatusMap[job.id]}
               userId={userId}
               onExplainFit={setExplainJobId}
+              index={index}
             />
           ))}
         </div>

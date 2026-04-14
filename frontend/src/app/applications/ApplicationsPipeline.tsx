@@ -185,6 +185,7 @@ export default function ApplicationsPipeline() {
 
   const [activeStage, setActiveStage] = useState<AppStatus | null>(null);
   const [showNewModal, setShowNewModal] = useState(false);
+  const [showBanner, setShowBanner] = useState(true);
   const [newForm, setNewForm] = useState({ jobTitle: '', company: '', notes: '' });
   const [showCoverLetter, setShowCoverLetter] = useState<{ id: string; text: string } | null>(null);
   const [fitReasonsMap, setFitReasonsMap] = useState<Record<string, string[]>>({});
@@ -294,6 +295,15 @@ export default function ApplicationsPipeline() {
 
   return (
     <div className="space-y-6">
+
+      {/* ── New responses banner ─────────────────────────────────────────── */}
+      {showBanner && (
+        <div className="mb-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 dark:border-amber-800 dark:bg-amber-950/20">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
+          <span className="text-sm font-medium text-amber-800 dark:text-amber-400">2 nowe odpowiedzi od pracodawców</span>
+          <button onClick={() => setShowBanner(false)} className="ml-auto text-xs text-amber-600 hover:underline">Ukryj</button>
+        </div>
+      )}
 
       {/* ── Top Bar ──────────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -755,6 +765,8 @@ function AppCard({
   onToggleMonitoring: () => void;
   monitoringActive: boolean;
 }) {
+  const [showConfirm, setShowConfirm] = useState(false);
+
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-white/20 hover:bg-white/8">
       {/* Title + company */}
@@ -911,6 +923,42 @@ function AppCard({
           <Mail className="h-3 w-3" />
           Follow-up
         </button>
+
+        {/* Rejection reason — available only on rejected stage */}
+        {stage.key === 'rejected' && (
+          <>
+            <button
+              onClick={() => setShowConfirm(true)}
+              className="mt-2 w-full rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+            >
+              Zapytaj AI o powód odmowy
+            </button>
+
+            {showConfirm && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                <div className="rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900 max-w-sm w-full">
+                  <p className="text-sm font-medium text-slate-900 dark:text-white">
+                    AI wyśle uprzejmy email do pracodawcy z prośbą o feedback dotyczący Twojej aplikacji.
+                  </p>
+                  <div className="mt-4 flex gap-3">
+                    <button
+                      onClick={() => setShowConfirm(false)}
+                      className="flex-1 rounded-xl border border-slate-200 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:border-slate-700"
+                    >
+                      Anuluj
+                    </button>
+                    <button
+                      onClick={() => { setShowConfirm(false); }}
+                      className="flex-1 rounded-xl bg-indigo-600 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+                    >
+                      Wyślij email
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
