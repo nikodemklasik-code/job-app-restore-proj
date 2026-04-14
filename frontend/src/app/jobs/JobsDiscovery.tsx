@@ -33,11 +33,6 @@ const SOURCE_META: Record<Source, { label: string; color: string; requiresSessio
   gumtree: { label: 'Gumtree', color: 'bg-green-500/20 text-green-400', requiresSession: true, url: 'https://www.gumtree.com/jobs' },
 };
 
-function fitBadgeClass(score: number): string {
-  if (score >= 80) return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
-  if (score >= 60) return 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30';
-  return 'bg-white/10 text-slate-400 border border-white/10';
-}
 
 function formatSalary(min: number | null, max: number | null): string | null {
   if (!min && !max) return null;
