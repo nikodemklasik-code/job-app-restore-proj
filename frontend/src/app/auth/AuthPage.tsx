@@ -57,11 +57,7 @@ function TickerCard({
 }
 
 /* ─── Demo clips — local files served from /auth-videos/ ───────────────────── */
-const DEFAULT_DEMO_VIDEOS = [
-  '/auth-videos/hero-1.mp4',
-  '/auth-videos/hero-2.mp4',
-  '/auth-videos/hero-3.mp4',
-];
+const DEFAULT_DEMO_VIDEOS = Array.from({ length: 16 }, (_, i) => `/auth-videos/hero-${i + 1}.mp4`);
 
 /* ─── Clerk error sanitizer ────────────────────────────────────────────────── */
 /**
