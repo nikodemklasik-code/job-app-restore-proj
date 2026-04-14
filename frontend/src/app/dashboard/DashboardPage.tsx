@@ -93,175 +93,172 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Two-column grid */}
+      {/* Row 1: Your Details + Career Goal */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* ─── LEFT COLUMN ─── */}
-        <div className="space-y-6">
-          {/* Your Details */}
-          <div className={CARD_CLASS}>
-            <h2 className="mb-5 text-base font-semibold text-slate-800 dark:text-white">
-              Your Details
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <label className={LABEL_CLASS} htmlFor="fullName">Full name</label>
-                <input id="fullName" type="text" className={INPUT_CLASS}
-                  placeholder="e.g. Alex Morgan"
-                  value={form.fullName}
-                  onChange={(e) => set('fullName', e.target.value)} />
-              </div>
-
-              <div>
-                <label className={LABEL_CLASS} htmlFor="currentJobTitle">
-                  Current role <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
-                </label>
-                <input id="currentJobTitle" type="text" className={INPUT_CLASS}
-                  placeholder="e.g. Frontend Developer"
-                  value={form.currentJobTitle}
-                  onChange={(e) => set('currentJobTitle', e.target.value)} />
-              </div>
-
-              <div>
-                <label className={LABEL_CLASS} htmlFor="currentSalary">
-                  Current salary <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
-                </label>
-                <div className="relative mt-1">
-                  <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-slate-400 dark:text-slate-500">£</span>
-                  <input id="currentSalary" type="number" min={0}
-                    className={`${INPUT_CLASS} mt-0 pl-7`}
-                    placeholder="0"
-                    value={form.currentSalary}
-                    onChange={(e) => set('currentSalary', e.target.value)} />
-                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-slate-400 dark:text-slate-500">/ yr</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Work values */}
-          <div className={CARD_CLASS}>
-            <h2 className="mb-2 text-base font-semibold text-slate-800 dark:text-white">Work Values</h2>
-            <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">What matters most to you at work?</p>
-            <textarea id="workValues" rows={3}
-              className={`${INPUT_CLASS} mt-0 resize-none`}
-              placeholder="e.g. work-life balance, remote, technical growth, stability..."
-              value={form.workValues}
-              onChange={(e) => set('workValues', e.target.value)} />
-            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Separate with commas</p>
-          </div>
-
-          {/* Social consents */}
-          <div className={CARD_CLASS}>
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-800 dark:text-white">Social Profile Analysis</h2>
-              <Link
-                to="/settings"
-                className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
-              >
-                Manage all consents <ExternalLink className="h-3 w-3" />
-              </Link>
-            </div>
-            <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-              Allow AI to analyse your public profiles:
-            </p>
-
-            <div className="space-y-3">
-              {[
-                { key: 'linkedinConsent' as const, label: 'LinkedIn' },
-                { key: 'facebookConsent' as const, label: 'Facebook' },
-                { key: 'instagramConsent' as const, label: 'Instagram' },
-              ].map(({ key, label }) => (
-                <label key={key} className="flex cursor-pointer items-center justify-between gap-3">
-                  <span className="text-sm font-medium text-slate-800 dark:text-white">{label}</span>
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 cursor-pointer rounded accent-indigo-600"
-                    checked={form[key]}
-                    onChange={(e) => set(key, e.target.checked)}
-                  />
-                </label>
-              ))}
+        {/* Your Details */}
+        <div className={CARD_CLASS}>
+          <h2 className="mb-5 text-base font-semibold text-slate-800 dark:text-white">
+            Your Details
+          </h2>
+          <div className="space-y-4">
+            <div>
+              <label className={LABEL_CLASS} htmlFor="fullName">Full name</label>
+              <input id="fullName" type="text" className={INPUT_CLASS}
+                placeholder="e.g. Alex Morgan"
+                value={form.fullName}
+                onChange={(e) => set('fullName', e.target.value)} />
             </div>
 
-            <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
-              Full consent centre (email, auto-apply &amp; more) in{' '}
-              <Link to="/settings" className="text-indigo-500 hover:underline">Settings → Privacy</Link>.
-            </p>
-          </div>
-        </div>
-
-        {/* ─── RIGHT COLUMN ─── */}
-        <div className="space-y-6">
-          {/* Career goal */}
-          <div className={CARD_CLASS}>
-            <h2 className="mb-5 text-base font-semibold text-slate-800 dark:text-white">Career Goal</h2>
-            <div className="space-y-4">
-              <div>
-                <label className={LABEL_CLASS} htmlFor="targetJobTitle">Target role</label>
-                <input id="targetJobTitle" type="text" className={INPUT_CLASS}
-                  placeholder="e.g. Senior React Developer"
-                  value={form.targetJobTitle}
-                  onChange={(e) => set('targetJobTitle', e.target.value)} />
-              </div>
-
-              <div>
-                <label className={LABEL_CLASS} htmlFor="targetSalary">Target salary</label>
-                <div className="relative mt-1">
-                  <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-slate-400 dark:text-slate-500">£</span>
-                  <input id="targetSalary" type="number" min={0}
-                    className={`${INPUT_CLASS} mt-0 pl-7`}
-                    placeholder="0"
-                    value={form.targetSalary}
-                    onChange={(e) => set('targetSalary', e.target.value)} />
-                  <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-slate-400 dark:text-slate-500">/ yr</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Auto-apply threshold */}
-          <div className={CARD_CLASS}>
-            <h2 className="mb-2 text-base font-semibold text-slate-800 dark:text-white">Auto-Apply Threshold</h2>
-            <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">
-              Minimum CV match % for AI to send an application automatically:
-            </p>
-
-            <div className="flex items-center gap-4">
-              <input id="autoApplyThreshold" type="range" min={50} max={100} step={5}
-                value={form.autoApplyThreshold}
-                onChange={(e) => set('autoApplyThreshold', Number(e.target.value))}
-                className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-indigo-600 dark:bg-slate-700" />
-              <span className="w-14 shrink-0 text-right text-sm font-semibold text-indigo-600 dark:text-indigo-400">
-                {form.autoApplyThreshold}%
-              </span>
+            <div>
+              <label className={LABEL_CLASS} htmlFor="currentJobTitle">
+                Current role <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
+              </label>
+              <input id="currentJobTitle" type="text" className={INPUT_CLASS}
+                placeholder="e.g. Frontend Developer"
+                value={form.currentJobTitle}
+                onChange={(e) => set('currentJobTitle', e.target.value)} />
             </div>
 
-            <div className="mt-2 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
-              <span>50%</span><span>100%</span>
-            </div>
-            <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-              Roles below this threshold require your manual approval
-            </p>
-          </div>
-
-          {/* Roadmap */}
-          <div className={CARD_CLASS}>
-            <div className="flex items-start gap-4">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-900/30">
-                <MapIcon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-              </div>
-              <div>
-                <h2 className="text-base font-semibold text-slate-800 dark:text-white">Career Roadmap</h2>
-                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  Auto-filled once your CV and documents are scanned.
-                </p>
-                <Link to="/documents" className="mt-2 inline-block text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">
-                  Upload documents →
-                </Link>
+            <div>
+              <label className={LABEL_CLASS} htmlFor="currentSalary">
+                Current salary <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
+              </label>
+              <div className="relative mt-1">
+                <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-slate-400 dark:text-slate-500">£</span>
+                <input id="currentSalary" type="number" min={0}
+                  className={`${INPUT_CLASS} mt-0 pl-7`}
+                  placeholder="0"
+                  value={form.currentSalary}
+                  onChange={(e) => set('currentSalary', e.target.value)} />
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-slate-400 dark:text-slate-500">/ yr</span>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Career Goal */}
+        <div className={CARD_CLASS}>
+          <h2 className="mb-5 text-base font-semibold text-slate-800 dark:text-white">Career Goal</h2>
+          <div className="space-y-4">
+            <div>
+              <label className={LABEL_CLASS} htmlFor="targetJobTitle">Target role</label>
+              <input id="targetJobTitle" type="text" className={INPUT_CLASS}
+                placeholder="e.g. Senior React Developer"
+                value={form.targetJobTitle}
+                onChange={(e) => set('targetJobTitle', e.target.value)} />
+            </div>
+
+            <div>
+              <label className={LABEL_CLASS} htmlFor="targetSalary">Target salary</label>
+              <div className="relative mt-1">
+                <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-slate-400 dark:text-slate-500">£</span>
+                <input id="targetSalary" type="number" min={0}
+                  className={`${INPUT_CLASS} mt-0 pl-7`}
+                  placeholder="0"
+                  value={form.targetSalary}
+                  onChange={(e) => set('targetSalary', e.target.value)} />
+                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-slate-400 dark:text-slate-500">/ yr</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 2: Career Roadmap — full width */}
+      <div className={CARD_CLASS}>
+        <div className="flex items-start gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-900/30">
+            <MapIcon className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-slate-800 dark:text-white">Career Roadmap</h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Auto-filled once your CV and documents are scanned.
+            </p>
+            <Link to="/documents" className="mt-2 inline-block text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+              Upload documents →
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Row 3: Work Values + Auto-Apply Threshold */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Work values */}
+        <div className={CARD_CLASS}>
+          <h2 className="mb-2 text-base font-semibold text-slate-800 dark:text-white">Work Values</h2>
+          <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">What matters most to you at work?</p>
+          <textarea id="workValues" rows={3}
+            className={`${INPUT_CLASS} mt-0 resize-none`}
+            placeholder="e.g. work-life balance, remote, technical growth, stability..."
+            value={form.workValues}
+            onChange={(e) => set('workValues', e.target.value)} />
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Separate with commas</p>
+        </div>
+
+        {/* Auto-apply threshold */}
+        <div className={CARD_CLASS}>
+          <h2 className="mb-2 text-base font-semibold text-slate-800 dark:text-white">Auto-Apply Threshold</h2>
+          <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">
+            Minimum CV match % for AI to send an application automatically:
+          </p>
+
+          <div className="flex items-center gap-4">
+            <input id="autoApplyThreshold" type="range" min={50} max={100} step={5}
+              value={form.autoApplyThreshold}
+              onChange={(e) => set('autoApplyThreshold', Number(e.target.value))}
+              className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-indigo-600 dark:bg-slate-700" />
+            <span className="w-14 shrink-0 text-right text-sm font-semibold text-indigo-600 dark:text-indigo-400">
+              {form.autoApplyThreshold}%
+            </span>
+          </div>
+
+          <div className="mt-2 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
+            <span>50%</span><span>100%</span>
+          </div>
+          <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
+            Roles below this threshold require your manual approval
+          </p>
+        </div>
+      </div>
+
+      {/* Row 4: Social consents — full width */}
+      <div className={CARD_CLASS}>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-slate-800 dark:text-white">Social Profile Analysis</h2>
+          <Link
+            to="/settings"
+            className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+          >
+            Manage all consents <ExternalLink className="h-3 w-3" />
+          </Link>
+        </div>
+        <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+          Allow AI to analyse your public profiles:
+        </p>
+
+        <div className="flex flex-wrap gap-6">
+          {[
+            { key: 'linkedinConsent' as const, label: 'LinkedIn' },
+            { key: 'facebookConsent' as const, label: 'Facebook' },
+            { key: 'instagramConsent' as const, label: 'Instagram' },
+          ].map(({ key, label }) => (
+            <label key={key} className="flex cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                className="h-4 w-4 cursor-pointer rounded accent-indigo-600"
+                checked={form[key]}
+                onChange={(e) => set(key, e.target.checked)}
+              />
+              <span className="text-sm font-medium text-slate-800 dark:text-white">{label}</span>
+            </label>
+          ))}
+        </div>
+
+        <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
+          Full consent centre (email, auto-apply &amp; more) in{' '}
+          <Link to="/settings" className="text-indigo-500 hover:underline">Settings → Privacy</Link>.
+        </p>
       </div>
     </div>
   );

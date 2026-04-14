@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api, trpcClient } from '@/lib/api';
-import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, Clock, TrendingUp, FileDown, StickyNote, Star, Lock, Zap } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, TrendingUp, FileDown, StickyNote, Star, Lock, Zap } from 'lucide-react';
 import { interviewModeLabels } from '../../../../shared/interview';
 import type { InterviewMode } from '../../../../shared/interview';
 import { useBillingStore } from '@/stores/billingStore';
@@ -640,7 +640,6 @@ export default function InterviewPractice() {
   // Post-session
   const [sessionNotes, setSessionNotes] = useState('');
   const [showNotesSaved, setShowNotesSaved] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
   const [_showQuestionBank, _setShowQuestionBank] = useState(false);
   const [_qbMode, _setQbMode] = useState<InterviewMode>('behavioral');
 
@@ -681,7 +680,6 @@ export default function InterviewPractice() {
   const [liveInterviewSummary, setLiveInterviewSummary] = useState<LiveInterviewSummary | null>(null);
 
   // History query
-  const historyQuery = api.interview.getHistory.useQuery(undefined, { enabled: showHistory });
 
   // Feedback auto-dismiss timer
   useEffect(() => {
@@ -1094,7 +1092,6 @@ export default function InterviewPractice() {
     setTurnFeedback(null);
     setSessionNotes('');
     setShowNotesSaved(false);
-    setShowHistory(false);
     setLiveInterviewSummary(null);
     liveSessionIdRef.current = null;
   }, []);
@@ -1197,84 +1194,12 @@ export default function InterviewPractice() {
                 >
                   🎙️ Start Interview
                 </button>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => setShowHistory(true)} style={{ flex: 1, padding: '10px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, color: '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    <Clock style={{ width: 14, height: 14 }} /> History
-                  </button>
-                </div>
               </>
             )}
           </div>
         </div>
 
-        {/* History modal */}
-        {showHistory && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-            <div style={{ width: '100%', maxWidth: 600, background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 28, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>🕐 Interview History</h2>
-                <button onClick={() => setShowHistory(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>✕</button>
-              </div>
-              {historyQuery.isLoading ? (
-                <div style={{ textAlign: 'center', color: '#64748b', padding: 40 }}>Loading…</div>
-              ) : !historyQuery.data || historyQuery.data.length === 0 ? (
-                <div style={{ textAlign: 'center', color: '#475569', padding: 40 }}>No sessions yet. Complete your first interview to see history here.</div>
-              ) : (
-                <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {(historyQuery.data as Array<{ id: string; mode: string; difficulty: string; score: number | null; createdAt: string; answers: unknown[] }>).map((s) => {
-                    const modeLabel = interviewModeLabels[s.mode as InterviewMode] ?? { emoji: '💼', label: s.mode };
-                    const score = s.score;
-                    const scoreColor = score === null ? '#64748b' : score >= 80 ? '#34d399' : score >= 60 ? '#fbbf24' : '#f87171';
-                    return (
-                      <div key={s.id} style={{ background: '#050a14', border: '1px solid #1e293b', borderRadius: 10, padding: '14px 16px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>{modeLabel.emoji} {modeLabel.label}</span>
-                            <span style={{ fontSize: 11, color: '#475569', marginLeft: 10 }}>{new Date(s.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                          </div>
-                          {score !== null && <span style={{ fontSize: 16, fontWeight: 800, color: scoreColor }}>{score}/100</span>}
-                        </div>
-                        <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>
-                          {s.answers.length} answer{s.answers.length !== 1 ? 's' : ''} · {s.difficulty}
-                        </div>
-                        {score !== null && (
-                          <button
-                            onClick={() => {
-                              const growthAreas = ['Structure answers with clear STAR format', 'Add quantified outcomes to each response', 'Reduce filler words and pause instead'];
-                              void trpcClient.interview.downloadCredential.mutate({ sessionId: s.id, growthAreas }).then((res: { base64: string; filename: string }) => {
-                                const bytes = Uint8Array.from(atob(res.base64), (c) => c.charCodeAt(0));
-                                const blob = new Blob([bytes], { type: 'application/pdf' });
-                                const url = URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.href = url; a.download = res.filename; a.click();
-                                URL.revokeObjectURL(url);
-                              });
-                            }}
-                            style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 7, padding: '5px 10px', color: '#818cf8', fontSize: 11, cursor: 'pointer' }}
-                          >
-                            <FileDown style={{ width: 12, height: 12 }} /> Download Credential PDF
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {(historyQuery.data as Array<{ score: number | null }>).filter((s) => s.score !== null).length >= 2 && (
-                    <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 10, padding: 16, marginTop: 8 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#a5b4fc', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><TrendingUp style={{ width: 14, height: 14 }} /> Score Trend</div>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: 48 }}>
-                        {(historyQuery.data as Array<{ id: string; score: number | null }>).filter((s) => s.score !== null).slice(0, 10).reverse().map((s, i) => {
-                          const pct = ((s.score ?? 0) / 100) * 48;
-                          const c = (s.score ?? 0) >= 80 ? '#34d399' : (s.score ?? 0) >= 60 ? '#fbbf24' : '#f87171';
-                          return <div key={i} title={`${s.score}/100`} style={{ flex: 1, height: `${pct}px`, background: c, borderRadius: 3, minHeight: 4 }} />;
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+
       </div>
     );
   }

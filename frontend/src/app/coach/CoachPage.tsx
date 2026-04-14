@@ -1,9 +1,11 @@
 import { useState, useRef, useCallback } from 'react';
+import { useUser } from '@clerk/clerk-react';
 import {
   GraduationCap, Users, Brain, Target, BarChart2,
   Mic, MicOff, RefreshCw, ChevronRight, Timer,
-  CheckCircle, Star, Zap, BookOpen,
+  CheckCircle, Star, Zap, BookOpen, Loader2, Coins,
 } from 'lucide-react';
+import { api } from '@/lib/api';
 
 // ─── Question bank by category ────────────────────────────────────────────────
 
@@ -103,56 +105,35 @@ const CATEGORIES = [
 
 type Category = keyof typeof QUESTION_BANK;
 
-const ANSWER_TIME = 90; // 90s per question (more thorough than warmup)
+const ANSWER_TIME = 90;
 const COOLDOWN = 3;
+const CREDITS_COST = 5;
 
-// ─── Scoring ──────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-function score(transcript: string): { score: number; tip: string; label: string } {
-  const t = transcript.trim().toLowerCase();
-  if (!t) return { score: 0, tip: 'No answer recorded.', label: 'No answer' };
+type Phase = 'select' | 'question' | 'countdown' | 'recording' | 'reviewing' | 'evaluating' | 'result';
 
-  let s = 50;
-  const words = t.split(/\s+/).length;
-  if (words >= 100) s += 15;
-  else if (words >= 60) s += 8;
-  else if (words < 20) s -= 15;
-
-  const hasSituation = /\b(when|at the time|there was|during|in my previous|back in|last year)\b/.test(t);
-  const hasAction = /\b(i (did|decided|implemented|built|led|created|wrote|fixed|reached out|set up|introduced|proposed|developed|organized))\b/.test(t);
-  const hasResult = /\b(result(ed)?|achiev|improv|reduc|increas|saved|success|by \d|percent|outcome|delivered|launched)\b/.test(t);
-  if (hasSituation) s += 8;
-  if (hasAction) s += 10;
-  if (hasResult) s += 12;
-
-  const fillers = (t.match(/\b(um|uh|like|you know|kind of|sort of)\b/g) ?? []).length;
-  s -= fillers * 4;
-
-  s = Math.max(20, Math.min(100, Math.round(s)));
-
-  let tip: string, label: string;
-  if (s >= 85) { label = 'Excellent'; tip = 'Great structure. Add a quantified result to make it even stronger.'; }
-  else if (s >= 70) { label = 'Good'; tip = 'Solid answer. Strengthen with specific numbers or impact.'; }
-  else if (s >= 55) { label = 'Developing'; tip = !hasResult ? 'Close with the outcome — what was the result?' : !hasAction ? 'Clarify your own actions: "I did…" statements help.' : 'Add more detail and slow down.'; }
-  else { label = 'Needs work'; tip = 'Use the STAR framework: Situation → Task → Action → Result.'; }
-
-  return { score: s, tip, label };
+interface AIFeedback {
+  score: number;
+  label: string;
+  whatWorked: string[];
+  toImprove: string[];
+  expertInsight: string;
+  interviewTip: string;
+  creditsUsed: number;
 }
-
-// ─── Main ─────────────────────────────────────────────────────────────────────
-
-type Phase = 'select' | 'question' | 'countdown' | 'recording' | 'reviewing' | 'result';
 
 interface SessionEntry {
   q: string;
   hint: string;
   answer: string;
-  score: number;
-  label: string;
-  tip: string;
+  feedback: AIFeedback;
 }
 
 export default function CoachPage() {
+  const { user } = useUser();
+  const userId = user?.id ?? '';
+
   const [category, setCategory] = useState<Category | null>(null);
   const [phase, setPhase] = useState<Phase>('select');
   const [qIndex, setQIndex] = useState(0);
@@ -160,12 +141,19 @@ export default function CoachPage() {
   const [timeLeft, setTimeLeft] = useState(ANSWER_TIME);
   const [session, setSession] = useState<SessionEntry[]>([]);
   const [showHint, setShowHint] = useState(false);
+  const [evalError, setEvalError] = useState<string | null>(null);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cdTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const evaluateMutation = api.coach.evaluateAnswer.useMutation();
+  const creditsQuery = api.billing.getCurrentPlan.useQuery(
+    { userId },
+    { enabled: !!userId, staleTime: 30_000 },
+  );
 
   const activeCat = category ? CATEGORIES.find(c => c.key === category)! : null;
   const questions = category ? QUESTION_BANK[category] : [];
@@ -221,12 +209,33 @@ export default function CoachPage() {
     setPhase('reviewing');
   }, []);
 
-  const submitAnswer = () => {
+  const submitAnswer = async () => {
     const txt = textareaRef.current?.value.trim() ?? '';
-    const r = score(txt);
-    const entry: SessionEntry = { q: currentQ.q, hint: currentQ.hint, answer: txt, ...r };
-    setSession(prev => [...prev, entry]);
-    setPhase('result');
+    if (!txt) return;
+    setEvalError(null);
+    setPhase('evaluating');
+    try {
+      const result = await evaluateMutation.mutateAsync({
+        userId,
+        category: category!,
+        question: currentQ.q,
+        answer: txt,
+      });
+      const entry: SessionEntry = {
+        q: currentQ.q,
+        hint: currentQ.hint,
+        answer: txt,
+        feedback: result as AIFeedback,
+      };
+      setSession(prev => [...prev, entry]);
+      // Refresh credits display
+      void creditsQuery.refetch();
+      setPhase('result');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Evaluation failed. Please try again.';
+      setEvalError(msg);
+      setPhase('reviewing');
+    }
   };
 
   const nextQuestion = () => {
@@ -245,7 +254,7 @@ export default function CoachPage() {
   const scoreColor = (s: number) => s >= 80 ? '#34d399' : s >= 60 ? '#fbbf24' : '#f87171';
 
   const avgScore = session.length > 0
-    ? Math.round(session.reduce((sum, e) => sum + e.score, 0) / session.length)
+    ? Math.round(session.reduce((sum, e) => sum + e.feedback.score, 0) / session.length)
     : null;
 
   return (
@@ -358,6 +367,21 @@ export default function CoachPage() {
             )}
           </div>
 
+          {/* Credits cost notice */}
+          <div className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+            <div className="flex items-center gap-2">
+              <Coins className="h-3.5 w-3.5 text-amber-400" />
+              <span className="text-xs text-amber-300">AI evaluation costs <strong>{CREDITS_COST} credits</strong> per answer</span>
+            </div>
+            {creditsQuery.data && (
+              <span className="text-[11px] text-amber-500">{creditsQuery.data.credits} remaining</span>
+            )}
+          </div>
+
+          {evalError && (
+            <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">{evalError}</p>
+          )}
+
           <button
             onClick={startCountdown}
             className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-base transition-all"
@@ -365,7 +389,7 @@ export default function CoachPage() {
           >
             <Mic className="h-5 w-5" /> Record Answer (90 seconds)
           </button>
-          <p className="text-xs text-slate-500 text-center">Or type below and submit manually.</p>
+          <p className="text-xs text-slate-500 text-center">Or type below and submit for AI evaluation.</p>
           <textarea
             ref={textareaRef}
             placeholder="Type your answer here…"
@@ -373,10 +397,10 @@ export default function CoachPage() {
             rows={5}
           />
           <button
-            onClick={submitAnswer}
-            className="w-full py-2.5 rounded-xl font-semibold text-sm border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors"
+            onClick={() => void submitAnswer()}
+            className="w-full py-2.5 rounded-xl font-semibold text-sm border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20 transition-colors"
           >
-            Submit Text Answer
+            Submit for AI Evaluation
           </button>
         </div>
       )}
@@ -437,38 +461,88 @@ export default function CoachPage() {
         </div>
       )}
 
+      {/* ── Phase: evaluating ─────────────────────────────────────────────────── */}
+      {phase === 'evaluating' && (
+        <div className="flex flex-col items-center gap-4 py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-400" />
+          <p className="text-sm text-slate-400">AI coach is analysing your answer…</p>
+          <p className="text-xs text-slate-600">{CREDITS_COST} credits will be deducted</p>
+        </div>
+      )}
+
       {/* ── Phase: result ─────────────────────────────────────────────────────── */}
       {phase === 'result' && session.length > 0 && (() => {
         const last = session[session.length - 1];
+        const fb = last.feedback;
         return (
           <div className="space-y-4">
+            {/* Score */}
             <div className="flex items-center gap-4 px-6 py-5 rounded-2xl" style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid #1e293b' }}>
               <div className="shrink-0 flex flex-col items-center justify-center w-20 h-20 rounded-2xl" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)' }}>
-                <span className="text-3xl font-black" style={{ color: scoreColor(last.score) }}>{last.score}</span>
+                <span className="text-3xl font-black" style={{ color: scoreColor(fb.score) }}>{fb.score}</span>
                 <span className="text-xs text-slate-500 mt-0.5">/ 100</span>
               </div>
               <div className="flex-1">
-                <p className="text-base font-bold text-white mb-1">{last.label}</p>
-                <p className="text-sm text-slate-400 leading-relaxed">{last.tip}</p>
-                <p className="mt-1.5 text-[11px] text-slate-600">💡 {last.hint}</p>
+                <p className="text-base font-bold text-white">{fb.label}</p>
+                <p className="mt-1 text-[11px] text-slate-600">💡 {last.hint}</p>
+                <div className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-600">
+                  <Coins className="h-3 w-3" />
+                  <span>{fb.creditsUsed} credits used</span>
+                </div>
               </div>
             </div>
 
+            {/* What worked */}
+            {fb.whatWorked.length > 0 && (
+              <div className="rounded-xl px-4 py-3 space-y-2" style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.2)' }}>
+                <p className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">What worked</p>
+                {fb.whatWorked.map((w, i) => (
+                  <p key={i} className="text-sm text-emerald-300 leading-relaxed">• {w}</p>
+                ))}
+              </div>
+            )}
+
+            {/* To improve */}
+            {fb.toImprove.length > 0 && (
+              <div className="rounded-xl px-4 py-3 space-y-2" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                <p className="text-[11px] font-semibold text-red-400 uppercase tracking-wider">To improve</p>
+                {fb.toImprove.map((t, i) => (
+                  <p key={i} className="text-sm text-red-300 leading-relaxed">• {t}</p>
+                ))}
+              </div>
+            )}
+
+            {/* Expert insight */}
+            {fb.expertInsight && (
+              <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.22)' }}>
+                <p className="text-[11px] font-semibold text-indigo-400 uppercase tracking-wider mb-1.5">Expert insight</p>
+                <p className="text-sm text-indigo-200 leading-relaxed">{fb.expertInsight}</p>
+              </div>
+            )}
+
+            {/* Interview tip */}
+            {fb.interviewTip && (
+              <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)' }}>
+                <p className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider mb-1.5">🎯 In the interview</p>
+                <p className="text-sm text-amber-200 leading-relaxed">{fb.interviewTip}</p>
+              </div>
+            )}
+
             {/* Session progress */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 pt-1">
               {session.map((e, i) => (
                 <div
                   key={i}
                   className="h-2 flex-1 rounded-full"
-                  style={{ backgroundColor: scoreColor(e.score) + '60', outline: i === session.length - 1 ? `2px solid ${scoreColor(e.score)}` : 'none' }}
-                  title={`Q${i + 1}: ${e.score}`}
+                  style={{ backgroundColor: scoreColor(e.feedback.score) + '60', outline: i === session.length - 1 ? `2px solid ${scoreColor(e.feedback.score)}` : 'none' }}
+                  title={`Q${i + 1}: ${e.feedback.score}`}
                 />
               ))}
               {Array.from({ length: questions.length - session.length }).map((_, i) => (
                 <div key={`empty-${i}`} className="h-2 flex-1 rounded-full bg-white/10" />
               ))}
             </div>
-            <p className="text-xs text-slate-500 text-right">{session.length} / {questions.length} questions</p>
+            <p className="text-xs text-slate-600 text-right">{session.length} / {questions.length} questions · {session.reduce((s, e) => s + e.feedback.creditsUsed, 0)} credits used this session</p>
 
             <div className="flex gap-2">
               {qIndex + 1 < questions.length ? (
