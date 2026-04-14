@@ -1,21 +1,31 @@
 import { useLocation } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
-import { Sun, Anchor, Eye, Leaf, Film, Sparkles, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { Sun, Moon, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { useThemeStore } from '@/stores/themeStore';
 import { api } from '@/lib/api';
 
 const PAGE_TITLES: Record<string, string> = {
-  '/dashboard': 'Dashboard',
-  '/jobs': 'Jobs Discovery',
-  '/applications': 'Applications Pipeline',
-  '/review': 'Review Queue',
-  '/assistant': 'AI Career Assistant',
-  '/interview': 'Interview Ready',
-  '/profile': 'Profile & CV',
-  '/style-studio': 'Style Studio',
-  '/settings': 'Settings',
-  '/security': 'Security & Passkeys',
-  '/billing': 'Billing & Credits',
+  '/dashboard':   'Profile & Goals',
+  '/jobs':        'Job Listings',
+  '/applications':'Applications',
+  '/review':      'Applications Review',
+  '/assistant':   'AI Assistant',
+  '/interview':   'Interview',
+  '/warmup':      'Coach',
+  '/negotiation': 'Negotiation',
+  '/profile':     'Profile & CV',
+  '/style-studio':'Style Studio',
+  '/settings':    'Settings',
+  '/security':    'Security',
+  '/billing':     'Billing',
+  '/skills':      'Skills Lab',
+  '/radar':       'Job Radar',
+  '/salary':      'Salary Calculator',
+  '/legal':       'Legal Hub',
+  '/reports':     'Reports',
+  '/auto-apply':  'Auto Apply',
+  '/documents':   'Document Lab',
+  '/faq':         'FAQ',
 };
 
 export default function Header() {
@@ -35,18 +45,6 @@ export default function Header() {
     [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
     user?.primaryEmailAddress?.emailAddress?.split('@')[0] ||
     '';
-
-  const standardThemes = [
-    { id: 'light' as const,  Icon: Sun,    label: 'Jasny (Light)' },
-    { id: 'dark' as const,   Icon: Anchor, label: 'Granatowy (Dark Navy)' },
-  ];
-
-  const specThemes = [
-    { id: 'visually-impaired' as const, Icon: Eye,      label: 'Słabowidzący (High Contrast)' },
-    { id: 'overstimulated' as const,    Icon: Leaf,     label: 'Przebodźcowany (Calm Stone)' },
-    { id: 'noir' as const,              Icon: Film,     label: 'Noir (Cinematic)' },
-    { id: 'elegant' as const,           Icon: Sparkles, label: 'Elegancki (Gold Cream)' },
-  ];
 
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-100 bg-white/80 px-6 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80">
@@ -78,52 +76,38 @@ export default function Header() {
           </div>
         )}
 
-        {/* Standard theme toggle */}
+        {/* Light / Dark toggle */}
         <div
           className="flex items-center gap-1 rounded-xl border border-slate-100 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800"
           role="group"
           aria-label="Colour theme"
         >
-          {standardThemes.map(({ id, Icon, label }) => (
-            <button
-              key={id}
-              onClick={() => setTheme(id)}
-              aria-label={label}
-              aria-pressed={theme === id}
-              className={`rounded-lg p-1.5 transition-colors ${
-                theme === id
-                  ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white'
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-              }`}
-              title={label}
-            >
-              <Icon className="h-3.5 w-3.5" />
-            </button>
-          ))}
-        </div>
-
-        {/* Spec theme toggle */}
-        <div
-          className="flex items-center gap-1 rounded-xl border border-slate-100 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800"
-          role="group"
-          aria-label="Visual theme"
-        >
-          {specThemes.map(({ id, Icon, label }) => (
-            <button
-              key={id}
-              onClick={() => setTheme(id)}
-              aria-label={label}
-              aria-pressed={theme === id}
-              className={`rounded-lg p-1.5 transition-colors ${
-                theme === id
-                  ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white'
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-              }`}
-              title={label}
-            >
-              <Icon className="h-3.5 w-3.5" />
-            </button>
-          ))}
+          <button
+            onClick={() => setTheme('light')}
+            aria-label="Light theme"
+            aria-pressed={theme === 'light'}
+            title="Light"
+            className={`rounded-lg p-1.5 transition-colors ${
+              theme === 'light'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+            }`}
+          >
+            <Sun className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => setTheme('dark')}
+            aria-label="Dark theme"
+            aria-pressed={theme === 'dark'}
+            title="Dark"
+            className={`rounded-lg p-1.5 transition-colors ${
+              theme === 'dark'
+                ? 'bg-slate-700 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+            }`}
+          >
+            <Moon className="h-3.5 w-3.5" />
+          </button>
         </div>
 
         {displayName ? (
