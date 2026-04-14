@@ -17,7 +17,7 @@
 - Email code verification step (shown after sign-up or if account requires it)
 - TOTP / backup code step (shown if 2FA is enabled)
 - Forgot-password flow: enter email → enter reset code → enter new password
-- Right panel: device mockup displaying looping MP4 demo videos from `/auth-videos/` (7 local clips)
+- Right panel: device mockup displaying looping MP4 demo videos from `/auth-videos/` (4 local clips)
 - Animated feature ticker cards: "Dashboard", "Interview Practice", "AI Analysis", "Career Growth"
 - Fallback placeholder (no video): animated bar chart UI with "Live" badge
 
@@ -213,7 +213,7 @@
 - TTS button per AI message ("Czytaj" / "Czyta…" — Polish labels)
 
 ### What works
-- Full streaming chat with GPT-4o via `useCareerAssistantStore` (calls `/api/interview/stream` or similar tRPC store)
+- Non-streaming GPT-4o chat via `useCareerAssistantStore`: messages sent with `trpcClient.assistant.sendMessage.mutate(...)`, full AI reply received when mutation resolves (not streamed)
 - Conversation history persisted and loaded on sign-in (`loadHistory`)
 - Voice input: browser `MediaRecorder` → Whisper STT via `/api/interview/transcribe`
 - Text-to-speech per AI message via `/api/interview/tts`
@@ -550,9 +550,9 @@
 
 ---
 
-## /auto-apply — AutoApplyPage (actual path: `/autopilot`)
+## /auto-apply — AutoApplyPage
 
-**Note:** The route `/auto-apply` listed in the task maps to the component at `frontend/src/app/autopilot/AutoApplyPage.tsx`.
+**Note:** Component lives at `frontend/src/app/autopilot/AutoApplyPage.tsx` but the registered route and URL is `/auto-apply`.
 
 ### What is on the screen
 - Push notification toggle (subscribe/unsubscribe)
