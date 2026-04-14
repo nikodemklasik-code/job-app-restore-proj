@@ -17,9 +17,6 @@ import {
   Accessibility,
   Sun,
   Anchor,
-  Film,
-  Leaf,
-  Sparkles,
   PanelLeftClose,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -669,50 +666,14 @@ const THEME_OPTIONS = [
   {
     id: 'light' as const,
     Icon: Sun,
-    label: 'Jasny',
-    badge: 'Standard',
-    description:
-      'Czyste białe tło, niebieskie akcenty. Standardowy dzienny motyw — przejrzysty i energiczny.',
+    label: 'Light',
+    description: 'Clean white background with blue accents. Default daytime theme.',
   },
   {
     id: 'dark' as const,
     Icon: Anchor,
-    label: 'Granatowy',
-    badge: 'Standard',
-    description:
-      'Głęboki granat z jasnoniebieskimi akcentami. Standardowy nocny motyw — ciepły i elegancki.',
-  },
-  {
-    id: 'visually-impaired' as const,
-    Icon: Eye,
-    label: 'Słabowidzący',
-    badge: 'Dostępność',
-    description:
-      'Czarne tło, żółty tekst, kontrast 21:1 (WCAG AAA). Pogrubione obramowania, duże czcionki i wielkie strefy klikalne dla maksymalnej czytelności.',
-  },
-  {
-    id: 'overstimulated' as const,
-    Icon: Leaf,
-    label: 'Przebodźcowany',
-    badge: 'Dostępność',
-    description:
-      'Ciepłe, nisko nasycone barwy (kamień/piasek), miękkie zaokrąglenia i zero animacji. Dla osób łatwo przebodźcowanych, z ADHD lub nadwrażliwością sensoryczną.',
-  },
-  {
-    id: 'noir' as const,
-    Icon: Film,
-    label: 'Noir',
-    badge: 'Styl',
-    description:
-      'Czerń cinc-950, biała typografia, ostre geometryczne krawędzie. Kinowy, high-contrast klimat rodem z kina noir.',
-  },
-  {
-    id: 'elegant' as const,
-    Icon: Sparkles,
-    label: 'Elegancki',
-    badge: 'Styl',
-    description:
-      'Kremowe alabastrowe tło (#FDFBF7), węglowo-czarny tekst i przytłumione złote akcenty (#C5A880). Luksusowy, minimalistyczny design.',
+    label: 'Dark',
+    description: 'Deep navy with light blue accents. Default nighttime theme.',
   },
 ];
 
@@ -733,12 +694,8 @@ function AccessibilityTab() {
             Wybierz motyw najwygodniejszy dla Ciebie. Szybki przełącznik znajdziesz też w nagłówku.
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {THEME_OPTIONS.map(({ id, Icon, label, badge, description }) => {
+            {THEME_OPTIONS.map(({ id, Icon, label, description }) => {
               const isActive = theme === id;
-              const badgeColour =
-                badge === 'Standard'   ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' :
-                badge === 'Dostępność' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' :
-                                        'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300';
               return (
                 <button
                   key={id}
@@ -754,9 +711,11 @@ function AccessibilityTab() {
                   <div className="flex w-full items-center gap-2">
                     <Icon className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                     <span className="font-medium text-slate-800 dark:text-slate-200">{label}</span>
-                    <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${badgeColour}`}>
-                      {isActive ? '✓ Aktywny' : badge}
-                    </span>
+                    {isActive && (
+                      <span className="ml-auto rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                        ✓ Active
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">{description}</p>
                 </button>

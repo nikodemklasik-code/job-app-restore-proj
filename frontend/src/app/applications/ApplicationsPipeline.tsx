@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
-import { useThemeStore } from '@/stores/themeStore';
 import {
   Plus,
   Loader2,
@@ -15,7 +14,6 @@ import {
   TrendingUp,
   MessageSquare,
   Award,
-  Palette,
 } from 'lucide-react';
 
 type AppStatus = 'draft' | 'prepared' | 'sent' | 'interview' | 'accepted' | 'rejected';
@@ -181,8 +179,6 @@ export default function ApplicationsPipeline() {
   const { user, isLoaded } = useUser();
   const userId = user?.id ?? '';
 
-  const { theme, setTheme } = useThemeStore();
-
   const [activeStage, setActiveStage] = useState<AppStatus | null>(null);
   const [showNewModal, setShowNewModal] = useState(false);
   const [showBanner, setShowBanner] = useState(true);
@@ -286,12 +282,6 @@ export default function ApplicationsPipeline() {
   const activeStageApps = activeStage ? apps.filter(a => a.status === activeStage) : [];
   const activeStageConfig = activeStage ? STAGES.find(s => s.key === activeStage)! : null;
 
-  const themeOptions: { value: 'light' | 'dark' | 'overstimulated' | 'visually-impaired'; label: string }[] = [
-    { value: 'light',             label: 'Jasny' },
-    { value: 'dark',              label: 'Granatowy' },
-    { value: 'overstimulated',    label: 'Spokojny' },
-    { value: 'visually-impaired', label: 'Kontrast' },
-  ];
 
   return (
     <div className="space-y-6">
@@ -307,26 +297,6 @@ export default function ApplicationsPipeline() {
 
       {/* ── Top Bar ──────────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
-        {/* Theme switcher */}
-        <div className="flex items-center gap-2">
-          <Palette className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-          <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 p-1">
-            {themeOptions.map(opt => (
-              <button
-                key={opt.value}
-                onClick={() => setTheme(opt.value)}
-                className={`rounded-lg px-2.5 py-1 text-[10px] font-medium transition-all ${
-                  theme === opt.value
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* Recent apps chips */}
         {recentApps.length > 0 && (

@@ -119,7 +119,7 @@ export default function DocumentLab() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400" title="Processed" />
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" aria-label="Processed" />
                 <button
                   onClick={() => deleteMutation.mutate({ id: doc.id })}
                   className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950"
