@@ -686,12 +686,12 @@ function AccessibilityTab() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Accessibility className="h-4 w-4" /> Motyw kolorystyczny
+            <Accessibility className="h-4 w-4" /> Colour Theme
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-            Wybierz motyw najwygodniejszy dla Ciebie. Szybki przełącznik znajdziesz też w nagłówku.
+            Choose the theme that works best for you. You can also toggle Light/Dark in the header.
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {THEME_OPTIONS.map(({ id, Icon, label, description }) => {

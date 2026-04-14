@@ -209,7 +209,7 @@ export default function InterviewWarmup() {
             <Flame style={{ width: 20, height: 20, color: '#fff' }} />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">Interview Warmup</h1>
+            <h1 className="text-xl font-bold text-white">Daily Coach</h1>
             <p className="text-xs text-slate-400">5-minute daily practice · one question · 60 seconds</p>
           </div>
         </div>
@@ -224,7 +224,7 @@ export default function InterviewWarmup() {
       {alreadyDone && phase === 'ready' && (
         <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.25)' }}>
           <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0" />
-          <p className="text-sm text-emerald-300">You've completed today's warmup! Come back tomorrow to keep your streak going.</p>
+          <p className="text-sm text-emerald-300">You've completed today's session! Come back tomorrow to keep your streak going.</p>
         </div>
       )}
 

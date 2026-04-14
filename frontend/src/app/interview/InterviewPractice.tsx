@@ -1141,8 +1141,8 @@ export default function InterviewPractice() {
                 <Briefcase style={{ width: 22, height: 22, color: '#fff' }} />
               </div>
               <div>
-                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Rozmowa Kwalifikacyjna</h1>
-                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Symulacja rozmowy z AI rekruterem</p>
+                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Interview Practice</h1>
+                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>AI-powered mock interview simulation</p>
               </div>
             </div>
 
@@ -1151,26 +1151,26 @@ export default function InterviewPractice() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 16 }}>🔐</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#fbbf24' }}>Pamięć sesji (opcjonalne)</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#fbbf24' }}>Session memory (optional)</span>
                 </div>
                 {sessionFile && <span style={{ fontSize: 11, color: '#34d399', fontWeight: 600 }}>✓ {sessionFile.name}</span>}
               </div>
               <p style={{ margin: '0 0 8px', fontSize: 12, color: 'rgba(251,191,36,0.7)' }}>
-                Wgraj zaszyfrowany PDF z poprzedniej sesji aby AI kontynuowało coaching
+                Upload an encrypted PDF from a previous session so AI can continue your coaching
               </p>
               <input type="file" accept=".pdf" style={{ fontSize: 12, color: '#94a3b8' }} onChange={(e) => setSessionFile(e.target.files?.[0] ?? null)} />
             </div>
 
             {/* Optional position field */}
             <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>STANOWISKO / FIRMA (OPCJONALNE)</p>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>ROLE / COMPANY (OPTIONAL)</p>
               <input
                 type="text"
-                placeholder="np. Senior React Developer w Google (opcjonalne)"
-                value={customRole ? `${customRole}${customCompany ? ` w ${customCompany}` : ''}` : ''}
+                placeholder="e.g. Senior React Developer at Google (optional)"
+                value={customRole ? `${customRole}${customCompany ? ` at ${customCompany}` : ''}` : ''}
                 onChange={(e) => {
                   const val = e.target.value;
-                  const wMatch = val.match(/^(.+?)\s+w\s+(.+)$/i);
+                  const wMatch = val.match(/^(.+?)\s+at\s+(.+)$/i);
                   if (wMatch) { setCustomRole(wMatch[1].trim()); setCustomCompany(wMatch[2].trim()); }
                   else { setCustomRole(val); setCustomCompany(''); }
                   setSelectedJob(null);
@@ -1195,11 +1195,11 @@ export default function InterviewPractice() {
                   onClick={() => void joinCall()}
                   style={{ padding: '15px 0', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 17, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
                 >
-                  🎙️ Rozpocznij rozmowę
+                  🎙️ Start Interview
                 </button>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button onClick={() => setShowHistory(true)} style={{ flex: 1, padding: '10px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, color: '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    <Clock style={{ width: 14, height: 14 }} /> Historia
+                    <Clock style={{ width: 14, height: 14 }} /> History
                   </button>
                 </div>
               </>
@@ -1212,7 +1212,7 @@ export default function InterviewPractice() {
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
             <div style={{ width: '100%', maxWidth: 600, background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 28, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>🕐 Historia rozmów</h2>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>🕐 Interview History</h2>
                 <button onClick={() => setShowHistory(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>✕</button>
               </div>
               {historyQuery.isLoading ? (

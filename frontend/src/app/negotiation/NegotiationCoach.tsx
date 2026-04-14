@@ -1,7 +1,9 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Send, RefreshCw, Scale, ChevronDown, ChevronUp, Lightbulb, Lock, Play, Swords } from 'lucide-react';
+import { Send, RefreshCw, Scale, ChevronDown, ChevronUp, Lightbulb, Lock, Play, Swords, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useBillingStore } from '@/stores/billingStore';
+
+const API_VOICE_BASE = import.meta.env.VITE_API_URL ?? '';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -94,6 +96,43 @@ async function consumeStream(response: Response, onChunk: (fullText: string) => 
   return fullText;
 }
 
+// ─── Voice helpers ────────────────────────────────────────────────────────────
+
+async function playTTSVoice(text: string): Promise<void> {
+  try {
+    const response = await fetch(`${API_VOICE_BASE}/api/interview/tts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+      credentials: 'include',
+    });
+    if (!response.ok) return;
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    return new Promise((resolve) => {
+      const audio = new Audio(url);
+      audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+      audio.play().catch(() => resolve());
+    });
+  } catch { /* TTS failure is non-fatal */ }
+}
+
+async function transcribeVoice(blob: Blob): Promise<string> {
+  try {
+    const form = new FormData();
+    form.append('audio', blob, 'audio.webm');
+    const res = await fetch(`${API_VOICE_BASE}/api/interview/transcribe`, {
+      method: 'POST',
+      body: form,
+      credentials: 'include',
+    });
+    if (!res.ok) return '';
+    const json = (await res.json()) as { transcript?: string };
+    return json.transcript ?? '';
+  } catch { return ''; }
+}
+
 // ─── Markdown renderer (simple) ───────────────────────────────────────────────
 
 function escapeHtml(str: string): string {
@@ -146,6 +185,13 @@ export default function NegotiationCoach() {
   const [showScenarios, setShowScenarios] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
 
+  // Voice state
+  const [voiceMode, setVoiceMode] = useState(true);  // voice is default
+  const [isRecording, setIsRecording] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
   // Simulator state
   const [offer, setOffer] = useState<SimulatorOffer>(DEFAULT_OFFER);
   const [simStarted, setSimStarted] = useState(false);
@@ -191,16 +237,53 @@ export default function NegotiationCoach() {
       if (appMode === 'simulator' && fullText.includes('[SIMULATION COMPLETE]')) {
         setSimComplete(true);
       }
+      // Play TTS when in voice mode
+      if (voiceMode && fullText) {
+        setIsSpeaking(true);
+        await playTTSVoice(fullText);
+        setIsSpeaking(false);
+      }
     } catch (err) {
       setError('Something went wrong. Please try again.');
+      setIsSpeaking(false);
     } finally {
       setIsStreaming(false);
     }
-  }, [input, isStreaming, messages, appMode, offer]);
+  }, [input, isStreaming, messages, appMode, offer, voiceMode]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); }
   };
+
+  const handleMicToggle = useCallback(async () => {
+    if (isRecording) {
+      // Stop recording
+      recorderRef.current?.stop();
+      setIsRecording(false);
+    } else {
+      // Start recording
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunksRef.current = [];
+        const recorder = new MediaRecorder(stream);
+        recorderRef.current = recorder;
+        recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+        recorder.onstop = async () => {
+          stream.getTracks().forEach((t) => t.stop());
+          const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          if (blob.size < 1000) return; // too short
+          const transcript = await transcribeVoice(blob);
+          if (transcript.trim()) {
+            void handleSend(transcript.trim());
+          }
+        };
+        recorder.start();
+        setIsRecording(true);
+      } catch {
+        setError('Microphone access denied. Please allow microphone access.');
+      }
+    }
+  }, [isRecording, handleSend]);
 
   const handleReset = () => {
     setMessages([]);
@@ -223,8 +306,14 @@ export default function NegotiationCoach() {
       const fullText = await streamNegotiationSimulation([], offer, (partial) => setStreamingContent(partial));
       setMessages([{ role: 'assistant', content: fullText }]);
       setStreamingContent('');
+      if (voiceMode && fullText) {
+        setIsSpeaking(true);
+        await playTTSVoice(fullText);
+        setIsSpeaking(false);
+      }
     } catch {
       setError('Something went wrong. Please try again.');
+      setIsSpeaking(false);
     } finally {
       setIsStreaming(false);
     }
@@ -342,6 +431,20 @@ export default function NegotiationCoach() {
               <Swords className="h-3 w-3" /> Simulator
             </button>
           </div>
+          {/* Voice / Text mode toggle */}
+          <button
+            onClick={() => setVoiceMode((v) => !v)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+            style={{
+              borderColor: voiceMode ? 'rgba(99,102,241,0.5)' : 'rgb(51,65,85)',
+              background: voiceMode ? 'rgba(99,102,241,0.15)' : 'transparent',
+              color: voiceMode ? '#a5b4fc' : '#64748b',
+            }}
+            title={voiceMode ? 'Switch to text mode' : 'Switch to voice mode'}
+          >
+            {voiceMode ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+            {voiceMode ? 'Voice' : 'Text'}
+          </button>
           {appMode === 'coach' && (
             <button onClick={() => setShowScenarios((v) => !v)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors">
               <Lightbulb className="h-3.5 w-3.5" />
@@ -451,18 +554,63 @@ export default function NegotiationCoach() {
           {/* Input area */}
           {!simComplete && (
             <div className="shrink-0 px-6 py-4 border-t border-slate-800 bg-slate-950/60">
-              <div className="flex items-end gap-3 rounded-2xl px-4 py-3" style={{ background: 'rgba(30,41,59,0.9)', border: '1px solid rgba(99,102,241,0.25)' }}>
-                <textarea ref={textareaRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}
-                  placeholder={appMode === 'simulator' ? 'Type your response to the HR offer… (Shift+Enter for new line)' : 'Paste your negotiation message, proposal, or transcript… (Shift+Enter for new line)'}
-                  disabled={isStreaming} rows={1}
-                  className="flex-1 resize-none bg-transparent text-sm text-slate-200 placeholder-slate-500 outline-none"
-                  style={{ minHeight: 28 }} />
-                <button onClick={() => void handleSend()} disabled={!input.trim() || isStreaming}
-                  className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl transition-all"
-                  style={{ background: input.trim() && !isStreaming ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(99,102,241,0.2)', cursor: input.trim() && !isStreaming ? 'pointer' : 'not-allowed' }}>
-                  <Send className="h-4 w-4 text-white" />
-                </button>
-              </div>
+              {/* Voice mode: big mic button */}
+              {voiceMode ? (
+                <div className="flex flex-col items-center gap-3">
+                  {isSpeaking && (
+                    <p className="text-xs text-indigo-400 animate-pulse">AI speaking…</p>
+                  )}
+                  <button
+                    onClick={() => void handleMicToggle()}
+                    disabled={isStreaming || isSpeaking}
+                    className="flex items-center justify-center w-16 h-16 rounded-full transition-all shadow-lg"
+                    style={{
+                      background: isRecording
+                        ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                        : isStreaming || isSpeaking
+                        ? 'rgba(99,102,241,0.2)'
+                        : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                      cursor: isStreaming || isSpeaking ? 'not-allowed' : 'pointer',
+                      boxShadow: isRecording ? '0 0 0 8px rgba(239,68,68,0.2)' : undefined,
+                    }}
+                    title={isRecording ? 'Stop recording' : 'Hold to speak'}
+                  >
+                    {isRecording ? <MicOff className="h-7 w-7 text-white" /> : <Mic className="h-7 w-7 text-white" />}
+                  </button>
+                  <p className="text-xs text-slate-500">
+                    {isRecording ? 'Recording… click to stop' : isStreaming ? 'Processing…' : 'Click mic to speak'}
+                  </p>
+                  {/* Also allow text fallback */}
+                  <div className="flex items-end gap-2 w-full rounded-xl px-3 py-2" style={{ background: 'rgba(30,41,59,0.6)', border: '1px solid rgba(99,102,241,0.15)' }}>
+                    <textarea ref={textareaRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}
+                      placeholder="Or type here… (Enter to send)"
+                      disabled={isStreaming || isRecording} rows={1}
+                      className="flex-1 resize-none bg-transparent text-xs text-slate-300 placeholder-slate-600 outline-none"
+                      style={{ minHeight: 20 }} />
+                    {input.trim() && (
+                      <button onClick={() => void handleSend()} disabled={isStreaming}
+                        className="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg"
+                        style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
+                        <Send className="h-3 w-3 text-white" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Text mode: standard textarea */
+                <div className="flex items-end gap-3 rounded-2xl px-4 py-3" style={{ background: 'rgba(30,41,59,0.9)', border: '1px solid rgba(99,102,241,0.25)' }}>
+                  <textarea ref={textareaRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}
+                    placeholder={appMode === 'simulator' ? 'Type your response to the HR offer… (Shift+Enter for new line)' : 'Paste your negotiation message, proposal, or transcript… (Shift+Enter for new line)'}
+                    disabled={isStreaming} rows={1}
+                    className="flex-1 resize-none bg-transparent text-sm text-slate-200 placeholder-slate-500 outline-none"
+                    style={{ minHeight: 28 }} />
+                  <button onClick={() => void handleSend()} disabled={!input.trim() || isStreaming}
+                    className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl transition-all"
+                    style={{ background: input.trim() && !isStreaming ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(99,102,241,0.2)', cursor: input.trim() && !isStreaming ? 'pointer' : 'not-allowed' }}>
+                    <Send className="h-4 w-4 text-white" />
+                  </button>
+                </div>
+              )}
               <p className="mt-2 text-center text-xs text-slate-600">
                 {appMode === 'simulator' ? 'Simulation evaluates negotiation moves only. Not a hiring or suitability assessment.' : 'Analysis evaluates negotiation strategy only. Not a hiring or suitability assessment.'}
               </p>

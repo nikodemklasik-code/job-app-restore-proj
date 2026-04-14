@@ -49,10 +49,10 @@ function MonetisationZone() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {/* Current valuation */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Obecna wycena rynkowa</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Current market value</p>
           <p className="text-2xl font-black text-white">£42,000 – £55,000</p>
-          <p className="text-sm font-medium text-slate-400">/ rok</p>
-          <p className="text-xs text-slate-500 mt-1">Na podstawie Twoich obecnych kwalifikacji</p>
+          <p className="text-sm font-medium text-slate-400">/ yr</p>
+          <p className="text-xs text-slate-500 mt-1">Based on your current skills</p>
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
             <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-emerald-400" style={{ width: '62%' }} />
           </div>
@@ -61,11 +61,11 @@ function MonetisationZone() {
         <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-5 space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
             <TrendingUp className="inline h-3.5 w-3.5 mr-1" />
-            Potencjał max
+            Max potential
           </p>
           <p className="text-2xl font-black text-white">£65,000 – £85,000</p>
-          <p className="text-sm font-medium text-indigo-300">/ rok</p>
-          <p className="text-xs text-slate-500 mt-1">Po osiągnięciu celów kariery</p>
+          <p className="text-sm font-medium text-indigo-300">/ yr</p>
+          <p className="text-xs text-slate-500 mt-1">After reaching career goals</p>
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
             <div className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" style={{ width: '88%' }} />
           </div>
@@ -73,8 +73,8 @@ function MonetisationZone() {
       </div>
       {/* Disclaimer */}
       <p className="text-xs text-slate-500 leading-relaxed">
-        ⚠️ Wartości szacunkowe. Rzeczywiste wynagrodzenie zależy od wielu czynników — lokalizacji, firmy, negocjacji.{' '}
-        <a href="#" className="underline hover:text-slate-300 transition-colors">Szczegóły metodologii: Warunki</a>
+        ⚠️ Estimated values. Actual salary depends on many factors — location, company, negotiation.{' '}
+        <a href="#" className="underline hover:text-slate-300 transition-colors">Methodology details</a>
       </p>
     </div>
   );
@@ -87,7 +87,7 @@ function SkillsGapSplit() {
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       {/* Left — My skills */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
-        <h3 className="font-semibold text-white text-sm uppercase tracking-wider">Twoje skille</h3>
+        <h3 className="font-semibold text-white text-sm uppercase tracking-wider">Your Skills</h3>
         <div className="space-y-3">
           {MY_SKILLS_MOCK.map((skill) => {
             const req = MARKET_REQUIREMENTS_MOCK.find((r) => r.name === skill.name)?.required ?? 70;
@@ -111,7 +111,7 @@ function SkillsGapSplit() {
       </div>
       {/* Right — Market requirements */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
-        <h3 className="font-semibold text-white text-sm uppercase tracking-wider">Wymagania rynkowe</h3>
+        <h3 className="font-semibold text-white text-sm uppercase tracking-wider">Market Requirements</h3>
         <div className="space-y-3">
           {MARKET_REQUIREMENTS_MOCK.map((req) => {
             const mine = MY_SKILLS_MOCK.find((s) => s.name === req.name)?.current ?? 0;
@@ -120,7 +120,7 @@ function SkillsGapSplit() {
               <div key={req.name} className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-300">{req.name}</span>
-                  <span className="font-semibold text-slate-400">{req.required}% wymagane</span>
+                  <span className="font-semibold text-slate-400">{req.required}% required</span>
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
                   <div
@@ -136,15 +136,15 @@ function SkillsGapSplit() {
         <div className="flex flex-wrap items-center gap-3 border-t border-white/10 pt-3">
           <div className="flex items-center gap-1.5">
             <span className="h-2 w-3 rounded-sm bg-emerald-400" />
-            <span className="text-xs text-slate-500">Spełnione</span>
+            <span className="text-xs text-slate-500">Met</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="h-2 w-3 rounded-sm bg-orange-400" />
-            <span className="text-xs text-slate-500">Bliskie (&lt;15%)</span>
+            <span className="text-xs text-slate-500">Close (&lt;15%)</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="h-2 w-3 rounded-sm bg-red-400" />
-            <span className="text-xs text-slate-500">Luka (&gt;15%)</span>
+            <span className="text-xs text-slate-500">Gap (&gt;15%)</span>
           </div>
         </div>
       </div>
@@ -170,9 +170,9 @@ function RecommendedCourses() {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Award className="h-5 w-5 text-indigo-400" />
-        <h2 className="font-semibold text-white">Rekomendowane kursy</h2>
+        <h2 className="font-semibold text-white">Recommended Courses</h2>
         <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-400">
-          {COURSES_MOCK.length} kursów
+          {COURSES_MOCK.length} courses
         </span>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
