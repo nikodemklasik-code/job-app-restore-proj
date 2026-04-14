@@ -157,12 +157,12 @@ export default function SkillsLab() {
       {/* header */}
       <div className="flex items-start gap-4">
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
-          <FlaskConical className="h-6 w-6 text-indigo-400" />
+          <FileText className="h-6 w-6 text-indigo-400" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white">Skills Lab</h1>
+          <h1 className="text-2xl font-bold text-white">Applications Review</h1>
           <p className="mt-0.5 text-sm text-slate-400">
-            Upload a document to extract skills, compare against your profile, and close the gap.
+            Analyse your applications, extract key insights and track your progress.
           </p>
         </div>
       </div>
