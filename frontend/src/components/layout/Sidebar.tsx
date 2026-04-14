@@ -24,7 +24,7 @@ const PROFIL: NavItem[] = [
 const JOB_SEARCH: NavItem[] = [
   { path: '/jobs', label: 'Oferty Pracy', icon: Briefcase },
   { path: '/applications', label: 'Aplikacje', icon: ClipboardList },
-  { path: '/review', label: 'Analiza Aplikacji', icon: FileText },
+  { path: '/review', label: 'Applications Review', icon: FileText },
 ];
 
 // 5. Umiejętności & Wycena
