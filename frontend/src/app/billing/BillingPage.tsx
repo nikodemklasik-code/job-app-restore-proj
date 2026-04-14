@@ -59,7 +59,6 @@ export default function BillingPage() {
   const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
   const [capturingPayPal, setCapturingPayPal] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
   useEffect(() => {
     if (!isLoaded || !userId) return;
     void loadBillingData(userId);
@@ -314,7 +313,7 @@ export default function BillingPage() {
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-semibold text-white">📅 Annual &amp; Long-Term Plans</h2>
+            <h2 className="font-semibold text-white">Annual &amp; Long-Term Plans</h2>
             <p className="mt-0.5 text-sm text-slate-400">Save more with quarterly, semi-annual and annual billing — launching soon.</p>
           </div>
           <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-400">Coming Soon</span>
@@ -385,7 +384,7 @@ export default function BillingPage() {
             <Heart className="h-5 w-5 text-rose-400" />
           </div>
           <div>
-            <h2 className="font-semibold text-white">☕ Support MultivoHub</h2>
+            <h2 className="font-semibold text-white">Support MultivoHub</h2>
             <p className="text-sm text-slate-400">Help keep this platform free for job seekers in difficult situations</p>
           </div>
         </div>
@@ -488,6 +487,30 @@ export default function BillingPage() {
         <p className="text-center text-xs text-slate-500">
           100% of patronage goes to platform costs and supporting users who cannot afford Pro
         </p>
+      </div>
+
+      {/* Refer a Friend */}
+      <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-6 dark:border-indigo-900 dark:bg-indigo-950/20">
+        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+          Poleć Przyjaciela
+        </h3>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Za każdego poleconego użytkownika który wykupi dowolny pakiet —{' '}
+          otrzymasz <strong>1 miesiąc Premium gratis</strong>.
+        </p>
+        <div className="mt-4 flex items-center gap-2">
+          <input
+            readOnly
+            value="https://multivohub.com/ref/TWÓJKOD"
+            className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+          />
+          <button
+            onClick={() => { void navigator.clipboard.writeText('https://multivohub.com/ref/TWÓJKOD'); }}
+            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            Kopiuj
+          </button>
+        </div>
       </div>
 
       {isLoading && (
