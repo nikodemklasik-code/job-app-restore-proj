@@ -1,19 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { Loader2, MapIcon } from 'lucide-react';
+import { Loader2, MapIcon, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface DashboardFormState {
-  // Kto jesteś
+  // Who you are
   fullName: string;
   currentJobTitle: string;
   currentSalary: string;
   workValues: string;
-  // Zgody
-  linkedinConsent: boolean;
-  facebookConsent: boolean;
-  instagramConsent: boolean;
-  // Dokąd zmierzasz
+  // Social scanning toggles (separate from consent — controls whether AI actively scans)
+  linkedinScan: boolean;
+  facebookScan: boolean;
+  instagramScan: boolean;
+  // Where you're going
   targetJobTitle: string;
   targetSalary: string;
   autoApplyThreshold: number;
@@ -39,6 +39,69 @@ function loadFromStorage(): Partial<DashboardFormState> {
   return {};
 }
 
+// ─── Toggle switch component ──────────────────────────────────────────────────
+
+function ToggleSwitch({
+  checked,
+  onChange,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => !disabled && onChange(!checked)}
+      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1
+        ${checked && !disabled ? 'bg-indigo-600 dark:bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'}
+        ${disabled ? 'cursor-not-allowed opacity-50' : ''}
+      `}
+    >
+      <span
+        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200
+          ${checked && !disabled ? 'translate-x-4' : 'translate-x-0'}
+        `}
+      />
+    </button>
+  );
+}
+
+// ─── Social consent row ───────────────────────────────────────────────────────
+
+interface SocialConsentRowProps {
+  platform: string;
+  description: string;
+  consentGranted: boolean;
+  scanEnabled: boolean;
+  onToggle: (v: boolean) => void;
+}
+
+function SocialConsentRow({ platform, description, consentGranted, scanEnabled, onToggle }: SocialConsentRowProps) {
+  return (
+    <div className={`flex items-start justify-between gap-3 ${!consentGranted ? 'opacity-60' : ''}`}>
+      <div className="flex-1">
+        <span className="text-sm font-medium text-slate-800 dark:text-white">{platform}</span>
+        <p className="text-xs text-slate-500 dark:text-slate-400">{description}</p>
+        {!consentGranted && (
+          <Link
+            to="/settings"
+            className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-indigo-500 hover:underline dark:text-indigo-400"
+          >
+            <Lock className="h-3 w-3" />
+            Enable in Settings &rarr;
+          </Link>
+        )}
+      </div>
+      <ToggleSwitch checked={scanEnabled && consentGranted} onChange={onToggle} disabled={!consentGranted} />
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { user, isLoaded } = useUser();
   const [savedBadge, setSavedBadge] = useState(false);
@@ -51,12 +114,20 @@ export default function DashboardPage() {
     currentJobTitle: stored.currentJobTitle ?? '',
     currentSalary: stored.currentSalary ?? '',
     workValues: stored.workValues ?? '',
-    linkedinConsent: stored.linkedinConsent ?? false,
-    facebookConsent: stored.facebookConsent ?? false,
-    instagramConsent: stored.instagramConsent ?? false,
+    linkedinScan: stored.linkedinScan ?? false,
+    facebookScan: stored.facebookScan ?? false,
+    instagramScan: stored.instagramScan ?? false,
     targetJobTitle: stored.targetJobTitle ?? '',
     targetSalary: stored.targetSalary ?? '',
     autoApplyThreshold: stored.autoApplyThreshold ?? 75,
+  });
+
+  // TODO: Replace with api.profile.getSocialConsents tRPC call once the endpoint exists.
+  // For now we use a local placeholder — all consents default to not granted.
+  const [socialConsents] = useState({
+    linkedinConsentGranted: false,
+    facebookConsentGranted: false,
+    instagramConsentGranted: false,
   });
 
   // Debounced autosave to localStorage
@@ -88,37 +159,37 @@ export default function DashboardPage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Profil &amp; Cele</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Profile &amp; Goals</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Uzupełnij swoje dane i cele zawodowe, aby AI mogło lepiej dopasowywać oferty pracy.
+            Fill in your details and career goals so the AI can better match job opportunities for you.
           </p>
         </div>
         {savedBadge && (
           <span className="animate-fade-out rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
-            Zapisano
+            Saved
           </span>
         )}
       </div>
 
       {/* Two-column grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* ─── LEFT COLUMN — Kto jesteś ─── */}
+        {/* ─── LEFT COLUMN ─── */}
         <div className="space-y-6">
-          {/* Karta: Dane kandydata */}
+          {/* Card: Candidate Info */}
           <div className={CARD_CLASS}>
             <h2 className="mb-5 text-base font-semibold text-slate-800 dark:text-white">
-              Dane kandydata
+              Candidate Info
             </h2>
             <div className="space-y-4">
               <div>
                 <label className={LABEL_CLASS} htmlFor="fullName">
-                  Imię i nazwisko
+                  Full name
                 </label>
                 <input
                   id="fullName"
                   type="text"
                   className={INPUT_CLASS}
-                  placeholder="np. Anna Kowalska"
+                  placeholder="e.g. Anna Smith"
                   value={form.fullName}
                   onChange={(e) => set('fullName', e.target.value)}
                 />
@@ -126,14 +197,14 @@ export default function DashboardPage() {
 
               <div>
                 <label className={LABEL_CLASS} htmlFor="currentJobTitle">
-                  Obecne stanowisko{' '}
-                  <span className="font-normal text-slate-400 dark:text-slate-500">(opcjonalne)</span>
+                  Current role{' '}
+                  <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
                 </label>
                 <input
                   id="currentJobTitle"
                   type="text"
                   className={INPUT_CLASS}
-                  placeholder="np. Frontend Developer"
+                  placeholder="e.g. Frontend Developer"
                   value={form.currentJobTitle}
                   onChange={(e) => set('currentJobTitle', e.target.value)}
                 />
@@ -141,8 +212,8 @@ export default function DashboardPage() {
 
               <div>
                 <label className={LABEL_CLASS} htmlFor="currentSalary">
-                  Obecne wynagrodzenie{' '}
-                  <span className="font-normal text-slate-400 dark:text-slate-500">(opcjonalne)</span>
+                  Current salary{' '}
+                  <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
                 </label>
                 <div className="relative mt-1">
                   <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-slate-400 dark:text-slate-500">
@@ -158,114 +229,88 @@ export default function DashboardPage() {
                     onChange={(e) => set('currentSalary', e.target.value)}
                   />
                   <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-slate-400 dark:text-slate-500">
-                    / rok
+                    / yr
                   </span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Karta: Twoje wartości zawodowe */}
+          {/* Card: Work values */}
           <div className={CARD_CLASS}>
             <h2 className="mb-2 text-base font-semibold text-slate-800 dark:text-white">
-              Twoje wartości zawodowe
+              Work values
             </h2>
             <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-              Co jest dla Ciebie ważne w pracy?
+              What matters most to you at work?
             </p>
             <textarea
               id="workValues"
               rows={3}
               className={`${INPUT_CLASS} mt-0 resize-none`}
-              placeholder="np. work-life balance, remote, rozwój techniczny, stabilność..."
+              placeholder="e.g. work-life balance, remote, technical growth, stability..."
               value={form.workValues}
               onChange={(e) => set('workValues', e.target.value)}
             />
-            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">wpisuj po przecinku</p>
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">separate with commas</p>
           </div>
 
-          {/* Karta: Zgody — skanowanie profili */}
+          {/* Card: Social profile scanning */}
           <div className={CARD_CLASS}>
             <h2 className="mb-2 text-base font-semibold text-slate-800 dark:text-white">
-              Zgody — skanowanie profili
+              Social profile scanning
             </h2>
             <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">
-              Zaznacz zgody aby AI lepiej rozumiało Twoje potrzeby:
+              Allow AI to scan your social profiles for better matching:
             </p>
 
-            <div className="space-y-4">
-              {/* LinkedIn */}
-              <label className="flex cursor-pointer items-start gap-3">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded accent-indigo-600"
-                  checked={form.linkedinConsent}
-                  onChange={(e) => set('linkedinConsent', e.target.checked)}
-                />
-                <div>
-                  <span className="text-sm font-medium text-slate-800 dark:text-white">LinkedIn</span>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Analiza Twojej sieci kontaktów i historii pracy
-                  </p>
-                </div>
-              </label>
-
-              {/* Facebook */}
-              <label className="flex cursor-pointer items-start gap-3">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded accent-indigo-600"
-                  checked={form.facebookConsent}
-                  onChange={(e) => set('facebookConsent', e.target.checked)}
-                />
-                <div>
-                  <span className="text-sm font-medium text-slate-800 dark:text-white">Facebook</span>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Analiza zainteresowań i aktywności zawodowych
-                  </p>
-                </div>
-              </label>
-
-              {/* Instagram */}
-              <label className="flex cursor-pointer items-start gap-3">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded accent-indigo-600"
-                  checked={form.instagramConsent}
-                  onChange={(e) => set('instagramConsent', e.target.checked)}
-                />
-                <div>
-                  <span className="text-sm font-medium text-slate-800 dark:text-white">Instagram</span>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Analiza Twojej marki osobistej
-                  </p>
-                </div>
-              </label>
+            <div className="space-y-5">
+              <SocialConsentRow
+                platform="LinkedIn"
+                description="Analyse your network and work history"
+                consentGranted={socialConsents.linkedinConsentGranted}
+                scanEnabled={form.linkedinScan}
+                onToggle={(v) => set('linkedinScan', v)}
+              />
+              <SocialConsentRow
+                platform="Facebook"
+                description="Analyse your professional interests and activity"
+                consentGranted={socialConsents.facebookConsentGranted}
+                scanEnabled={form.facebookScan}
+                onToggle={(v) => set('facebookScan', v)}
+              />
+              <SocialConsentRow
+                platform="Instagram"
+                description="Analyse your personal brand"
+                consentGranted={socialConsents.instagramConsentGranted}
+                scanEnabled={form.instagramScan}
+                onToggle={(v) => set('instagramScan', v)}
+              />
             </div>
 
             <p className="mt-5 text-xs text-slate-400 dark:text-slate-500">
-              Dane są przetwarzane lokalnie i nie są udostępniane osobom trzecim.
+              Data is processed locally and never shared with third parties.
             </p>
           </div>
         </div>
 
-        {/* ─── RIGHT COLUMN — Dokąd zmierzasz ─── */}
+        {/* ─── RIGHT COLUMN ─── */}
         <div className="space-y-6">
-          {/* Karta: Cel kariery */}
+          {/* Card: Career goal */}
           <div className={CARD_CLASS}>
             <h2 className="mb-5 text-base font-semibold text-slate-800 dark:text-white">
-              Cel kariery
+              Career goal
             </h2>
             <div className="space-y-4">
               <div>
                 <label className={LABEL_CLASS} htmlFor="targetJobTitle">
-                  Docelowe stanowisko
+                  Target role
                 </label>
                 <input
                   id="targetJobTitle"
                   type="text"
                   className={INPUT_CLASS}
-                  placeholder="np. Senior React Developer"
+                  placeholder="e.g. Senior React Developer"
                   value={form.targetJobTitle}
                   onChange={(e) => set('targetJobTitle', e.target.value)}
                 />
@@ -273,7 +318,7 @@ export default function DashboardPage() {
 
               <div>
                 <label className={LABEL_CLASS} htmlFor="targetSalary">
-                  Docelowe wynagrodzenie
+                  Target salary
                 </label>
                 <div className="relative mt-1">
                   <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-slate-400 dark:text-slate-500">
@@ -289,20 +334,20 @@ export default function DashboardPage() {
                     onChange={(e) => set('targetSalary', e.target.value)}
                   />
                   <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-xs text-slate-400 dark:text-slate-500">
-                    / rok
+                    / yr
                   </span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Karta: Automatyczne aplikowanie */}
+          {/* Card: Auto-apply */}
           <div className={CARD_CLASS}>
             <h2 className="mb-2 text-base font-semibold text-slate-800 dark:text-white">
-              Automatyczne aplikowanie
+              Auto-apply
             </h2>
             <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">
-              Minimalny % dopasowania CV do oferty przy którym AI wysyła aplikację automatycznie:
+              Minimum CV match score for AI to auto-apply:
             </p>
 
             <div className="flex items-center gap-4">
@@ -326,11 +371,11 @@ export default function DashboardPage() {
               <span>100%</span>
             </div>
             <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-              Oferty poniżej progu wymagają Twojej ręcznej akceptacji
+              Jobs below threshold require your manual approval
             </p>
           </div>
 
-          {/* Karta: Mapa drogowa */}
+          {/* Card: Roadmap */}
           <div className={CARD_CLASS}>
             <div className="flex items-start gap-4">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-900/30">
@@ -338,16 +383,16 @@ export default function DashboardPage() {
               </div>
               <div>
                 <h2 className="text-base font-semibold text-slate-800 dark:text-white">
-                  Mapa drogowa
+                  Roadmap
                 </h2>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                  Uzupełni się automatycznie po zeskanowaniu CV i dokumentów.
+                  Auto-fills after uploading your CV and documents.
                 </p>
                 <Link
                   to="/documents"
                   className="mt-2 inline-block text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
                 >
-                  Wgraj dokumenty &rarr;
+                  Upload documents &rarr;
                 </Link>
               </div>
             </div>
