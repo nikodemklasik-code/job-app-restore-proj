@@ -82,10 +82,14 @@ jobs:
           rsync -az --delete /tmp/backend-dist/ /root/project/backend/dist/
 
       - name: Restart backend (PM2)
+        env:
+          HOME: /root
         run: |
           pm2 restart jobapp-server && pm2 save
 
       - name: Smoke test
+        env:
+          HOME: /root
         run: |
           bash /root/project/scripts/smoke-test.sh
 

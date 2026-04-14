@@ -1,239 +1,144 @@
-import { useState, useRef } from 'react';
-import { FileText, Upload, Trash2, Loader2, FileCheck, Lock } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Upload, FileText, Trash2, Loader2, Lock, CheckCircle2 } from 'lucide-react';
 import { api } from '@/lib/api';
 
-const DOCUMENT_TYPE_LABELS: Record<string, string> = {
-  cv: 'Moje CV',
-  cover_letter: 'List Motywacyjny',
-  certificate: 'Certyfikaty & Kursy',
-  education: 'Dyplomy & Edukacja',
-  portfolio: 'Portfolio & Projekty',
-  session_memory: 'Historia Coachingu',
-  other: 'Inne Dokumenty',
-};
+const ACCEPT = '.pdf,.docx,.doc,.txt,.jpg,.jpeg,.png';
 
-type DocumentType = keyof typeof DOCUMENT_TYPE_LABELS;
-const DOCUMENT_TYPES = Object.keys(DOCUMENT_TYPE_LABELS) as DocumentType[];
-
-function CvScoreWidget() {
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Obecna wartość CV</p>
-        <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">68<span className="text-lg text-slate-400">/100</span></p>
-        <p className="mt-1 text-sm text-slate-500">Na podstawie wgranych dokumentów</p>
-        <div className="mt-3 h-2 rounded-full bg-slate-100 dark:bg-slate-800">
-          <div className="h-2 rounded-full bg-amber-400" style={{ width: '68%' }} />
-        </div>
-        <ul className="mt-3 space-y-1 text-xs text-slate-500">
-          <li>⚠️ Brak słów kluczowych z Twoich docelowych ofert</li>
-          <li>⚠️ Podsumowanie zbyt ogólne</li>
-          <li>✅ Doświadczenie dobrze opisane</li>
-        </ul>
-      </div>
-      <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-6 dark:border-indigo-900 dark:bg-indigo-950/20">
-        <p className="text-xs font-semibold uppercase tracking-widest text-indigo-400">Potencjał po optymalizacji</p>
-        <p className="mt-2 text-3xl font-bold text-indigo-700 dark:text-indigo-300">91<span className="text-lg text-indigo-400">/100</span></p>
-        <p className="mt-1 text-sm text-indigo-600 dark:text-indigo-400">Szacunkowy wynik po rekomendowanych zmianach</p>
-        <div className="mt-3 h-2 rounded-full bg-indigo-100 dark:bg-indigo-900">
-          <div className="h-2 rounded-full bg-indigo-500" style={{ width: '91%' }} />
-        </div>
-        <ul className="mt-3 space-y-1 text-xs text-indigo-600 dark:text-indigo-400">
-          <li>💡 Dodaj słowa kluczowe z docelowych ofert</li>
-          <li>💡 Skróć podsumowanie do 3 zdań</li>
-          <li>💡 Dodaj mierzalne osiągnięcia (liczby %)</li>
-        </ul>
-        <button className="mt-3 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-medium text-white hover:bg-indigo-700">
-          Optymalizuj CV z AI →
-        </button>
-      </div>
-    </div>
-  );
-}
-
-interface DocRow {
+interface UploadedDoc {
   id: string;
-  documentType: string;
   originalFilename: string;
-  isProcessed: boolean;
-  createdAt: Date | string;
-}
-
-function DocumentRow({ doc, onDelete }: { doc: DocRow; onDelete: (id: string) => void }) {
-  const [deleting, setDeleting] = useState(false);
-  const deleteMutation = api.documents.delete.useMutation();
-
-  async function handleDelete() {
-    setDeleting(true);
-    try {
-      await deleteMutation.mutateAsync({ id: doc.id });
-      onDelete(doc.id);
-    } finally {
-      setDeleting(false);
-    }
-  }
-
-  const label = DOCUMENT_TYPE_LABELS[doc.documentType] ?? doc.documentType;
-  const date = new Date(doc.createdAt).toLocaleDateString('pl-PL');
-
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex min-w-0 items-center gap-3">
-        <FileCheck className="h-4 w-4 shrink-0 text-indigo-400" />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-slate-900 dark:text-white">{doc.originalFilename}</p>
-          <p className="text-xs text-slate-400">{label} · {date}</p>
-        </div>
-      </div>
-      <button
-        onClick={handleDelete}
-        disabled={deleting}
-        className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-50 dark:hover:bg-red-950/30"
-        aria-label="Usuń dokument"
-      >
-        {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-      </button>
-    </div>
-  );
-}
-
-function UploadArea({ onUploaded }: { onUploaded: () => void }) {
-  const [selectedType, setSelectedType] = useState<DocumentType>('cv');
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const uploadMutation = api.documents.upload.useMutation();
-
-  async function handleFile(file: File) {
-    setError(null);
-    setUploading(true);
-    try {
-      const text = await file.text();
-      await uploadMutation.mutateAsync({
-        documentType: selectedType,
-        originalFilename: file.name,
-        extractedText: text.slice(0, 50000),
-      });
-      onUploaded();
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Błąd przesyłania');
-    } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = '';
-    }
-  }
-
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) handleFile(file);
-  }
-
-  return (
-    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 dark:border-slate-700 dark:bg-slate-900/50">
-      <div className="mb-4 flex flex-wrap gap-2">
-        {DOCUMENT_TYPES.map((type) => (
-          <button
-            key={type}
-            onClick={() => setSelectedType(type)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-              selectedType === type
-                ? 'bg-indigo-600 text-white'
-                : 'border border-slate-200 bg-white text-slate-600 hover:border-indigo-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
-            }`}
-          >
-            {DOCUMENT_TYPE_LABELS[type]}
-          </button>
-        ))}
-      </div>
-      <label
-        htmlFor="doc-upload"
-        className={`flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed p-8 transition-colors ${
-          uploading
-            ? 'border-indigo-300 bg-indigo-50 dark:bg-indigo-950/20'
-            : 'border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 dark:border-slate-700 dark:hover:border-indigo-700'
-        }`}
-      >
-        {uploading ? (
-          <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-        ) : (
-          <Upload className="h-8 w-8 text-slate-400" />
-        )}
-        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
-          {uploading ? 'Przetwarzanie...' : 'Kliknij lub przeciągnij plik (.txt, .pdf, .docx)'}
-        </p>
-        <p className="text-xs text-slate-400">Przechowujemy tylko wyekstrahowany tekst — nie pliki binarne</p>
-        <input
-          id="doc-upload"
-          ref={fileRef}
-          type="file"
-          accept=".txt,.pdf,.docx,.doc"
-          className="sr-only"
-          onChange={handleChange}
-          disabled={uploading}
-        />
-      </label>
-      <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
-        <Lock className="h-3 w-3" />
-        <span>Tekst szyfrowany base64 — tylko Ty masz dostęp</span>
-      </div>
-      {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
-    </div>
-  );
+  documentType: string;
+  createdAt: string;
 }
 
 export default function DocumentLab() {
-  const { data: docs, isLoading, refetch } = api.documents.list.useQuery();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
-  const docsByType = DOCUMENT_TYPES.reduce<Record<string, DocRow[]>>((acc, type) => {
-    acc[type] = (docs ?? []).filter((d) => d.documentType === type);
-    return acc;
-  }, {});
+  const listQuery = api.documents.list.useQuery(undefined, { staleTime: 30_000 });
+  const docs: UploadedDoc[] = (listQuery.data as UploadedDoc[] | undefined) ?? [];
+
+  const utils = api.useUtils();
+
+  const deleteMutation = api.documents.delete.useMutation({
+    onSuccess: () => { void utils.documents.list.invalidate(); },
+  });
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const text = await file.text().catch(() => '');
+        await (api as unknown as { documents: { upload: { mutate: (args: unknown) => Promise<unknown> } } })
+          .documents.upload.mutate({
+            filename: file.name,
+            documentType: 'other',
+            extractedText: btoa(unescape(encodeURIComponent(text))),
+          });
+      }
+      void utils.documents.list.invalidate();
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8 px-4 py-8">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-600">
-          <FileText className="h-5 w-5 text-white" />
-        </div>
+    <div className="space-y-6 p-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Document Lab</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Upload any document — AI extracts the content and uses it across your profile, interview prep, and coaching sessions.
+        </p>
+      </div>
+
+      {/* Single upload zone */}
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => { e.preventDefault(); setDragging(false); void handleFiles(e.dataTransfer.files); }}
+        onClick={() => inputRef.current?.click()}
+        className={`flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-14 text-center transition-colors
+          ${dragging
+            ? 'border-indigo-400 bg-indigo-50 dark:border-indigo-500 dark:bg-indigo-950/30'
+            : 'border-slate-200 bg-slate-50 hover:border-indigo-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800/50 dark:hover:border-indigo-600'
+          }`}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept={ACCEPT}
+          className="hidden"
+          onChange={(e) => void handleFiles(e.target.files)}
+        />
+        {uploading
+          ? <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+          : <Upload className={`h-8 w-8 ${dragging ? 'text-indigo-500' : 'text-slate-400'}`} />
+        }
         <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Document Lab</h1>
-          <p className="text-sm text-slate-500">Zarządzaj swoimi dokumentami — AI używa ich jako kontekstu</p>
+          <p className="font-medium text-slate-700 dark:text-slate-200">
+            {uploading ? 'Processing…' : 'Drop files here or click to browse'}
+          </p>
+          <p className="mt-1 text-sm text-slate-400">
+            PDF, DOCX, TXT, JPG, PNG — CV, cover letter, certificates, diplomas, anything
+          </p>
         </div>
       </div>
-      <CvScoreWidget />
-      <UploadArea onUploaded={() => refetch()} />
-      <div className="space-y-6">
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-indigo-400" />
-          </div>
-        ) : (
-          DOCUMENT_TYPES.map((type) => {
-            const rows = docsByType[type] ?? [];
-            if (rows.length === 0) return null;
-            return (
-              <div key={type}>
-                <h2 className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-400">
-                  {DOCUMENT_TYPE_LABELS[type]}
-                  <span className="ml-2 rounded-full bg-slate-100 px-1.5 py-0.5 text-slate-500 dark:bg-slate-800">
-                    {rows.length}
-                  </span>
-                </h2>
-                <div className="space-y-2">
-                  {rows.map((doc) => (
-                    <DocumentRow key={doc.id} doc={doc} onDelete={() => refetch()} />
-                  ))}
+
+      {/* CV Score widget */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/30">
+          <p className="text-xs font-semibold uppercase tracking-widest text-amber-600 dark:text-amber-400">Current CV score</p>
+          <p className="mt-2 text-4xl font-bold text-amber-600 dark:text-amber-400">68<span className="text-lg font-normal">/100</span></p>
+          <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">Upload your CV to get a real score</p>
+        </div>
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-5 dark:border-indigo-800 dark:bg-indigo-950/30">
+          <p className="text-xs font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Potential after optimisation</p>
+          <p className="mt-2 text-4xl font-bold text-indigo-600 dark:text-indigo-400">91<span className="text-lg font-normal">/100</span></p>
+          <p className="mt-1 text-sm text-indigo-700 dark:text-indigo-300">AI rewrites, keywords, ATS fixes</p>
+        </div>
+      </div>
+
+      {/* Uploaded documents */}
+      {docs.length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Uploaded documents</h2>
+          {docs.map((doc) => (
+            <div
+              key={doc.id}
+              className="flex items-center justify-between rounded-xl border border-slate-100 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800"
+            >
+              <div className="flex items-center gap-3">
+                <FileText className="h-4 w-4 shrink-0 text-indigo-400" />
+                <div>
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{doc.originalFilename}</p>
+                  <p className="text-xs text-slate-400">{new Date(doc.createdAt).toLocaleDateString('en-GB')}</p>
                 </div>
               </div>
-            );
-          })
-        )}
-        {!isLoading && (docs ?? []).length === 0 && (
-          <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center dark:border-slate-800">
-            <FileText className="mx-auto mb-2 h-8 w-8 text-slate-300" />
-            <p className="text-sm text-slate-400">Brak dokumentów — wgraj swoje CV aby zacząć</p>
-          </div>
-        )}
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" title="Processed" />
+                <button
+                  onClick={() => deleteMutation.mutate({ id: doc.id })}
+                  className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950"
+                  title="Delete"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Session memory note */}
+      <div className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+        <Lock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Uploaded documents are available across <strong className="text-slate-700 dark:text-slate-200">Interview</strong>, <strong className="text-slate-700 dark:text-slate-200">Coach</strong>, and <strong className="text-slate-700 dark:text-slate-200">Negotiation</strong> — AI reads them automatically each session. Content is encrypted at rest.
+        </p>
       </div>
     </div>
   );
