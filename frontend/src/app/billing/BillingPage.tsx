@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useSearchParams } from 'react-router-dom';
-import { Check, X, Zap, ExternalLink, Loader2, CreditCard, Heart, Bitcoin } from 'lucide-react';
+import { Check, X, Zap, ExternalLink, Loader2, CreditCard, Heart, Bitcoin, Coins } from 'lucide-react';
 import { useBillingStore } from '@/stores/billingStore';
 import { trpcClient } from '@/lib/api';
 
@@ -272,6 +272,66 @@ export default function BillingPage() {
             </div>
           );
         })}
+      </div>
+
+      {/* ── Buy Credits ─────────────────────────────────────────────────────── */}
+      <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-6 space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="inline-flex rounded-xl bg-amber-500/15 p-2.5">
+            <Coins className="h-5 w-5 text-amber-400" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-white">Buy Extra Credits</h2>
+            <p className="text-sm text-slate-400">Top up any time — credits never expire and stack with your monthly allowance</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {([
+            { credits: '1 000', price: '£2', desc: 'Small top-up', priceId: import.meta.env.VITE_STRIPE_CREDITS_1000 ?? '', popular: false },
+            { credits: '5 000', price: '£8', desc: 'Most popular', priceId: import.meta.env.VITE_STRIPE_CREDITS_5000 ?? '', popular: true },
+            { credits: '15 000', price: '£20', desc: 'Best value', priceId: import.meta.env.VITE_STRIPE_CREDITS_15000 ?? '', popular: false },
+          ] as const).map((pkg) => (
+            <div key={pkg.credits}
+              className={`relative flex flex-col gap-4 rounded-2xl border p-5 ${pkg.popular ? 'border-amber-500/50 ring-2 ring-amber-500/20' : 'border-white/10 bg-white/[0.03]'}`}
+              style={pkg.popular ? { background: 'rgba(251,191,36,0.06)' } : undefined}
+            >
+              {pkg.popular && (
+                <span className="absolute -top-2.5 left-4 rounded-full bg-amber-500 px-3 py-0.5 text-[10px] font-bold text-black">Most popular</span>
+              )}
+              <div>
+                <p className="text-2xl font-bold text-white">{pkg.credits}</p>
+                <p className="text-xs text-slate-500">AI credits</p>
+                <div className="mt-2 flex items-baseline gap-1">
+                  <span className="text-xl font-bold text-amber-400">{pkg.price}</span>
+                  <span className="text-xs text-slate-500">one-time</span>
+                </div>
+                <p className="mt-1 text-xs text-slate-400">{pkg.desc}</p>
+              </div>
+              {pkg.priceId ? (
+                <button
+                  onClick={async () => {
+                    if (!userId || !userEmail) return;
+                    try {
+                      const { url } = await trpcClient.billing.createCheckoutSession.mutate({ userId, priceId: pkg.priceId, customerEmail: userEmail });
+                      window.location.href = url;
+                    } catch {
+                      setStatusMessage({ type: 'error', text: 'Could not start checkout. Please try again.' });
+                    }
+                  }}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-amber-500 py-2.5 text-sm font-semibold text-black transition hover:bg-amber-400"
+                >
+                  <CreditCard className="h-4 w-4" />
+                  Buy {pkg.credits} credits
+                </button>
+              ) : (
+                <div className="flex items-center justify-center rounded-xl border border-white/10 bg-white/5 py-2.5 text-xs text-slate-500">
+                  Set <code className="mx-1 text-amber-400">VITE_STRIPE_CREDITS_*</code> to enable
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-slate-500 text-center">Credits are added instantly after payment · No subscriptions · Works with any plan</p>
       </div>
 
       {/* Plan comparison table */}

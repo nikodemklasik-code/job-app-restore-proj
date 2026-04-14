@@ -749,13 +749,13 @@ export default function JobsDiscovery() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Jobs Discovery</h1>
-          <p className="mt-1 text-slate-400">AI-powered matching across Reed, Adzuna, Jooble, Indeed & Gumtree.</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Jobs Discovery</h1>
+          <p className="mt-1 text-slate-500 dark:text-slate-400">AI-powered matching across Reed, Adzuna, Jooble, Indeed & Gumtree.</p>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setShowSessions((v) => !v)}
-            className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+            className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"
           >
             <Cookie className="h-4 w-4" />
             Sessions
@@ -767,7 +767,7 @@ export default function JobsDiscovery() {
           </button>
           <button
             onClick={() => setShowManualModal(true)}
-            className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+            className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
           >
             <Plus className="h-4 w-4" />
             Add Manual
@@ -787,7 +787,7 @@ export default function JobsDiscovery() {
       )}
 
       {/* Search Controls */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4 dark:border-white/10 dark:bg-white/5">
         <div className="flex gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
@@ -797,7 +797,7 @@ export default function JobsDiscovery() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
-              className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+              className="w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500"
             />
           </div>
           <div className="relative">
@@ -807,7 +807,7 @@ export default function JobsDiscovery() {
               placeholder="Location"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="w-44 rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+              className="w-44 rounded-xl border border-slate-300 bg-white pl-9 pr-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500"
             />
           </div>
           <button
@@ -879,11 +879,11 @@ export default function JobsDiscovery() {
           ))}
         </div>
       ) : searchParams !== null ? (
-        <div className="flex h-48 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-500">
+        <div className="flex h-48 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-500 dark:border-white/10 dark:bg-white/5">
           No jobs found. Try different keywords or locations.
         </div>
       ) : (
-        <div className="flex h-48 items-center justify-center rounded-2xl border-2 border-dashed border-white/10 text-slate-500">
+        <div className="flex h-48 items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 dark:border-white/10 dark:text-slate-500">
           Enter a search query above and click Search to find jobs.
         </div>
       )}

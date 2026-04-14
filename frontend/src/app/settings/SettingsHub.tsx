@@ -794,6 +794,20 @@ function AccessibilityTab() {
 // Main SettingsHub
 // ---------------------------------------------------------------------------
 
+const CONSENT_KEY = 'mvh-consents';
+
+function loadConsents() {
+  try {
+    const raw = localStorage.getItem(CONSENT_KEY);
+    if (raw) return JSON.parse(raw) as Record<string, boolean>;
+  } catch { /* ignore */ }
+  return {};
+}
+
+function saveConsents(c: Record<string, boolean>) {
+  localStorage.setItem(CONSENT_KEY, JSON.stringify(c));
+}
+
 export default function SettingsHub() {
   const navigate = useNavigate();
   const { user } = useUser();
@@ -805,6 +819,24 @@ export default function SettingsHub() {
   useEffect(() => {
     void loadSettings();
   }, [loadSettings]);
+
+  // ── Consent state ─────────────────────────────────────────────────────────
+  const saved = loadConsents();
+  const [consentLinkedin, setConsentLinkedin] = useState(saved.linkedin ?? false);
+  const [consentFacebook, setConsentFacebook] = useState(saved.facebook ?? false);
+  const [consentInstagram, setConsentInstagram] = useState(saved.instagram ?? false);
+  const [consentSmtp, setConsentSmtp] = useState(saved.smtp ?? false);
+  const [consentImapTracking, setConsentImapTracking] = useState(saved.imapTracking ?? false);
+  const [consentImapOffers, setConsentImapOffers] = useState(saved.imapOffers ?? false);
+  const [consentAutoApply, setConsentAutoApply] = useState(saved.autoApply ?? false);
+
+  const toggleConsent = (key: string, current: boolean, setter: (v: boolean) => void) => {
+    const next = !current;
+    setter(next);
+    const c = loadConsents();
+    c[key] = next;
+    saveConsents(c);
+  };
 
   return (
     <div className="space-y-8">
@@ -881,16 +913,16 @@ export default function SettingsHub() {
                   <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Social Profile Analysis</p>
                   <div className="space-y-3">
                     {[
-                      { key: 'linkedin', label: 'LinkedIn', desc: 'Analyse your public work history and professional network to improve job matching.' },
-                      { key: 'facebook', label: 'Facebook', desc: 'Analyse public professional interests and activity to identify career trends.' },
-                      { key: 'instagram', label: 'Instagram', desc: 'Analyse your public personal brand for alignment with target roles.' },
-                    ].map(({ key, label, desc }) => (
+                      { key: 'linkedin', label: 'LinkedIn', desc: 'Analyse your public work history and professional network to improve job matching.', checked: consentLinkedin, setter: setConsentLinkedin },
+                      { key: 'facebook', label: 'Facebook', desc: 'Analyse public professional interests and activity to identify career trends.', checked: consentFacebook, setter: setConsentFacebook },
+                      { key: 'instagram', label: 'Instagram', desc: 'Analyse your public personal brand for alignment with target roles.', checked: consentInstagram, setter: setConsentInstagram },
+                    ].map(({ key, label, desc, checked, setter }) => (
                       <div key={key} className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
                         <div>
                           <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{label}</p>
                           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{desc}</p>
                         </div>
-                        <Toggle checked={false} onChange={() => {}} />
+                        <Toggle checked={checked} onChange={() => toggleConsent(key, checked, setter)} />
                       </div>
                     ))}
                   </div>
@@ -907,7 +939,7 @@ export default function SettingsHub() {
                           Allow MultivoHub to send job applications, cover letters and follow-up emails from your configured email address. Configure in the Email &amp; SMTP tab.
                         </p>
                       </div>
-                      <Toggle checked={false} onChange={() => {}} />
+                      <Toggle checked={consentSmtp} onChange={() => toggleConsent('smtp', consentSmtp, setConsentSmtp)} />
                     </div>
                     <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
                       <div>
@@ -917,7 +949,7 @@ export default function SettingsHub() {
                           <br /><span className="text-indigo-400">How it works:</span> AI scans subject lines and senders matching known employers. Message bodies are processed locally and never stored or shared.
                         </p>
                       </div>
-                      <Toggle checked={false} onChange={() => {}} />
+                      <Toggle checked={consentImapTracking} onChange={() => toggleConsent('imapTracking', consentImapTracking, setConsentImapTracking)} />
                     </div>
                     <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
                       <div>
@@ -927,7 +959,7 @@ export default function SettingsHub() {
                           <br /><span className="text-indigo-400">How it works:</span> AI identifies recruiter patterns and job-related keywords. No email content is stored — only extracted job metadata (title, company, salary range).
                         </p>
                       </div>
-                      <Toggle checked={false} onChange={() => {}} />
+                      <Toggle checked={consentImapOffers} onChange={() => toggleConsent('imapOffers', consentImapOffers, setConsentImapOffers)} />
                     </div>
                   </div>
                 </div>
@@ -942,7 +974,7 @@ export default function SettingsHub() {
                         Allow AI to submit applications on your behalf for roles that meet your auto-apply threshold (set in Profile &amp; Goals). You will be notified of every submission.
                       </p>
                     </div>
-                    <Toggle checked={false} onChange={() => {}} />
+                    <Toggle checked={consentAutoApply} onChange={() => toggleConsent('autoApply', consentAutoApply, setConsentAutoApply)} />
                   </div>
                 </div>
 
