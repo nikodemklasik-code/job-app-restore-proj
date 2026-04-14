@@ -41,7 +41,11 @@ fi
 
 # ── Retention: keep only the 3 most recent backups of each type ───────────────
 for PREFIX in frontend backend; do
-  mapfile -t OLD < <(ls -d "${BACKUP_ROOT}/${PREFIX}-"* 2>/dev/null | sort -r | tail -n +4)
+  # Build list safely — shopt nullglob prevents errors when no matches exist
+  OLD=()
+  while IFS= read -r -d '' DIR; do
+    OLD+=("$DIR")
+  done < <(find "${BACKUP_ROOT}" -maxdepth 1 -type d -name "${PREFIX}-*" -print0 2>/dev/null | sort -rz | tail -z -n +4)
   for DIR in "${OLD[@]}"; do
     rm -rf "${DIR}"
     echo "  Removed old backup: ${DIR}"

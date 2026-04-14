@@ -91,7 +91,12 @@ jobs:
 
       - name: Backup current deployment
         run: |
-          bash /root/project/scripts/backup.sh || true
+          bash /root/project/scripts/backup.sh
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "⚠️ Backup exited with code ${EXIT_CODE} — continuing deploy without backup."
+          fi
+          exit 0
 
       - name: Deploy frontend → /var/www/multivohub
         run: |
