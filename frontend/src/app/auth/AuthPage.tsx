@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useClerk, useSignIn, useSignUp } from '@clerk/clerk-react';
+import { useAuth, useClerk, useSignIn, useSignUp } from '@clerk/clerk-react';
 import { useNavigate } from 'react-router-dom';
 import {
   Sparkles,
@@ -56,17 +56,12 @@ function TickerCard({
   );
 }
 
-/* ─── Default demo clips (GitHub user-attachments) ─────────────────────────── */
+/* ─── Demo clips — local files served from /auth-videos/ ───────────────────── */
 const DEFAULT_DEMO_VIDEOS = [
-  'https://github.com/user-attachments/assets/5c8ac658-4640-46d7-96dc-a59b5e4f7c37',
-  'https://github.com/user-attachments/assets/ed7c9e22-8c6a-42df-b742-213dfe4506f1',
-  'https://github.com/user-attachments/assets/283d4ac4-55d8-47a1-ba08-4c6ab6dc6491',
-  'https://github.com/user-attachments/assets/0dceb343-d3d4-449f-8768-646a609db683',
-  'https://github.com/user-attachments/assets/8d14fc65-7f8a-42c3-a9d9-33d04eb0ecfc',
-  'https://github.com/user-attachments/assets/b3bbbd6b-5e8c-4052-a57c-d80ce337272c',
-  'https://github.com/user-attachments/assets/0746d7f6-a6b5-4f27-8db0-7e7381b2dcec',
-  'https://github.com/user-attachments/assets/7ea8eeb7-5b43-4fd3-bca6-3ed20c1f4ff9',
-  'https://github.com/user-attachments/assets/fe7b5210-b949-4eb8-b1f4-3d4449ab53f1',
+  '/auth-videos/hero-1.mp4',
+  '/auth-videos/hero-2.mp4',
+  '/auth-videos/hero-3.mp4',
+  '/auth-videos/hero-4.mp4',
 ];
 
 /* ─── Clerk error sanitizer ────────────────────────────────────────────────── */
@@ -221,6 +216,16 @@ function splitFullName(raw: string): { firstName?: string; lastName?: string } {
 
 /* ─── Auth page ──────────────────────────────────────────────────────────────── */
 export default function AuthPage() {
+  const { isSignedIn, isLoaded: authLoaded } = useAuth();
+  const navigate = useNavigate();
+
+  // Already signed in → go to dashboard immediately
+  useEffect(() => {
+    if (authLoaded && isSignedIn) {
+      void navigate('/dashboard', { replace: true });
+    }
+  }, [authLoaded, isSignedIn, navigate]);
+
   const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -240,7 +245,6 @@ export default function AuthPage() {
   const { setActive } = useClerk();
   const { signIn, isLoaded: signInLoaded } = useSignIn();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
-  const navigate = useNavigate();
 
   const resetVerification = () => {
     setAwaitingEmailCode(false);
