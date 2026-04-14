@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api, trpcClient } from '@/lib/api';
-import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, BookOpen, Clock, TrendingUp, FileDown, StickyNote, Star, Lock, Zap } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, Clock, TrendingUp, FileDown, StickyNote, Star, Lock, Zap } from 'lucide-react';
 import { interviewModeLabels } from '../../../../shared/interview';
 import type { InterviewMode } from '../../../../shared/interview';
 import { useBillingStore } from '@/stores/billingStore';
@@ -218,9 +218,9 @@ function generateMarkdownReport(params: {
   return md;
 }
 
-// ─── Question Bank data ────────────────────────────────────────────────────────
-
-const QUESTION_BANK: Record<InterviewMode, string[]> = {
+// ─── Question Bank data (used by Trener/Warmup module) ────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const QUESTION_BANK: Record<InterviewMode, string[]> = {
   behavioral: [
     'Tell me about yourself and the experience most relevant to this role.',
     'Describe a time you handled conflicting priorities under pressure.',
@@ -624,7 +624,9 @@ export default function InterviewPractice() {
   const [selectedJob, setSelectedJob] = useState<JobOption | null>(null);
   const [customCompany, setCustomCompany] = useState('');
   const [customRole, setCustomRole] = useState('');
-  const [selectedMode, setSelectedMode] = useState<InterviewMode>('behavioral');
+  const [selectedMode] = useState<InterviewMode>('general');
+  // Session memory PDF
+  const [sessionFile, setSessionFile] = useState<File | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [avatarState, setAvatarState] = useState<AvatarState>('idle');
@@ -639,8 +641,8 @@ export default function InterviewPractice() {
   const [sessionNotes, setSessionNotes] = useState('');
   const [showNotesSaved, setShowNotesSaved] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [showQuestionBank, setShowQuestionBank] = useState(false);
-  const [qbMode, setQbMode] = useState<InterviewMode>('behavioral');
+  const [_showQuestionBank, _setShowQuestionBank] = useState(false);
+  const [_qbMode, _setQbMode] = useState<InterviewMode>('behavioral');
 
   // Recording
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -674,12 +676,11 @@ export default function InterviewPractice() {
   const [showTranscript, setShowTranscript] = useState(false);
 
   // Live Interview engine state
-  const [useLiveMode, setUseLiveMode] = useState(true);
+  const useLiveMode = true; // always live mode — coaching toggle removed
   const liveSessionIdRef = useRef<string | null>(null);
   const [liveInterviewSummary, setLiveInterviewSummary] = useState<LiveInterviewSummary | null>(null);
 
-  // Jobs feed & history
-  const feedQuery = api.jobs.getFeed.useQuery({ limit: 20 }, { enabled: phase === 'lobby' });
+  // History query
   const historyQuery = api.interview.getHistory.useQuery(undefined, { enabled: showHistory });
 
   // Feedback auto-dismiss timer
@@ -1104,9 +1105,6 @@ export default function InterviewPractice() {
   // ── LOBBY SCREEN ───────────────────────────────────────────────────────────
 
   if (phase === 'lobby') {
-    const job = getJob();
-    const canJoin = (selectedJob !== null) || (customCompany.trim() !== '' && customRole.trim() !== '');
-
     return (
       <div style={{ minHeight: '100vh', background: '#050a14', color: '#f9fafb', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <style>{AVATAR_STYLES}</style>
@@ -1119,10 +1117,7 @@ export default function InterviewPractice() {
               <span style={{ fontSize: 13, color: '#94a3b8' }}>AI credits remaining:</span>
               <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{currentPlan.credits.toLocaleString()}</span>
             </div>
-            <a
-              href="/billing"
-              style={{ fontSize: 12, fontWeight: 600, color: '#a5b4fc', textDecoration: 'none', padding: '5px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: 8, transition: 'opacity 0.15s' }}
-            >
+            <a href="/billing" style={{ fontSize: 12, fontWeight: 600, color: '#a5b4fc', textDecoration: 'none', padding: '5px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: 8 }}>
               Buy Credits →
             </a>
           </div>
@@ -1130,239 +1125,100 @@ export default function InterviewPractice() {
 
         <div style={{ width: '100%', maxWidth: 880, display: 'flex', gap: 24, flexWrap: 'wrap', justifyContent: 'center' }}>
 
-          {/* Left: camera preview tile */}
+          {/* Left: camera preview */}
           <div style={{ flex: '1 1 340px', minHeight: 320, background: '#0f172a', borderRadius: 20, border: '1px solid #1e293b', overflow: 'hidden', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {/* actual video */}
-            <video
-              ref={lobbyVideoRef}
-              muted
-              playsInline
-              style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', position: 'absolute', inset: 0 }}
-            />
+            <video ref={lobbyVideoRef} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', position: 'absolute', inset: 0 }} />
             {!cameraActive && (
               <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>👤</div>
                 <span style={{ fontSize: 13, color: '#64748b' }}>Camera unavailable</span>
               </div>
             )}
-            {/* "You" label */}
-            <div style={{ position: 'absolute', bottom: 14, left: 14, background: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600, color: '#e2e8f0', zIndex: 2 }}>
-              You
-            </div>
-            {/* Camera indicator */}
+            <div style={{ position: 'absolute', bottom: 14, left: 14, background: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600, color: '#e2e8f0', zIndex: 2 }}>You</div>
             <div style={{ position: 'absolute', top: 14, right: 14, zIndex: 2, width: 10, height: 10, borderRadius: '50%', background: cameraActive ? '#22c55e' : '#64748b', boxShadow: cameraActive ? '0 0 8px #22c55e' : 'none' }} />
           </div>
 
-          {/* Right: job selector + join */}
+          {/* Right: simplified join panel */}
           <div style={{ flex: '1 1 340px', display: 'flex', flexDirection: 'column', gap: 16, justifyContent: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#6366f1,#3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+
+            {/* Title */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#6366f1,#3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <Briefcase style={{ width: 22, height: 22, color: '#fff' }} />
               </div>
               <div>
-                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>AI Interview Coach</h1>
-                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Share your answers — get structured coaching reports</p>
+                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Rozmowa Kwalifikacyjna</h1>
+                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Symulacja rozmowy z AI rekruterem</p>
               </div>
             </div>
 
-            {/* Custom role */}
-            <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>CUSTOM ROLE</p>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  type="text"
-                  placeholder="Company name"
-                  value={customCompany}
-                  onChange={(e) => { setCustomCompany(e.target.value); setSelectedJob(null); }}
-                  style={{ flex: 1, background: '#050a14', border: '1px solid #1e293b', borderRadius: 8, padding: '8px 12px', color: '#f1f5f9', fontSize: 14, outline: 'none' }}
-                />
-                <input
-                  type="text"
-                  placeholder="Job title"
-                  value={customRole}
-                  onChange={(e) => { setCustomRole(e.target.value); setSelectedJob(null); }}
-                  style={{ flex: 1, background: '#050a14', border: '1px solid #1e293b', borderRadius: 8, padding: '8px 12px', color: '#f1f5f9', fontSize: 14, outline: 'none' }}
-                />
-              </div>
-            </div>
-
-            {/* Interview mode selector */}
-            <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>INTERVIEW MODE</p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-                {(Object.entries(interviewModeLabels) as [InterviewMode, typeof interviewModeLabels[InterviewMode]][]).map(([modeKey, meta]) => (
-                  <button
-                    key={modeKey}
-                    onClick={() => setSelectedMode(modeKey)}
-                    title={meta.description}
-                    style={{
-                      background: selectedMode === modeKey ? 'rgba(99,102,241,0.22)' : '#050a14',
-                      border: `1px solid ${selectedMode === modeKey ? '#6366f1' : '#1e293b'}`,
-                      borderRadius: 8,
-                      padding: '8px 6px',
-                      cursor: 'pointer',
-                      color: selectedMode === modeKey ? '#a5b4fc' : '#94a3b8',
-                      textAlign: 'center',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <div style={{ fontSize: 18 }}>{meta.emoji}</div>
-                    <div style={{ fontSize: 11, fontWeight: 600, marginTop: 2 }}>{meta.label}</div>
-                  </button>
-                ))}
-              </div>
-              <p style={{ fontSize: 11, color: '#475569', marginTop: 8, marginBottom: 0 }}>{interviewModeLabels[selectedMode].description}</p>
-            </div>
-
-            {/* Jobs list */}
-            {feedQuery.isLoading ? (
-              <div style={{ textAlign: 'center', color: '#64748b', fontSize: 13, padding: '12px 0' }}>
-                <div style={{ width: 18, height: 18, border: '2px solid #6366f1', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 6px' }} />
-                Loading jobs…
-              </div>
-            ) : feedQuery.data && feedQuery.data.length > 0 ? (
-              <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
-                <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>OR PICK A JOB</p>
-                <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {feedQuery.data.map((j: { id: string; title: string; company: string; description?: string | null; location?: string | null }) => (
-                    <button
-                      key={j.id}
-                      onClick={() => { setSelectedJob({ id: j.id, title: j.title, company: j.company, description: j.description }); setCustomCompany(''); setCustomRole(''); }}
-                      style={{ background: selectedJob?.id === j.id ? 'rgba(99,102,241,0.2)' : '#050a14', border: `1px solid ${selectedJob?.id === j.id ? '#6366f1' : '#1e293b'}`, borderRadius: 8, padding: '9px 14px', textAlign: 'left', cursor: 'pointer', color: '#f1f5f9', transition: 'all 0.15s' }}
-                    >
-                      <div style={{ fontWeight: 600, fontSize: 13 }}>{j.title}</div>
-                      <div style={{ fontSize: 12, color: '#64748b' }}>{j.company}{j.location ? ` · ${j.location}` : ''}</div>
-                    </button>
-                  ))}
+            {/* Session memory PDF banner */}
+            <div style={{ borderRadius: 16, border: '1px solid rgba(251,191,36,0.4)', background: 'rgba(251,191,36,0.06)', padding: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 16 }}>🔐</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#fbbf24' }}>Pamięć sesji (opcjonalne)</span>
                 </div>
+                {sessionFile && <span style={{ fontSize: 11, color: '#34d399', fontWeight: 600 }}>✓ {sessionFile.name}</span>}
               </div>
-            ) : null}
+              <p style={{ margin: '0 0 8px', fontSize: 12, color: 'rgba(251,191,36,0.7)' }}>
+                Wgraj zaszyfrowany PDF z poprzedniej sesji aby AI kontynuowało coaching
+              </p>
+              <input type="file" accept=".pdf" style={{ fontSize: 12, color: '#94a3b8' }} onChange={(e) => setSessionFile(e.target.files?.[0] ?? null)} />
+            </div>
 
-            {/* Premium gate — show upgrade prompt for free users */}
+            {/* Optional position field */}
+            <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>STANOWISKO / FIRMA (OPCJONALNE)</p>
+              <input
+                type="text"
+                placeholder="np. Senior React Developer w Google (opcjonalne)"
+                value={customRole ? `${customRole}${customCompany ? ` w ${customCompany}` : ''}` : ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const wMatch = val.match(/^(.+?)\s+w\s+(.+)$/i);
+                  if (wMatch) { setCustomRole(wMatch[1].trim()); setCustomCompany(wMatch[2].trim()); }
+                  else { setCustomRole(val); setCustomCompany(''); }
+                  setSelectedJob(null);
+                }}
+                style={{ width: '100%', background: '#050a14', border: '1px solid #1e293b', borderRadius: 8, padding: '10px 14px', color: '#f1f5f9', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            {/* Premium gate */}
             {isPremium === false ? (
-              <div style={{ background: 'linear-gradient(135deg,rgba(99,102,241,0.18),rgba(59,130,246,0.12))', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 14, padding: '20px 20px', textAlign: 'center' }}>
+              <div style={{ background: 'linear-gradient(135deg,rgba(99,102,241,0.18),rgba(59,130,246,0.12))', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 14, padding: '20px', textAlign: 'center' }}>
                 <Lock style={{ width: 28, height: 28, color: '#a5b4fc', margin: '0 auto 10px' }} />
                 <p style={{ fontWeight: 700, fontSize: 15, color: '#e2e8f0', marginBottom: 6 }}>AI Interview Practice is a Pro feature</p>
-                <p style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>Upgrade to Pro or Autopilot to unlock unlimited mock interviews, coaching plans, and session history.</p>
-                <a
-                  href="/billing"
-                  style={{ display: 'inline-block', padding: '10px 28px', background: 'linear-gradient(135deg,#6366f1,#3b82f6)', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}
-                >
+                <p style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>Upgrade to Pro or Autopilot to unlock unlimited mock interviews.</p>
+                <a href="/billing" style={{ display: 'inline-block', padding: '10px 28px', background: 'linear-gradient(135deg,#6366f1,#3b82f6)', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
                   Upgrade to Pro →
                 </a>
               </div>
             ) : (
-            <>
-            {/* Mode toggle: Live Interview vs Coaching */}
-            <div style={{ background: '#0f172a', borderRadius: 10, border: '1px solid #1e293b', padding: '8px', display: 'flex', gap: 4 }}>
-              <button
-                onClick={() => setUseLiveMode(true)}
-                style={{
-                  flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13,
-                  background: useLiveMode ? 'linear-gradient(135deg,#6366f1,#3b82f6)' : 'transparent',
-                  color: useLiveMode ? '#fff' : '#64748b',
-                  transition: 'all 0.15s',
-                }}
-              >
-                🎙️ Live Interview
-              </button>
-              <button
-                onClick={() => setUseLiveMode(false)}
-                style={{
-                  flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13,
-                  background: !useLiveMode ? 'rgba(99,102,241,0.18)' : 'transparent',
-                  color: !useLiveMode ? '#a5b4fc' : '#64748b',
-                  transition: 'all 0.15s',
-                }}
-              >
-                🧑‍🏫 Coaching Mode
-              </button>
-            </div>
-            {useLiveMode && (
-              <p style={{ margin: 0, fontSize: 12, color: '#64748b', textAlign: 'center' }}>
-                Real interview flow — structured questions, follow-ups, session memory, and summary
-              </p>
+              <>
+                <button
+                  onClick={() => void joinCall()}
+                  style={{ padding: '15px 0', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 17, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
+                >
+                  🎙️ Rozpocznij rozmowę
+                </button>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button onClick={() => setShowHistory(true)} style={{ flex: 1, padding: '10px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, color: '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                    <Clock style={{ width: 14, height: 14 }} /> Historia
+                  </button>
+                </div>
+              </>
             )}
-
-            {/* Join button */}
-            <button
-              disabled={!canJoin}
-              onClick={() => void joinCall()}
-              style={{
-                padding: '14px 0',
-                background: canJoin ? 'linear-gradient(135deg, #22c55e, #16a34a)' : '#1e293b',
-                border: 'none',
-                borderRadius: 12,
-                color: canJoin ? '#fff' : '#475569',
-                fontWeight: 700,
-                fontSize: 16,
-                cursor: canJoin ? 'pointer' : 'not-allowed',
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 10,
-              }}
-            >
-              {canJoin ? `📞 Join Interview — ${job.title} at ${job.company}` : 'Select a job or enter a custom role'}
-            </button>
-            </>
-            )}
-
-            {/* Bottom action links */}
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => setShowQuestionBank(true)}
-                style={{ flex: 1, padding: '10px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, color: '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-              >
-                <BookOpen style={{ width: 14, height: 14 }} /> Question Bank
-              </button>
-              <button
-                onClick={() => setShowHistory(true)}
-                style={{ flex: 1, padding: '10px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, color: '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-              >
-                <Clock style={{ width: 14, height: 14 }} /> History
-              </button>
-            </div>
           </div>
         </div>
-
-        {/* Question Bank modal */}
-        {showQuestionBank && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-            <div style={{ width: '100%', maxWidth: 600, background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 28, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>📚 Question Bank</h2>
-                <button onClick={() => setShowQuestionBank(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>✕</button>
-              </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-                {(Object.keys(QUESTION_BANK) as InterviewMode[]).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setQbMode(m)}
-                    style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${qbMode === m ? '#6366f1' : '#1e293b'}`, background: qbMode === m ? 'rgba(99,102,241,0.2)' : '#050a14', color: qbMode === m ? '#a5b4fc' : '#94a3b8', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    {interviewModeLabels[m].emoji} {interviewModeLabels[m].label}
-                  </button>
-                ))}
-              </div>
-              <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {QUESTION_BANK[qbMode].map((q, i) => (
-                  <div key={i} style={{ background: '#050a14', border: '1px solid #1e293b', borderRadius: 10, padding: '12px 16px', fontSize: 14, color: '#e2e8f0', lineHeight: 1.5 }}>
-                    <span style={{ color: '#475569', fontSize: 12, fontWeight: 700, marginRight: 8 }}>Q{i + 1}</span>{q}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* History modal */}
         {showHistory && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
             <div style={{ width: '100%', maxWidth: 600, background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 28, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>🕐 Interview History</h2>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>🕐 Historia rozmów</h2>
                 <button onClick={() => setShowHistory(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>✕</button>
               </div>
               {historyQuery.isLoading ? (
@@ -1382,9 +1238,7 @@ export default function InterviewPractice() {
                             <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>{modeLabel.emoji} {modeLabel.label}</span>
                             <span style={{ fontSize: 11, color: '#475569', marginLeft: 10 }}>{new Date(s.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                           </div>
-                          {score !== null && (
-                            <span style={{ fontSize: 16, fontWeight: 800, color: scoreColor }}>{score}/100</span>
-                          )}
+                          {score !== null && <span style={{ fontSize: 16, fontWeight: 800, color: scoreColor }}>{score}/100</span>}
                         </div>
                         <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>
                           {s.answers.length} answer{s.answers.length !== 1 ? 's' : ''} · {s.difficulty}
@@ -1392,11 +1246,7 @@ export default function InterviewPractice() {
                         {score !== null && (
                           <button
                             onClick={() => {
-                              const growthAreas = [
-                                'Structure answers with clear STAR format',
-                                'Add quantified outcomes to each response',
-                                'Reduce filler words and pause instead',
-                              ];
+                              const growthAreas = ['Structure answers with clear STAR format', 'Add quantified outcomes to each response', 'Reduce filler words and pause instead'];
                               void trpcClient.interview.downloadCredential.mutate({ sessionId: s.id, growthAreas }).then((res: { base64: string; filename: string }) => {
                                 const bytes = Uint8Array.from(atob(res.base64), (c) => c.charCodeAt(0));
                                 const blob = new Blob([bytes], { type: 'application/pdf' });
@@ -1414,7 +1264,6 @@ export default function InterviewPractice() {
                       </div>
                     );
                   })}
-                  {/* Progress trend */}
                   {(historyQuery.data as Array<{ score: number | null }>).filter((s) => s.score !== null).length >= 2 && (
                     <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 10, padding: 16, marginTop: 8 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: '#a5b4fc', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><TrendingUp style={{ width: 14, height: 14 }} /> Score Trend</div>
@@ -1422,9 +1271,7 @@ export default function InterviewPractice() {
                         {(historyQuery.data as Array<{ id: string; score: number | null }>).filter((s) => s.score !== null).slice(0, 10).reverse().map((s, i) => {
                           const pct = ((s.score ?? 0) / 100) * 48;
                           const c = (s.score ?? 0) >= 80 ? '#34d399' : (s.score ?? 0) >= 60 ? '#fbbf24' : '#f87171';
-                          return (
-                            <div key={i} title={`${s.score}/100`} style={{ flex: 1, height: `${pct}px`, background: c, borderRadius: 3, minHeight: 4 }} />
-                          );
+                          return <div key={i} title={`${s.score}/100`} style={{ flex: 1, height: `${pct}px`, background: c, borderRadius: 3, minHeight: 4 }} />;
                         })}
                       </div>
                     </div>
