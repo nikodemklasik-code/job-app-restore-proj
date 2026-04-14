@@ -1,7 +1,9 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Send, RefreshCw, Scale, ChevronDown, ChevronUp, Lightbulb, Lock, Play, Swords } from 'lucide-react';
+import { Send, RefreshCw, Scale, ChevronDown, ChevronUp, Lightbulb, Lock, Play, Swords, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useBillingStore } from '@/stores/billingStore';
+
+const API_VOICE_BASE = import.meta.env.VITE_API_URL ?? '';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -94,6 +96,43 @@ async function consumeStream(response: Response, onChunk: (fullText: string) => 
   return fullText;
 }
 
+// ─── Voice helpers ────────────────────────────────────────────────────────────
+
+async function playTTSVoice(text: string): Promise<void> {
+  try {
+    const response = await fetch(`${API_VOICE_BASE}/api/interview/tts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+      credentials: 'include',
+    });
+    if (!response.ok) return;
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    return new Promise((resolve) => {
+      const audio = new Audio(url);
+      audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+      audio.play().catch(() => resolve());
+    });
+  } catch { /* TTS failure is non-fatal */ }
+}
+
+async function transcribeVoice(blob: Blob): Promise<string> {
+  try {
+    const form = new FormData();
+    form.append('audio', blob, 'audio.webm');
+    const res = await fetch(`${API_VOICE_BASE}/api/interview/transcribe`, {
+      method: 'POST',
+      body: form,
+      credentials: 'include',
+    });
+    if (!res.ok) return '';
+    const json = (await res.json()) as { transcript?: string };
+    return json.transcript ?? '';
+  } catch { return ''; }
+}
+
 // ─── Markdown renderer (simple) ───────────────────────────────────────────────
 
 function escapeHtml(str: string): string {
@@ -146,6 +185,28 @@ export default function NegotiationCoach() {
   const [showScenarios, setShowScenarios] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
 
+  // Voice state
+  const [voiceMode, setVoiceMode] = useState(true);  // voice is default
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  // VAD state
+  const [vadActive, setVadActive] = useState(false);
+  const [vadSpeechDetected, setVadSpeechDetected] = useState(false);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const vadStreamRef = useRef<MediaStream | null>(null);
+  const vadRecorderRef = useRef<MediaRecorder | null>(null);
+  const vadFrameRef = useRef<number | null>(null);
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const vadChunksRef = useRef<Blob[]>([]);
+  const voiceModeRef = useRef(voiceMode);
+  const isStreamingRef = useRef(isStreaming);
+  const isSpeakingRef = useRef(isSpeaking);
+  useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
+  useEffect(() => { isStreamingRef.current = isStreaming; }, [isStreaming]);
+  useEffect(() => { isSpeakingRef.current = isSpeaking; }, [isSpeaking]);
+
   // Simulator state
   const [offer, setOffer] = useState<SimulatorOffer>(DEFAULT_OFFER);
   const [simStarted, setSimStarted] = useState(false);
@@ -155,6 +216,132 @@ export default function NegotiationCoach() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef(input);
   inputRef.current = input;
+
+  // Stable ref to handleSend to avoid circular deps in VAD
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleSendRef = useRef<(text?: string) => Promise<void>>(async () => {});
+
+  const stopVAD = useCallback(() => {
+    if (vadFrameRef.current) cancelAnimationFrame(vadFrameRef.current);
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    if (vadRecorderRef.current && vadRecorderRef.current.state !== 'inactive') {
+      vadRecorderRef.current.stop();
+    }
+    if (audioCtxRef.current) audioCtxRef.current.close().catch(() => {});
+    if (vadStreamRef.current) vadStreamRef.current.getTracks().forEach((t) => t.stop());
+    vadFrameRef.current = null;
+    silenceTimerRef.current = null;
+    audioCtxRef.current = null;
+    analyserRef.current = null;
+    vadStreamRef.current = null;
+    vadRecorderRef.current = null;
+    setVadActive(false);
+    setVadSpeechDetected(false);
+    setAudioLevel(0);
+  }, []);
+
+  const startAutoVAD = useCallback(async () => {
+    if (!voiceModeRef.current || isStreamingRef.current || isSpeakingRef.current) return;
+    stopVAD();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      vadStreamRef.current = stream;
+      const ctx = new AudioContext();
+      audioCtxRef.current = ctx;
+      const analyser = ctx.createAnalyser();
+      analyserRef.current = analyser;
+      analyser.fftSize = 512;
+      analyser.smoothingTimeConstant = 0.7;
+      const source = ctx.createMediaStreamSource(stream);
+      source.connect(analyser);
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      const recorder = new MediaRecorder(stream);
+      vadRecorderRef.current = recorder;
+      vadChunksRef.current = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) vadChunksRef.current.push(e.data); };
+      recorder.onstop = async () => {
+        if (vadFrameRef.current) cancelAnimationFrame(vadFrameRef.current);
+        if (audioCtxRef.current) audioCtxRef.current.close().catch(() => {});
+        if (vadStreamRef.current) vadStreamRef.current.getTracks().forEach((t) => t.stop());
+        audioCtxRef.current = null;
+        analyserRef.current = null;
+        vadStreamRef.current = null;
+        vadFrameRef.current = null;
+        setVadActive(false);
+        setVadSpeechDetected(false);
+        setAudioLevel(0);
+        const blob = new Blob(vadChunksRef.current, { type: 'audio/webm' });
+        if (blob.size > 1500) {
+          const transcript = await transcribeVoice(blob);
+          if (transcript.trim()) {
+            void handleSendRef.current(transcript.trim());
+            return;
+          }
+        }
+        // Nothing heard — restart listening after short pause
+        setTimeout(() => {
+          if (voiceModeRef.current && !isStreamingRef.current && !isSpeakingRef.current) {
+            void startAutoVAD();
+          }
+        }, 600);
+      };
+
+      setVadActive(true);
+      setVadSpeechDetected(false);
+      let speechStarted = false;
+      const SILENCE_THRESH = 18;
+      const SPEECH_THRESH = 30;
+      const SILENCE_DURATION = 1400;
+
+      const loop = () => {
+        if (!analyserRef.current) return;
+        analyserRef.current.getByteFrequencyData(dataArray);
+        const avg = dataArray.reduce((s, v) => s + v, 0) / dataArray.length;
+        const lvl = Math.min(100, Math.round((avg / 80) * 100));
+        setAudioLevel(lvl);
+
+        if (!speechStarted && avg > SPEECH_THRESH) {
+          speechStarted = true;
+          setVadSpeechDetected(true);
+          if (vadRecorderRef.current && vadRecorderRef.current.state === 'inactive') {
+            vadRecorderRef.current.start();
+          }
+        }
+
+        if (speechStarted) {
+          if (avg < SILENCE_THRESH) {
+            if (!silenceTimerRef.current) {
+              silenceTimerRef.current = setTimeout(() => {
+                if (vadRecorderRef.current && vadRecorderRef.current.state === 'recording') {
+                  vadRecorderRef.current.stop();
+                }
+                silenceTimerRef.current = null;
+              }, SILENCE_DURATION);
+            }
+          } else {
+            if (silenceTimerRef.current) {
+              clearTimeout(silenceTimerRef.current);
+              silenceTimerRef.current = null;
+            }
+          }
+        }
+
+        vadFrameRef.current = requestAnimationFrame(loop);
+      };
+      vadFrameRef.current = requestAnimationFrame(loop);
+    } catch {
+      // mic access denied — silent fail
+    }
+  }, [stopVAD]);
+
+  // Stop VAD when voice mode is turned off
+  useEffect(() => {
+    if (!voiceMode) stopVAD();
+  }, [voiceMode, stopVAD]);
+
+  // Cleanup on unmount
+  useEffect(() => () => stopVAD(), [stopVAD]);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -172,6 +359,7 @@ export default function NegotiationCoach() {
   const handleSend = useCallback(async (overrideText?: string) => {
     const text = (overrideText ?? input).trim();
     if (!text || isStreaming) return;
+    stopVAD();
     setInput('');
     setError(null);
 
@@ -188,19 +376,34 @@ export default function NegotiationCoach() {
       const fullText = await streamFn(newMessages, (partial) => setStreamingContent(partial));
       setMessages((prev) => [...prev, { role: 'assistant', content: fullText }]);
       setStreamingContent('');
-      if (appMode === 'simulator' && fullText.includes('[SIMULATION COMPLETE]')) {
-        setSimComplete(true);
+      const isSimDone = appMode === 'simulator' && fullText.includes('[SIMULATION COMPLETE]');
+      if (isSimDone) setSimComplete(true);
+      // Play TTS when in voice mode
+      if (voiceMode && fullText) {
+        setIsSpeaking(true);
+        await playTTSVoice(fullText);
+        setIsSpeaking(false);
       }
-    } catch (err) {
+      // Auto-start VAD listening after AI finishes speaking
+      if (voiceMode && !isSimDone) {
+        setTimeout(() => void startAutoVAD(), 300);
+      }
+    } catch {
       setError('Something went wrong. Please try again.');
+      setIsSpeaking(false);
     } finally {
       setIsStreaming(false);
     }
-  }, [input, isStreaming, messages, appMode, offer]);
+  }, [input, isStreaming, messages, appMode, offer, voiceMode, stopVAD, startAutoVAD]);
+
+  // Keep handleSendRef in sync
+  useEffect(() => { handleSendRef.current = handleSend; }, [handleSend]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); }
   };
+
+  // handleMicToggle — reserved for voice input, not yet wired to UI
 
   const handleReset = () => {
     setMessages([]);
@@ -223,8 +426,18 @@ export default function NegotiationCoach() {
       const fullText = await streamNegotiationSimulation([], offer, (partial) => setStreamingContent(partial));
       setMessages([{ role: 'assistant', content: fullText }]);
       setStreamingContent('');
+      if (voiceMode && fullText) {
+        setIsSpeaking(true);
+        await playTTSVoice(fullText);
+        setIsSpeaking(false);
+      }
+      // Auto-start VAD after opening offer
+      if (voiceMode) {
+        setTimeout(() => void startAutoVAD(), 300);
+      }
     } catch {
       setError('Something went wrong. Please try again.');
+      setIsSpeaking(false);
     } finally {
       setIsStreaming(false);
     }
@@ -342,6 +555,20 @@ export default function NegotiationCoach() {
               <Swords className="h-3 w-3" /> Simulator
             </button>
           </div>
+          {/* Voice / Text mode toggle */}
+          <button
+            onClick={() => setVoiceMode((v) => !v)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+            style={{
+              borderColor: voiceMode ? 'rgba(99,102,241,0.5)' : 'rgb(51,65,85)',
+              background: voiceMode ? 'rgba(99,102,241,0.15)' : 'transparent',
+              color: voiceMode ? '#a5b4fc' : '#64748b',
+            }}
+            title={voiceMode ? 'Switch to text mode' : 'Switch to voice mode'}
+          >
+            {voiceMode ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+            {voiceMode ? 'Voice' : 'Text'}
+          </button>
           {appMode === 'coach' && (
             <button onClick={() => setShowScenarios((v) => !v)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors">
               <Lightbulb className="h-3.5 w-3.5" />
@@ -451,18 +678,109 @@ export default function NegotiationCoach() {
           {/* Input area */}
           {!simComplete && (
             <div className="shrink-0 px-6 py-4 border-t border-slate-800 bg-slate-950/60">
-              <div className="flex items-end gap-3 rounded-2xl px-4 py-3" style={{ background: 'rgba(30,41,59,0.9)', border: '1px solid rgba(99,102,241,0.25)' }}>
-                <textarea ref={textareaRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}
-                  placeholder={appMode === 'simulator' ? 'Type your response to the HR offer… (Shift+Enter for new line)' : 'Paste your negotiation message, proposal, or transcript… (Shift+Enter for new line)'}
-                  disabled={isStreaming} rows={1}
-                  className="flex-1 resize-none bg-transparent text-sm text-slate-200 placeholder-slate-500 outline-none"
-                  style={{ minHeight: 28 }} />
-                <button onClick={() => void handleSend()} disabled={!input.trim() || isStreaming}
-                  className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl transition-all"
-                  style={{ background: input.trim() && !isStreaming ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(99,102,241,0.2)', cursor: input.trim() && !isStreaming ? 'pointer' : 'not-allowed' }}>
-                  <Send className="h-4 w-4 text-white" />
-                </button>
-              </div>
+              {/* Voice mode: VAD auto-listen UI */}
+              {voiceMode ? (
+                <div className="flex flex-col items-center gap-3">
+                  {/* Status indicator */}
+                  <div className="flex items-center gap-3 h-8">
+                    {isSpeaking && (
+                      <>
+                        <span className="inline-flex gap-0.5 items-end h-5">
+                          {[1,2,3,4,5].map((i) => (
+                            <span key={i} className="w-1 rounded-full bg-indigo-400"
+                              style={{ height: `${8 + Math.sin(Date.now() / 150 + i) * 6}px`, animation: `avatar-wave-bars 0.6s ease-in-out ${i * 0.1}s infinite` }} />
+                          ))}
+                        </span>
+                        <p className="text-xs text-indigo-400 font-medium">Speaking…</p>
+                      </>
+                    )}
+                    {isStreaming && !isSpeaking && (
+                      <p className="text-xs text-slate-400 animate-pulse">Processing…</p>
+                    )}
+                    {vadActive && !vadSpeechDetected && !isStreaming && !isSpeaking && (
+                      <>
+                        {/* audio level bars */}
+                        <span className="inline-flex gap-0.5 items-end h-5">
+                          {[0.3,0.6,1,0.6,0.3].map((scale, i) => (
+                            <span key={i} className="w-1 rounded-full bg-emerald-400 transition-all duration-75"
+                              style={{ height: `${Math.max(3, (audioLevel * scale * 0.4))}px`, opacity: 0.6 + audioLevel * 0.004 }} />
+                          ))}
+                        </span>
+                        <p className="text-xs text-emerald-400 font-medium">Listening…</p>
+                      </>
+                    )}
+                    {vadSpeechDetected && (
+                      <>
+                        <span className="inline-flex gap-0.5 items-end h-5">
+                          {[0.5,0.8,1,0.8,0.5].map((scale, i) => (
+                            <span key={i} className="w-1.5 rounded-full bg-red-400 transition-all duration-75"
+                              style={{ height: `${Math.max(4, (audioLevel * scale * 0.5))}px` }} />
+                          ))}
+                        </span>
+                        <p className="text-xs text-red-400 font-medium">Recording…</p>
+                      </>
+                    )}
+                    {!vadActive && !isStreaming && !isSpeaking && messages.length === 0 && (
+                      <p className="text-xs text-slate-500">Type to start, or click mic</p>
+                    )}
+                  </div>
+
+                  {/* Manual mic toggle button */}
+                  <button
+                    onClick={vadActive ? stopVAD : () => void startAutoVAD()}
+                    disabled={isStreaming || isSpeaking}
+                    className="flex items-center justify-center w-14 h-14 rounded-full transition-all shadow-lg"
+                    style={{
+                      background: vadSpeechDetected
+                        ? 'linear-gradient(135deg, #ef4444, #dc2626)'
+                        : vadActive
+                        ? 'linear-gradient(135deg, #10b981, #059669)'
+                        : isStreaming || isSpeaking
+                        ? 'rgba(99,102,241,0.2)'
+                        : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                      cursor: isStreaming || isSpeaking ? 'not-allowed' : 'pointer',
+                      boxShadow: vadSpeechDetected
+                        ? '0 0 0 8px rgba(239,68,68,0.15)'
+                        : vadActive
+                        ? '0 0 0 8px rgba(16,185,129,0.15)'
+                        : undefined,
+                    }}
+                    title={vadActive ? 'Stop listening' : 'Start listening'}
+                  >
+                    {vadActive ? <MicOff className="h-6 w-6 text-white" /> : <Mic className="h-6 w-6 text-white" />}
+                  </button>
+
+                  {/* Text fallback */}
+                  <div className="flex items-end gap-2 w-full rounded-xl px-3 py-2" style={{ background: 'rgba(30,41,59,0.6)', border: '1px solid rgba(99,102,241,0.15)' }}>
+                    <textarea ref={textareaRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}
+                      placeholder="Or type here… (Enter to send)"
+                      disabled={isStreaming || vadSpeechDetected} rows={1}
+                      className="flex-1 resize-none bg-transparent text-xs text-slate-300 placeholder-slate-600 outline-none"
+                      style={{ minHeight: 20 }} />
+                    {input.trim() && (
+                      <button onClick={() => void handleSend()} disabled={isStreaming}
+                        className="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg"
+                        style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
+                        <Send className="h-3 w-3 text-white" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Text mode: standard textarea */
+                <div className="flex items-end gap-3 rounded-2xl px-4 py-3" style={{ background: 'rgba(30,41,59,0.9)', border: '1px solid rgba(99,102,241,0.25)' }}>
+                  <textarea ref={textareaRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}
+                    placeholder={appMode === 'simulator' ? 'Type your response to the HR offer… (Shift+Enter for new line)' : 'Paste your negotiation message, proposal, or transcript… (Shift+Enter for new line)'}
+                    disabled={isStreaming} rows={1}
+                    className="flex-1 resize-none bg-transparent text-sm text-slate-200 placeholder-slate-500 outline-none"
+                    style={{ minHeight: 28 }} />
+                  <button onClick={() => void handleSend()} disabled={!input.trim() || isStreaming}
+                    className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl transition-all"
+                    style={{ background: input.trim() && !isStreaming ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(99,102,241,0.2)', cursor: input.trim() && !isStreaming ? 'pointer' : 'not-allowed' }}>
+                    <Send className="h-4 w-4 text-white" />
+                  </button>
+                </div>
+              )}
               <p className="mt-2 text-center text-xs text-slate-600">
                 {appMode === 'simulator' ? 'Simulation evaluates negotiation moves only. Not a hiring or suitability assessment.' : 'Analysis evaluates negotiation strategy only. Not a hiring or suitability assessment.'}
               </p>

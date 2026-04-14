@@ -11,7 +11,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/review':      'Applications Review',
   '/assistant':   'AI Assistant',
   '/interview':   'Interview',
-  '/warmup':      'Coach',
+  '/warmup':      'Daily Warmup',
+  '/coach':       'Coach',
   '/negotiation': 'Negotiation',
   '/profile':     'Profile & CV',
   '/style-studio':'Style Studio',
@@ -31,7 +32,7 @@ const PAGE_TITLES: Record<string, string> = {
 export default function Header() {
   const { pathname } = useLocation();
   const { user } = useUser();
-  const { theme, setTheme, focusMode, setFocusMode } = useThemeStore();
+  const { setTheme, focusMode, setFocusMode } = useThemeStore();
   const creditsQuery = api.billing.getCurrentPlan.useQuery(
     { userId: user?.id ?? '' },
     { enabled: !!user?.id, staleTime: 60_000 },
@@ -76,7 +77,7 @@ export default function Header() {
           </div>
         )}
 
-        {/* Light / Dark toggle */}
+        {/* Theme toggle — light mode not yet ready, show dark only */}
         <div
           className="flex items-center gap-1 rounded-xl border border-slate-100 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800"
           role="group"
@@ -84,27 +85,19 @@ export default function Header() {
         >
           <button
             onClick={() => setTheme('light')}
-            aria-label="Light theme"
-            aria-pressed={theme === 'light'}
-            title="Light"
-            className={`rounded-lg p-1.5 transition-colors ${
-              theme === 'light'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-            }`}
+            aria-label="Light theme (coming soon)"
+            title="Light mode — coming soon"
+            className="rounded-lg p-1.5 text-slate-300 opacity-40 cursor-not-allowed dark:text-slate-600"
+            disabled
           >
             <Sun className="h-3.5 w-3.5" />
           </button>
           <button
             onClick={() => setTheme('dark')}
             aria-label="Dark theme"
-            aria-pressed={theme === 'dark'}
+            aria-pressed={true}
             title="Dark"
-            className={`rounded-lg p-1.5 transition-colors ${
-              theme === 'dark'
-                ? 'bg-slate-700 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-            }`}
+            className="rounded-lg p-1.5 bg-slate-700 text-white shadow-sm transition-colors"
           >
             <Moon className="h-3.5 w-3.5" />
           </button>

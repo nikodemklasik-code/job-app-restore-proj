@@ -18,6 +18,7 @@ import {
   Sun,
   Anchor,
   PanelLeftClose,
+  Lock,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -686,12 +687,12 @@ function AccessibilityTab() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Accessibility className="h-4 w-4" /> Motyw kolorystyczny
+            <Accessibility className="h-4 w-4" /> Colour Theme
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-            Wybierz motyw najwygodniejszy dla Ciebie. Szybki przełącznik znajdziesz też w nagłówku.
+            Choose the theme that works best for you. You can also toggle Light/Dark in the header.
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {THEME_OPTIONS.map(({ id, Icon, label, description }) => {
@@ -793,6 +794,20 @@ function AccessibilityTab() {
 // Main SettingsHub
 // ---------------------------------------------------------------------------
 
+const CONSENT_KEY = 'mvh-consents';
+
+function loadConsents() {
+  try {
+    const raw = localStorage.getItem(CONSENT_KEY);
+    if (raw) return JSON.parse(raw) as Record<string, boolean>;
+  } catch { /* ignore */ }
+  return {};
+}
+
+function saveConsents(c: Record<string, boolean>) {
+  localStorage.setItem(CONSENT_KEY, JSON.stringify(c));
+}
+
 export default function SettingsHub() {
   const navigate = useNavigate();
   const { user } = useUser();
@@ -805,6 +820,25 @@ export default function SettingsHub() {
     void loadSettings();
   }, [loadSettings]);
 
+  // ── Consent state ─────────────────────────────────────────────────────────
+  const saved = loadConsents();
+  const [consentLinkedin, setConsentLinkedin] = useState(saved.linkedin ?? false);
+  const [consentFacebook, setConsentFacebook] = useState(saved.facebook ?? false);
+  const [consentInstagram, setConsentInstagram] = useState(saved.instagram ?? false);
+  const [consentSmtp, setConsentSmtp] = useState(saved.smtp ?? false);
+  const [consentImapTracking, setConsentImapTracking] = useState(saved.imapTracking ?? false);
+  const [consentImapOffers, setConsentImapOffers] = useState(saved.imapOffers ?? false);
+  const [consentAutoApply, setConsentAutoApply] = useState(saved.autoApply ?? false);
+  const [consentPush, setConsentPush] = useState(saved.push ?? false);
+
+  const toggleConsent = (key: string, current: boolean, setter: (v: boolean) => void) => {
+    const next = !current;
+    setter(next);
+    const c = loadConsents();
+    c[key] = next;
+    saveConsents(c);
+  };
+
   return (
     <div className="space-y-8">
       <div>
@@ -815,6 +849,7 @@ export default function SettingsHub() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="privacy">Privacy &amp; Consents</TabsTrigger>
           <TabsTrigger value="accessibility">Accessibility</TabsTrigger>
           <TabsTrigger value="email">Email &amp; SMTP</TabsTrigger>
           <TabsTrigger value="telegram">Telegram</TabsTrigger>
@@ -855,6 +890,122 @@ export default function SettingsHub() {
                   </div>
                   <Toggle checked={emailNotifications} onChange={toggleEmailNotifications} />
                 </label>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* PRIVACY & CONSENTS */}
+        <TabsContent value="privacy">
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="h-4 w-4" /> Consent Centre
+                </CardTitle>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Control exactly what MultivoHub is allowed to do on your behalf. You can change these at any time.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-5">
+
+                {/* Social profile analysis */}
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Social Profile Analysis</p>
+                  <div className="space-y-3">
+                    {[
+                      { key: 'linkedin', label: 'LinkedIn', desc: 'Analyse your public work history and professional network to improve job matching.', checked: consentLinkedin, setter: setConsentLinkedin },
+                      { key: 'facebook', label: 'Facebook', desc: 'Analyse public professional interests and activity to identify career trends.', checked: consentFacebook, setter: setConsentFacebook },
+                      { key: 'instagram', label: 'Instagram', desc: 'Analyse your public personal brand for alignment with target roles.', checked: consentInstagram, setter: setConsentInstagram },
+                    ].map(({ key, label, desc, checked, setter }) => (
+                      <div key={key} className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+                        <div>
+                          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{label}</p>
+                          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{desc}</p>
+                        </div>
+                        <Toggle checked={checked} onChange={() => toggleConsent(key, checked, setter)} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Email & inbox */}
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Email &amp; Inbox</p>
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+                      <div>
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Outgoing emails (SMTP)</p>
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                          Allow MultivoHub to send job applications, cover letters and follow-up emails from your configured email address. Configure in the Email &amp; SMTP tab.
+                        </p>
+                      </div>
+                      <Toggle checked={consentSmtp} onChange={() => toggleConsent('smtp', consentSmtp, setConsentSmtp)} />
+                    </div>
+                    <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+                      <div>
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Incoming mail — application tracking (IMAP)</p>
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                          Allow AI to read incoming emails to detect employer replies (interview invites, rejections, offers) and automatically update application statuses.
+                          <br /><span className="text-indigo-400">How it works:</span> AI scans subject lines and senders matching known employers. Message bodies are processed locally and never stored or shared.
+                        </p>
+                      </div>
+                      <Toggle checked={consentImapTracking} onChange={() => toggleConsent('imapTracking', consentImapTracking, setConsentImapTracking)} />
+                    </div>
+                    <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+                      <div>
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Incoming mail — inbound job offers</p>
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                          Allow AI to detect emails from recruiters containing job opportunities and surface them in Job Listings.
+                          <br /><span className="text-indigo-400">How it works:</span> AI identifies recruiter patterns and job-related keywords. No email content is stored — only extracted job metadata (title, company, salary range).
+                        </p>
+                      </div>
+                      <Toggle checked={consentImapOffers} onChange={() => toggleConsent('imapOffers', consentImapOffers, setConsentImapOffers)} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Auto-apply */}
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Auto-Apply</p>
+                  <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+                    <div>
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Automatic job applications</p>
+                      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        Allow AI to submit applications on your behalf for roles that meet your auto-apply threshold (set in Profile &amp; Goals). You will be notified of every submission.
+                      </p>
+                    </div>
+                    <Toggle checked={consentAutoApply} onChange={() => toggleConsent('autoApply', consentAutoApply, setConsentAutoApply)} />
+                  </div>
+                </div>
+
+                {/* Push notifications */}
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Push Notifications</p>
+                  <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+                    <div>
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Browser push notifications</p>
+                      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        Allow MultivoHub to send browser push notifications for interview invites, application updates, new matched jobs, and daily warmup reminders. Your browser will ask for permission when enabled.
+                      </p>
+                    </div>
+                    <Toggle
+                      checked={consentPush}
+                      onChange={async () => {
+                        if (!consentPush) {
+                          const perm = await Notification.requestPermission();
+                          if (perm !== 'granted') return;
+                        }
+                        toggleConsent('push', consentPush, setConsentPush);
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  All data is processed securely. We never sell or share your data with third parties. See our{' '}
+                  <a href="/legal/privacy" className="text-indigo-500 hover:underline">Privacy Policy</a> for full details.
+                </p>
               </CardContent>
             </Card>
           </div>
