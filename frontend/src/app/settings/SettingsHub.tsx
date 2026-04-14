@@ -829,6 +829,7 @@ export default function SettingsHub() {
   const [consentImapTracking, setConsentImapTracking] = useState(saved.imapTracking ?? false);
   const [consentImapOffers, setConsentImapOffers] = useState(saved.imapOffers ?? false);
   const [consentAutoApply, setConsentAutoApply] = useState(saved.autoApply ?? false);
+  const [consentPush, setConsentPush] = useState(saved.push ?? false);
 
   const toggleConsent = (key: string, current: boolean, setter: (v: boolean) => void) => {
     const next = !current;
@@ -975,6 +976,29 @@ export default function SettingsHub() {
                       </p>
                     </div>
                     <Toggle checked={consentAutoApply} onChange={() => toggleConsent('autoApply', consentAutoApply, setConsentAutoApply)} />
+                  </div>
+                </div>
+
+                {/* Push notifications */}
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Push Notifications</p>
+                  <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+                    <div>
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Browser push notifications</p>
+                      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        Allow MultivoHub to send browser push notifications for interview invites, application updates, new matched jobs, and daily warmup reminders. Your browser will ask for permission when enabled.
+                      </p>
+                    </div>
+                    <Toggle
+                      checked={consentPush}
+                      onChange={async () => {
+                        if (!consentPush) {
+                          const perm = await Notification.requestPermission();
+                          if (perm !== 'granted') return;
+                        }
+                        toggleConsent('push', consentPush, setConsentPush);
+                      }}
+                    />
                   </div>
                 </div>
 

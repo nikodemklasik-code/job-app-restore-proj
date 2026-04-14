@@ -128,24 +128,21 @@ function JobCard({
   applicationStatus,
   userId,
   onExplainFit,
-  index,
 }: {
   job: JobResult;
   applicationStatus?: string;
   userId: string;
   onExplainFit: (id: string) => void;
-  index: number;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showCompany, setShowCompany] = useState(false);
-  const [employerExpanded, setEmployerExpanded] = useState(false);
 
-  const score = 55 + ((index * 17) % 40);
-  const scoreColor = score >= 75
-    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-    : score >= 60
-      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+  const fit = job.fitScore;
+  const fitColor = fit >= 80
+    ? { bar: '#34d399', badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25' }
+    : fit >= 60
+    ? { bar: '#fbbf24', badge: 'bg-amber-500/15 text-amber-400 border-amber-500/25' }
+    : { bar: '#f87171', badge: 'bg-red-500/15 text-red-400 border-red-500/25' };
 
   const salary = formatSalary(job.salaryMin, job.salaryMax);
   const srcMeta = SOURCE_META[job.source as Source];
@@ -165,76 +162,96 @@ function JobCard({
     : null;
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 flex flex-col gap-0 transition hover:border-white/20 hover:bg-white/[0.07] overflow-hidden">
-      {/* Card header */}
-      <div className="p-5 flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-lg font-bold text-slate-300">
+    <div className="rounded-2xl border border-white/10 bg-white/5 flex flex-col transition hover:border-white/20 hover:bg-white/[0.07] overflow-hidden">
+      {/* Fit bar accent — top edge colour indicates match quality */}
+      <div className="h-1 w-full" style={{ background: fitColor.bar, opacity: 0.7 }} />
+
+      {/* Card body */}
+      <div className="p-5 flex flex-col gap-3 flex-1">
+        {/* Row 1: Avatar + title + badges */}
+        <div className="flex items-start gap-3">
+          {/* Company avatar */}
+          <div
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white"
+            style={{ background: `${fitColor.bar}30`, border: `1px solid ${fitColor.bar}40` }}
+          >
             {job.company.charAt(0).toUpperCase()}
           </div>
-          <div className="flex items-center gap-1.5 flex-wrap justify-end">
-            {applicationStatus && <ApplicationStatusBadge status={applicationStatus} />}
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${fitBadgeClass(job.fitScore)}`}>
-              {job.fitScore}% fit
-            </span>
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${scoreColor}`}>
-              {score}% dopasowania
-            </span>
+
+          {/* Title + company */}
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-white leading-tight line-clamp-2">{job.title}</h3>
+            <button
+              onClick={() => setShowCompany((v) => !v)}
+              className="flex items-center gap-1 mt-0.5 text-xs text-slate-400 hover:text-slate-200 transition"
+            >
+              {job.company}
+              <ChevronRight className={`h-3 w-3 transition-transform ${showCompany ? 'rotate-90' : ''}`} />
+            </button>
           </div>
-        </div>
 
-        <div>
-          <h3 className="font-semibold text-white leading-tight">{job.title}</h3>
-          <button
-            onClick={() => setShowCompany((v) => !v)}
-            className="flex items-center gap-1 mt-0.5 text-sm text-slate-400 hover:text-slate-200 transition"
-          >
-            {job.company}
-            <ChevronRight className={`h-3 w-3 transition-transform ${showCompany ? 'rotate-90' : ''}`} />
-          </button>
-        </div>
-
-        {isScam && (
-          <span className="inline-flex w-fit items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-400">
-            ⚠️ Check carefully
+          {/* Fit score pill */}
+          <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-bold ${fitColor.badge}`}>
+            {fit}%
           </span>
-        )}
+        </div>
 
-        {/* Company card (lazy) */}
+        {/* Company profile (lazy expand) */}
         {showCompany && (
           <CompanyCard companyName={job.company} jobTitle={job.title} />
         )}
 
-        {/* Meta row */}
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+        {/* Scam warning */}
+        {isScam && (
+          <span className="inline-flex w-fit items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-400">
+            ⚠️ Verify carefully
+          </span>
+        )}
+
+        {/* Meta: location / salary / mode / date / source */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
           {job.location && (
             <span className="flex items-center gap-1">
-              <MapPin className="h-3 w-3" />
+              <MapPin className="h-3 w-3 shrink-0" />
               {job.location}
             </span>
           )}
           {salary && (
-            <span className="flex items-center gap-1">
-              <DollarSign className="h-3 w-3" />
+            <span className="flex items-center gap-1 font-medium text-slate-300">
+              <DollarSign className="h-3 w-3 shrink-0" />
               {salary}
             </span>
           )}
           {job.workMode && (
             <span className="flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-medium capitalize text-slate-400">
-              <Wifi className="h-3 w-3" />
+              <Wifi className="h-2.5 w-2.5" />
               {job.workMode}
             </span>
           )}
-          {postedDate && (
-            <span className="text-slate-500">{postedDate}</span>
-          )}
-          <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium ${srcMeta?.color ?? 'bg-white/10 text-slate-400'}`}>
+          {postedDate && <span>{postedDate}</span>}
+          <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${srcMeta?.color ?? 'bg-white/10 text-slate-400'}`}>
             {srcMeta?.label ?? job.source}
           </span>
         </div>
+
+        {/* Application status badge */}
+        {applicationStatus && (
+          <div><ApplicationStatusBadge status={applicationStatus} /></div>
+        )}
+
+        {/* Fit score bar */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider">AI match</span>
+            <span className="text-[10px] font-semibold" style={{ color: fitColor.bar }}>{fit}%</span>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-white/10">
+            <div className="h-1.5 rounded-full transition-all" style={{ width: `${fit}%`, background: fitColor.bar }} />
+          </div>
+        </div>
       </div>
 
-      {/* Expandable skills section */}
+      {/* Skills section (collapsible) */}
       <div className="border-t border-white/5">
         <button
           onClick={() => setExpanded((v) => !v)}
@@ -245,25 +262,18 @@ function JobCard({
           </span>
           {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
-
         {expanded && (
           <div className="px-5 pb-4 space-y-3">
             {requirements.length > 0 ? (
               <>
                 <div className="flex flex-wrap gap-1.5">
                   {requirements.map((req, i) => (
-                    <span
-                      key={i}
-                      className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-slate-300"
-                    >
+                    <span key={i} className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-slate-300">
                       {req}
                     </span>
                   ))}
                 </div>
-                <Link
-                  to="/skills"
-                  className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition w-fit"
-                >
+                <Link to="/skills" className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition w-fit">
                   <BookOpen className="h-3.5 w-3.5" />
                   Learn these skills in Skills Lab →
                 </Link>
@@ -271,13 +281,8 @@ function JobCard({
             ) : (
               <div className="text-xs text-slate-500 space-y-1.5">
                 <p>No requirements extracted yet.</p>
-                <button
-                  onClick={() => onExplainFit(job.id)}
-                  className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 transition"
-                  disabled={!userId}
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Analyse fit to extract requirements
+                <button onClick={() => onExplainFit(job.id)} className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 transition" disabled={!userId}>
+                  <Sparkles className="h-3.5 w-3.5" /> Analyse fit to extract requirements
                 </button>
               </div>
             )}
@@ -285,32 +290,8 @@ function JobCard({
         )}
       </div>
 
-      {/* Employer analysis collapsible */}
-      <div className="px-5 pb-3">
-        <button
-          onClick={() => setEmployerExpanded(v => !v)}
-          className="text-xs font-medium text-slate-500 hover:text-slate-700 flex items-center gap-1"
-        >
-          Analiza pracodawcy {employerExpanded ? '▲' : '▼'}
-        </button>
-        {employerExpanded && (
-          <div className="mt-2">
-            <div className="grid grid-cols-3 gap-2 text-center">
-              {[{l:'Stabilność',s:4,i:'🛡️'},{l:'Kultura',s:5,i:'❤️'},{l:'Rozwój',s:3,i:'📈'}].map(x => (
-                <div key={x.l}>
-                  <div>{x.i}</div>
-                  <div className="text-xs text-slate-500">{x.l}</div>
-                  <div className="text-xs text-amber-500">{'★'.repeat(x.s)}{'☆'.repeat(5-x.s)}</div>
-                </div>
-              ))}
-            </div>
-            <p className="mt-1 text-xs italic text-slate-400">Na podstawie danych publicznych</p>
-          </div>
-        )}
-      </div>
-
       {/* Actions */}
-      <div className="px-5 pb-5 pt-2 mt-auto flex flex-col gap-2">
+      <div className="px-5 pb-5 pt-2 flex flex-col gap-2">
         <button
           onClick={() => onExplainFit(job.id)}
           className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 py-2 text-xs font-medium text-indigo-400 transition hover:bg-indigo-500/20"
@@ -318,28 +299,19 @@ function JobCard({
           <Sparkles className="h-3.5 w-3.5" />
           Why this match?
         </button>
-        {score >= 75 ? (
-          <button
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-            title="AI wyśle CV automatycznie gdy włączony Auto Apply"
-          >
-            Auto-aplikuj ✓
-          </button>
-        ) : (
-          <button className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400">
-            Aplikuj manualnie
-          </button>
-        )}
-        {job.applyUrl && (
+        {job.applyUrl ? (
           <a
             href={job.applyUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
           >
-            Apply
-            <ExternalLink className="h-3.5 w-3.5" />
+            Apply <ExternalLink className="h-3.5 w-3.5" />
           </a>
+        ) : (
+          <div className="flex items-center justify-center rounded-xl border border-white/10 bg-white/5 py-2.5 text-xs text-slate-500">
+            No direct link available
+          </div>
         )}
       </div>
     </div>
@@ -867,14 +839,13 @@ export default function JobsDiscovery() {
         </div>
       ) : jobResults.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {jobResults.map((job, index) => (
+          {jobResults.map((job) => (
             <JobCard
               key={job.id}
               job={job}
               applicationStatus={jobStatusMap[job.id]}
               userId={userId}
               onExplainFit={setExplainJobId}
-              index={index}
             />
           ))}
         </div>
