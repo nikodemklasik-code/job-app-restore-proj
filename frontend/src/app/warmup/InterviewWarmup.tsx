@@ -28,9 +28,17 @@ const LAST_DATE_KEY = 'warmup_last_date';
 
 // ─── Scoring ──────────────────────────────────────────────────────────────────
 
-function scoreWarmup(transcript: string): { score: number; tip: string; label: string } {
+interface WarmupResult {
+  score: number;
+  label: string;
+  whatWorked: string[];
+  toImprove: string[];
+  interviewTip: string;
+}
+
+function scoreWarmup(transcript: string): WarmupResult {
   const t = transcript.trim().toLowerCase();
-  if (!t) return { score: 0, tip: 'No answer recorded.', label: 'No answer' };
+  if (!t) return { score: 0, label: 'No answer', whatWorked: [], toImprove: ['Record or type your answer to get feedback.'], interviewTip: '' };
 
   let score = 50;
   const words = t.split(/\s+/).length;
@@ -42,23 +50,53 @@ function scoreWarmup(transcript: string): { score: number; tip: string; label: s
   const hasSituation = /\b(when|at the time|there was|during|in my previous|back in|last year)\b/.test(t);
   const hasAction = /\b(i (did|decided|implemented|built|led|created|wrote|fixed|reached out|set up|introduced|proposed|developed|organized))\b/.test(t);
   const hasResult = /\b(result(ed)?|achiev|improv|reduc|increas|saved|success|by \d|percent|outcome|delivered|launched)\b/.test(t);
+  const fillers = (t.match(/\b(um|uh|like|you know|kind of|sort of)\b/g) ?? []).length;
+
   if (hasSituation) score += 8;
   if (hasAction) score += 10;
   if (hasResult) score += 12;
-
-  const fillers = (t.match(/\b(um|uh|like|you know|kind of|sort of)\b/g) ?? []).length;
   score -= fillers * 4;
-
   score = Math.max(20, Math.min(100, Math.round(score)));
 
-  let tip: string;
-  let label: string;
-  if (score >= 85) { label = 'Excellent'; tip = 'Great structure and clear delivery. Try to add a quantified result next time.'; }
-  else if (score >= 70) { label = 'Good'; tip = 'Solid answer. Strengthen your result with specific numbers or impact.'; }
-  else if (score >= 55) { label = 'Developing'; tip = !hasResult ? 'Close with the outcome — what was the result or impact?' : !hasAction ? 'Make your own actions clearer: "I did…" statements help.' : 'Add more detail and slow down.'; }
-  else { label = 'Needs work'; tip = 'Structure your answer: Situation → Task → Action → Result. Try recording it again.'; }
+  // Build specific feedback
+  const whatWorked: string[] = [];
+  const toImprove: string[] = [];
 
-  return { score, tip, label };
+  if (hasSituation) whatWorked.push('You set the scene — the interviewer knows the context.');
+  else toImprove.push('Add context: start with "At my previous company…" or "Last year when I was working on…" so the interviewer understands the situation.');
+
+  if (hasAction) whatWorked.push('You described your own actions clearly — this shows ownership.');
+  else toImprove.push('Make your personal contribution explicit: use "I did…", "I decided…", "I built…" rather than "we" or passive phrasing.');
+
+  if (hasResult) whatWorked.push('You included an outcome — interviewers value seeing what your actions achieved.');
+  else toImprove.push('Close with a result: "As a result…", "This led to…", or "The outcome was…". Add a number if possible (e.g. "reduced by 30%", "saved 2 hours a week").');
+
+  if (words >= 60) whatWorked.push('Good answer length — enough detail to be convincing.');
+  else if (words < 30) toImprove.push('Aim for at least 60–100 words. An answer this short lacks the evidence an interviewer needs.');
+
+  if (fillers > 2) toImprove.push(`You used ${fillers} filler word${fillers !== 1 ? 's' : ''} (um, uh, like, you know). Pause silently instead — it sounds more confident.`);
+
+  // Interview tip based on what's missing
+  let interviewTip: string;
+  if (!hasResult && !hasSituation) {
+    interviewTip = '🎯 In the real interview: structure your answer as STAR — Situation, Task, Action, Result. Most interviewers are trained to look for all four parts. Without a clear result, even a great story loses marks.';
+  } else if (!hasResult) {
+    interviewTip = '🎯 In the real interview: always land on a result. Prepare a one-sentence ending in advance: "As a result, we achieved X." This is the part most candidates forget under pressure.';
+  } else if (!hasSituation) {
+    interviewTip = '🎯 In the real interview: open with a brief context-setter — one sentence that tells the interviewer where you were and what the challenge was. It helps them follow the story.';
+  } else if (fillers > 2) {
+    interviewTip = '🎯 In the real interview: pause rather than fill silence with "um" or "like". A deliberate pause signals you are thinking — it sounds far more professional than filler words.';
+  } else {
+    interviewTip = '🎯 In the real interview: once you have the STAR structure down, add one specific number or metric to your result. Concrete impact ("cut onboarding time by 40%") is what makes answers memorable.';
+  }
+
+  let label: string;
+  if (score >= 85) label = 'Excellent';
+  else if (score >= 70) label = 'Good';
+  else if (score >= 55) label = 'Developing';
+  else label = 'Needs work';
+
+  return { score, label, whatWorked, toImprove, interviewTip };
 }
 
 // ─── Streak helpers ───────────────────────────────────────────────────────────
@@ -316,6 +354,7 @@ export default function InterviewWarmup() {
 
       {phase === 'done' && result && (
         <div className="flex flex-col gap-4">
+          {/* Score header */}
           <div className="flex items-center gap-4 px-6 py-5 rounded-2xl" style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid #1e293b' }}>
             <div className="shrink-0 flex flex-col items-center justify-center w-20 h-20 rounded-2xl" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)' }}>
               <span className="text-3xl font-black" style={{ color: scoreColor(result.score) }}>{result.score}</span>
@@ -323,10 +362,38 @@ export default function InterviewWarmup() {
             </div>
             <div className="flex-1">
               <p className="text-base font-bold text-white mb-1">{result.label}</p>
-              <p className="text-sm text-slate-400 leading-relaxed">{result.tip}</p>
+              <p className="text-xs text-slate-500">Analysed against STAR structure, clarity, and impact</p>
             </div>
           </div>
 
+          {/* What worked */}
+          {result.whatWorked.length > 0 && (
+            <div className="rounded-xl px-4 py-3 space-y-1.5" style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.2)' }}>
+              <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wide mb-2">✓ What worked</p>
+              {result.whatWorked.map((w, i) => (
+                <p key={i} className="text-sm text-emerald-300 leading-relaxed">• {w}</p>
+              ))}
+            </div>
+          )}
+
+          {/* To improve */}
+          {result.toImprove.length > 0 && (
+            <div className="rounded-xl px-4 py-3 space-y-1.5" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <p className="text-xs font-semibold text-red-400 uppercase tracking-wide mb-2">↑ To improve</p>
+              {result.toImprove.map((t, i) => (
+                <p key={i} className="text-sm text-red-300 leading-relaxed">• {t}</p>
+              ))}
+            </div>
+          )}
+
+          {/* Interview tip */}
+          {result.interviewTip && (
+            <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)' }}>
+              <p className="text-sm text-indigo-300 leading-relaxed">{result.interviewTip}</p>
+            </div>
+          )}
+
+          {/* Streak */}
           {streak > 0 && (
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)' }}>
               <Flame className="h-5 w-5 text-orange-400 shrink-0" />
