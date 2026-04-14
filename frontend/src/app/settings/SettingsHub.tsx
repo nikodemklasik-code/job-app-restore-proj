@@ -18,6 +18,7 @@ import {
   Sun,
   Anchor,
   PanelLeftClose,
+  Lock,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -815,6 +816,7 @@ export default function SettingsHub() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="privacy">Privacy &amp; Consents</TabsTrigger>
           <TabsTrigger value="accessibility">Accessibility</TabsTrigger>
           <TabsTrigger value="email">Email &amp; SMTP</TabsTrigger>
           <TabsTrigger value="telegram">Telegram</TabsTrigger>
@@ -855,6 +857,99 @@ export default function SettingsHub() {
                   </div>
                   <Toggle checked={emailNotifications} onChange={toggleEmailNotifications} />
                 </label>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* PRIVACY & CONSENTS */}
+        <TabsContent value="privacy">
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="h-4 w-4" /> Consent Centre
+                </CardTitle>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Control exactly what MultivoHub is allowed to do on your behalf. You can change these at any time.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-5">
+
+                {/* Social profile analysis */}
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Social Profile Analysis</p>
+                  <div className="space-y-3">
+                    {[
+                      { key: 'linkedin', label: 'LinkedIn', desc: 'Analyse your public work history and professional network to improve job matching.' },
+                      { key: 'facebook', label: 'Facebook', desc: 'Analyse public professional interests and activity to identify career trends.' },
+                      { key: 'instagram', label: 'Instagram', desc: 'Analyse your public personal brand for alignment with target roles.' },
+                    ].map(({ key, label, desc }) => (
+                      <div key={key} className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+                        <div>
+                          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{label}</p>
+                          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{desc}</p>
+                        </div>
+                        <Toggle checked={false} onChange={() => {}} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Email & inbox */}
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Email &amp; Inbox</p>
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+                      <div>
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Outgoing emails (SMTP)</p>
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                          Allow MultivoHub to send job applications, cover letters and follow-up emails from your configured email address. Configure in the Email &amp; SMTP tab.
+                        </p>
+                      </div>
+                      <Toggle checked={false} onChange={() => {}} />
+                    </div>
+                    <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+                      <div>
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Incoming mail — application tracking (IMAP)</p>
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                          Allow AI to read incoming emails to detect employer replies (interview invites, rejections, offers) and automatically update application statuses.
+                          <br /><span className="text-indigo-400">How it works:</span> AI scans subject lines and senders matching known employers. Message bodies are processed locally and never stored or shared.
+                        </p>
+                      </div>
+                      <Toggle checked={false} onChange={() => {}} />
+                    </div>
+                    <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+                      <div>
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Incoming mail — inbound job offers</p>
+                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                          Allow AI to detect emails from recruiters containing job opportunities and surface them in Job Listings.
+                          <br /><span className="text-indigo-400">How it works:</span> AI identifies recruiter patterns and job-related keywords. No email content is stored — only extracted job metadata (title, company, salary range).
+                        </p>
+                      </div>
+                      <Toggle checked={false} onChange={() => {}} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Auto-apply */}
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Auto-Apply</p>
+                  <div className="flex items-start justify-between gap-4 rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+                    <div>
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Automatic job applications</p>
+                      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                        Allow AI to submit applications on your behalf for roles that meet your auto-apply threshold (set in Profile &amp; Goals). You will be notified of every submission.
+                      </p>
+                    </div>
+                    <Toggle checked={false} onChange={() => {}} />
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-400 dark:text-slate-500">
+                  All data is processed securely. We never sell or share your data with third parties. See our{' '}
+                  <a href="/legal/privacy" className="text-indigo-500 hover:underline">Privacy Policy</a> for full details.
+                </p>
               </CardContent>
             </Card>
           </div>

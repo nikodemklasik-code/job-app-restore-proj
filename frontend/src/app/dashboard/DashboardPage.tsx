@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { Loader2, MapIcon } from 'lucide-react';
+import { Loader2, MapIcon, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface DashboardFormState {
@@ -152,45 +152,40 @@ export default function DashboardPage() {
 
           {/* Social consents */}
           <div className={CARD_CLASS}>
-            <h2 className="mb-2 text-base font-semibold text-slate-800 dark:text-white">Social Profile Analysis</h2>
-            <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">
-              Allow AI to analyse your public profiles to better understand your background:
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-base font-semibold text-slate-800 dark:text-white">Social Profile Analysis</h2>
+              <Link
+                to="/settings"
+                className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+              >
+                Manage all consents <ExternalLink className="h-3 w-3" />
+              </Link>
+            </div>
+            <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+              Allow AI to analyse your public profiles:
             </p>
 
-            <div className="space-y-4">
-              <label className="flex cursor-pointer items-start gap-3">
-                <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded accent-indigo-600"
-                  checked={form.linkedinConsent}
-                  onChange={(e) => set('linkedinConsent', e.target.checked)} />
-                <div>
-                  <span className="text-sm font-medium text-slate-800 dark:text-white">LinkedIn</span>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Analyse your network and work history</p>
-                </div>
-              </label>
-
-              <label className="flex cursor-pointer items-start gap-3">
-                <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded accent-indigo-600"
-                  checked={form.facebookConsent}
-                  onChange={(e) => set('facebookConsent', e.target.checked)} />
-                <div>
-                  <span className="text-sm font-medium text-slate-800 dark:text-white">Facebook</span>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Analyse professional interests and activity</p>
-                </div>
-              </label>
-
-              <label className="flex cursor-pointer items-start gap-3">
-                <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded accent-indigo-600"
-                  checked={form.instagramConsent}
-                  onChange={(e) => set('instagramConsent', e.target.checked)} />
-                <div>
-                  <span className="text-sm font-medium text-slate-800 dark:text-white">Instagram</span>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Analyse your personal brand</p>
-                </div>
-              </label>
+            <div className="space-y-3">
+              {[
+                { key: 'linkedinConsent' as const, label: 'LinkedIn' },
+                { key: 'facebookConsent' as const, label: 'Facebook' },
+                { key: 'instagramConsent' as const, label: 'Instagram' },
+              ].map(({ key, label }) => (
+                <label key={key} className="flex cursor-pointer items-center justify-between gap-3">
+                  <span className="text-sm font-medium text-slate-800 dark:text-white">{label}</span>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 cursor-pointer rounded accent-indigo-600"
+                    checked={form[key]}
+                    onChange={(e) => set(key, e.target.checked)}
+                  />
+                </label>
+              ))}
             </div>
 
-            <p className="mt-5 text-xs text-slate-400 dark:text-slate-500">
-              Data is processed locally and never shared with third parties.
+            <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
+              Full consent centre (email, auto-apply &amp; more) in{' '}
+              <Link to="/settings" className="text-indigo-500 hover:underline">Settings → Privacy</Link>.
             </p>
           </div>
         </div>
