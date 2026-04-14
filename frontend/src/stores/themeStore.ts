@@ -26,9 +26,11 @@ export const useThemeStore = create<ThemeStore>((set) => ({
   focusMode: false,
 
   setTheme: (theme) => {
-    set({ theme });
-    applyTheme(theme);
-    localStorage.setItem('theme', theme);
+    // Light mode not yet ready — force dark
+    const resolved: Theme = 'dark';
+    set({ theme: resolved });
+    applyTheme(resolved);
+    localStorage.setItem('theme', resolved);
   },
 
   setFocusMode: (enabled) => {

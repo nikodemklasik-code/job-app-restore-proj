@@ -160,7 +160,7 @@ Use real, current courses from Coursera, Udemy, LinkedIn Learning, Pluralsight, 
         };
       }
 
-      const senderDisplayName = input.senderName ?? 'the applicant';
+      const senderDisplayName = input.senderName?.trim() || 'the candidate';
 
       const systemPrompt = input.type === 'cv'
         ? `You are an expert UK CV writer. Generate a professional, tailored CV summary and skills section (no template headings, pure prose sections ready to paste). Tailor it specifically to the job description provided. Use British English.`

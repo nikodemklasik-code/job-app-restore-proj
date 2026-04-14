@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Flame, Mic, MicOff, RefreshCw, CheckCircle, ChevronRight, Timer, Star } from 'lucide-react';
 
-// ─── Question bank (drawn from all interview modes) ───────────────────────────
+// ─── Question bank (mixed, quick daily practice) ──────────────────────────────
 
 const WARMUP_QUESTIONS = [
   "Tell me about a time you solved a difficult problem under pressure.",
@@ -26,42 +26,77 @@ const COOLDOWN_SECONDS = 3;
 const STREAK_KEY = 'warmup_streak';
 const LAST_DATE_KEY = 'warmup_last_date';
 
-// ─── Simple scoring (client-side, no network) ─────────────────────────────────
+// ─── Scoring ──────────────────────────────────────────────────────────────────
 
-function scoreWarmup(transcript: string): { score: number; tip: string; label: string } {
+interface WarmupResult {
+  score: number;
+  label: string;
+  whatWorked: string[];
+  toImprove: string[];
+  interviewTip: string;
+}
+
+function scoreWarmup(transcript: string): WarmupResult {
   const t = transcript.trim().toLowerCase();
-  if (!t) return { score: 0, tip: 'No answer recorded.', label: 'No answer' };
+  if (!t) return { score: 0, label: 'No answer', whatWorked: [], toImprove: ['Record or type your answer to get feedback.'], interviewTip: '' };
 
   let score = 50;
   const words = t.split(/\s+/).length;
 
-  // Length
   if (words >= 80) score += 15;
   else if (words >= 50) score += 8;
   else if (words < 20) score -= 15;
 
-  // STAR signals
   const hasSituation = /\b(when|at the time|there was|during|in my previous|back in|last year)\b/.test(t);
   const hasAction = /\b(i (did|decided|implemented|built|led|created|wrote|fixed|reached out|set up|introduced|proposed|developed|organized))\b/.test(t);
   const hasResult = /\b(result(ed)?|achiev|improv|reduc|increas|saved|success|by \d|percent|outcome|delivered|launched)\b/.test(t);
+  const fillers = (t.match(/\b(um|uh|like|you know|kind of|sort of)\b/g) ?? []).length;
+
   if (hasSituation) score += 8;
   if (hasAction) score += 10;
   if (hasResult) score += 12;
-
-  // Filler words
-  const fillers = (t.match(/\b(um|uh|like|you know|kind of|sort of)\b/g) ?? []).length;
   score -= fillers * 4;
-
   score = Math.max(20, Math.min(100, Math.round(score)));
 
-  let tip: string;
-  let label: string;
-  if (score >= 85) { label = 'Excellent'; tip = 'Great structure and clear delivery. Try to add a quantified result next time.'; }
-  else if (score >= 70) { label = 'Good'; tip = 'Solid answer. Strengthen your result with specific numbers or impact.'; }
-  else if (score >= 55) { label = 'Developing'; tip = !hasResult ? 'Close with the outcome — what was the result or impact?' : !hasAction ? 'Make your own actions clearer: "I did…" statements help.' : 'Add more detail and slow down.'; }
-  else { label = 'Needs work'; tip = 'Structure your answer: Situation → Task → Action → Result. Try recording it again.'; }
+  // Build specific feedback
+  const whatWorked: string[] = [];
+  const toImprove: string[] = [];
 
-  return { score, tip, label };
+  if (hasSituation) whatWorked.push('You set the scene — the interviewer knows the context.');
+  else toImprove.push('Add context: start with "At my previous company…" or "Last year when I was working on…" so the interviewer understands the situation.');
+
+  if (hasAction) whatWorked.push('You described your own actions clearly — this shows ownership.');
+  else toImprove.push('Make your personal contribution explicit: use "I did…", "I decided…", "I built…" rather than "we" or passive phrasing.');
+
+  if (hasResult) whatWorked.push('You included an outcome — interviewers value seeing what your actions achieved.');
+  else toImprove.push('Close with a result: "As a result…", "This led to…", or "The outcome was…". Add a number if possible (e.g. "reduced by 30%", "saved 2 hours a week").');
+
+  if (words >= 60) whatWorked.push('Good answer length — enough detail to be convincing.');
+  else if (words < 30) toImprove.push('Aim for at least 60–100 words. An answer this short lacks the evidence an interviewer needs.');
+
+  if (fillers > 2) toImprove.push(`You used ${fillers} filler word${fillers !== 1 ? 's' : ''} (um, uh, like, you know). Pause silently instead — it sounds more confident.`);
+
+  // Interview tip based on what's missing
+  let interviewTip: string;
+  if (!hasResult && !hasSituation) {
+    interviewTip = '🎯 In the real interview: structure your answer as STAR — Situation, Task, Action, Result. Most interviewers are trained to look for all four parts. Without a clear result, even a great story loses marks.';
+  } else if (!hasResult) {
+    interviewTip = '🎯 In the real interview: always land on a result. Prepare a one-sentence ending in advance: "As a result, we achieved X." This is the part most candidates forget under pressure.';
+  } else if (!hasSituation) {
+    interviewTip = '🎯 In the real interview: open with a brief context-setter — one sentence that tells the interviewer where you were and what the challenge was. It helps them follow the story.';
+  } else if (fillers > 2) {
+    interviewTip = '🎯 In the real interview: pause rather than fill silence with "um" or "like". A deliberate pause signals you are thinking — it sounds far more professional than filler words.';
+  } else {
+    interviewTip = '🎯 In the real interview: once you have the STAR structure down, add one specific number or metric to your result. Concrete impact ("cut onboarding time by 40%") is what makes answers memorable.';
+  }
+
+  let label: string;
+  if (score >= 85) label = 'Excellent';
+  else if (score >= 70) label = 'Good';
+  else if (score >= 55) label = 'Developing';
+  else label = 'Needs work';
+
+  return { score, label, whatWorked, toImprove, interviewTip };
 }
 
 // ─── Streak helpers ───────────────────────────────────────────────────────────
@@ -75,11 +110,10 @@ function loadStreak(): number {
     const last = localStorage.getItem(LAST_DATE_KEY);
     const streak = parseInt(localStorage.getItem(STREAK_KEY) ?? '0', 10);
     if (!last) return 0;
-    const today = getTodayStr();
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    if (last === today) return streak;
-    if (last === yesterday) return streak; // still valid, not yet incremented today
-    return 0; // broken streak
+    if (last === getTodayStr()) return streak;
+    if (last === yesterday) return streak;
+    return 0;
   } catch { return 0; }
 }
 
@@ -128,7 +162,6 @@ export default function InterviewWarmup() {
 
   useEffect(() => { pickQuestion(); }, [pickQuestion]);
 
-  // Countdown before recording
   useEffect(() => {
     if (phase !== 'countdown') return;
     setCountdown(COOLDOWN_SECONDS);
@@ -142,7 +175,6 @@ export default function InterviewWarmup() {
     return () => { clearInterval(t); clearTimeout(start); };
   }, [phase]);
 
-  // Answer timer
   useEffect(() => {
     if (phase !== 'recording') return;
     setTimeLeft(ANSWER_TIME_SECONDS);
@@ -164,9 +196,7 @@ export default function InterviewWarmup() {
       recorderRef.current = rec;
       rec.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data); };
       rec.start();
-    } catch {
-      // mic denied — fall back to text input
-    }
+    } catch { /* mic denied — fall back to text */ }
   };
 
   const stopRecording = useCallback(() => {
@@ -198,8 +228,6 @@ export default function InterviewWarmup() {
   const scoreColor = (s: number) => s >= 80 ? '#34d399' : s >= 60 ? '#fbbf24' : '#f87171';
   const timerColor = timeLeft <= 10 ? '#f87171' : timeLeft <= 20 ? '#fbbf24' : '#34d399';
 
-  // ── Layout shell ────────────────────────────────────────────────────────────
-
   return (
     <div className="max-w-xl mx-auto px-4 py-8 flex flex-col gap-6">
       {/* Header */}
@@ -209,7 +237,7 @@ export default function InterviewWarmup() {
             <Flame style={{ width: 20, height: 20, color: '#fff' }} />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">Interview Warmup</h1>
+            <h1 className="text-xl font-bold text-white">Daily Warmup</h1>
             <p className="text-xs text-slate-400">5-minute daily practice · one question · 60 seconds</p>
           </div>
         </div>
@@ -220,7 +248,6 @@ export default function InterviewWarmup() {
         </div>
       </div>
 
-      {/* Already done today banner */}
       {alreadyDone && phase === 'ready' && (
         <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.25)' }}>
           <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0" />
@@ -237,7 +264,6 @@ export default function InterviewWarmup() {
         <p className="text-base font-medium text-white leading-relaxed">{question}</p>
       </div>
 
-      {/* Phase: ready */}
       {phase === 'ready' && (
         <div className="flex flex-col gap-3">
           <button
@@ -254,16 +280,20 @@ export default function InterviewWarmup() {
             className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 resize-none"
             rows={5}
           />
-          <button
-            onClick={handleSubmitText}
-            className="w-full py-2.5 rounded-xl font-semibold text-sm border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors"
-          >
-            Submit Text Answer
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSubmitText}
+              className="flex-1 py-2.5 rounded-xl font-semibold text-sm border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors"
+            >
+              Submit Text Answer
+            </button>
+            <button onClick={handleReset} className="px-3 py-2.5 rounded-xl font-semibold text-sm border border-slate-700 text-slate-500 hover:bg-slate-800 transition-colors" title="New question">
+              <RefreshCw className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Phase: countdown */}
       {phase === 'countdown' && (
         <div className="flex flex-col items-center gap-4 py-6">
           <div className="text-6xl font-black" style={{ color: '#f97316', fontVariantNumeric: 'tabular-nums' }}>{countdown}</div>
@@ -271,7 +301,6 @@ export default function InterviewWarmup() {
         </div>
       )}
 
-      {/* Phase: recording */}
       {phase === 'recording' && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between px-5 py-4 rounded-xl" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
@@ -284,14 +313,13 @@ export default function InterviewWarmup() {
               <span className="text-2xl font-black" style={{ color: timerColor, fontVariantNumeric: 'tabular-nums' }}>{timeLeft}s</span>
             </div>
           </div>
-          <p className="text-xs text-slate-500 text-center">Speak your answer clearly. Recording will stop automatically at 0 seconds.</p>
+          <p className="text-xs text-slate-500 text-center">Speak clearly. Recording stops automatically at 0 seconds.</p>
           <button
             onClick={stopRecording}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors"
           >
             <MicOff className="h-4 w-4" /> Stop Early
           </button>
-          {/* Text fallback */}
           <div className="mt-2">
             <p className="text-xs text-slate-600 mb-2">Or type your answer instead:</p>
             <textarea
@@ -304,10 +332,9 @@ export default function InterviewWarmup() {
         </div>
       )}
 
-      {/* Phase: reviewing (text submission) */}
       {phase === 'reviewing' && (
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-slate-400">Recording stopped. If you used the mic, transcribe your answer below to get a score:</p>
+          <p className="text-sm text-slate-400">Recording stopped. Type out what you said to receive a score:</p>
           <textarea
             ref={textareaRef}
             defaultValue={transcript}
@@ -325,10 +352,9 @@ export default function InterviewWarmup() {
         </div>
       )}
 
-      {/* Phase: done */}
       {phase === 'done' && result && (
         <div className="flex flex-col gap-4">
-          {/* Score */}
+          {/* Score header */}
           <div className="flex items-center gap-4 px-6 py-5 rounded-2xl" style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid #1e293b' }}>
             <div className="shrink-0 flex flex-col items-center justify-center w-20 h-20 rounded-2xl" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)' }}>
               <span className="text-3xl font-black" style={{ color: scoreColor(result.score) }}>{result.score}</span>
@@ -336,11 +362,38 @@ export default function InterviewWarmup() {
             </div>
             <div className="flex-1">
               <p className="text-base font-bold text-white mb-1">{result.label}</p>
-              <p className="text-sm text-slate-400 leading-relaxed">{result.tip}</p>
+              <p className="text-xs text-slate-500">Analysed against STAR structure, clarity, and impact</p>
             </div>
           </div>
 
-          {/* Streak update */}
+          {/* What worked */}
+          {result.whatWorked.length > 0 && (
+            <div className="rounded-xl px-4 py-3 space-y-1.5" style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.2)' }}>
+              <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wide mb-2">✓ What worked</p>
+              {result.whatWorked.map((w, i) => (
+                <p key={i} className="text-sm text-emerald-300 leading-relaxed">• {w}</p>
+              ))}
+            </div>
+          )}
+
+          {/* To improve */}
+          {result.toImprove.length > 0 && (
+            <div className="rounded-xl px-4 py-3 space-y-1.5" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <p className="text-xs font-semibold text-red-400 uppercase tracking-wide mb-2">↑ To improve</p>
+              {result.toImprove.map((t, i) => (
+                <p key={i} className="text-sm text-red-300 leading-relaxed">• {t}</p>
+              ))}
+            </div>
+          )}
+
+          {/* Interview tip */}
+          {result.interviewTip && (
+            <div className="rounded-xl px-4 py-3" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.25)' }}>
+              <p className="text-sm text-indigo-300 leading-relaxed">{result.interviewTip}</p>
+            </div>
+          )}
+
+          {/* Streak */}
           {streak > 0 && (
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)' }}>
               <Flame className="h-5 w-5 text-orange-400 shrink-0" />

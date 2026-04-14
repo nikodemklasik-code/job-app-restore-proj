@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Briefcase, ClipboardList, FileText,
   MessageSquare, Mic, CreditCard, Settings,
   Shield, Palette, LogOut, Sparkles, Calculator, Scale, BarChart2, Zap,
-  FlaskConical, Handshake, Radar, HelpCircle, FolderOpen, GraduationCap,
+  FlaskConical, Handshake, Radar, HelpCircle, FolderOpen, GraduationCap, Flame,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -36,7 +36,8 @@ const AI_TOOLS: NavItem[] = [
 
 const COACHING: NavItem[] = [
   { path: '/interview', label: 'Interview', icon: Mic },
-  { path: '/warmup', label: 'Coach', icon: GraduationCap },
+  { path: '/warmup', label: 'Daily Warmup', icon: Flame },
+  { path: '/coach', label: 'Coach', icon: GraduationCap },
   { path: '/negotiation', label: 'Negotiation', icon: Handshake },
 ];
 
