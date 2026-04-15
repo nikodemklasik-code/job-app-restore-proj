@@ -16,15 +16,10 @@ import {
   userEmailSettings,
   applicationLogs,
   applications,
-<<<<<<< HEAD
-} from '../db/schema.js';
-import { generateCoverLetter, generateCvSummary, scoreJobFit } from './aiPersonalizer.js';
-=======
   jobs,
 } from '../db/schema.js';
 import { generateCoverLetter, generateCvSummary, scoreJobFit } from './aiPersonalizer.js';
 import { assessJobScamRisk } from './jobProtection.js';
->>>>>>> live-hardening
 import { generateCvPdf, generateCoverLetterPdf } from './pdfGenerator.js';
 import { getLearnedSignals } from './learningService.js';
 import { sendViaSmtp as _sendViaSmtp, deobfuscate } from './emailSettings.js';
@@ -46,8 +41,6 @@ export async function processEmailApply(job: QueueRow): Promise<'sent' | 'skippe
     return 'skipped'; // no employer email — handled by browser-automation branch
   }
 
-<<<<<<< HEAD
-=======
 
   const linkedJob = job.jobId
     ? await db.select({
@@ -79,7 +72,6 @@ export async function processEmailApply(job: QueueRow): Promise<'sent' | 'skippe
     return 'skipped';
   }
 
->>>>>>> live-hardening
   // ── 1. Load user ──────────────────────────────────────────────────────────
   const userRow = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   if (!userRow[0]) return 'failed';

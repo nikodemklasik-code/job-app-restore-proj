@@ -380,18 +380,13 @@ export default function StyleStudio() {
       profileSummary: (profileData as any)?.summary ?? undefined,
       skills: skillNames,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-<<<<<<< HEAD
-      senderName: (profileData as any)?.fullName ?? user?.fullName ?? undefined,
-=======
       senderName: (profileData as any)?.fullName ?? undefined,
->>>>>>> live-hardening
     });
   }
 
   async function handleDownloadGenPdf() {
     if (!genResult || !userId) return;
     setGenPdfError(null);
-<<<<<<< HEAD
 
     // Build filename from user name: "N. Klasik CV.pdf" / "N. Klasik CL.pdf"
     const candidateName = (profileQuery.data as any)?.fullName ?? user?.fullName ?? '';
@@ -403,8 +398,6 @@ export default function StyleStudio() {
       return lastName ? `${initials}. ${lastName} ${suffix}.pdf` : `${candidateName} ${suffix}.pdf`;
     }
 
-=======
->>>>>>> live-hardening
     try {
       if (genType === 'cv') {
         const result = await downloadCvMutation.mutateAsync({ userId });
@@ -415,11 +408,7 @@ export default function StyleStudio() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-<<<<<<< HEAD
         a.download = makeFilename('CV');
-=======
-        a.download = 'CV-generated.pdf';
->>>>>>> live-hardening
         a.click();
         URL.revokeObjectURL(url);
       } else if (downloadCoverLetterPdfMutation) {
@@ -431,11 +420,7 @@ export default function StyleStudio() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-<<<<<<< HEAD
-        a.download = makeFilename('CL');
-=======
         a.download = 'CoverLetter-generated.pdf';
->>>>>>> live-hardening
         a.click();
         URL.revokeObjectURL(url);
       }

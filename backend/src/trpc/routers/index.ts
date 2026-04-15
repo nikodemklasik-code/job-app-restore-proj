@@ -1,8 +1,4 @@
 import { router } from '../trpc.js';
-<<<<<<< HEAD
-import { coachRouter } from './coach.router.js';
-=======
->>>>>>> live-hardening
 import { assistantRouter } from './assistant.router.js';
 import { liveInterviewRouter } from './liveInterview.router.js';
 import { interviewRouter } from './interview.router.js';
@@ -22,16 +18,11 @@ import { jobSourcesRouter } from './jobSources.router.js';
 import { pushRouter } from './push.router.js';
 import { emailMonitoringRouter } from './emailMonitoring.router.js';
 import { radarRouter } from './radar.router.js';
-<<<<<<< HEAD
-import { documentsRouter } from './documents.router.js';
+import { coachRouter } from './coach.router.js';
 
 export const appRouter = router({
-  coach: coachRouter,
-=======
-
-export const appRouter = router({
->>>>>>> live-hardening
   assistant: assistantRouter,
+  coach: coachRouter,
   interview: interviewRouter,
   liveInterview: liveInterviewRouter,
   profile: profileRouter,
@@ -50,10 +41,6 @@ export const appRouter = router({
   push: pushRouter,
   emailMonitoring: emailMonitoringRouter,
   radar: radarRouter,
-<<<<<<< HEAD
-  documents: documentsRouter,
-=======
->>>>>>> live-hardening
 });
 
 export type AppRouter = typeof appRouter;

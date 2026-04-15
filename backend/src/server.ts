@@ -33,10 +33,6 @@ import { createContext } from './trpc/trpc.js';
 import { runRetentionJob } from './services/retentionJob.js';
 
 const app = express();
-<<<<<<< HEAD
-app.set('trust proxy', 1); // Trust nginx reverse proxy — required for rate-limit + X-Forwarded-For
-=======
->>>>>>> live-hardening
 
 app.use(helmet({ contentSecurityPolicy: false })); // CSP disabled — frontend is separate
 
@@ -207,11 +203,7 @@ app.post('/api/interview/stream', async (req, res) => {
 app.post('/api/interview/tts', async (req, res) => {
   const { text } = req.body as { text: string };
 
-<<<<<<< HEAD
-  if (!text || text.length > 4000) {
-=======
   if (!text || text.length > 500) {
->>>>>>> live-hardening
     res.status(400).json({ error: 'Invalid text' });
     return;
   }
@@ -226,15 +218,9 @@ app.post('/api/interview/tts', async (req, res) => {
     const openai = new OpenAI({ apiKey });
     const mp3 = await openai.audio.speech.create({
       model: 'tts-1',
-<<<<<<< HEAD
-      voice: 'fable', // British English accent
-      input: text,
-      speed: 0.88,
-=======
       voice: 'onyx', // Deep professional male voice
       input: text,
       speed: 0.95,
->>>>>>> live-hardening
     });
 
     const buffer = Buffer.from(await mp3.arrayBuffer());

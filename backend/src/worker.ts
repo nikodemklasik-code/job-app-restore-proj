@@ -26,14 +26,9 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 import { eq, and } from 'drizzle-orm';
 import { db } from './db/index.js';
-<<<<<<< HEAD
-import { autoApplyQueue, userJobSessions } from './db/schema.js';
-import { processEmailApply } from './services/emailAutoApply.js';
-=======
 import { autoApplyQueue, userJobSessions, jobs } from './db/schema.js';
 import { processEmailApply } from './services/emailAutoApply.js';
 import { assessJobScamRisk } from './services/jobProtection.js';
->>>>>>> live-hardening
 import { runFollowUpScheduler } from './services/followUpScheduler.js';
 import { runImapMonitor } from './services/imapMonitor.js';
 
@@ -70,10 +65,7 @@ async function markStatus(
 async function applyToJob(job: {
   id: string;
   userId: string;
-<<<<<<< HEAD
-=======
   jobId?: string | null;
->>>>>>> live-hardening
   jobTitle: string;
   company: string;
   applyUrl: string;
@@ -81,8 +73,6 @@ async function applyToJob(job: {
 }): Promise<void> {
   log(`Processing job ${job.id} — "${job.jobTitle}" at ${job.company}`);
 
-<<<<<<< HEAD
-=======
   const linkedJob = 'jobId' in job && job.jobId
     ? await db.select({
         id: jobs.id,
@@ -110,7 +100,6 @@ async function applyToJob(job: {
     return;
   }
 
->>>>>>> live-hardening
   // Fetch saved browser session for this user + source
   const provider = job.source === 'gumtree' ? 'gumtree' : 'indeed';
   const sessionRow = await db

@@ -2,6 +2,10 @@ import { useRef, useState } from 'react';
 import { Upload, FileText, Trash2, Loader2, Lock, CheckCircle2 } from 'lucide-react';
 import { api } from '@/lib/api';
 
+/** Runtime may expose `documents` router before it is merged into shared `AppRouter` types. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const apiExt = api as any;
+
 const ACCEPT = '.pdf,.docx,.doc,.txt,.jpg,.jpeg,.png';
 
 interface UploadedDoc {
@@ -16,13 +20,17 @@ export default function DocumentLab() {
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  const listQuery = api.documents.list.useQuery(undefined, { staleTime: 30_000 });
+  const listQuery = apiExt.documents.list.useQuery(undefined, { staleTime: 30_000 });
   const docs: UploadedDoc[] = (listQuery.data as UploadedDoc[] | undefined) ?? [];
 
   const utils = api.useUtils();
 
-  const deleteMutation = api.documents.delete.useMutation({
-    onSuccess: () => { void utils.documents.list.invalidate(); },
+  const uploadMutation = apiExt.documents.upload.useMutation();
+
+  const deleteMutation = apiExt.documents.delete.useMutation({
+    onSuccess: () => {
+      void (utils as { documents?: { list: { invalidate: () => Promise<void> } } }).documents?.list.invalidate();
+    },
   });
 
   const handleFiles = async (files: FileList | null) => {
@@ -31,14 +39,13 @@ export default function DocumentLab() {
     try {
       for (const file of Array.from(files)) {
         const text = await file.text().catch(() => '');
-        await (api as unknown as { documents: { upload: { mutate: (args: unknown) => Promise<unknown> } } })
-          .documents.upload.mutate({
-            filename: file.name,
-            documentType: 'other',
-            extractedText: btoa(unescape(encodeURIComponent(text))),
-          });
+        await uploadMutation.mutateAsync({
+          originalFilename: file.name,
+          documentType: 'other',
+          extractedText: text,
+        });
       }
-      void utils.documents.list.invalidate();
+      void (utils as { documents?: { list: { invalidate: () => Promise<void> } } }).documents?.list.invalidate();
     } finally {
       setUploading(false);
     }

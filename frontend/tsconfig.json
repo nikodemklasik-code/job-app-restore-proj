@@ -13,17 +13,10 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-<<<<<<< HEAD
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
-=======
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    },
-    "types": ["vite/client"]
->>>>>>> live-hardening
   },
   "include": ["src"]
 }

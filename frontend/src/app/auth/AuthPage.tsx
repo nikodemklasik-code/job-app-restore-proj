@@ -1,9 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-<<<<<<< HEAD
 import { useAuth, useClerk, useSignIn, useSignUp } from '@clerk/clerk-react';
-=======
-import { useClerk, useSignIn, useSignUp } from '@clerk/clerk-react';
->>>>>>> live-hardening
 import { useNavigate } from 'react-router-dom';
 import {
   Sparkles,
@@ -60,14 +56,6 @@ function TickerCard({
   );
 }
 
-<<<<<<< HEAD
-/* ─── Demo clips — local files served from /auth-videos/ ───────────────────── */
-const DEFAULT_DEMO_VIDEOS = [
-  '/auth-videos/hero-1.mp4',
-  '/auth-videos/hero-2.mp4',
-  '/auth-videos/hero-3.mp4',
-  '/auth-videos/hero-4.mp4',
-=======
 /* ─── Default demo clips (GitHub user-attachments) ─────────────────────────── */
 const DEFAULT_DEMO_VIDEOS = [
   'https://github.com/user-attachments/assets/5c8ac658-4640-46d7-96dc-a59b5e4f7c37',
@@ -79,7 +67,6 @@ const DEFAULT_DEMO_VIDEOS = [
   'https://github.com/user-attachments/assets/0746d7f6-a6b5-4f27-8db0-7e7381b2dcec',
   'https://github.com/user-attachments/assets/7ea8eeb7-5b43-4fd3-bca6-3ed20c1f4ff9',
   'https://github.com/user-attachments/assets/fe7b5210-b949-4eb8-b1f4-3d4449ab53f1',
->>>>>>> live-hardening
 ];
 
 /* ─── Clerk error sanitizer ────────────────────────────────────────────────── */
@@ -234,7 +221,6 @@ function splitFullName(raw: string): { firstName?: string; lastName?: string } {
 
 /* ─── Auth page ──────────────────────────────────────────────────────────────── */
 export default function AuthPage() {
-<<<<<<< HEAD
   const { isSignedIn, isLoaded: authLoaded } = useAuth();
   const navigate = useNavigate();
 
@@ -245,8 +231,6 @@ export default function AuthPage() {
     }
   }, [authLoaded, isSignedIn, navigate]);
 
-=======
->>>>>>> live-hardening
   const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -266,10 +250,6 @@ export default function AuthPage() {
   const { setActive } = useClerk();
   const { signIn, isLoaded: signInLoaded } = useSignIn();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
-<<<<<<< HEAD
-=======
-  const navigate = useNavigate();
->>>>>>> live-hardening
 
   const resetVerification = () => {
     setAwaitingEmailCode(false);
