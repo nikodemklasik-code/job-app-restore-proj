@@ -158,42 +158,11 @@ export async function generateCoverLetterPdf(text: string, meta: CoverLetterMeta
   doc.rect(70, y, 455, 1).fill('#e2e8f0');
   y += 16;
 
-<<<<<<< HEAD
-  // Body text — supports **bold** markdown inline
-  const paragraphs = text.split('\n\n').filter((p) => p.trim());
-  for (const para of paragraphs) {
-    const parts = para.replace(/\n/g, ' ').trim().split(/(\*\*[^*]+\*\*)/g);
-    const hasMarkdown = parts.some((p) => p.startsWith('**') && p.endsWith('**'));
-
-    if (!hasMarkdown || parts.length <= 1) {
-      // Plain paragraph
-      doc.fillColor(DARK).font('Helvetica').fontSize(10.5)
-        .text(parts.join('').replace(/\*\*/g, ''), 70, y, { width: 455, align: 'justify', lineGap: 3 });
-    } else {
-      // Mixed bold/plain paragraph
-      let firstSeg = true;
-      for (let i = 0; i < parts.length; i++) {
-        const seg = parts[i];
-        if (!seg) continue;
-        const isBold = seg.startsWith('**') && seg.endsWith('**');
-        const content = isBold ? seg.slice(2, -2) : seg;
-        const isLast = i === parts.length - 1;
-        doc.fillColor(DARK).font(isBold ? 'Helvetica-Bold' : 'Helvetica').fontSize(10.5);
-        if (firstSeg) {
-          doc.text(content, 70, y, { width: 455, align: 'justify', lineGap: 3, continued: !isLast });
-          firstSeg = false;
-        } else {
-          doc.text(content, { width: 455, align: 'justify', lineGap: 3, continued: !isLast });
-        }
-      }
-    }
-=======
   // Body text
   const paragraphs = text.split('\n\n').filter((p) => p.trim());
   for (const para of paragraphs) {
     doc.fillColor(DARK).font('Helvetica').fontSize(10.5)
       .text(para.replace(/\n/g, ' ').trim(), 70, y, { width: 455, align: 'justify', lineGap: 3 });
->>>>>>> live-hardening
     y = doc.y + 14;
   }
 
