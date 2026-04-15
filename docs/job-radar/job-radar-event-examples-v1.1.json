@@ -1,0 +1,254 @@
+{
+  "description": "Example JobRadar outbox / domain event payloads (v1.1). Persist the same shape into job_radar_outbox.payload.",
+  "version": "1.1",
+  "events": {
+    "scan_requested": {
+      "event_name": "scan_requested",
+      "event_version": "1.0",
+      "occurred_at": "2026-04-15T13:10:00Z",
+      "scan_id": "6f4d5597-2c1c-4d39-9d97-b702d002cb77",
+      "user_id": "7d849b89-9bf6-49b4-b9bc-c9c2d9f15cd4",
+      "scan_trigger": "manual_search",
+      "idempotency_key": "99dd50ff-7d6f-4f1b-bb35-46f38b2c0f48",
+      "entity_fingerprint": "sha256:40e62f3fd4f44e84f5f90d89d2d46b5b4080...",
+      "source_fingerprint": "sha256:6a2a82ccf84ea7fd7c0f3d64537ffb0b7e0b...",
+      "input": {
+        "employer_name": "Example Ltd",
+        "job_title": "Product Designer",
+        "location": "London",
+        "source_url": "https://example.com/jobs/123"
+      }
+    },
+    "fingerprint_computed": {
+      "event_name": "fingerprint_computed",
+      "event_version": "1.0",
+      "occurred_at": "2026-04-15T13:10:01Z",
+      "scan_id": "6f4d5597-2c1c-4d39-9d97-b702d002cb77",
+      "entity_fingerprint": "sha256:40e62f3fd4f44e84f5f90d89d2d46b5b4080...",
+      "source_fingerprint": "sha256:6a2a82ccf84ea7fd7c0f3d64537ffb0b7e0b..."
+    },
+    "scan_requested_cache_hit": {
+      "event_name": "scan_requested_cache_hit",
+      "event_version": "1.0",
+      "occurred_at": "2026-04-15T13:09:58Z",
+      "user_id": "7d849b89-9bf6-49b4-b9bc-c9c2d9f15cd4",
+      "report_id": "0e747a48-8934-4ba2-8785-a3d39184f962",
+      "entity_fingerprint": "sha256:40e62f3fd4f44e84f5f90d89d2d46b5b4080..."
+    },
+    "input_normalized": {
+      "event_name": "input_normalized",
+      "event_version": "1.0",
+      "occurred_at": "2026-04-15T13:10:01Z",
+      "scan_id": "6f4d5597-2c1c-4d39-9d97-b702d002cb77",
+      "normalized_input": {
+        "canonical_employer_candidate": "example ltd",
+        "normalized_role_family": "Product Design",
+        "normalized_location": "London",
+        "canonical_url": "https://example.com/jobs/123"
+      },
+      "entity_fingerprint": "sha256:40e62f3fd4f44e84f5f90d89d2d46b5b4080..."
+    },
+    "employer_resolved": {
+      "event_name": "employer_resolved",
+      "event_version": "1.0",
+      "occurred_at": "2026-04-15T13:10:03Z",
+      "scan_id": "6f4d5597-2c1c-4d39-9d97-b702d002cb77",
+      "employer": {
+        "employer_id": "0f208f95-dba7-4f8f-b586-7f7396bcae24",
+        "canonical_name": "Example Ltd",
+        "display_name": "Example Ltd",
+        "aliases": ["Example", "Example Limited"]
+      },
+      "resolver_version": "r1.4",
+      "confidence": "high"
+    },
+    "source_fetch_started": {
+      "event_name": "source_fetch_started",
+      "event_version": "1.0",
+      "occurred_at": "2026-04-15T13:10:04Z",
+      "scan_id": "6f4d5597-2c1c-4d39-9d97-b702d002cb77",
+      "source_job": {
+        "source_type": "official_website",
+        "source_url": "https://example.com",
+        "timeout_ms": 8000,
+        "retry_attempt": 0
+      }
+    },
+    "source_fetch_completed": {
+      "event_name": "source_fetch_completed",
+      "event_version": "1.0",
+      "occurred_at": "2026-04-15T13:10:06Z",
+      "scan_id": "6f4d5597-2c1c-4d39-9d97-b702d002cb77",
+      "source": {
+        "source_id": "3b4fd66a-0f57-45b9-84bf-1d14d3b86635",
+        "source_type": "official_website",
+        "source_quality_tier": 1,
+        "source_url": "https://example.com",
+        "normalized_url": "https://example.com/",
+        "title": "Example Ltd",
+        "content_hash": "sha256:5f5af0a6ec4d3d2f32df...",
+        "raw_content_expires_at": "2026-04-22T13:10:06Z"
+      }
+    },
+    "source_fetch_failed": {
+      "event_name": "source_fetch_failed",
+      "event_version": "1.0",
+      "occurred_at": "2026-04-15T13:10:07Z",
+      "scan_id": "6f4d5597-2c1c-4d39-9d97-b702d002cb77",
+      "source": {
+        "source_type": "review_site",
+        "source_url": "https://reviews.example.com/employer/example-ltd"
+      },
+      "error": {
+        "code": "TIMEOUT",
+        "message": "Source collector timed out after 6000ms"
+      },
+      "retry_attempt": 1,
+      "retry_scheduled": true,
+      "next_retry_at": "2026-04-15T13:10:10Z"
+    },
+    "source_deduplicated": {
+      "event_name": "source_deduplicated",
+      "event_version": "1.0",
+      "occurred_at": "2026-04-15T13:10:09Z",
+      "scan_id": "6f4d5597-2c1c-4d39-9d97-b702d002cb77",
+      "source_cluster_id": "cluster_8f2c",
+      "primary_source_id": "3b4fd66a-0f57-45b9-84bf-1d14d3b86635",
+      "duplicate_source_ids": [
+        "9a57d18c-657f-4df0-8f2c-1d0d8f76f8d9",
+        "bb5a0c9c-2ec1-493f-82d5-f6c77b5ecfbb"
+      ],
+      "dedup_reason": "same_content_hash"
+    },
+    "offer_parsed": {
+      "event_name": "offer_parsed",
+      "event_version": "1.0",
+      "occurred_at": "2026-04-15T13:10:12Z",
+      "scan_id": "6f4d5597-2c1c-4d39-9d97-b702d002cb77",
+      "parser_version": "p3.2",
+      "job": {
+        "title": "Product Designer",
+        "role_family": "Product Design",
+        "seniority": "Mid",
+        "location": "London",
+        "work_mode": "Hybrid",
+        "employment_type": "Permanent",
+        "salary_min": 65000,
+        "salary_max": 80000,
+        "currency": "GBP"
+      },
+      "confidence": {
+        "salary": "medium",
+        "work_mode": "high",
+        "location": "high"
+      }
+    },
+    "signals_extracted": {
+      "event_name": "signals_extracted",
+      "event_version": "1.0",
+      "occurred_at": "2026-04-15T13:10:14Z",
+      "scan_id": "6f4d5597-2c1c-4d39-9d97-b702d002cb77",
+      "signal_counts": {
+        "employer": 9,
+        "offer": 14,
+        "benchmark": 3,
+        "risk": 4
+      },
+      "missing_data": [
+        "promotion_path",
+        "exact_bonus_structure"
+      ],
+      "conflicts_detected": [
+        {
+          "signal_key": "salary_max",
+          "conflict_reason": "job_board_copy_conflicts_with_official_listing",
+          "resolved_by": "tier_priority"
+        }
+      ]
+    },
+    "benchmark_ready": {
+      "event_name": "benchmark_ready",
+      "event_version": "1.0",
+      "occurred_at": "2026-04-15T13:10:15Z",
+      "scan_id": "6f4d5597-2c1c-4d39-9d97-b702d002cb77",
+      "benchmark": {
+        "benchmark_region": "London",
+        "benchmark_period": "last_180_days",
+        "sample_size": 84,
+        "source_mix": ["job_boards", "salary_aggregators"],
+        "normalization_version": "n1.0",
+        "salary_p25": 58000,
+        "salary_median": 72000,
+        "salary_p75": 86000,
+        "confidence": "medium"
+      }
+    },
+    "fit_computed": {
+      "event_name": "fit_computed",
+      "event_version": "1.0",
+      "occurred_at": "2026-04-15T13:10:16Z",
+      "scan_id": "6f4d5597-2c1c-4d39-9d97-b702d002cb77",
+      "fit": {
+        "work_mode_match": "strong",
+        "salary_match": "partial",
+        "company_type_match": "unknown",
+        "work_life_priority_match": "partial"
+      },
+      "confidence": "medium",
+      "next_best_action": {
+        "type": "complete_profile",
+        "label": "Provide salary expectations to improve fit scoring"
+      }
+    },
+    "scores_calculated": {
+      "event_name": "scores_calculated",
+      "event_version": "1.0",
+      "occurred_at": "2026-04-15T13:10:18Z",
+      "scan_id": "6f4d5597-2c1c-4d39-9d97-b702d002cb77",
+      "scoring_version": "v1.1.0",
+      "scores": {
+        "employer_score": 78,
+        "offer_score": 71,
+        "market_pay_score": 64,
+        "benefits_score": 58,
+        "culture_fit_score": 82,
+        "risk_score": 34
+      },
+      "confidence_summary": {
+        "overall": "medium",
+        "salary": "medium",
+        "benefits": "high",
+        "reputation": "low",
+        "fit": "medium"
+      },
+      "low_confidence_impact_cap_applied": true
+    },
+    "override_applied": {
+      "event_name": "override_applied",
+      "event_version": "1.0",
+      "occurred_at": "2026-04-15T13:10:19Z",
+      "scan_id": "6f4d5597-2c1c-4d39-9d97-b702d002cb77",
+      "override": {
+        "override_applied": true,
+        "override_id": "OVR-003",
+        "override_reason": "Severe registry mismatch and compensation inconsistency",
+        "override_confidence": "high",
+        "override_ceiling": "Mixed Signals"
+      }
+    },
+    "report_ready": {
+      "event_name": "report_ready",
+      "event_version": "1.0",
+      "occurred_at": "2026-04-15T13:10:20Z",
+      "scan_id": "6f4d5597-2c1c-4d39-9d97-b702d002cb77",
+      "report_id": "0e747a48-8934-4ba2-8785-a3d39184f962",
+      "status": "ready",
+      "freshness": {
+        "last_scanned_at": "2026-04-15T13:10:20Z",
+        "freshness_hours": 0,
+        "freshness_status": "fresh",
+        "auto_rescan_eligible": false
+      }
+    }
+  }
+}

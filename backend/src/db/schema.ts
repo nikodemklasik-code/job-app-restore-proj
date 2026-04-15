@@ -489,3 +489,6 @@ export const testAccounts = mysqlTable('test_accounts', {
   createdBy: varchar('created_by', { length: 100 }).notNull().default('admin'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+// Job Radar module (Drizzle definitions live in `schemas/job-radar.ts`)
+export * from './schemas/job-radar.js';

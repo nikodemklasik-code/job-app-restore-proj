@@ -1,0 +1,774 @@
+openapi: 3.1.0
+info:
+  title: JobRadar API
+  version: 1.1.0
+  description: |
+    Final REST contract v1.1 — scan orchestration, reports, rescan, employer history.
+    **Scan status** (`processing` | `partial_report` | `ready` | `sources_blocked` | `scan_failed`) is pipeline state only.
+    **Data staleness** lives on `report.freshness.freshness_status` (`fresh` | `acceptable` | `stale`), not on scan status.
+
+servers:
+  - url: https://api.example.com
+  - url: http://localhost:3001
+
+tags:
+  - name: JobRadar
+    description: Employer & job research scans
+
+paths:
+  /job-radar/scan:
+    post:
+      tags: [JobRadar]
+      summary: Create a new JobRadar scan
+      operationId: jobRadarStartScan
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanRequest'
+      responses:
+        '202':
+          description: Scan accepted (async)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanAcceptedResponse'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '403':
+          $ref: '#/components/responses/Error403'
+        '409':
+          description: Idempotency key reused with different payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/Error429'
+
+  /job-radar/scan/from-saved-job:
+    post:
+      tags: [JobRadar]
+      summary: Start scan from a saved job / shortlist entry
+      operationId: jobRadarStartFromSavedJob
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FromSavedJobRequest'
+      responses:
+        '202':
+          description: Scan accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanAcceptedResponse'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  /job-radar/scan/{scan_id}:
+    get:
+      tags: [JobRadar]
+      summary: Get scan status and progress
+      operationId: jobRadarGetScan
+      parameters:
+        - name: scan_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Scan progress
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanProgressResponse'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  /job-radar/report/{report_id}:
+    get:
+      tags: [JobRadar]
+      summary: Get JobRadar report (full or partial)
+      operationId: jobRadarGetReport
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportResponse'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  /job-radar/report/{report_id}/rescan:
+    post:
+      tags: [JobRadar]
+      summary: Trigger manual rescan (new scan_id; does not mutate report in place)
+      operationId: jobRadarRescanReport
+      parameters:
+        - name: report_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RescanRequest'
+      responses:
+        '202':
+          description: Rescan accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanAcceptedResponse'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+  /job-radar/employers/{employer_id}/history:
+    get:
+      tags: [JobRadar]
+      summary: Report history for an employer (user-scoped)
+      operationId: jobRadarEmployerHistory
+      parameters:
+        - name: employer_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: History entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmployerHistoryResponse'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '404':
+          $ref: '#/components/responses/Error404'
+
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: |
+        Client token (UUID recommended). Same key + same payload within TTL → same `scan_id`.
+        Same key + different payload → 409 `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD`.
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+
+  responses:
+    Error400:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Error401:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Error403:
+      description: Forbidden (e.g. quota)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Error404:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Error429:
+      description: Rate limit / quota
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error_code, message]
+      properties:
+        error_code:
+          $ref: '#/components/schemas/ErrorCode'
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+    ErrorCode:
+      type: string
+      description: Machine-readable error
+      enum:
+        - INVALID_SCAN_INPUT
+        - SCAN_QUOTA_EXCEEDED
+        - ACTIVE_SCAN_ALREADY_EXISTS
+        - IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD
+        - SCAN_NOT_FOUND
+        - REPORT_NOT_FOUND
+        - SOURCE_COLLECTION_TIMEOUT
+        - SOURCE_ACCESS_BLOCKED
+        - PARTIAL_DATA_ONLY
+        - SCORING_UNAVAILABLE
+        - BENCHMARK_NOT_AVAILABLE
+        - RESCAN_NOT_ALLOWED
+        - INTERNAL_SCAN_ERROR
+        - VALIDATION_ERROR
+        - UNAUTHORIZED
+
+    ScanTrigger:
+      type: string
+      enum: [saved_job, manual_search, url_input]
+
+    ScanStatus:
+      type: string
+      description: Pipeline state only — not data freshness
+      enum: [processing, partial_report, ready, sources_blocked, scan_failed]
+
+    FreshnessStatus:
+      type: string
+      enum: [fresh, acceptable, stale]
+
+    ConfidenceLevel:
+      type: string
+      enum: [low, medium, high]
+
+    Recommendation:
+      type: string
+      enum: [Strong Match, Good Option, Mixed Signals, High Risk]
+
+    RecommendationCeiling:
+      type: string
+      description: Max recommendation after override (e.g. cap at Mixed Signals)
+      enum: [Strong Match, Good Option, Mixed Signals, High Risk]
+
+    Severity:
+      type: string
+      enum: [low, medium, high, severe]
+
+    ProgressStageState:
+      type: string
+      enum: [pending, processing, done, partial, blocked, failed]
+
+    ScanRequest:
+      type: object
+      required: [scan_trigger]
+      properties:
+        scan_trigger:
+          $ref: '#/components/schemas/ScanTrigger'
+        employer_name:
+          type: string
+        job_title:
+          type: string
+        location:
+          type: string
+        source_url:
+          type: string
+          format: uri
+        saved_job_id:
+          type: string
+          description: Shortlist / saved_jobs id when applicable
+        job_post_id:
+          type: string
+          description: Internal job_posts.id when known
+        force_rescan:
+          type: boolean
+          default: false
+      description: |
+        At least one of `employer_name`, `source_url`, `saved_job_id`, or `job_post_id` must be present.
+      allOf:
+        - oneOf:
+            - required: [employer_name]
+            - required: [source_url]
+            - required: [saved_job_id]
+            - required: [job_post_id]
+
+    FromSavedJobRequest:
+      type: object
+      required: [saved_job_id]
+      properties:
+        saved_job_id:
+          type: string
+        force_rescan:
+          type: boolean
+          default: false
+
+    RescanRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          enum: [user_requested, stale_data, partial_upgrade, system]
+          default: user_requested
+
+    ScanAcceptedResponse:
+      type: object
+      required: [scan_id, status]
+      properties:
+        scan_id:
+          type: string
+        status:
+          $ref: '#/components/schemas/ScanStatus'
+        quota_remaining:
+          type: integer
+          minimum: 0
+        estimated_report_type:
+          type: string
+          enum: [full, partial, unknown]
+        idempotency_reused:
+          type: boolean
+          description: True when same Idempotency-Key hit within TTL with same payload
+        report_id:
+          type: string
+          description: Skeleton report id when created immediately
+
+    ScanProgress:
+      type: object
+      properties:
+        input_normalization:
+          $ref: '#/components/schemas/ProgressStageState'
+        employer_resolution:
+          $ref: '#/components/schemas/ProgressStageState'
+        source_collection:
+          $ref: '#/components/schemas/ProgressStageState'
+        offer_parsing:
+          $ref: '#/components/schemas/ProgressStageState'
+        benchmarking:
+          $ref: '#/components/schemas/ProgressStageState'
+        fit_scoring:
+          $ref: '#/components/schemas/ProgressStageState'
+        report_generation:
+          $ref: '#/components/schemas/ProgressStageState'
+
+    ScanProgressResponse:
+      type: object
+      required:
+        - scan_id
+        - status
+        - scan_trigger
+        - progress
+        - started_at
+        - last_updated_at
+        - fingerprint
+      properties:
+        scan_id:
+          type: string
+        status:
+          $ref: '#/components/schemas/ScanStatus'
+        scan_trigger:
+          $ref: '#/components/schemas/ScanTrigger'
+        progress:
+          $ref: '#/components/schemas/ScanProgress'
+        started_at:
+          type: string
+          format: date-time
+        last_updated_at:
+          type: string
+          format: date-time
+        fingerprint:
+          type: string
+          description: SHA-256 hex (entity_fingerprint) for dedupe / support
+        partial_report_id:
+          type: string
+          nullable: true
+        failed_reason:
+          type: string
+          nullable: true
+
+    ScoreSet:
+      type: object
+      required:
+        - employer_score
+        - offer_score
+        - market_pay_score
+        - benefits_score
+        - culture_fit_score
+        - risk_score
+      properties:
+        employer_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        offer_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        market_pay_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        benefits_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        culture_fit_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        risk_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Higher is worse
+
+    ScoreDriver:
+      type: object
+      required: [label, impact, confidence]
+      properties:
+        label:
+          type: string
+        impact:
+          type: integer
+          minimum: -100
+          maximum: 100
+        confidence:
+          $ref: '#/components/schemas/ConfidenceLevel'
+        source_ref:
+          type: string
+          description: References `sources[].source_id` (not free text)
+
+    ScoreDriverGroup:
+      type: object
+      required: [positive_drivers, negative_drivers, neutral_constraints]
+      properties:
+        positive_drivers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScoreDriver'
+        negative_drivers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScoreDriver'
+        neutral_constraints:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScoreDriver'
+
+    RedFlag:
+      type: object
+      required: [code, label, severity, confidence]
+      properties:
+        code:
+          type: string
+        label:
+          type: string
+        severity:
+          $ref: '#/components/schemas/Severity'
+        confidence:
+          $ref: '#/components/schemas/ConfidenceLevel'
+
+    NextBestAction:
+      type: object
+      required: [type, label]
+      properties:
+        type:
+          type: string
+          enum:
+            - complete_profile
+            - rescan
+            - compare
+            - review_missing_data
+            - none
+        label:
+          type: string
+
+    Freshness:
+      type: object
+      required:
+        - last_scanned_at
+        - freshness_hours
+        - freshness_status
+        - auto_rescan_eligible
+      properties:
+        last_scanned_at:
+          type: string
+          format: date-time
+        freshness_hours:
+          type: integer
+          minimum: 0
+        freshness_status:
+          $ref: '#/components/schemas/FreshnessStatus'
+        auto_rescan_eligible:
+          type: boolean
+        rescan_recommended:
+          type: boolean
+
+    BenchmarkProvenance:
+      type: object
+      required:
+        - benchmark_region
+        - benchmark_period
+        - sample_size
+        - source_mix
+        - normalization_version
+      properties:
+        benchmark_region:
+          type: string
+        benchmark_period:
+          type: string
+        sample_size:
+          type: integer
+          minimum: 0
+        source_mix:
+          type: array
+          items:
+            type: string
+        normalization_version:
+          type: string
+
+    ReportVersions:
+      type: object
+      required:
+        - scoring_version
+        - parser_version
+        - normalization_version
+        - resolver_version
+      properties:
+        scoring_version:
+          type: string
+          example: v1.1.0
+        parser_version:
+          type: string
+        normalization_version:
+          type: string
+        resolver_version:
+          type: string
+
+    OverrideAudit:
+      type: object
+      required: [override_applied]
+      properties:
+        override_applied:
+          type: boolean
+        override_id:
+          type: string
+          nullable: true
+          example: OVR-003
+        override_reason:
+          type: string
+          nullable: true
+        override_confidence:
+          $ref: '#/components/schemas/ConfidenceLevel'
+        override_ceiling:
+          $ref: '#/components/schemas/RecommendationCeiling'
+          description: Recommendation cannot exceed this after override
+          nullable: true
+
+    ParseStatus:
+      type: string
+      enum: [pending, parsed, failed, blocked]
+
+    SourceRef:
+      type: object
+      required:
+        - source_id
+        - source_type
+        - source_quality_tier
+        - source_url
+        - collected_at
+      properties:
+        source_id:
+          type: string
+        source_type:
+          type: string
+        source_quality_tier:
+          type: integer
+          enum: [1, 2, 3]
+        source_url:
+          type: string
+          format: uri
+        title:
+          type: string
+        collected_at:
+          type: string
+          format: date-time
+        source_cluster_id:
+          type: string
+          description: Dedup cluster for near-duplicate content across URLs
+        content_hash:
+          type: string
+          description: Optional; omit from UI if preferred — useful for ops/debug
+        parse_status:
+          $ref: '#/components/schemas/ParseStatus'
+
+    EmployerSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        canonical_name:
+          type: string
+        industry:
+          type: string
+        size_band:
+          type: string
+        headquarters:
+          type: string
+        founded_year:
+          type: integer
+        company_status:
+          type: string
+
+    JobSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        role_family:
+          type: string
+        seniority:
+          type: string
+        location:
+          type: string
+        work_mode:
+          type: string
+        employment_type:
+          type: string
+        salary_min:
+          type: number
+        salary_max:
+          type: number
+        currency:
+          type: string
+
+    ReportResponse:
+      type: object
+      required:
+        - report_id
+        - scan_id
+        - status
+        - freshness
+        - scores
+        - recommendation
+        - confidence_summary
+        - score_drivers
+        - missing_data
+        - versions
+        - override_audit
+        - sources
+      properties:
+        report_id:
+          type: string
+        scan_id:
+          type: string
+        status:
+          $ref: '#/components/schemas/ScanStatus'
+        employer:
+          $ref: '#/components/schemas/EmployerSummary'
+        job:
+          $ref: '#/components/schemas/JobSummary'
+        freshness:
+          $ref: '#/components/schemas/Freshness'
+        scores:
+          $ref: '#/components/schemas/ScoreSet'
+        recommendation:
+          $ref: '#/components/schemas/Recommendation'
+        confidence_summary:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ConfidenceLevel'
+        score_drivers:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ScoreDriverGroup'
+        key_findings:
+          type: array
+          items:
+            type: string
+        red_flags:
+          type: array
+          items:
+            $ref: '#/components/schemas/RedFlag'
+        missing_data:
+          type: array
+          items:
+            type: string
+        next_best_action:
+          $ref: '#/components/schemas/NextBestAction'
+        benchmark_provenance:
+          $ref: '#/components/schemas/BenchmarkProvenance'
+        versions:
+          $ref: '#/components/schemas/ReportVersions'
+        override_audit:
+          $ref: '#/components/schemas/OverrideAudit'
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceRef'
+
+    EmployerHistoryEntry:
+      type: object
+      properties:
+        report_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        employer_score:
+          type: integer
+        offer_score:
+          type: integer
+        risk_score:
+          type: integer
+
+    EmployerHistoryResponse:
+      type: object
+      required: [employer_id, history]
+      properties:
+        employer_id:
+          type: string
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmployerHistoryEntry'
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+security:
+  - bearerAuth: []

@@ -19,6 +19,7 @@ import { jobSourcesRouter } from './jobSources.router.js';
 import { pushRouter } from './push.router.js';
 import { emailMonitoringRouter } from './emailMonitoring.router.js';
 import { radarRouter } from './radar.router.js';
+import { jobRadarRouter } from './jobRadar.router.js';
 import { documentsRouter } from './documents.router.js';
 
 export const appRouter = router({
@@ -42,6 +43,7 @@ export const appRouter = router({
   push: pushRouter,
   emailMonitoring: emailMonitoringRouter,
   radar: radarRouter,
+  jobRadar: jobRadarRouter,
   documents: documentsRouter,
 });
 
