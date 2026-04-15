@@ -4,9 +4,32 @@ import {
   FlaskConical, ChevronRight, AlertCircle,
 } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
+import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 
 const ACCEPT = '.pdf,.docx,.doc,.txt,.jpg,.jpeg,.png';
+
+function guessMime(file: File): string {
+  const n = file.name.toLowerCase();
+  if (n.endsWith('.pdf')) return 'application/pdf';
+  if (n.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  if (n.endsWith('.doc')) return 'application/msword';
+  if (n.endsWith('.txt')) return 'text/plain';
+  return file.type || 'application/octet-stream';
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const parts = dataUrl.split(',');
+      resolve(parts[1] ?? '');
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
 
 interface UploadedDoc {
   id: string;
@@ -23,15 +46,24 @@ interface ScoreResult {
   tone: Record<string, number>;
 }
 
-function CvScorePanel({ docs, userId }: { docs: UploadedDoc[]; userId: string }) {
+const LATEST_CV_OPTION = '__cv_latest__';
+
+function CvScorePanel({
+  docs,
+  userId,
+  latestCv,
+}: {
+  docs: UploadedDoc[];
+  userId: string;
+  latestCv: { parsedText: string; originalFilename: string } | null;
+}) {
   const [selectedId, setSelectedId] = useState<string>('');
   const [result, setResult] = useState<ScoreResult | null>(null);
 
   const cvDocs = docs.filter((d) => d.documentType === 'cv' || d.originalFilename.toLowerCase().includes('cv') || d.originalFilename.toLowerCase().includes('resume'));
   const allDocs = cvDocs.length > 0 ? cvDocs : docs;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const getTextQuery = (api as any).documents.getText.useQuery(
+  const getTextQuery = api.documents.getText.useQuery(
     { id: selectedId },
     { enabled: false },
   );
@@ -42,8 +74,18 @@ function CvScorePanel({ docs, userId }: { docs: UploadedDoc[]; userId: string })
 
   async function handleScore() {
     if (!selectedId || !userId) return;
+
+    if (selectedId === LATEST_CV_OPTION && latestCv?.parsedText) {
+      analyzeMutation.mutate({
+        userId,
+        text: latestCv.parsedText.slice(0, 50_000),
+        documentType: 'cv',
+      });
+      return;
+    }
+
     const res = await getTextQuery.refetch();
-    const text = (res.data as { text?: string } | undefined)?.text ?? '';
+    const text = res.data?.text ?? '';
     if (!text) return;
     analyzeMutation.mutate({ userId, text, documentType: 'cv' });
   }
@@ -70,6 +112,11 @@ function CvScorePanel({ docs, userId }: { docs: UploadedDoc[]; userId: string })
             className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200 outline-none focus:border-indigo-500/50"
           >
             <option value="" disabled className="bg-slate-900">— pick a document —</option>
+            {latestCv?.parsedText ? (
+              <option value={LATEST_CV_OPTION} className="bg-slate-900">
+                Latest CV (parsed): {latestCv.originalFilename}
+              </option>
+            ) : null}
             {allDocs.map((d) => (
               <option key={d.id} value={d.id} className="bg-slate-900">{d.originalFilename}</option>
             ))}
@@ -77,7 +124,11 @@ function CvScorePanel({ docs, userId }: { docs: UploadedDoc[]; userId: string })
         </div>
         <button
           onClick={() => void handleScore()}
-          disabled={!selectedId || analyzeMutation.isPending || getTextQuery.isFetching}
+          disabled={
+            !selectedId ||
+            analyzeMutation.isPending ||
+            (selectedId !== LATEST_CV_OPTION && getTextQuery.isFetching)
+          }
           className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {(analyzeMutation.isPending || getTextQuery.isFetching) ? (
@@ -163,9 +214,19 @@ export default function DocumentLab() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const listQuery = api.documents.list.useQuery(undefined, { staleTime: 30_000 });
   const docs: UploadedDoc[] = (listQuery.data as UploadedDoc[] | undefined) ?? [];
+
+  const latestCvQuery = api.cv.getLatest.useQuery({ userId }, { enabled: !!userId });
+  const latestCvForScore =
+    latestCvQuery.data?.parsedText && String(latestCvQuery.data.parsedText).trim().length > 0
+      ? {
+          parsedText: String(latestCvQuery.data.parsedText),
+          originalFilename: String(latestCvQuery.data.originalFilename ?? 'CV'),
+        }
+      : null;
 
   const utils = api.useUtils();
 
@@ -173,20 +234,52 @@ export default function DocumentLab() {
     onSuccess: () => { void utils.documents.list.invalidate(); },
   });
 
+  const cvUploadMutation = api.cv.upload.useMutation();
+  const documentsUploadMutation = api.documents.upload.useMutation();
+
   const handleFiles = async (files: FileList | null) => {
-    if (!files?.length) return;
+    if (!files?.length || !userId) return;
     setUploading(true);
+    setUploadError(null);
     try {
       for (const file of Array.from(files)) {
-        const text = await file.text().catch(() => '');
-        await (api as unknown as { documents: { upload: { mutate: (args: unknown) => Promise<unknown> } } })
-          .documents.upload.mutate({
-            filename: file.name,
-            documentType: 'other',
-            extractedText: btoa(unescape(encodeURIComponent(text))),
+        const mime = guessMime(file);
+        const lower = file.name.toLowerCase();
+        const looksCv = lower.includes('cv') || lower.includes('resume') || lower.includes('curriculum');
+
+        if (mime === 'text/plain' || lower.endsWith('.txt')) {
+          const text = await file.text();
+          await documentsUploadMutation.mutateAsync({
+            documentType: looksCv ? 'cv' : 'other',
+            originalFilename: file.name,
+            extractedText: text.slice(0, 50_000),
           });
+          continue;
+        }
+
+        if (/\.(pdf|docx?)$/i.test(file.name)) {
+          const base64 = await fileToBase64(file);
+          await cvUploadMutation.mutateAsync({
+            userId,
+            filename: file.name,
+            base64,
+            mimeType: mime,
+          });
+          await utils.profile.getProfile.invalidate();
+          continue;
+        }
+
+        await documentsUploadMutation.mutateAsync({
+          documentType: 'other',
+          originalFilename: file.name,
+          extractedText:
+            '[File stored without text extraction — for scoring, upload PDF/DOCX or TXT. Images are kept for your records only.]',
+        });
       }
       void utils.documents.list.invalidate();
+      void utils.cv.getLatest.invalidate({ userId });
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : 'Upload failed');
     } finally {
       setUploading(false);
     }
@@ -199,9 +292,18 @@ export default function DocumentLab() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Document Lab</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Upload your CV, cover letters, certificates — AI scores them and feeds them into your interview, coaching and negotiation sessions.
+          <strong className="font-medium text-slate-600 dark:text-slate-300">PDF, DOC, DOCX</strong> are parsed on the server and saved to your CV library.
+          Plain text files are stored as extracted text. Use <Link to="/profile" className="text-indigo-600 hover:underline dark:text-indigo-400">Profile → Import from CV</Link> to push parsed fields into your profile.
+          The score panel below uses <strong className="font-medium text-slate-600 dark:text-slate-300">Style → analyse document</strong> (OpenAI when configured).
         </p>
       </div>
+
+      {uploadError && (
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {uploadError}
+        </div>
+      )}
 
       {/* ── Upload zone ──────────────────────────────────────────────── */}
       <div
@@ -274,7 +376,7 @@ export default function DocumentLab() {
           <FlaskConical className="h-5 w-5 text-indigo-400" />
           <h2 className="font-semibold text-white">CV Score</h2>
         </div>
-        <CvScorePanel docs={docs} userId={userId} />
+        <CvScorePanel docs={docs} userId={userId} latestCv={latestCvForScore} />
       </div>
 
     </div>

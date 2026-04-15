@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Sparkles, ArrowLeft } from 'lucide-react';
 
-const LAST_UPDATED = '1 April 2026';
+const LAST_UPDATED = '15 April 2026';
 
 interface Section {
   id: string;
@@ -43,12 +43,13 @@ const SECTIONS: Section[] = [
           registered users:
         </p>
         <ul className="list-disc pl-6 mt-3 space-y-1.5">
-          <li>Job discovery and search tools tailored to the UK employment market</li>
+          <li>Job discovery and search tools tailored to the UK employment market (including aggregated listings from third-party providers where connected)</li>
           <li>CV and cover letter management, including AI-assisted generation and formatting</li>
-          <li>Application pipeline tracking to manage the status of your job applications</li>
-          <li>AI-powered tools including interview practice, assistant chat, and salary insight</li>
-          <li>UK employment law reference materials for informational purposes</li>
-          <li>Style studio for CV presentation and personal branding</li>
+          <li>Application pipeline tracking and optional analytics and exports (including Reports)</li>
+          <li>Job Radar and related scanning features that produce personalised summaries and scores</li>
+          <li>AI-powered tools including interview practice, career coach, assistant chat, negotiation coach, Skills Lab, and salary tools</li>
+          <li>Document Lab, Style Studio, and warmup or coaching experiences we may offer from time to time</li>
+          <li>UK employment law reference materials in the Legal Hub for general information only — not legal advice</li>
         </ul>
         <p className="mt-3">
           The Service is intended for individuals seeking employment in the United Kingdom. While some features
@@ -228,9 +229,13 @@ const SECTIONS: Section[] = [
         <p className="mt-3">
           Our full Privacy Policy, which forms part of these Terms, is available at{' '}
           <Link to="/privacy" className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
-            multivohub.com/privacy
+            /privacy
           </Link>
-          . It explains what data we collect, how we use it, and your rights as a data subject.
+          . Our Cookie Policy is at{' '}
+          <Link to="/cookies" className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
+            /cookies
+          </Link>
+          . Together they explain what data we collect, how we use it, and your rights as a data subject.
         </p>
         <p className="mt-3">
           Key points include:
@@ -336,8 +341,69 @@ const SECTIONS: Section[] = [
     ),
   },
   {
+    id: 'job-radar-thirdparty',
+    title: '10. Job Radar, reports & third-party data',
+    content: (
+      <>
+        <p>
+          Some features aggregate job listings, metadata, or scores from third-party sources and APIs. We do not
+          control third-party sites: listings may change or be withdrawn without notice. Job Radar, fit scores,
+          and Reports (including PDF or CSV exports) are provided for your personal planning only. They do not
+          constitute recruitment, legal, financial, or career advice and do not guarantee interviews or offers.
+        </p>
+        <p className="mt-3">
+          You are responsible for verifying role details, employers, and application requirements before you
+          submit applications or rely on automated summaries. If you report an issue with Job Radar content,
+          we may use your feedback to investigate in line with our internal processes and applicable law.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: 'billing-credits',
+    title: '11. Subscriptions, AI credits & payment methods',
+    content: (
+      <>
+        <p>
+          Free and paid plans may include monthly AI usage limits or credits as described on the Billing page.
+          Unused credits may not roll over unless we state otherwise. We may adjust plan limits or pricing with
+          notice as set out in the Subscription Plans section.
+        </p>
+        <p className="mt-3">
+          Depending on region and configuration, payments may be processed by Stripe, PayPal, and/or cryptocurrency
+          checkout (e.g. Coinbase Commerce). Crypto settlements can take time to confirm; access to paid features
+          applies once we record successful payment. Where Stripe Customer Portal is enabled, you may manage certain
+          subscriptions and view invoices there.
+        </p>
+        <p className="mt-3">
+          Chargebacks and payment disputes may result in suspension of paid features until resolved. We will
+          cooperate with good-faith dispute resolution subject to these Terms and payment-provider rules.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: 'cookies-notices',
+    title: '12. Cookies & electronic communications',
+    content: (
+      <>
+        <p>
+          We use cookies and similar technologies as described in our{' '}
+          <Link to="/cookies" className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
+            Cookie Policy
+          </Link>
+          . By using the Service, you agree that we may send essential transactional messages (e.g. security,
+          billing receipts, account or inactivity notices) to the email address associated with your account.
+        </p>
+        <p className="mt-3">
+          Marketing emails, if any, are sent only with your consent and include an unsubscribe option.
+        </p>
+      </>
+    ),
+  },
+  {
     id: 'governing-law',
-    title: '10. Governing Law',
+    title: '13. Governing Law',
     content: (
       <>
         <p>
@@ -361,7 +427,7 @@ const SECTIONS: Section[] = [
   },
   {
     id: 'contact',
-    title: '11. Contact',
+    title: '14. Contact',
     content: (
       <>
         <p>
@@ -467,8 +533,10 @@ export default function TermsPage() {
       <footer className="border-t border-white/10 mt-12">
         <div className="mx-auto max-w-3xl px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs text-slate-500">© 2026 MultivoHub Ltd. All rights reserved.</p>
-          <div className="flex items-center gap-4 text-xs text-slate-500">
-            <Link to="/privacy" className="hover:text-slate-300 transition-colors">Privacy Policy</Link>
+          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+            <Link to="/privacy" className="hover:text-slate-300 transition-colors">Privacy</Link>
+            <Link to="/cookies" className="hover:text-slate-300 transition-colors">Cookies</Link>
+            <Link to="/faq" className="hover:text-slate-300 transition-colors">FAQ</Link>
             <Link to="/auth" className="hover:text-slate-300 transition-colors">Sign In</Link>
           </div>
         </div>

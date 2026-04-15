@@ -418,13 +418,13 @@ export default function LegalHub() {
           </div>
           <h1 className="text-3xl font-bold text-white">Legal Hub</h1>
         </div>
-        <p className="text-slate-400 ml-14">UK employment law reference for job seekers — 2024/25</p>
+        <p className="text-slate-400 ml-14">UK employment law reference for job seekers — verify current rates on GOV.UK</p>
       </div>
 
       {/* Disclaimer */}
       <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-5 py-4">
         <p className="text-xs text-amber-300 leading-relaxed">
-          <span className="font-semibold">Legal Disclaimer:</span> This content is for general information only and does not constitute legal advice. Employment law is complex and fact-specific. For advice on your individual situation, consult a qualified employment solicitor or contact ACAS (0300 123 1100). Information reflects UK law as of 2024/25.
+          <span className="font-semibold">Legal Disclaimer:</span> This hub is educational and does not constitute legal advice. Statutory rates, thresholds, and guidance change — always confirm figures on GOV.UK, ACAS, or HMRC. For advice on your situation, consult a qualified employment solicitor or ACAS (0300 123 1100).
         </p>
       </div>
 

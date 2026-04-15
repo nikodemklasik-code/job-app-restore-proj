@@ -19,6 +19,7 @@ const UKSalaryCalculator = lazy(() => import('./app/salary/UKSalaryCalculator'))
 const LegalHub = lazy(() => import('./app/legal/LegalHub'));
 const TermsPage = lazy(() => import('./app/legal/TermsPage'));
 const PrivacyPage = lazy(() => import('./app/legal/PrivacyPage'));
+const CookiesPage = lazy(() => import('./app/legal/CookiesPage'));
 const ReportsHub = lazy(() => import('./app/reports/ReportsHub'));
 const AutoApplyPage = lazy(() => import('./app/autopilot/AutoApplyPage'));
 const SkillsLab = lazy(() => import('./app/skills/SkillsLab'));
@@ -71,6 +72,14 @@ export const router = createBrowserRouter([
     element: (
       <Suspense fallback={<PageLoader />}>
         <PrivacyPage />
+      </Suspense>
+    ),
+  },
+  {
+    path: '/cookies',
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <CookiesPage />
       </Suspense>
     ),
   },

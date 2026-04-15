@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import {
   Shield,
@@ -1003,8 +1003,13 @@ export default function SettingsHub() {
                 </div>
 
                 <p className="text-xs text-slate-400 dark:text-slate-500">
-                  All data is processed securely. We never sell or share your data with third parties. See our{' '}
-                  <a href="/legal/privacy" className="text-indigo-500 hover:underline">Privacy Policy</a> for full details.
+                  All data is processed securely. We never sell your personal data for third-party marketing. See our{' '}
+                  <Link to="/privacy" className="text-indigo-500 hover:underline">Privacy Policy</Link>
+                  ,{' '}
+                  <Link to="/terms" className="text-indigo-500 hover:underline">Terms</Link>
+                  , and{' '}
+                  <Link to="/cookies" className="text-indigo-500 hover:underline">Cookie Policy</Link>
+                  .
                 </p>
               </CardContent>
             </Card>

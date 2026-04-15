@@ -176,9 +176,9 @@ function EmptyState({ onAction, isSending }: {
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-xl shadow-indigo-500/30">
           <Sparkles className="h-8 w-8 text-white" />
         </div>
-        <h2 className="text-xl font-bold text-white">AI Career Assistant</h2>
+        <h2 className="text-xl font-bold text-white">Career Assistant</h2>
         <p className="mt-1.5 text-sm text-slate-400">
-          Powered by GPT-4o · CV, interviews, salary, strategy
+          Chat uses GPT-4o with modes: general, CV, interview, salary — same as the backend assistant router.
         </p>
         <div className="mx-auto mt-3 flex w-fit items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />

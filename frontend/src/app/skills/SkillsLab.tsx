@@ -45,6 +45,9 @@ function gapColor(current: number, required: number): string {
 function MonetisationZone() {
   return (
     <div className="space-y-4">
+      <p className="text-xs font-medium uppercase tracking-wide text-amber-400/90">
+        Sample data — not your salary or live market estimate
+      </p>
       {/* Salary cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {/* Current valuation */}
@@ -73,8 +76,7 @@ function MonetisationZone() {
       </div>
       {/* Disclaimer */}
       <p className="text-xs text-slate-500 leading-relaxed">
-        ⚠️ Estimated values. Actual salary depends on many factors — location, company, negotiation.{' '}
-        <a href="#" className="underline hover:text-slate-300 transition-colors">Methodology details</a>
+        Illustration only. Real market-value tooling is not wired to live data in this build.
       </p>
     </div>
   );
@@ -87,7 +89,9 @@ function SkillsGapSplit() {
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       {/* Left — My skills */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
-        <h3 className="font-semibold text-white text-sm uppercase tracking-wider">Your Skills</h3>
+        <h3 className="font-semibold text-white text-sm uppercase tracking-wider">
+          Your Skills <span className="font-normal text-slate-500 normal-case">(mock list)</span>
+        </h3>
         <div className="space-y-3">
           {MY_SKILLS_MOCK.map((skill) => {
             const req = MARKET_REQUIREMENTS_MOCK.find((r) => r.name === skill.name)?.required ?? 70;
@@ -111,7 +115,9 @@ function SkillsGapSplit() {
       </div>
       {/* Right — Market requirements */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
-        <h3 className="font-semibold text-white text-sm uppercase tracking-wider">Market Requirements</h3>
+        <h3 className="font-semibold text-white text-sm uppercase tracking-wider">
+          Market Requirements <span className="font-normal text-slate-500 normal-case">(mock)</span>
+        </h3>
         <div className="space-y-3">
           {MARKET_REQUIREMENTS_MOCK.map((req) => {
             const mine = MY_SKILLS_MOCK.find((s) => s.name === req.name)?.current ?? 0;
@@ -170,7 +176,9 @@ function RecommendedCourses() {
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <Award className="h-5 w-5 text-indigo-400" />
-        <h2 className="font-semibold text-white">Recommended Courses</h2>
+        <h2 className="font-semibold text-white">
+          Recommended Courses <span className="text-xs font-normal text-slate-500">(placeholder links)</span>
+        </h2>
         <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-400">
           {COURSES_MOCK.length} courses
         </span>
@@ -504,6 +512,12 @@ export default function SkillsLab() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+        <strong className="text-amber-200">How this screen works today:</strong>{' '}
+        The charts and course cards below use <strong>sample mock data</strong> for layout only.
+        Your real skills (left column) come from your profile. &quot;Analyse gap&quot; uses{' '}
+        <code className="rounded bg-white/10 px-1 text-xs">style.analyzeDocument</code> (OpenAI when configured), not the full SkillUp engine from the roadmap.
+      </div>
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="rounded-xl bg-indigo-500/10 p-2.5">
@@ -511,7 +525,9 @@ export default function SkillsLab() {
         </div>
         <div>
           <h1 className="text-2xl font-bold text-white">Skills Lab</h1>
-          <p className="text-sm text-slate-400">Visualise your current skills and analyse gaps for any role.</p>
+          <p className="text-sm text-slate-400">
+            Profile skills + document-style gap analysis. Full verification pipeline is not live here yet.
+          </p>
         </div>
       </div>
 
@@ -520,7 +536,7 @@ export default function SkillsLab() {
         <div className="flex items-center justify-between rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-2.5">
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-indigo-400" />
-            <span className="text-sm text-slate-400">AI credits remaining:</span>
+            <span className="text-sm text-slate-400">Credits remaining (coach / style features):</span>
             <span className="text-sm font-bold text-white">{currentPlan.credits.toLocaleString()}</span>
           </div>
           <a
@@ -545,6 +561,9 @@ export default function SkillsLab() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* LEFT — My Skills */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-5">
+          <p className="text-xs text-slate-500">
+            Bar lengths use a simple hash from the skill name (illustrative), not verified proficiency scores.
+          </p>
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-white">My Skills</h2>
             {skillItems.length > 0 && (

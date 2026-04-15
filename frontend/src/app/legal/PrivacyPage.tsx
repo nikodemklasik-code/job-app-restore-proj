@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Sparkles, ArrowLeft } from 'lucide-react';
 
-const LAST_UPDATED = '1 April 2026';
+const LAST_UPDATED = '15 April 2026';
 
 interface Section {
   id: string;
@@ -88,7 +88,22 @@ const SECTIONS: Section[] = [
               relating to your account.
             </p>
           </div>
+          <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+            <p className="font-semibold text-white text-sm">Interview & voice data</p>
+            <p className="text-sm text-slate-400 mt-1">
+              Where you use interview practice or similar features, audio or transcripts you submit may be
+              processed to generate coaching output. We process this only to provide the feature you requested.
+            </p>
+          </div>
         </div>
+        <p className="mt-4">
+          We do not knowingly collect personal data from anyone under 16. If you believe a child has provided
+          us with data, contact{' '}
+          <a href="mailto:privacy@multivohub.com" className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
+            privacy@multivohub.com
+          </a>{' '}
+          and we will delete it promptly.
+        </p>
       </>
     ),
   },
@@ -294,7 +309,11 @@ const SECTIONS: Section[] = [
           </li>
           <li>
             <span className="text-white font-medium">Rights related to automated decision-making:</span>{' '}
-            We do not make solely automated decisions with legal or similarly significant effects about you.
+            Some features (e.g. Job Radar or fit scoring) use automated scoring or ranking. These assist your
+            job search but do not produce a legally binding outcome about you. You may contact us if you wish to
+            query how a score was generated. We do not make solely automated decisions with legal or similarly
+            significant effects about you in the sense of Article 22 UK GDPR for recruitment outcomes on the
+            platform — employers make their own decisions off-platform.
           </li>
         </ul>
         <p className="mt-4">
@@ -347,6 +366,20 @@ const SECTIONS: Section[] = [
             </p>
           </div>
           <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+            <p className="font-semibold text-white text-sm">Resend — transactional email</p>
+            <p className="text-sm text-slate-400 mt-1">
+              We may send service, billing, security, and account notices through Resend, Inc. Resend processes
+              recipient addresses and message content on our instructions. See resend.com/legal for their terms.
+            </p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+            <p className="font-semibold text-white text-sm">Web Push (optional)</p>
+            <p className="text-sm text-slate-400 mt-1">
+              If you enable browser push notifications, we use the Web Push protocol with industry-standard keys.
+              You can disable notifications in your browser or device settings at any time.
+            </p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
             <p className="font-semibold text-white text-sm">Infrastructure Providers</p>
             <p className="text-sm text-slate-400 mt-1">
               Our platform is hosted on cloud infrastructure providers who process data on our behalf
@@ -373,8 +406,11 @@ const SECTIONS: Section[] = [
     content: (
       <>
         <p>
-          MultivoHub uses cookies and similar technologies to operate the Service. We categorise cookies
-          as follows:
+          MultivoHub uses cookies and similar technologies to operate the Service. A dedicated{' '}
+          <Link to="/cookies" className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
+            Cookie Policy
+          </Link>{' '}
+          describes categories and management in more detail. In summary, we categorise cookies as follows:
         </p>
         <div className="mt-4 space-y-3">
           <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
@@ -564,8 +600,10 @@ export default function PrivacyPage() {
       <footer className="border-t border-white/10 mt-12">
         <div className="mx-auto max-w-3xl px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-xs text-slate-500">© 2026 MultivoHub Ltd. Registered in England & Wales.</p>
-          <div className="flex items-center gap-4 text-xs text-slate-500">
-            <Link to="/terms" className="hover:text-slate-300 transition-colors">Terms of Service</Link>
+          <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+            <Link to="/terms" className="hover:text-slate-300 transition-colors">Terms</Link>
+            <Link to="/cookies" className="hover:text-slate-300 transition-colors">Cookies</Link>
+            <Link to="/faq" className="hover:text-slate-300 transition-colors">FAQ</Link>
             <Link to="/auth" className="hover:text-slate-300 transition-colors">Sign In</Link>
           </div>
         </div>

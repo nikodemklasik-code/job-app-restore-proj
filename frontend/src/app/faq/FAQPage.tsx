@@ -129,6 +129,68 @@ const FAQ_ITEMS: FaqItem[] = [
     answer:
       'The fit score is based on keyword and semantic matching between your profile and the job description. Make sure your profile fully reflects your skills and experience. Adding more specific skills and job titles to your profile improves matching accuracy.',
   },
+  {
+    category: 'Technical',
+    question: 'Which browsers are supported?',
+    answer:
+      'Use a current version of Chrome, Firefox, Safari, or Edge. Enable JavaScript and third-party cookies for authentication (Clerk) where your browser requires it. For interview features, allow microphone access when prompted.',
+  },
+
+  // Job Radar
+  {
+    category: 'Job Radar',
+    question: 'What is Job Radar?',
+    answer:
+      'Job Radar analyses roles against your profile and produces a structured report with scores, sources, and observations to help you prioritise applications. It is a decision-support tool — always verify listings and employers yourself before applying.',
+  },
+  {
+    category: 'Job Radar',
+    question: 'How do I start a Job Radar scan?',
+    answer:
+      'Open Job Radar from the app menu, enter the target role or follow the scan flow, and wait until the scan completes. You will be redirected to a report when results are ready. If a scan fails or times out, try again or contact support with the scan reference.',
+  },
+
+  // Reports & data
+  {
+    category: 'Reports & data',
+    question: 'What is on the Reports page?',
+    answer:
+      'Reports shows analytics for your applications: funnel stats, timelines, source and company breakdowns, and response-rate style metrics. You can export your application list as JSON or CSV, or download a PDF summary where available.',
+  },
+  {
+    category: 'Reports & data',
+    question: 'How do I export or delete my data?',
+    answer:
+      'Use exports on the Reports page for a machine-readable copy of application data. For full account deletion or data subject requests, email privacy@multivohub.com — see the Privacy Policy for retention and your rights under UK GDPR.',
+  },
+
+  // Account & access
+  {
+    category: 'Account & access',
+    question: 'How does sign-in work?',
+    answer:
+      'Accounts are managed by Clerk. You can sign in with email or supported social providers. If you cannot sign in, check your email for verification links, try another browser window, or reset your password through the sign-in screen.',
+  },
+  {
+    category: 'Account & access',
+    question: 'How do I delete my account?',
+    answer:
+      'Email privacy@multivohub.com from your registered address and ask for account erasure. We will verify your identity and process requests within the timelines described in our Privacy Policy. Inactivity-based deletion may also apply to free accounts as explained there.',
+  },
+
+  // Billing (extra)
+  {
+    category: 'Billing & Plans',
+    question: 'What are AI credits?',
+    answer:
+      'AI credits (or monthly AI allowances) limit how much automated generation you can use per billing period on Free or Pro plans. Autopilot may include a higher or unlimited allowance depending on the current Billing page. Credits do not roll over unless we say otherwise.',
+  },
+  {
+    category: 'Billing & Plans',
+    question: 'Where can I find invoices or manage my card?',
+    answer:
+      'Where Stripe Customer Portal is enabled for your subscription, open it from the Billing page to update payment methods or retrieve invoices. PayPal and crypto flows follow each provider’s receipts.',
+  },
 ];
 
 // ── Sub-components ─────────────────────────────────────────────────────────

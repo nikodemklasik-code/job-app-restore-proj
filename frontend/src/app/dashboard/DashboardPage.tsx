@@ -173,10 +173,10 @@ export default function DashboardPage() {
           <div>
             <h2 className="text-base font-semibold text-slate-800 dark:text-white">Career Roadmap</h2>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Auto-filled once your CV and documents are scanned.
+              This card is not auto-filled from the server yet — your goals are saved in this browser (local storage). Upload a CV on the documents page and import it on Profile to keep your data in sync.
             </p>
             <Link to="/documents" className="mt-2 inline-block text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">
-              Upload documents →
+              Documents &amp; CV upload →
             </Link>
           </div>
         </div>
