@@ -1,8 +1,34 @@
+import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
-import { Sun, Moon, PanelLeftClose, PanelLeft } from 'lucide-react';
-import { useThemeStore } from '@/stores/themeStore';
+import {
+  PanelLeftClose,
+  PanelLeft,
+  Moon,
+  Sun,
+  Glasses,
+  Leaf,
+  Clapperboard,
+  Sparkles,
+  Contrast,
+} from 'lucide-react';
+import { clsx } from 'clsx';
+import { useThemeStore, THEME_CHOICES, type ThemeId } from '@/stores/themeStore';
+import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/select';
 import { api } from '@/lib/api';
+
+const THEME_ICONS: Record<ThemeId, typeof Moon> = {
+  dark: Moon,
+  light: Sun,
+  'visually-impaired': Glasses,
+  overstimulated: Leaf,
+  'gray-safe': Contrast,
+  noir: Clapperboard,
+  elegant: Sparkles,
+};
+
+/** Light / low-chroma themes — header chrome uses slate instead of indigo accents. */
+const NEUTRAL_HEADER_THEMES: ThemeId[] = ['gray-safe', 'light', 'overstimulated', 'elegant'];
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard':   'Profile & Goals',
@@ -32,7 +58,7 @@ const PAGE_TITLES: Record<string, string> = {
 export default function Header() {
   const { pathname } = useLocation();
   const { user } = useUser();
-  const { setTheme, focusMode, setFocusMode } = useThemeStore();
+  const { theme, setTheme, focusMode, setFocusMode } = useThemeStore();
   const creditsQuery = api.billing.getCurrentPlan.useQuery(
     { userId: user?.id ?? '' },
     { enabled: !!user?.id, staleTime: 60_000 },
@@ -47,8 +73,19 @@ export default function Header() {
     user?.primaryEmailAddress?.emailAddress?.split('@')[0] ||
     '';
 
+  const activeTheme = useMemo(() => THEME_CHOICES.find((t) => t.id === theme), [theme]);
+  const ThemeIcon = THEME_ICONS[theme];
+  const neutralHeader = NEUTRAL_HEADER_THEMES.includes(theme);
+
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-100 bg-white/80 px-6 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80">
+    <header
+      className={clsx(
+        'flex h-16 shrink-0 items-center justify-between border-b px-6 backdrop-blur-md',
+        neutralHeader
+          ? 'border-slate-300/80 bg-white/95 shadow-[inset_0_-1px_0_0_hsl(220_10%_88%/0.65)]'
+          : 'border-slate-100 bg-white/80 dark:border-slate-800 dark:bg-slate-900/80',
+      )}
+    >
       <div className="flex items-center gap-3">
         {/* Focus mode sidebar toggle */}
         <button
@@ -72,35 +109,66 @@ export default function Header() {
       <div className="flex items-center gap-3">
         {/* Credits pill */}
         {credits !== null && (
-          <div className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
+          <div
+            className={clsx(
+              'rounded-full px-3 py-1 text-xs font-semibold',
+              neutralHeader
+                ? 'bg-slate-200/90 text-slate-800 ring-1 ring-slate-300/70'
+                : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400',
+            )}
+          >
             {credits.toLocaleString()} credits
           </div>
         )}
 
-        {/* Theme toggle — light mode not yet ready, show dark only */}
-        <div
-          className="flex items-center gap-1 rounded-xl border border-slate-100 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800"
-          role="group"
-          aria-label="Colour theme"
-        >
-          <button
-            onClick={() => setTheme('light')}
-            aria-label="Light theme (coming soon)"
-            title="Light mode — coming soon"
-            className="rounded-lg p-1.5 text-slate-300 opacity-40 cursor-not-allowed dark:text-slate-600"
-            disabled
-          >
-            <Sun className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={() => setTheme('dark')}
-            aria-label="Dark theme"
-            aria-pressed={true}
-            title="Dark"
-            className="rounded-lg p-1.5 bg-slate-700 text-white shadow-sm transition-colors"
-          >
-            <Moon className="h-3.5 w-3.5" />
-          </button>
+        <div className="w-[10.75rem] shrink-0 sm:w-[11.25rem]">
+          <Select value={theme} onValueChange={(v) => setTheme(v as ThemeId)}>
+            <SelectTrigger
+              aria-label="Colour theme"
+              className={clsx(
+                '!h-9 min-h-0 rounded-xl px-2.5 text-xs font-semibold shadow-sm backdrop-blur-sm transition-[box-shadow,transform] hover:shadow-md',
+                neutralHeader
+                  ? 'border-slate-300/90 bg-gradient-to-b from-white to-slate-100/90 text-slate-800 ring-1 ring-slate-400/25 hover:ring-slate-400/40'
+                  : 'border-slate-200/90 bg-gradient-to-b from-white to-slate-50/90 text-slate-800 ring-1 ring-slate-900/5 hover:ring-slate-900/10 dark:border-slate-600/90 dark:from-slate-800 dark:to-slate-900/95 dark:text-slate-100 dark:ring-white/10 dark:hover:ring-white/15',
+              )}
+            >
+              <span className="flex min-w-0 flex-1 items-center gap-2 text-left">
+                <span
+                  className={clsx(
+                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
+                    neutralHeader
+                      ? 'bg-slate-200/90 text-slate-700'
+                      : 'bg-indigo-500/10 text-indigo-600 dark:bg-indigo-400/15 dark:text-indigo-300',
+                  )}
+                >
+                  <ThemeIcon className="h-3.5 w-3.5" aria-hidden />
+                </span>
+                <span className="truncate">{activeTheme?.label ?? 'Theme'}</span>
+              </span>
+            </SelectTrigger>
+            <SelectContent className="z-[100] overflow-hidden rounded-xl border-slate-200/95 py-1 shadow-xl ring-1 ring-slate-900/5 dark:border-slate-600 dark:ring-white/10">
+              {THEME_CHOICES.map((t) => {
+                const Icon = THEME_ICONS[t.id];
+                return (
+                  <SelectItem key={t.id} value={t.id} className="!items-start gap-0 px-2.5 py-2 text-left">
+                    <span className="flex items-start gap-2.5">
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                        <Icon className="h-3.5 w-3.5" aria-hidden />
+                      </span>
+                      <span className="flex min-w-0 flex-col gap-0.5 text-left">
+                        <span className="text-sm font-medium leading-tight text-slate-800 dark:text-slate-100">
+                          {t.label}
+                        </span>
+                        <span className="line-clamp-2 text-[11px] font-normal leading-snug text-slate-500 dark:text-slate-400">
+                          {t.hint}
+                        </span>
+                      </span>
+                    </span>
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
         </div>
 
         {displayName ? (
@@ -114,10 +182,18 @@ export default function Header() {
           <img
             src={user.imageUrl}
             alt={displayName || 'User'}
-            className="h-8 w-8 rounded-full border-2 border-indigo-100 dark:border-indigo-900"
+            className={clsx(
+              'h-8 w-8 rounded-full border-2',
+              neutralHeader ? 'border-slate-300' : 'border-indigo-100 dark:border-indigo-900',
+            )}
           />
         ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+          <div
+            className={clsx(
+              'flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold text-white',
+              neutralHeader ? 'bg-slate-600' : 'bg-indigo-600',
+            )}
+          >
             {(displayName[0] ?? user?.firstName?.[0] ?? 'U').toUpperCase()}
           </div>
         )}

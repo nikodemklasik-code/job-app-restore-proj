@@ -16,14 +16,19 @@ import {
   Loader2,
   Accessibility,
   Sun,
-  Anchor,
+  Moon,
+  Glasses,
+  Leaf,
+  Clapperboard,
+  Sparkles,
+  Contrast,
   PanelLeftClose,
   Lock,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { useThemeStore } from '@/stores/themeStore';
+import { useThemeStore, THEME_CHOICES, type ThemeId } from '@/stores/themeStore';
 import { api } from '@/lib/api';
 
 // ---------------------------------------------------------------------------
@@ -663,20 +668,15 @@ function SystemReadinessTab({ userId }: { userId: string }) {
 // Accessibility Tab
 // ---------------------------------------------------------------------------
 
-const THEME_OPTIONS = [
-  {
-    id: 'light' as const,
-    Icon: Sun,
-    label: 'Light',
-    description: 'Clean white background with blue accents. Default daytime theme.',
-  },
-  {
-    id: 'dark' as const,
-    Icon: Anchor,
-    label: 'Dark',
-    description: 'Deep navy with light blue accents. Default nighttime theme.',
-  },
-];
+const THEME_ICONS: Record<ThemeId, typeof Sun> = {
+  dark: Moon,
+  light: Sun,
+  'visually-impaired': Glasses,
+  overstimulated: Leaf,
+  'gray-safe': Contrast,
+  noir: Clapperboard,
+  elegant: Sparkles,
+};
 
 function AccessibilityTab() {
   const { theme, setTheme, focusMode, setFocusMode } = useThemeStore();
@@ -692,10 +692,12 @@ function AccessibilityTab() {
         </CardHeader>
         <CardContent>
           <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-            Choose the theme that works best for you. You can also toggle Light/Dark in the header.
+            Pick a palette that fits your eyes and attention. The same list appears in the header
+            theme menu for quick changes.
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {THEME_OPTIONS.map(({ id, Icon, label, description }) => {
+            {THEME_CHOICES.map(({ id, label, hint }) => {
+              const Icon = THEME_ICONS[id];
               const isActive = theme === id;
               return (
                 <button
@@ -703,22 +705,34 @@ function AccessibilityTab() {
                   type="button"
                   onClick={() => setTheme(id)}
                   aria-pressed={isActive}
-                  className={`flex flex-col items-start gap-2 rounded-2xl border p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
+                  className={`group flex flex-col items-start gap-3 rounded-2xl border p-4 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 ${
                     isActive
-                      ? 'border-indigo-400 bg-indigo-50 dark:border-indigo-600 dark:bg-indigo-950/40'
-                      : 'border-slate-100 bg-white hover:border-indigo-100 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900'
+                      ? 'border-indigo-400/90 bg-gradient-to-br from-indigo-50 to-white shadow-md ring-1 ring-indigo-500/15 dark:border-indigo-500/50 dark:from-indigo-950/50 dark:to-slate-900 dark:ring-indigo-400/20'
+                      : 'border-slate-100 bg-white hover:border-indigo-200/80 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-800/60'
                   }`}
                 >
-                  <div className="flex w-full items-center gap-2">
-                    <Icon className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
-                    <span className="font-medium text-slate-800 dark:text-slate-200">{label}</span>
-                    {isActive && (
-                      <span className="ml-auto rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-                        ✓ Active
-                      </span>
-                    )}
+                  <div className="flex w-full items-center gap-3">
+                    <span
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
+                        isActive
+                          ? 'bg-indigo-600 text-white shadow-inner dark:bg-indigo-500'
+                          : 'bg-slate-100 text-indigo-600 group-hover:bg-indigo-500/10 dark:bg-slate-800 dark:text-indigo-400 dark:group-hover:bg-indigo-500/15'
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" aria-hidden />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-800 dark:text-slate-100">{label}</span>
+                        {isActive && (
+                          <span className="rounded-full bg-indigo-600/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700 dark:bg-indigo-400/20 dark:text-indigo-200">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">{description}</p>
+                  <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">{hint}</p>
                 </button>
               );
             })}
@@ -781,8 +795,9 @@ function AccessibilityTab() {
             </li>
           </ul>
           <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-            Selecting the <strong className="text-slate-700 dark:text-slate-300">Focus</strong>{' '}
-            colour theme above also removes animations regardless of your OS setting.
+            The <strong className="text-slate-700 dark:text-slate-300">Calm</strong> theme softens
+            motion inside the theme layer. Your OS <strong className="text-slate-700 dark:text-slate-300">Reduce Motion</strong>{' '}
+            setting still applies on top everywhere in the app.
           </p>
         </CardContent>
       </Card>
