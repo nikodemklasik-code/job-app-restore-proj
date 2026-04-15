@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Flame, Mic, MicOff, RefreshCw, CheckCircle, ChevronRight, Timer, Star } from 'lucide-react';
 
+<<<<<<< HEAD
 // ─── Question bank (mixed, quick daily practice) ──────────────────────────────
+=======
+// ─── Question bank (drawn from all interview modes) ───────────────────────────
+>>>>>>> live-hardening
 
 const WARMUP_QUESTIONS = [
   "Tell me about a time you solved a difficult problem under pressure.",
@@ -26,6 +30,7 @@ const COOLDOWN_SECONDS = 3;
 const STREAK_KEY = 'warmup_streak';
 const LAST_DATE_KEY = 'warmup_last_date';
 
+<<<<<<< HEAD
 // ─── Scoring ──────────────────────────────────────────────────────────────────
 
 interface WarmupResult {
@@ -39,14 +44,26 @@ interface WarmupResult {
 function scoreWarmup(transcript: string): WarmupResult {
   const t = transcript.trim().toLowerCase();
   if (!t) return { score: 0, label: 'No answer', whatWorked: [], toImprove: ['Record or type your answer to get feedback.'], interviewTip: '' };
+=======
+// ─── Simple scoring (client-side, no network) ─────────────────────────────────
+
+function scoreWarmup(transcript: string): { score: number; tip: string; label: string } {
+  const t = transcript.trim().toLowerCase();
+  if (!t) return { score: 0, tip: 'No answer recorded.', label: 'No answer' };
+>>>>>>> live-hardening
 
   let score = 50;
   const words = t.split(/\s+/).length;
 
+<<<<<<< HEAD
+=======
+  // Length
+>>>>>>> live-hardening
   if (words >= 80) score += 15;
   else if (words >= 50) score += 8;
   else if (words < 20) score -= 15;
 
+<<<<<<< HEAD
   const hasSituation = /\b(when|at the time|there was|during|in my previous|back in|last year)\b/.test(t);
   const hasAction = /\b(i (did|decided|implemented|built|led|created|wrote|fixed|reached out|set up|introduced|proposed|developed|organized))\b/.test(t);
   const hasResult = /\b(result(ed)?|achiev|improv|reduc|increas|saved|success|by \d|percent|outcome|delivered|launched)\b/.test(t);
@@ -97,6 +114,30 @@ function scoreWarmup(transcript: string): WarmupResult {
   else label = 'Needs work';
 
   return { score, label, whatWorked, toImprove, interviewTip };
+=======
+  // STAR signals
+  const hasSituation = /\b(when|at the time|there was|during|in my previous|back in|last year)\b/.test(t);
+  const hasAction = /\b(i (did|decided|implemented|built|led|created|wrote|fixed|reached out|set up|introduced|proposed|developed|organized))\b/.test(t);
+  const hasResult = /\b(result(ed)?|achiev|improv|reduc|increas|saved|success|by \d|percent|outcome|delivered|launched)\b/.test(t);
+  if (hasSituation) score += 8;
+  if (hasAction) score += 10;
+  if (hasResult) score += 12;
+
+  // Filler words
+  const fillers = (t.match(/\b(um|uh|like|you know|kind of|sort of)\b/g) ?? []).length;
+  score -= fillers * 4;
+
+  score = Math.max(20, Math.min(100, Math.round(score)));
+
+  let tip: string;
+  let label: string;
+  if (score >= 85) { label = 'Excellent'; tip = 'Great structure and clear delivery. Try to add a quantified result next time.'; }
+  else if (score >= 70) { label = 'Good'; tip = 'Solid answer. Strengthen your result with specific numbers or impact.'; }
+  else if (score >= 55) { label = 'Developing'; tip = !hasResult ? 'Close with the outcome — what was the result or impact?' : !hasAction ? 'Make your own actions clearer: "I did…" statements help.' : 'Add more detail and slow down.'; }
+  else { label = 'Needs work'; tip = 'Structure your answer: Situation → Task → Action → Result. Try recording it again.'; }
+
+  return { score, tip, label };
+>>>>>>> live-hardening
 }
 
 // ─── Streak helpers ───────────────────────────────────────────────────────────
@@ -110,10 +151,18 @@ function loadStreak(): number {
     const last = localStorage.getItem(LAST_DATE_KEY);
     const streak = parseInt(localStorage.getItem(STREAK_KEY) ?? '0', 10);
     if (!last) return 0;
+<<<<<<< HEAD
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
     if (last === getTodayStr()) return streak;
     if (last === yesterday) return streak;
     return 0;
+=======
+    const today = getTodayStr();
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    if (last === today) return streak;
+    if (last === yesterday) return streak; // still valid, not yet incremented today
+    return 0; // broken streak
+>>>>>>> live-hardening
   } catch { return 0; }
 }
 
@@ -162,6 +211,10 @@ export default function InterviewWarmup() {
 
   useEffect(() => { pickQuestion(); }, [pickQuestion]);
 
+<<<<<<< HEAD
+=======
+  // Countdown before recording
+>>>>>>> live-hardening
   useEffect(() => {
     if (phase !== 'countdown') return;
     setCountdown(COOLDOWN_SECONDS);
@@ -175,6 +228,10 @@ export default function InterviewWarmup() {
     return () => { clearInterval(t); clearTimeout(start); };
   }, [phase]);
 
+<<<<<<< HEAD
+=======
+  // Answer timer
+>>>>>>> live-hardening
   useEffect(() => {
     if (phase !== 'recording') return;
     setTimeLeft(ANSWER_TIME_SECONDS);
@@ -196,7 +253,13 @@ export default function InterviewWarmup() {
       recorderRef.current = rec;
       rec.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data); };
       rec.start();
+<<<<<<< HEAD
     } catch { /* mic denied — fall back to text */ }
+=======
+    } catch {
+      // mic denied — fall back to text input
+    }
+>>>>>>> live-hardening
   };
 
   const stopRecording = useCallback(() => {
@@ -228,6 +291,11 @@ export default function InterviewWarmup() {
   const scoreColor = (s: number) => s >= 80 ? '#34d399' : s >= 60 ? '#fbbf24' : '#f87171';
   const timerColor = timeLeft <= 10 ? '#f87171' : timeLeft <= 20 ? '#fbbf24' : '#34d399';
 
+<<<<<<< HEAD
+=======
+  // ── Layout shell ────────────────────────────────────────────────────────────
+
+>>>>>>> live-hardening
   return (
     <div className="max-w-xl mx-auto px-4 py-8 flex flex-col gap-6">
       {/* Header */}
@@ -237,7 +305,11 @@ export default function InterviewWarmup() {
             <Flame style={{ width: 20, height: 20, color: '#fff' }} />
           </div>
           <div>
+<<<<<<< HEAD
             <h1 className="text-xl font-bold text-white">Daily Coach</h1>
+=======
+            <h1 className="text-xl font-bold text-white">Interview Warmup</h1>
+>>>>>>> live-hardening
             <p className="text-xs text-slate-400">5-minute daily practice · one question · 60 seconds</p>
           </div>
         </div>
@@ -248,6 +320,10 @@ export default function InterviewWarmup() {
         </div>
       </div>
 
+<<<<<<< HEAD
+=======
+      {/* Already done today banner */}
+>>>>>>> live-hardening
       {alreadyDone && phase === 'ready' && (
         <div className="rounded-xl px-4 py-3 flex items-center gap-3" style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.25)' }}>
           <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0" />
@@ -264,6 +340,10 @@ export default function InterviewWarmup() {
         <p className="text-base font-medium text-white leading-relaxed">{question}</p>
       </div>
 
+<<<<<<< HEAD
+=======
+      {/* Phase: ready */}
+>>>>>>> live-hardening
       {phase === 'ready' && (
         <div className="flex flex-col gap-3">
           <button
@@ -280,6 +360,7 @@ export default function InterviewWarmup() {
             className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 resize-none"
             rows={5}
           />
+<<<<<<< HEAD
           <div className="flex gap-2">
             <button
               onClick={handleSubmitText}
@@ -294,6 +375,18 @@ export default function InterviewWarmup() {
         </div>
       )}
 
+=======
+          <button
+            onClick={handleSubmitText}
+            className="w-full py-2.5 rounded-xl font-semibold text-sm border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors"
+          >
+            Submit Text Answer
+          </button>
+        </div>
+      )}
+
+      {/* Phase: countdown */}
+>>>>>>> live-hardening
       {phase === 'countdown' && (
         <div className="flex flex-col items-center gap-4 py-6">
           <div className="text-6xl font-black" style={{ color: '#f97316', fontVariantNumeric: 'tabular-nums' }}>{countdown}</div>
@@ -301,6 +394,10 @@ export default function InterviewWarmup() {
         </div>
       )}
 
+<<<<<<< HEAD
+=======
+      {/* Phase: recording */}
+>>>>>>> live-hardening
       {phase === 'recording' && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between px-5 py-4 rounded-xl" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
@@ -313,13 +410,21 @@ export default function InterviewWarmup() {
               <span className="text-2xl font-black" style={{ color: timerColor, fontVariantNumeric: 'tabular-nums' }}>{timeLeft}s</span>
             </div>
           </div>
+<<<<<<< HEAD
           <p className="text-xs text-slate-500 text-center">Speak clearly. Recording stops automatically at 0 seconds.</p>
+=======
+          <p className="text-xs text-slate-500 text-center">Speak your answer clearly. Recording will stop automatically at 0 seconds.</p>
+>>>>>>> live-hardening
           <button
             onClick={stopRecording}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors"
           >
             <MicOff className="h-4 w-4" /> Stop Early
           </button>
+<<<<<<< HEAD
+=======
+          {/* Text fallback */}
+>>>>>>> live-hardening
           <div className="mt-2">
             <p className="text-xs text-slate-600 mb-2">Or type your answer instead:</p>
             <textarea
@@ -332,9 +437,16 @@ export default function InterviewWarmup() {
         </div>
       )}
 
+<<<<<<< HEAD
       {phase === 'reviewing' && (
         <div className="flex flex-col gap-4">
           <p className="text-sm text-slate-400">Recording stopped. Type out what you said to receive a score:</p>
+=======
+      {/* Phase: reviewing (text submission) */}
+      {phase === 'reviewing' && (
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-slate-400">Recording stopped. If you used the mic, transcribe your answer below to get a score:</p>
+>>>>>>> live-hardening
           <textarea
             ref={textareaRef}
             defaultValue={transcript}
@@ -352,9 +464,16 @@ export default function InterviewWarmup() {
         </div>
       )}
 
+<<<<<<< HEAD
       {phase === 'done' && result && (
         <div className="flex flex-col gap-4">
           {/* Score header */}
+=======
+      {/* Phase: done */}
+      {phase === 'done' && result && (
+        <div className="flex flex-col gap-4">
+          {/* Score */}
+>>>>>>> live-hardening
           <div className="flex items-center gap-4 px-6 py-5 rounded-2xl" style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid #1e293b' }}>
             <div className="shrink-0 flex flex-col items-center justify-center w-20 h-20 rounded-2xl" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)' }}>
               <span className="text-3xl font-black" style={{ color: scoreColor(result.score) }}>{result.score}</span>
@@ -362,6 +481,7 @@ export default function InterviewWarmup() {
             </div>
             <div className="flex-1">
               <p className="text-base font-bold text-white mb-1">{result.label}</p>
+<<<<<<< HEAD
               <p className="text-xs text-slate-500">Analysed against STAR structure, clarity, and impact</p>
             </div>
           </div>
@@ -394,6 +514,13 @@ export default function InterviewWarmup() {
           )}
 
           {/* Streak */}
+=======
+              <p className="text-sm text-slate-400 leading-relaxed">{result.tip}</p>
+            </div>
+          </div>
+
+          {/* Streak update */}
+>>>>>>> live-hardening
           {streak > 0 && (
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)' }}>
               <Flame className="h-5 w-5 text-orange-400 shrink-0" />

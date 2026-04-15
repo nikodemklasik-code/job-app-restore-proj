@@ -1,8 +1,14 @@
+<<<<<<< HEAD
 import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import type { TOTPResource } from '@clerk/shared/types';
 import QRCode from 'qrcode';
 import { KeyRound, Monitor, Smartphone, Laptop, Clock, ShieldAlert, CheckCircle2, ShieldCheck, ShieldOff, Copy, Eye, EyeOff } from 'lucide-react';
+=======
+import { useEffect } from 'react';
+import { useUser } from '@clerk/clerk-react';
+import { KeyRound, Monitor, Smartphone, Laptop, Clock, ShieldAlert, CheckCircle2 } from 'lucide-react';
+>>>>>>> live-hardening
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,13 +23,17 @@ const deviceIcon = (device: string) => {
   return Monitor;
 };
 
+<<<<<<< HEAD
 type TotpStep = 'idle' | 'setup' | 'verify' | 'backup-codes';
 
+=======
+>>>>>>> live-hardening
 export default function SecurityPage() {
   const { user, isLoaded } = useUser();
   const userId = user?.id ?? null;
   const { passkeys, activeSessions, isLoading, error, loadSecurityData, revokeSession, removePasskey } = useSecurityStore();
 
+<<<<<<< HEAD
   // 2FA state
   const [totpStep, setTotpStep] = useState<TotpStep>('idle');
   const [totpResource, setTotpResource] = useState<TOTPResource | null>(null);
@@ -35,11 +45,14 @@ export default function SecurityPage() {
   const [copiedSecret, setCopiedSecret] = useState(false);
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
 
+=======
+>>>>>>> live-hardening
   useEffect(() => {
     if (!isLoaded || !userId) return;
     void loadSecurityData(userId);
   }, [isLoaded, userId, loadSecurityData]);
 
+<<<<<<< HEAD
   const startTotpSetup = async () => {
     if (!user) return;
     setTotpError(null);
@@ -111,6 +124,11 @@ export default function SecurityPage() {
 
   const totpEnabled = user?.twoFactorEnabled ?? false;
 
+=======
+  if (!isLoaded || isLoading) return <div className="flex h-48 items-center justify-center"><div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" /></div>;
+  if (!userId) return <div className="py-12 text-center text-slate-500">Sign in to view security settings</div>;
+
+>>>>>>> live-hardening
   return (
     <div className="space-y-8">
       <div>
@@ -190,6 +208,7 @@ export default function SecurityPage() {
         </CardContent>
       </Card>
 
+<<<<<<< HEAD
       {/* ── Two-Factor Authentication ───────────────────────────────────────── */}
       <Card className="border-slate-100 dark:border-slate-800">
         <CardHeader>
@@ -322,6 +341,20 @@ export default function SecurityPage() {
           )}
 
           {totpError && totpStep === 'idle' && <p className="text-sm text-red-500">{totpError}</p>}
+=======
+      <Card className="border-slate-100 dark:border-slate-800">
+        <CardHeader>
+          <CardTitle>Two-Factor Authentication</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-slate-600 dark:text-slate-400">Add an extra layer of security to your account.</p>
+              <p className="mt-1 text-xs text-slate-400">Two-factor authentication is managed through your sign-in provider (e.g. Google, Apple). Enable it there to protect your account.</p>
+            </div>
+            <Button variant="outline" disabled title="Manage 2FA through your sign-in provider">Not available yet</Button>
+          </div>
+>>>>>>> live-hardening
         </CardContent>
       </Card>
 

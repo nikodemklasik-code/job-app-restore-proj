@@ -18,6 +18,16 @@ type JobResult = {
   description?: string;
   requirements?: string[];
   postedAt?: string;
+<<<<<<< HEAD
+=======
+  scamAnalysis?: {
+    riskScore: number;
+    confidenceScore: number;
+    level: 'low' | 'medium' | 'high';
+    safeForAutomation: boolean;
+    reasons: string[];
+  };
+>>>>>>> live-hardening
 };
 
 type SessionStatus = { id: string; provider: string; isActive: boolean; lastTestedAt: Date | null; updatedAt: Date };
@@ -33,6 +43,14 @@ const SOURCE_META: Record<Source, { label: string; color: string; requiresSessio
   gumtree: { label: 'Gumtree', color: 'bg-green-500/20 text-green-400', requiresSession: true, url: 'https://www.gumtree.com/jobs' },
 };
 
+<<<<<<< HEAD
+=======
+function fitBadgeClass(score: number): string {
+  if (score >= 80) return 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+  if (score >= 60) return 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30';
+  return 'bg-white/10 text-slate-400 border border-white/10';
+}
+>>>>>>> live-hardening
 
 function formatSalary(min: number | null, max: number | null): string | null {
   if (!min && !max) return null;
@@ -41,6 +59,7 @@ function formatSalary(min: number | null, max: number | null): string | null {
   return `up to £${Math.round((max ?? 0) / 1000)}k`;
 }
 
+<<<<<<< HEAD
 // ── Scam check helper ─────────────────────────────────────────────────────────
 
 function quickScamCheck(title: string, desc: string): boolean {
@@ -53,6 +72,8 @@ function quickScamCheck(title: string, desc: string): boolean {
   return patterns.filter(p => p.test(text)).length >= 2;
 }
 
+=======
+>>>>>>> live-hardening
 // ── Application status badge ──────────────────────────────────────────────────
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
@@ -131,6 +152,7 @@ function JobCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showCompany, setShowCompany] = useState(false);
+<<<<<<< HEAD
 
   const fit = job.fitScore;
   const fitColor = fit >= 80
@@ -142,6 +164,11 @@ function JobCard({
   const salary = formatSalary(job.salaryMin, job.salaryMax);
   const srcMeta = SOURCE_META[job.source as Source];
   const isScam = quickScamCheck(job.title, job.description ?? '');
+=======
+  const salary = formatSalary(job.salaryMin, job.salaryMax);
+  const srcMeta = SOURCE_META[job.source as Source];
+  const scam = job.scamAnalysis;
+>>>>>>> live-hardening
   const requirements: string[] = job.requirements ?? [];
 
   const postedDate = job.postedAt
@@ -157,6 +184,7 @@ function JobCard({
     : null;
 
   return (
+<<<<<<< HEAD
     <div className="rounded-2xl border border-white/10 bg-white/5 flex flex-col transition hover:border-white/20 hover:bg-white/[0.07] overflow-hidden">
       {/* Fit bar accent — top edge colour indicates match quality */}
       <div className="h-1 w-full" style={{ background: fitColor.bar, opacity: 0.7 }} />
@@ -192,10 +220,51 @@ function JobCard({
         </div>
 
         {/* Company profile (lazy expand) */}
+=======
+    <div className="rounded-2xl border border-white/10 bg-white/5 flex flex-col gap-0 transition hover:border-white/20 hover:bg-white/[0.07] overflow-hidden">
+      {/* Card header */}
+      <div className="p-5 flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-lg font-bold text-slate-300">
+            {job.company.charAt(0).toUpperCase()}
+          </div>
+          <div className="flex items-center gap-1.5">
+            {applicationStatus && <ApplicationStatusBadge status={applicationStatus} />}
+            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${fitBadgeClass(job.fitScore)}`}>
+              {job.fitScore}% fit
+            </span>
+            {scam && (
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold border ${scam.level === 'low' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : scam.level === 'medium' ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-red-500/30 bg-red-500/10 text-red-300'}`}>
+                Risk {scam.riskScore}%
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="font-semibold text-white leading-tight">{job.title}</h3>
+          <button
+            onClick={() => setShowCompany((v) => !v)}
+            className="flex items-center gap-1 mt-0.5 text-sm text-slate-400 hover:text-slate-200 transition"
+          >
+            {job.company}
+            <ChevronRight className={`h-3 w-3 transition-transform ${showCompany ? 'rotate-90' : ''}`} />
+          </button>
+        </div>
+
+        {scam && scam.level !== 'low' && (
+          <span className={`inline-flex w-fit items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${scam.level === 'high' ? 'border-red-500/40 bg-red-500/15 text-red-300' : 'border-amber-500/40 bg-amber-500/15 text-amber-400'}`}>
+            {scam.level === 'high' ? 'Blocked by scam protection' : 'Manual review recommended'}
+          </span>
+        )}
+
+        {/* Company card (lazy) */}
+>>>>>>> live-hardening
         {showCompany && (
           <CompanyCard companyName={job.company} jobTitle={job.title} />
         )}
 
+<<<<<<< HEAD
         {/* Scam warning */}
         {isScam && (
           <span className="inline-flex w-fit items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-400">
@@ -208,17 +277,30 @@ function JobCard({
           {job.location && (
             <span className="flex items-center gap-1">
               <MapPin className="h-3 w-3 shrink-0" />
+=======
+        {/* Meta row */}
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          {job.location && (
+            <span className="flex items-center gap-1">
+              <MapPin className="h-3 w-3" />
+>>>>>>> live-hardening
               {job.location}
             </span>
           )}
           {salary && (
+<<<<<<< HEAD
             <span className="flex items-center gap-1 font-medium text-slate-300">
               <DollarSign className="h-3 w-3 shrink-0" />
+=======
+            <span className="flex items-center gap-1">
+              <DollarSign className="h-3 w-3" />
+>>>>>>> live-hardening
               {salary}
             </span>
           )}
           {job.workMode && (
             <span className="flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-medium capitalize text-slate-400">
+<<<<<<< HEAD
               <Wifi className="h-2.5 w-2.5" />
               {job.workMode}
             </span>
@@ -247,6 +329,22 @@ function JobCard({
       </div>
 
       {/* Skills section (collapsible) */}
+=======
+              <Wifi className="h-3 w-3" />
+              {job.workMode}
+            </span>
+          )}
+          {postedDate && (
+            <span className="text-slate-500">{postedDate}</span>
+          )}
+          <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium ${srcMeta?.color ?? 'bg-white/10 text-slate-400'}`}>
+            {srcMeta?.label ?? job.source}
+          </span>
+        </div>
+      </div>
+
+      {/* Expandable skills section */}
+>>>>>>> live-hardening
       <div className="border-t border-white/5">
         <button
           onClick={() => setExpanded((v) => !v)}
@@ -257,18 +355,36 @@ function JobCard({
           </span>
           {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
+<<<<<<< HEAD
+=======
+
+>>>>>>> live-hardening
         {expanded && (
           <div className="px-5 pb-4 space-y-3">
             {requirements.length > 0 ? (
               <>
                 <div className="flex flex-wrap gap-1.5">
                   {requirements.map((req, i) => (
+<<<<<<< HEAD
                     <span key={i} className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-slate-300">
+=======
+                    <span
+                      key={i}
+                      className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-slate-300"
+                    >
+>>>>>>> live-hardening
                       {req}
                     </span>
                   ))}
                 </div>
+<<<<<<< HEAD
                 <Link to="/skills" className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition w-fit">
+=======
+                <Link
+                  to="/skills"
+                  className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition w-fit"
+                >
+>>>>>>> live-hardening
                   <BookOpen className="h-3.5 w-3.5" />
                   Learn these skills in Skills Lab →
                 </Link>
@@ -276,8 +392,18 @@ function JobCard({
             ) : (
               <div className="text-xs text-slate-500 space-y-1.5">
                 <p>No requirements extracted yet.</p>
+<<<<<<< HEAD
                 <button onClick={() => onExplainFit(job.id)} className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 transition" disabled={!userId}>
                   <Sparkles className="h-3.5 w-3.5" /> Analyse fit to extract requirements
+=======
+                <button
+                  onClick={() => onExplainFit(job.id)}
+                  className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 transition"
+                  disabled={!userId}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Analyse fit to extract requirements
+>>>>>>> live-hardening
                 </button>
               </div>
             )}
@@ -286,7 +412,11 @@ function JobCard({
       </div>
 
       {/* Actions */}
+<<<<<<< HEAD
       <div className="px-5 pb-5 pt-2 flex flex-col gap-2">
+=======
+      <div className="px-5 pb-5 pt-2 mt-auto flex flex-col gap-2">
+>>>>>>> live-hardening
         <button
           onClick={() => onExplainFit(job.id)}
           className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 py-2 text-xs font-medium text-indigo-400 transition hover:bg-indigo-500/20"
@@ -294,11 +424,16 @@ function JobCard({
           <Sparkles className="h-3.5 w-3.5" />
           Why this match?
         </button>
+<<<<<<< HEAD
         {job.applyUrl ? (
+=======
+        {job.applyUrl && (
+>>>>>>> live-hardening
           <a
             href={job.applyUrl}
             target="_blank"
             rel="noopener noreferrer"
+<<<<<<< HEAD
             className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
           >
             Apply <ExternalLink className="h-3.5 w-3.5" />
@@ -307,6 +442,13 @@ function JobCard({
           <div className="flex items-center justify-center rounded-xl border border-white/10 bg-white/5 py-2.5 text-xs text-slate-500">
             No direct link available
           </div>
+=======
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+          >
+            Apply
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+>>>>>>> live-hardening
         )}
       </div>
     </div>
@@ -716,13 +858,22 @@ export default function JobsDiscovery() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
+<<<<<<< HEAD
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Jobs Discovery</h1>
           <p className="mt-1 text-slate-500 dark:text-slate-400">AI-powered matching across Reed, Adzuna, Jooble, Indeed & Gumtree.</p>
+=======
+          <h1 className="text-3xl font-bold text-white">Jobs Discovery</h1>
+          <p className="mt-1 text-slate-400">AI-powered matching across Reed, Adzuna, Jooble, Indeed & Gumtree.</p>
+>>>>>>> live-hardening
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => setShowSessions((v) => !v)}
+<<<<<<< HEAD
             className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"
+=======
+            className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+>>>>>>> live-hardening
           >
             <Cookie className="h-4 w-4" />
             Sessions
@@ -734,7 +885,11 @@ export default function JobsDiscovery() {
           </button>
           <button
             onClick={() => setShowManualModal(true)}
+<<<<<<< HEAD
             className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+=======
+            className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+>>>>>>> live-hardening
           >
             <Plus className="h-4 w-4" />
             Add Manual
@@ -754,7 +909,11 @@ export default function JobsDiscovery() {
       )}
 
       {/* Search Controls */}
+<<<<<<< HEAD
       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4 dark:border-white/10 dark:bg-white/5">
+=======
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4">
+>>>>>>> live-hardening
         <div className="flex gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
@@ -764,7 +923,11 @@ export default function JobsDiscovery() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
+<<<<<<< HEAD
               className="w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500"
+=======
+              className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+>>>>>>> live-hardening
             />
           </div>
           <div className="relative">
@@ -774,7 +937,11 @@ export default function JobsDiscovery() {
               placeholder="Location"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
+<<<<<<< HEAD
               className="w-44 rounded-xl border border-slate-300 bg-white pl-9 pr-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600 dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-slate-500"
+=======
+              className="w-44 rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+>>>>>>> live-hardening
             />
           </div>
           <button
@@ -845,11 +1012,19 @@ export default function JobsDiscovery() {
           ))}
         </div>
       ) : searchParams !== null ? (
+<<<<<<< HEAD
         <div className="flex h-48 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-500 dark:border-white/10 dark:bg-white/5">
           No jobs found. Try different keywords or locations.
         </div>
       ) : (
         <div className="flex h-48 items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 dark:border-white/10 dark:text-slate-500">
+=======
+        <div className="flex h-48 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-500">
+          No jobs found. Try different keywords or locations.
+        </div>
+      ) : (
+        <div className="flex h-48 items-center justify-center rounded-2xl border-2 border-dashed border-white/10 text-slate-500">
+>>>>>>> live-hardening
           Enter a search query above and click Search to find jobs.
         </div>
       )}

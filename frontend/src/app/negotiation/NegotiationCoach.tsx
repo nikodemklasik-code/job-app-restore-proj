@@ -1,10 +1,17 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
+<<<<<<< HEAD
 import { Send, RefreshCw, Scale, ChevronDown, ChevronUp, Lightbulb, Lock, Play, Swords, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useBillingStore } from '@/stores/billingStore';
 
 const API_VOICE_BASE = import.meta.env.VITE_API_URL ?? '';
 
+=======
+import { Send, RefreshCw, Scale, ChevronDown, ChevronUp, Lightbulb, Lock, Play, Swords } from 'lucide-react';
+import { useUser } from '@clerk/clerk-react';
+import { useBillingStore } from '@/stores/billingStore';
+
+>>>>>>> live-hardening
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -96,6 +103,7 @@ async function consumeStream(response: Response, onChunk: (fullText: string) => 
   return fullText;
 }
 
+<<<<<<< HEAD
 // ─── Voice helpers ────────────────────────────────────────────────────────────
 
 async function playTTSVoice(text: string): Promise<void> {
@@ -133,6 +141,8 @@ async function transcribeVoice(blob: Blob): Promise<string> {
   } catch { return ''; }
 }
 
+=======
+>>>>>>> live-hardening
 // ─── Markdown renderer (simple) ───────────────────────────────────────────────
 
 function escapeHtml(str: string): string {
@@ -185,6 +195,7 @@ export default function NegotiationCoach() {
   const [showScenarios, setShowScenarios] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
 
+<<<<<<< HEAD
   // Voice state
   const [voiceMode, setVoiceMode] = useState(true);  // voice is default
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -207,6 +218,8 @@ export default function NegotiationCoach() {
   useEffect(() => { isStreamingRef.current = isStreaming; }, [isStreaming]);
   useEffect(() => { isSpeakingRef.current = isSpeaking; }, [isSpeaking]);
 
+=======
+>>>>>>> live-hardening
   // Simulator state
   const [offer, setOffer] = useState<SimulatorOffer>(DEFAULT_OFFER);
   const [simStarted, setSimStarted] = useState(false);
@@ -217,6 +230,7 @@ export default function NegotiationCoach() {
   const inputRef = useRef(input);
   inputRef.current = input;
 
+<<<<<<< HEAD
   // Stable ref to handleSend to avoid circular deps in VAD
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSendRef = useRef<(text?: string) => Promise<void>>(async () => {});
@@ -343,6 +357,8 @@ export default function NegotiationCoach() {
   // Cleanup on unmount
   useEffect(() => () => stopVAD(), [stopVAD]);
 
+=======
+>>>>>>> live-hardening
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -359,7 +375,10 @@ export default function NegotiationCoach() {
   const handleSend = useCallback(async (overrideText?: string) => {
     const text = (overrideText ?? input).trim();
     if (!text || isStreaming) return;
+<<<<<<< HEAD
     stopVAD();
+=======
+>>>>>>> live-hardening
     setInput('');
     setError(null);
 
@@ -376,6 +395,7 @@ export default function NegotiationCoach() {
       const fullText = await streamFn(newMessages, (partial) => setStreamingContent(partial));
       setMessages((prev) => [...prev, { role: 'assistant', content: fullText }]);
       setStreamingContent('');
+<<<<<<< HEAD
       const isSimDone = appMode === 'simulator' && fullText.includes('[SIMULATION COMPLETE]');
       if (isSimDone) setSimComplete(true);
       // Play TTS when in voice mode
@@ -398,13 +418,27 @@ export default function NegotiationCoach() {
 
   // Keep handleSendRef in sync
   useEffect(() => { handleSendRef.current = handleSend; }, [handleSend]);
+=======
+      if (appMode === 'simulator' && fullText.includes('[SIMULATION COMPLETE]')) {
+        setSimComplete(true);
+      }
+    } catch (err) {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setIsStreaming(false);
+    }
+  }, [input, isStreaming, messages, appMode, offer]);
+>>>>>>> live-hardening
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); }
   };
 
+<<<<<<< HEAD
   // handleMicToggle — reserved for voice input, not yet wired to UI
 
+=======
+>>>>>>> live-hardening
   const handleReset = () => {
     setMessages([]);
     setStreamingContent('');
@@ -426,6 +460,7 @@ export default function NegotiationCoach() {
       const fullText = await streamNegotiationSimulation([], offer, (partial) => setStreamingContent(partial));
       setMessages([{ role: 'assistant', content: fullText }]);
       setStreamingContent('');
+<<<<<<< HEAD
       if (voiceMode && fullText) {
         setIsSpeaking(true);
         await playTTSVoice(fullText);
@@ -438,6 +473,10 @@ export default function NegotiationCoach() {
     } catch {
       setError('Something went wrong. Please try again.');
       setIsSpeaking(false);
+=======
+    } catch {
+      setError('Something went wrong. Please try again.');
+>>>>>>> live-hardening
     } finally {
       setIsStreaming(false);
     }
@@ -555,6 +594,7 @@ export default function NegotiationCoach() {
               <Swords className="h-3 w-3" /> Simulator
             </button>
           </div>
+<<<<<<< HEAD
           {/* Voice / Text mode toggle */}
           <button
             onClick={() => setVoiceMode((v) => !v)}
@@ -569,6 +609,8 @@ export default function NegotiationCoach() {
             {voiceMode ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
             {voiceMode ? 'Voice' : 'Text'}
           </button>
+=======
+>>>>>>> live-hardening
           {appMode === 'coach' && (
             <button onClick={() => setShowScenarios((v) => !v)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors">
               <Lightbulb className="h-3.5 w-3.5" />
@@ -678,6 +720,7 @@ export default function NegotiationCoach() {
           {/* Input area */}
           {!simComplete && (
             <div className="shrink-0 px-6 py-4 border-t border-slate-800 bg-slate-950/60">
+<<<<<<< HEAD
               {/* Voice mode: VAD auto-listen UI */}
               {voiceMode ? (
                 <div className="flex flex-col items-center gap-3">
@@ -781,6 +824,20 @@ export default function NegotiationCoach() {
                   </button>
                 </div>
               )}
+=======
+              <div className="flex items-end gap-3 rounded-2xl px-4 py-3" style={{ background: 'rgba(30,41,59,0.9)', border: '1px solid rgba(99,102,241,0.25)' }}>
+                <textarea ref={textareaRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}
+                  placeholder={appMode === 'simulator' ? 'Type your response to the HR offer… (Shift+Enter for new line)' : 'Paste your negotiation message, proposal, or transcript… (Shift+Enter for new line)'}
+                  disabled={isStreaming} rows={1}
+                  className="flex-1 resize-none bg-transparent text-sm text-slate-200 placeholder-slate-500 outline-none"
+                  style={{ minHeight: 28 }} />
+                <button onClick={() => void handleSend()} disabled={!input.trim() || isStreaming}
+                  className="shrink-0 flex items-center justify-center w-9 h-9 rounded-xl transition-all"
+                  style={{ background: input.trim() && !isStreaming ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(99,102,241,0.2)', cursor: input.trim() && !isStreaming ? 'pointer' : 'not-allowed' }}>
+                  <Send className="h-4 w-4 text-white" />
+                </button>
+              </div>
+>>>>>>> live-hardening
               <p className="mt-2 text-center text-xs text-slate-600">
                 {appMode === 'simulator' ? 'Simulation evaluates negotiation moves only. Not a hiring or suitability assessment.' : 'Analysis evaluates negotiation strategy only. Not a hiring or suitability assessment.'}
               </p>

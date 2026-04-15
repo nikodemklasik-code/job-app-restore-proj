@@ -26,8 +26,14 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 import { eq, and } from 'drizzle-orm';
 import { db } from './db/index.js';
+<<<<<<< HEAD
 import { autoApplyQueue, userJobSessions } from './db/schema.js';
 import { processEmailApply } from './services/emailAutoApply.js';
+=======
+import { autoApplyQueue, userJobSessions, jobs } from './db/schema.js';
+import { processEmailApply } from './services/emailAutoApply.js';
+import { assessJobScamRisk } from './services/jobProtection.js';
+>>>>>>> live-hardening
 import { runFollowUpScheduler } from './services/followUpScheduler.js';
 import { runImapMonitor } from './services/imapMonitor.js';
 
@@ -64,6 +70,10 @@ async function markStatus(
 async function applyToJob(job: {
   id: string;
   userId: string;
+<<<<<<< HEAD
+=======
+  jobId?: string | null;
+>>>>>>> live-hardening
   jobTitle: string;
   company: string;
   applyUrl: string;
@@ -71,6 +81,36 @@ async function applyToJob(job: {
 }): Promise<void> {
   log(`Processing job ${job.id} — "${job.jobTitle}" at ${job.company}`);
 
+<<<<<<< HEAD
+=======
+  const linkedJob = 'jobId' in job && job.jobId
+    ? await db.select({
+        id: jobs.id,
+        title: jobs.title,
+        company: jobs.company,
+        description: jobs.description,
+        applyUrl: jobs.applyUrl,
+        salaryMin: jobs.salaryMin,
+        salaryMax: jobs.salaryMax,
+      }).from(jobs).where(eq(jobs.id, job.jobId)).limit(1)
+    : [];
+
+  const scamAssessment = assessJobScamRisk({
+    title: linkedJob[0]?.title ?? job.jobTitle,
+    company: linkedJob[0]?.company ?? job.company,
+    description: linkedJob[0]?.description ?? '',
+    applyUrl: linkedJob[0]?.applyUrl ?? job.applyUrl,
+    salaryMin: linkedJob[0]?.salaryMin ? Number(linkedJob[0].salaryMin) : null,
+    salaryMax: linkedJob[0]?.salaryMax ? Number(linkedJob[0].salaryMax) : null,
+  });
+
+  if (!scamAssessment.safeForAutomation) {
+    log(`Blocked risky job ${job.id} — ${scamAssessment.reasons.join('; ')}`);
+    await markStatus(job.id, 'skipped', `Blocked by scam protection: ${scamAssessment.reasons.join('; ')}`);
+    return;
+  }
+
+>>>>>>> live-hardening
   // Fetch saved browser session for this user + source
   const provider = job.source === 'gumtree' ? 'gumtree' : 'indeed';
   const sessionRow = await db

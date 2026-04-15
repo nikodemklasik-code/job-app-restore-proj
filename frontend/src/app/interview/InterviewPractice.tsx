@@ -1,7 +1,12 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
+<<<<<<< HEAD
 import { trpcClient } from '@/lib/api';
 import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, TrendingUp, FileDown, StickyNote, Star, Lock, Zap } from 'lucide-react';
+=======
+import { api, trpcClient } from '@/lib/api';
+import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, BookOpen, Clock, TrendingUp, FileDown, StickyNote, Star, Lock, Zap } from 'lucide-react';
+>>>>>>> live-hardening
 import { interviewModeLabels } from '../../../../shared/interview';
 import type { InterviewMode } from '../../../../shared/interview';
 import { useBillingStore } from '@/stores/billingStore';
@@ -61,9 +66,14 @@ const AVATAR_STYLES = `
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Phase =
+<<<<<<< HEAD
   | 'lobby'        // pre-call: job select + settings
   | 'setup-check'  // mic/camera verification before starting
   | 'connecting'   // brief "Connecting…" animation
+=======
+  | 'lobby'       // pre-call: job select + camera preview
+  | 'connecting'  // brief "Connecting…" animation
+>>>>>>> live-hardening
   | 'ai-speaking'
   | 'user-turn'
   | 'processing'
@@ -71,6 +81,7 @@ type Phase =
 
 type AvatarState = 'idle' | 'speaking' | 'listening' | 'thinking';
 
+<<<<<<< HEAD
 export type RecruiterPersona = 'hr' | 'hiring-manager' | 'tech-lead';
 
 export const PERSONA_CONFIG: Record<RecruiterPersona, { label: string; name: string; role: string; icon: string; color: string }> = {
@@ -79,6 +90,8 @@ export const PERSONA_CONFIG: Record<RecruiterPersona, { label: string; name: str
   'tech-lead':      { label: 'Tech Lead',      name: 'Alex',  role: 'Senior Tech Lead',      icon: '💻',  color: '#0ea5e9' },
 };
 
+=======
+>>>>>>> live-hardening
 interface Message {
   role: 'assistant' | 'user';
   content: string;
@@ -192,10 +205,51 @@ function generateCoachingPlan(userMessages: string[]): { area: string; action: s
   return plan.slice(0, 5);
 }
 
+<<<<<<< HEAD
 
 // ─── Question Bank data (used by Trener/Warmup module) ────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const QUESTION_BANK: Record<InterviewMode, string[]> = {
+=======
+// ─── Markdown report generator ────────────────────────────────────────────────
+
+function generateMarkdownReport(params: {
+  job: JobOption;
+  mode: InterviewMode;
+  messages: Message[];
+  callSeconds: number;
+  exchangeCount: number;
+  notes: string;
+  modeLabel: string;
+}): string {
+  const { job, messages, callSeconds, exchangeCount, notes, modeLabel } = params;
+  const date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  const duration = `${Math.floor(callSeconds / 60)}m ${callSeconds % 60}s`;
+  const userMsgs = messages.filter((m) => m.role === 'user').map((m) => m.content);
+  const coachingPlan = generateCoachingPlan(userMsgs);
+
+  let md = `# Interview Practice Report\n\n`;
+  md += `**Role:** ${job.title} at ${job.company}\n`;
+  md += `**Mode:** ${modeLabel}\n`;
+  md += `**Date:** ${date}\n`;
+  md += `**Duration:** ${duration} · ${exchangeCount} exchanges\n\n`;
+  md += `---\n\n## Transcript\n\n`;
+  messages.forEach((m) => {
+    const speaker = m.role === 'assistant' ? `**AI Interviewer**` : `**You**`;
+    md += `${speaker}: ${m.content}\n\n`;
+  });
+  md += `---\n\n## Coaching Plan\n\n`;
+  coachingPlan.forEach((item, i) => {
+    md += `### ${i + 1}. ${item.area} _(${item.priority} priority)_\n${item.action}\n\n`;
+  });
+  if (notes.trim()) { md += `---\n\n## Your Notes\n\n${notes}\n`; }
+  return md;
+}
+
+// ─── Question Bank data ────────────────────────────────────────────────────────
+
+const QUESTION_BANK: Record<InterviewMode, string[]> = {
+>>>>>>> live-hardening
   behavioral: [
     'Tell me about yourself and the experience most relevant to this role.',
     'Describe a time you handled conflicting priorities under pressure.',
@@ -599,6 +653,7 @@ export default function InterviewPractice() {
   const [selectedJob, setSelectedJob] = useState<JobOption | null>(null);
   const [customCompany, setCustomCompany] = useState('');
   const [customRole, setCustomRole] = useState('');
+<<<<<<< HEAD
   const [selectedMode] = useState<InterviewMode>('general');
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_recruiterPersona, _setRecruiterPersona] = useState<RecruiterPersona>('hr');
@@ -606,6 +661,9 @@ export default function InterviewPractice() {
   const [_difficulty, _setDifficulty] = useState<'standard' | 'stretch' | 'senior'>('standard');
   // Session memory PDF
   const [sessionFile, setSessionFile] = useState<File | null>(null);
+=======
+  const [selectedMode, setSelectedMode] = useState<InterviewMode>('behavioral');
+>>>>>>> live-hardening
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [avatarState, setAvatarState] = useState<AvatarState>('idle');
@@ -619,8 +677,14 @@ export default function InterviewPractice() {
   // Post-session
   const [sessionNotes, setSessionNotes] = useState('');
   const [showNotesSaved, setShowNotesSaved] = useState(false);
+<<<<<<< HEAD
   const [_showQuestionBank, _setShowQuestionBank] = useState(false);
   const [_qbMode, _setQbMode] = useState<InterviewMode>('behavioral');
+=======
+  const [showHistory, setShowHistory] = useState(false);
+  const [showQuestionBank, setShowQuestionBank] = useState(false);
+  const [qbMode, setQbMode] = useState<InterviewMode>('behavioral');
+>>>>>>> live-hardening
 
   // Recording
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -629,12 +693,15 @@ export default function InterviewPractice() {
   const [micDenied, setMicDenied] = useState(false);
   const [micMuted, setMicMuted] = useState(false);
 
+<<<<<<< HEAD
   // VAD (Voice Activity Detection)
   const vadIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const silenceStartRef = useRef<number | null>(null);
   const recordingStartTimeRef = useRef<number>(0);
   const [vadCountdown, setVadCountdown] = useState<number | null>(null);
 
+=======
+>>>>>>> live-hardening
   // Camera
   const videoRef = useRef<HTMLVideoElement>(null);
   const lobbyVideoRef = useRef<HTMLVideoElement>(null);
@@ -654,11 +721,21 @@ export default function InterviewPractice() {
   const [showTranscript, setShowTranscript] = useState(false);
 
   // Live Interview engine state
+<<<<<<< HEAD
   const useLiveMode = true; // always live mode — coaching toggle removed
   const liveSessionIdRef = useRef<string | null>(null);
   const [liveInterviewSummary, setLiveInterviewSummary] = useState<LiveInterviewSummary | null>(null);
 
   // History query
+=======
+  const [useLiveMode, setUseLiveMode] = useState(true);
+  const liveSessionIdRef = useRef<string | null>(null);
+  const [liveInterviewSummary, setLiveInterviewSummary] = useState<LiveInterviewSummary | null>(null);
+
+  // Jobs feed & history
+  const feedQuery = api.jobs.getFeed.useQuery({ limit: 20 }, { enabled: phase === 'lobby' });
+  const historyQuery = api.interview.getHistory.useQuery(undefined, { enabled: showHistory });
+>>>>>>> live-hardening
 
   // Feedback auto-dismiss timer
   useEffect(() => {
@@ -667,9 +744,12 @@ export default function InterviewPractice() {
     return () => clearTimeout(t);
   }, [turnFeedback]);
 
+<<<<<<< HEAD
   // Auto-start recording when it's the user's turn (ref filled in after startRecording is defined)
   const startRecordingRef = useRef<(() => Promise<void>) | null>(null);
 
+=======
+>>>>>>> live-hardening
   // ── Camera setup / teardown ────────────────────────────────────────────────
 
   const startCamera = useCallback(async (targetRef: React.RefObject<HTMLVideoElement | null>) => {
@@ -692,10 +772,20 @@ export default function InterviewPractice() {
     setCameraActive(false);
   }, []);
 
+<<<<<<< HEAD
   // Camera only starts when interview begins — not on lobby load
   useEffect(() => {
     return () => {
       if (phase === 'complete') stopCamera();
+=======
+  // Lobby: start camera for preview
+  useEffect(() => {
+    if (phase === 'lobby') {
+      void startCamera(lobbyVideoRef);
+    }
+    return () => {
+      if (phase !== 'lobby') stopCamera();
+>>>>>>> live-hardening
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
@@ -707,11 +797,15 @@ export default function InterviewPractice() {
         void startCamera(videoRef);
       } else if (videoRef.current) {
         videoRef.current.srcObject = cameraStreamRef.current;
+<<<<<<< HEAD
         void videoRef.current.play().then(() => {
           setCameraActive(true); // stream reused from lobby — mark as active
         }).catch(() => {
           setCameraActive(true); // still mark active even if autoplay needs gesture
         });
+=======
+        void videoRef.current.play();
+>>>>>>> live-hardening
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -895,6 +989,7 @@ export default function InterviewPractice() {
     source.connect(analyser);
     startMicLevelAnimation(analyser);
 
+<<<<<<< HEAD
     // ── Voice Activity Detection ───────────────────────────────────────────
     const VAD_SILENCE_THRESHOLD = 0.04; // RMS below this = silence
     const VAD_MIN_RECORDING_MS = 1200;  // don't trigger VAD for first 1.2s
@@ -924,6 +1019,8 @@ export default function InterviewPractice() {
       }
     }, 100);
 
+=======
+>>>>>>> live-hardening
     const recorder = new MediaRecorder(stream);
     chunksRef.current = [];
 
@@ -935,9 +1032,12 @@ export default function InterviewPractice() {
       stream.getTracks().forEach((t) => t.stop());
       void ctx.close();
       stopMicLevelAnimation();
+<<<<<<< HEAD
       if (vadIntervalRef.current) { clearInterval(vadIntervalRef.current); vadIntervalRef.current = null; }
       silenceStartRef.current = null;
       setVadCountdown(null);
+=======
+>>>>>>> live-hardening
 
       const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
       setPhase('processing');
@@ -1009,9 +1109,12 @@ export default function InterviewPractice() {
   }, [messages, runAITurn, useLiveMode, stopCamera, startMicLevelAnimation, stopMicLevelAnimation]);
 
   const stopRecording = useCallback(() => {
+<<<<<<< HEAD
     if (vadIntervalRef.current) { clearInterval(vadIntervalRef.current); vadIntervalRef.current = null; }
     silenceStartRef.current = null;
     setVadCountdown(null);
+=======
+>>>>>>> live-hardening
     recorderRef.current?.stop();
   }, []);
 
@@ -1023,6 +1126,7 @@ export default function InterviewPractice() {
     }
   }, [isRecording, startRecording, stopRecording]);
 
+<<<<<<< HEAD
   // Keep ref always pointing to latest startRecording
   startRecordingRef.current = startRecording;
 
@@ -1035,6 +1139,8 @@ export default function InterviewPractice() {
     }
   }, [phase]);
 
+=======
+>>>>>>> live-hardening
   const endCall = useCallback(() => {
     recorderRef.current?.stop();
     setIsRecording(false);
@@ -1071,6 +1177,10 @@ export default function InterviewPractice() {
     setTurnFeedback(null);
     setSessionNotes('');
     setShowNotesSaved(false);
+<<<<<<< HEAD
+=======
+    setShowHistory(false);
+>>>>>>> live-hardening
     setLiveInterviewSummary(null);
     liveSessionIdRef.current = null;
   }, []);
@@ -1078,6 +1188,12 @@ export default function InterviewPractice() {
   // ── LOBBY SCREEN ───────────────────────────────────────────────────────────
 
   if (phase === 'lobby') {
+<<<<<<< HEAD
+=======
+    const job = getJob();
+    const canJoin = (selectedJob !== null) || (customCompany.trim() !== '' && customRole.trim() !== '');
+
+>>>>>>> live-hardening
     return (
       <div style={{ minHeight: '100vh', background: '#050a14', color: '#f9fafb', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <style>{AVATAR_STYLES}</style>
@@ -1090,7 +1206,14 @@ export default function InterviewPractice() {
               <span style={{ fontSize: 13, color: '#94a3b8' }}>AI credits remaining:</span>
               <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{currentPlan.credits.toLocaleString()}</span>
             </div>
+<<<<<<< HEAD
             <a href="/billing" style={{ fontSize: 12, fontWeight: 600, color: '#a5b4fc', textDecoration: 'none', padding: '5px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: 8 }}>
+=======
+            <a
+              href="/billing"
+              style={{ fontSize: 12, fontWeight: 600, color: '#a5b4fc', textDecoration: 'none', padding: '5px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: 8, transition: 'opacity 0.15s' }}
+            >
+>>>>>>> live-hardening
               Buy Credits →
             </a>
           </div>
@@ -1098,6 +1221,7 @@ export default function InterviewPractice() {
 
         <div style={{ width: '100%', maxWidth: 880, display: 'flex', gap: 24, flexWrap: 'wrap', justifyContent: 'center' }}>
 
+<<<<<<< HEAD
           {/* Left: camera placeholder — camera starts only after clicking Start */}
           <div style={{ flex: '1 1 340px', minHeight: 320, background: '#0f172a', borderRadius: 20, border: '1px solid #1e293b', overflow: 'hidden', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <video ref={lobbyVideoRef} muted playsInline style={{ display: 'none' }} />
@@ -1162,10 +1286,131 @@ export default function InterviewPractice() {
                 <p style={{ fontWeight: 700, fontSize: 15, color: '#e2e8f0', marginBottom: 6 }}>AI Interview Practice is a Pro feature</p>
                 <p style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>Upgrade to Pro or Autopilot to unlock unlimited mock interviews.</p>
                 <a href="/billing" style={{ display: 'inline-block', padding: '10px 28px', background: 'linear-gradient(135deg,#6366f1,#3b82f6)', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
+=======
+          {/* Left: camera preview tile */}
+          <div style={{ flex: '1 1 340px', minHeight: 320, background: '#0f172a', borderRadius: 20, border: '1px solid #1e293b', overflow: 'hidden', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {/* actual video */}
+            <video
+              ref={lobbyVideoRef}
+              muted
+              playsInline
+              style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', position: 'absolute', inset: 0 }}
+            />
+            {!cameraActive && (
+              <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>👤</div>
+                <span style={{ fontSize: 13, color: '#64748b' }}>Camera unavailable</span>
+              </div>
+            )}
+            {/* "You" label */}
+            <div style={{ position: 'absolute', bottom: 14, left: 14, background: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600, color: '#e2e8f0', zIndex: 2 }}>
+              You
+            </div>
+            {/* Camera indicator */}
+            <div style={{ position: 'absolute', top: 14, right: 14, zIndex: 2, width: 10, height: 10, borderRadius: '50%', background: cameraActive ? '#22c55e' : '#64748b', boxShadow: cameraActive ? '0 0 8px #22c55e' : 'none' }} />
+          </div>
+
+          {/* Right: job selector + join */}
+          <div style={{ flex: '1 1 340px', display: 'flex', flexDirection: 'column', gap: 16, justifyContent: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#6366f1,#3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Briefcase style={{ width: 22, height: 22, color: '#fff' }} />
+              </div>
+              <div>
+                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>AI Interview Coach</h1>
+                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Share your answers — get structured coaching reports</p>
+              </div>
+            </div>
+
+            {/* Custom role */}
+            <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>CUSTOM ROLE</p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  type="text"
+                  placeholder="Company name"
+                  value={customCompany}
+                  onChange={(e) => { setCustomCompany(e.target.value); setSelectedJob(null); }}
+                  style={{ flex: 1, background: '#050a14', border: '1px solid #1e293b', borderRadius: 8, padding: '8px 12px', color: '#f1f5f9', fontSize: 14, outline: 'none' }}
+                />
+                <input
+                  type="text"
+                  placeholder="Job title"
+                  value={customRole}
+                  onChange={(e) => { setCustomRole(e.target.value); setSelectedJob(null); }}
+                  style={{ flex: 1, background: '#050a14', border: '1px solid #1e293b', borderRadius: 8, padding: '8px 12px', color: '#f1f5f9', fontSize: 14, outline: 'none' }}
+                />
+              </div>
+            </div>
+
+            {/* Interview mode selector */}
+            <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>INTERVIEW MODE</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                {(Object.entries(interviewModeLabels) as [InterviewMode, typeof interviewModeLabels[InterviewMode]][]).map(([modeKey, meta]) => (
+                  <button
+                    key={modeKey}
+                    onClick={() => setSelectedMode(modeKey)}
+                    title={meta.description}
+                    style={{
+                      background: selectedMode === modeKey ? 'rgba(99,102,241,0.22)' : '#050a14',
+                      border: `1px solid ${selectedMode === modeKey ? '#6366f1' : '#1e293b'}`,
+                      borderRadius: 8,
+                      padding: '8px 6px',
+                      cursor: 'pointer',
+                      color: selectedMode === modeKey ? '#a5b4fc' : '#94a3b8',
+                      textAlign: 'center',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{ fontSize: 18 }}>{meta.emoji}</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, marginTop: 2 }}>{meta.label}</div>
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: '#475569', marginTop: 8, marginBottom: 0 }}>{interviewModeLabels[selectedMode].description}</p>
+            </div>
+
+            {/* Jobs list */}
+            {feedQuery.isLoading ? (
+              <div style={{ textAlign: 'center', color: '#64748b', fontSize: 13, padding: '12px 0' }}>
+                <div style={{ width: 18, height: 18, border: '2px solid #6366f1', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 6px' }} />
+                Loading jobs…
+              </div>
+            ) : feedQuery.data && feedQuery.data.length > 0 ? (
+              <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>OR PICK A JOB</p>
+                <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {feedQuery.data.map((j: { id: string; title: string; company: string; description?: string | null; location?: string | null }) => (
+                    <button
+                      key={j.id}
+                      onClick={() => { setSelectedJob({ id: j.id, title: j.title, company: j.company, description: j.description }); setCustomCompany(''); setCustomRole(''); }}
+                      style={{ background: selectedJob?.id === j.id ? 'rgba(99,102,241,0.2)' : '#050a14', border: `1px solid ${selectedJob?.id === j.id ? '#6366f1' : '#1e293b'}`, borderRadius: 8, padding: '9px 14px', textAlign: 'left', cursor: 'pointer', color: '#f1f5f9', transition: 'all 0.15s' }}
+                    >
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{j.title}</div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>{j.company}{j.location ? ` · ${j.location}` : ''}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Premium gate — show upgrade prompt for free users */}
+            {isPremium === false ? (
+              <div style={{ background: 'linear-gradient(135deg,rgba(99,102,241,0.18),rgba(59,130,246,0.12))', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 14, padding: '20px 20px', textAlign: 'center' }}>
+                <Lock style={{ width: 28, height: 28, color: '#a5b4fc', margin: '0 auto 10px' }} />
+                <p style={{ fontWeight: 700, fontSize: 15, color: '#e2e8f0', marginBottom: 6 }}>AI Interview Practice is a Pro feature</p>
+                <p style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>Upgrade to Pro or Autopilot to unlock unlimited mock interviews, coaching plans, and session history.</p>
+                <a
+                  href="/billing"
+                  style={{ display: 'inline-block', padding: '10px 28px', background: 'linear-gradient(135deg,#6366f1,#3b82f6)', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}
+                >
+>>>>>>> live-hardening
                   Upgrade to Pro →
                 </a>
               </div>
             ) : (
+<<<<<<< HEAD
               <>
                 <button
                   onClick={() => void joinCall()}
@@ -1179,6 +1424,190 @@ export default function InterviewPractice() {
         </div>
 
 
+=======
+            <>
+            {/* Mode toggle: Live Interview vs Coaching */}
+            <div style={{ background: '#0f172a', borderRadius: 10, border: '1px solid #1e293b', padding: '8px', display: 'flex', gap: 4 }}>
+              <button
+                onClick={() => setUseLiveMode(true)}
+                style={{
+                  flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13,
+                  background: useLiveMode ? 'linear-gradient(135deg,#6366f1,#3b82f6)' : 'transparent',
+                  color: useLiveMode ? '#fff' : '#64748b',
+                  transition: 'all 0.15s',
+                }}
+              >
+                🎙️ Live Interview
+              </button>
+              <button
+                onClick={() => setUseLiveMode(false)}
+                style={{
+                  flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13,
+                  background: !useLiveMode ? 'rgba(99,102,241,0.18)' : 'transparent',
+                  color: !useLiveMode ? '#a5b4fc' : '#64748b',
+                  transition: 'all 0.15s',
+                }}
+              >
+                🧑‍🏫 Coaching Mode
+              </button>
+            </div>
+            {useLiveMode && (
+              <p style={{ margin: 0, fontSize: 12, color: '#64748b', textAlign: 'center' }}>
+                Real interview flow — structured questions, follow-ups, session memory, and summary
+              </p>
+            )}
+
+            {/* Join button */}
+            <button
+              disabled={!canJoin}
+              onClick={() => void joinCall()}
+              style={{
+                padding: '14px 0',
+                background: canJoin ? 'linear-gradient(135deg, #22c55e, #16a34a)' : '#1e293b',
+                border: 'none',
+                borderRadius: 12,
+                color: canJoin ? '#fff' : '#475569',
+                fontWeight: 700,
+                fontSize: 16,
+                cursor: canJoin ? 'pointer' : 'not-allowed',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+              }}
+            >
+              {canJoin ? `📞 Join Interview — ${job.title} at ${job.company}` : 'Select a job or enter a custom role'}
+            </button>
+            </>
+            )}
+
+            {/* Bottom action links */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowQuestionBank(true)}
+                style={{ flex: 1, padding: '10px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, color: '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              >
+                <BookOpen style={{ width: 14, height: 14 }} /> Question Bank
+              </button>
+              <button
+                onClick={() => setShowHistory(true)}
+                style={{ flex: 1, padding: '10px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, color: '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              >
+                <Clock style={{ width: 14, height: 14 }} /> History
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Question Bank modal */}
+        {showQuestionBank && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ width: '100%', maxWidth: 600, background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 28, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>📚 Question Bank</h2>
+                <button onClick={() => setShowQuestionBank(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>✕</button>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+                {(Object.keys(QUESTION_BANK) as InterviewMode[]).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setQbMode(m)}
+                    style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${qbMode === m ? '#6366f1' : '#1e293b'}`, background: qbMode === m ? 'rgba(99,102,241,0.2)' : '#050a14', color: qbMode === m ? '#a5b4fc' : '#94a3b8', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    {interviewModeLabels[m].emoji} {interviewModeLabels[m].label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {QUESTION_BANK[qbMode].map((q, i) => (
+                  <div key={i} style={{ background: '#050a14', border: '1px solid #1e293b', borderRadius: 10, padding: '12px 16px', fontSize: 14, color: '#e2e8f0', lineHeight: 1.5 }}>
+                    <span style={{ color: '#475569', fontSize: 12, fontWeight: 700, marginRight: 8 }}>Q{i + 1}</span>{q}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* History modal */}
+        {showHistory && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ width: '100%', maxWidth: 600, background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 28, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>🕐 Interview History</h2>
+                <button onClick={() => setShowHistory(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>✕</button>
+              </div>
+              {historyQuery.isLoading ? (
+                <div style={{ textAlign: 'center', color: '#64748b', padding: 40 }}>Loading…</div>
+              ) : !historyQuery.data || historyQuery.data.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#475569', padding: 40 }}>No sessions yet. Complete your first interview to see history here.</div>
+              ) : (
+                <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(historyQuery.data as Array<{ id: string; mode: string; difficulty: string; score: number | null; createdAt: string; answers: unknown[] }>).map((s) => {
+                    const modeLabel = interviewModeLabels[s.mode as InterviewMode] ?? { emoji: '💼', label: s.mode };
+                    const score = s.score;
+                    const scoreColor = score === null ? '#64748b' : score >= 80 ? '#34d399' : score >= 60 ? '#fbbf24' : '#f87171';
+                    return (
+                      <div key={s.id} style={{ background: '#050a14', border: '1px solid #1e293b', borderRadius: 10, padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>{modeLabel.emoji} {modeLabel.label}</span>
+                            <span style={{ fontSize: 11, color: '#475569', marginLeft: 10 }}>{new Date(s.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                          </div>
+                          {score !== null && (
+                            <span style={{ fontSize: 16, fontWeight: 800, color: scoreColor }}>{score}/100</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>
+                          {s.answers.length} answer{s.answers.length !== 1 ? 's' : ''} · {s.difficulty}
+                        </div>
+                        {score !== null && (
+                          <button
+                            onClick={() => {
+                              const growthAreas = [
+                                'Structure answers with clear STAR format',
+                                'Add quantified outcomes to each response',
+                                'Reduce filler words and pause instead',
+                              ];
+                              void trpcClient.interview.downloadCredential.mutate({ sessionId: s.id, growthAreas }).then((res: { base64: string; filename: string }) => {
+                                const bytes = Uint8Array.from(atob(res.base64), (c) => c.charCodeAt(0));
+                                const blob = new Blob([bytes], { type: 'application/pdf' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url; a.download = res.filename; a.click();
+                                URL.revokeObjectURL(url);
+                              });
+                            }}
+                            style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 7, padding: '5px 10px', color: '#818cf8', fontSize: 11, cursor: 'pointer' }}
+                          >
+                            <FileDown style={{ width: 12, height: 12 }} /> Download Credential PDF
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {/* Progress trend */}
+                  {(historyQuery.data as Array<{ score: number | null }>).filter((s) => s.score !== null).length >= 2 && (
+                    <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 10, padding: 16, marginTop: 8 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#a5b4fc', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><TrendingUp style={{ width: 14, height: 14 }} /> Score Trend</div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: 48 }}>
+                        {(historyQuery.data as Array<{ id: string; score: number | null }>).filter((s) => s.score !== null).slice(0, 10).reverse().map((s, i) => {
+                          const pct = ((s.score ?? 0) / 100) * 48;
+                          const c = (s.score ?? 0) >= 80 ? '#34d399' : (s.score ?? 0) >= 60 ? '#fbbf24' : '#f87171';
+                          return (
+                            <div key={i} title={`${s.score}/100`} style={{ flex: 1, height: `${pct}px`, background: c, borderRadius: 3, minHeight: 4 }} />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+>>>>>>> live-hardening
       </div>
     );
   }
@@ -1217,6 +1646,7 @@ export default function InterviewPractice() {
     const scoreColor = avgScore === null ? '#64748b' : avgScore >= 80 ? '#34d399' : avgScore >= 60 ? '#fbbf24' : '#f87171';
 
     const handleExport = () => {
+<<<<<<< HEAD
       const date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
       const duration = `${Math.floor(callSeconds / 60)}m ${callSeconds % 60}s`;
       const userMsgs = messages.filter(m => m.role === 'user').map(m => m.content);
@@ -1312,6 +1742,17 @@ export default function InterviewPractice() {
         a.click();
       }
       setTimeout(() => URL.revokeObjectURL(url), 10000);
+=======
+      const md = generateMarkdownReport({ job, mode: selectedMode, messages, callSeconds, exchangeCount, notes: sessionNotes, modeLabel: modeInfo.label });
+      const blob = new Blob([md], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeName = job.company.replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').toLowerCase() || 'company';
+      a.download = `interview-report-${safeName}-${new Date().toISOString().slice(0, 10)}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+>>>>>>> live-hardening
     };
 
     const handleSaveNotes = () => {
@@ -1484,7 +1925,11 @@ export default function InterviewPractice() {
               onClick={handleExport}
               style={{ flex: '1 1 160px', padding: '13px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, color: '#94a3b8', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
             >
+<<<<<<< HEAD
               <FileDown style={{ width: 16, height: 16 }} /> Export PDF Report
+=======
+              <FileDown style={{ width: 16, height: 16 }} /> Export Report
+>>>>>>> live-hardening
             </button>
             <button
               onClick={resetAll}
@@ -1504,17 +1949,27 @@ export default function InterviewPractice() {
   const job = getJob();
   const userTurnActive = phase === 'user-turn';
   const statusLabel =
+<<<<<<< HEAD
     isRecording ? '● REC' :
     phase === 'ai-speaking' ? 'Speaking' :
     phase === 'processing' ? 'Thinking…' :
     phase === 'user-turn' ? 'Your turn…' : 'Ready';
   const statusColor =
     isRecording ? '#f87171' :
+=======
+    phase === 'ai-speaking' ? 'Speaking' :
+    phase === 'processing' ? 'Thinking…' :
+    phase === 'user-turn' ? 'Listening' : 'Ready';
+  const statusColor =
+>>>>>>> live-hardening
     phase === 'ai-speaking' ? '#818cf8' :
     phase === 'processing' ? '#fbbf24' :
     phase === 'user-turn' ? '#4ade80' : '#94a3b8';
   const statusBg =
+<<<<<<< HEAD
     isRecording ? 'rgba(239,68,68,0.2)' :
+=======
+>>>>>>> live-hardening
     phase === 'ai-speaking' ? 'rgba(99,102,241,0.2)' :
     phase === 'processing' ? 'rgba(251,191,36,0.2)' :
     phase === 'user-turn' ? 'rgba(34,197,94,0.2)' : 'rgba(148,163,184,0.15)';
@@ -1546,6 +2001,7 @@ export default function InterviewPractice() {
         {/* Avatar */}
         <Avatar state={avatarState} />
 
+<<<<<<< HEAD
         {/* Recording indicator — prominent pulsing bar */}
         {isRecording && (
           <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
@@ -1568,6 +2024,8 @@ export default function InterviewPractice() {
           </div>
         )}
 
+=======
+>>>>>>> live-hardening
         {/* Adaptive insights chip */}
         {adaptiveInsights && adaptiveInsights.sessionCount > 0 && (
           <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 20, padding: '4px 12px', fontSize: 12, color: '#a5b4fc' }} title={adaptiveInsights.adaptationNote ?? ''}>
@@ -1717,6 +2175,7 @@ export default function InterviewPractice() {
           boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
         }}
       >
+<<<<<<< HEAD
         {/* Always keep video in DOM so ref is always available for startCamera */}
         <video
           ref={videoRef}
@@ -1731,6 +2190,19 @@ export default function InterviewPractice() {
           <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, position: 'absolute', inset: 0 }}>
             <div style={{ fontSize: 32 }}>👤</div>
             <span style={{ fontSize: 11, color: '#475569' }}>{!cameraOn ? 'Camera off' : 'Starting camera…'}</span>
+=======
+        {cameraActive && cameraOn ? (
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+          />
+        ) : (
+          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <div style={{ fontSize: 32 }}>👤</div>
+            <span style={{ fontSize: 11, color: '#475569' }}>{!cameraOn ? 'Camera off' : 'No camera'}</span>
+>>>>>>> live-hardening
           </div>
         )}
 
@@ -1871,8 +2343,13 @@ export default function InterviewPractice() {
       </div>
 
       {/* Label under mic button */}
+<<<<<<< HEAD
       <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 11, whiteSpace: 'nowrap', zIndex: 20, color: isRecording ? '#f87171' : '#475569' }}>
         {isRecording ? 'Tap to stop early' : userTurnActive ? 'Starting mic…' : statusLabel}
+=======
+      <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 11, color: '#475569', whiteSpace: 'nowrap', zIndex: 20 }}>
+        {isRecording ? 'Tap to stop' : userTurnActive ? 'Tap to speak' : statusLabel}
+>>>>>>> live-hardening
       </div>
     </div>
   );

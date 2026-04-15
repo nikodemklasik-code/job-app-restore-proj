@@ -404,7 +404,11 @@ function buildInterviewerSystemPrompt(session: LiveInterviewSession): string {
       'Focus on technical depth: system design, architecture decisions, debugging approaches, and trade-offs.',
     general:
       'Cover motivations, career story, growth mindset, and cultural alignment.',
+<<<<<<< HEAD
     hr: 'Cover: salary expectations, notice period / start date, management style preferences, and interpersonal skills. Never ask about family, personal obligations, religion, or protected characteristics.',
+=======
+    hr: 'Cover practical aspects: availability, salary expectations, management style, and interpersonal skills.',
+>>>>>>> live-hardening
     'case-study':
       'Present business problems or estimation challenges. Ask the candidate to walk through their reasoning.',
     'language-check':
@@ -426,6 +430,7 @@ YOUR BEHAVIOR RULES:
 - Maintain a professional but warm tone — challenging but not hostile.
 - Vary your question phrasing naturally. Avoid formulaic openers.
 
+<<<<<<< HEAD
 ⚖️ LEGAL COMPLIANCE — STRICTLY PROHIBITED TOPICS:
 You must NEVER ask about, or follow up on, any of the following protected characteristics:
 - Family plans, pregnancy, children, childcare, or marital/relationship status
@@ -441,6 +446,8 @@ If in HR mode and scheduling arises, ask only: "Are there any requirements about
 If a candidate volunteers protected information, acknowledge briefly and move on without probing further.
 Violation of these rules would constitute illegal pre-employment discrimination under UK / EU / US employment law.
 
+=======
+>>>>>>> live-hardening
 SESSION MEMORY:
 ${memoryContext || 'No previous context yet.'}
 

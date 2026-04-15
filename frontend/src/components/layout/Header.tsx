@@ -1,10 +1,15 @@
 import { useLocation } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
+<<<<<<< HEAD
 import { Sun, Moon, PanelLeftClose, PanelLeft } from 'lucide-react';
+=======
+import { Sun, Moon, Monitor, Brain, Contrast, Focus, PanelLeftClose, PanelLeft } from 'lucide-react';
+>>>>>>> live-hardening
 import { useThemeStore } from '@/stores/themeStore';
 import { api } from '@/lib/api';
 
 const PAGE_TITLES: Record<string, string> = {
+<<<<<<< HEAD
   '/dashboard':   'Profile & Goals',
   '/jobs':        'Job Listings',
   '/applications':'Applications',
@@ -27,12 +32,29 @@ const PAGE_TITLES: Record<string, string> = {
   '/auto-apply':  'Auto Apply',
   '/documents':   'Document Lab',
   '/faq':         'FAQ',
+=======
+  '/dashboard': 'Dashboard',
+  '/jobs': 'Jobs Discovery',
+  '/applications': 'Applications Pipeline',
+  '/review': 'Review Queue',
+  '/assistant': 'AI Career Assistant',
+  '/interview': 'Interview Ready',
+  '/profile': 'Profile & CV',
+  '/style-studio': 'Style Studio',
+  '/settings': 'Settings',
+  '/security': 'Security & Passkeys',
+  '/billing': 'Billing & Credits',
+>>>>>>> live-hardening
 };
 
 export default function Header() {
   const { pathname } = useLocation();
   const { user } = useUser();
+<<<<<<< HEAD
   const { setTheme, focusMode, setFocusMode } = useThemeStore();
+=======
+  const { theme, setTheme, focusMode, setFocusMode } = useThemeStore();
+>>>>>>> live-hardening
   const creditsQuery = api.billing.getCurrentPlan.useQuery(
     { userId: user?.id ?? '' },
     { enabled: !!user?.id, staleTime: 60_000 },
@@ -47,6 +69,21 @@ export default function Header() {
     user?.primaryEmailAddress?.emailAddress?.split('@')[0] ||
     '';
 
+<<<<<<< HEAD
+=======
+  const standardThemes = [
+    { id: 'light' as const, Icon: Sun, label: 'Light' },
+    { id: 'system' as const, Icon: Monitor, label: 'System default' },
+    { id: 'dark' as const, Icon: Moon, label: 'Dark' },
+  ];
+
+  const a11yThemes = [
+    { id: 'neurodiversity' as const, Icon: Brain, label: 'Neurodiversity (warm cream)' },
+    { id: 'high-contrast' as const, Icon: Contrast, label: 'High contrast' },
+    { id: 'focus' as const, Icon: Focus, label: 'Focus mode (reduced colour)' },
+  ];
+
+>>>>>>> live-hardening
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-100 bg-white/80 px-6 backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80">
       <div className="flex items-center gap-3">
@@ -77,12 +114,17 @@ export default function Header() {
           </div>
         )}
 
+<<<<<<< HEAD
         {/* Theme toggle — light mode not yet ready, show dark only */}
+=======
+        {/* Standard theme toggle */}
+>>>>>>> live-hardening
         <div
           className="flex items-center gap-1 rounded-xl border border-slate-100 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800"
           role="group"
           aria-label="Colour theme"
         >
+<<<<<<< HEAD
           <button
             onClick={() => setTheme('light')}
             aria-label="Light theme (coming soon)"
@@ -101,6 +143,48 @@ export default function Header() {
           >
             <Moon className="h-3.5 w-3.5" />
           </button>
+=======
+          {standardThemes.map(({ id, Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => setTheme(id)}
+              aria-label={label}
+              aria-pressed={theme === id}
+              className={`rounded-lg p-1.5 transition-colors ${
+                theme === id
+                  ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white'
+                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+              }`}
+              title={label}
+            >
+              <Icon className="h-3.5 w-3.5" />
+            </button>
+          ))}
+        </div>
+
+        {/* Accessibility theme toggle */}
+        <div
+          className="flex items-center gap-1 rounded-xl border border-slate-100 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800"
+          role="group"
+          aria-label="Accessibility theme"
+        >
+          {a11yThemes.map(({ id, Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => setTheme(id)}
+              aria-label={label}
+              aria-pressed={theme === id}
+              className={`rounded-lg p-1.5 transition-colors ${
+                theme === id
+                  ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white'
+                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+              }`}
+              title={label}
+            >
+              <Icon className="h-3.5 w-3.5" />
+            </button>
+          ))}
+>>>>>>> live-hardening
         </div>
 
         {displayName ? (

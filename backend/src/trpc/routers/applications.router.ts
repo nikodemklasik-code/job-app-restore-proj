@@ -4,7 +4,11 @@ import { eq, desc } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { publicProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
+<<<<<<< HEAD
 import { applications, applicationLogs, profiles, skills, users, experiences, educations } from '../../db/schema.js';
+=======
+import { applications, applicationLogs, profiles, skills, users } from '../../db/schema.js';
+>>>>>>> live-hardening
 import { generateCoverLetter, generateCvSummary, scoreJobFit, generateFollowUp } from '../../services/aiPersonalizer.js';
 import { generateCvPdf, generateCoverLetterPdf, generateCandidateReport } from '../../services/pdfGenerator.js';
 import { getLearnedSignals, recordOutcome } from '../../services/learningService.js';
@@ -271,8 +275,11 @@ export const applicationsRouter = router({
       if (!profile) throw new Error('Complete your profile first');
 
       const skillRecords = await db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profile.id));
+<<<<<<< HEAD
       const experienceRecords = await db.select().from(experiences).where(eq(experiences.profileId, profile.id));
       const educationRecords = await db.select().from(educations).where(eq(educations.profileId, profile.id));
+=======
+>>>>>>> live-hardening
 
       const pdfBuffer = await generateCvPdf({
         fullName: profile.fullName,
@@ -280,6 +287,7 @@ export const applicationsRouter = router({
         phone: profile.phone ?? '',
         summary: profile.summary ?? '',
         skills: skillRecords.map((s) => s.name),
+<<<<<<< HEAD
         experience: experienceRecords.map((e) => ({
           title: e.jobTitle,
           company: e.employerName,
@@ -293,6 +301,8 @@ export const applicationsRouter = router({
           startDate: e.startDate,
           endDate: e.endDate ?? undefined,
         })),
+=======
+>>>>>>> live-hardening
       });
 
       return { base64: pdfBuffer.toString('base64') };

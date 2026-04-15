@@ -2,9 +2,14 @@ import { NavLink } from 'react-router-dom';
 import { useClerk } from '@clerk/clerk-react';
 import {
   LayoutDashboard, Briefcase, ClipboardList, FileText,
+<<<<<<< HEAD
   MessageSquare, Mic, CreditCard, Settings,
   Shield, Palette, LogOut, Sparkles, Calculator, Scale, BarChart2, Zap,
   FlaskConical, Handshake, Radar, HelpCircle, FolderOpen, GraduationCap, Flame,
+=======
+  MessageSquare, Mic, User, CreditCard, Settings,
+  Shield, Palette, LogOut, Sparkles, Calculator, Scale, BarChart2, Zap, FlaskConical, Handshake, Radar, Flame, HelpCircle,
+>>>>>>> live-hardening
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -15,6 +20,7 @@ interface NavItem {
   badge?: number;
 }
 
+<<<<<<< HEAD
 const PROFILE: NavItem[] = [
   { path: '/dashboard', label: 'Profile & Goals', icon: LayoutDashboard },
 ];
@@ -43,6 +49,26 @@ const COACHING: NavItem[] = [
 
 const DOCUMENTS: NavItem[] = [
   { path: '/documents', label: 'Document Lab', icon: FolderOpen },
+=======
+const MAIN_FLOW: NavItem[] = [
+  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/jobs', label: 'Jobs', icon: Briefcase },
+  { path: '/applications', label: 'Applications', icon: ClipboardList },
+  { path: '/review', label: 'Review Queue', icon: FileText },
+];
+
+const AI_GROWTH: NavItem[] = [
+  { path: '/assistant', label: 'AI Assistant', icon: MessageSquare },
+  { path: '/interview', label: 'Interview Ready', icon: Mic },
+  { path: '/warmup', label: 'Daily Warmup', icon: Flame },
+  { path: '/negotiation', label: 'Negotiation Coach', icon: Handshake },
+  { path: '/skills', label: 'Skills Lab', icon: FlaskConical },
+  { path: '/radar', label: 'Job Radar', icon: Radar },
+];
+
+const PROFILE_DOCS: NavItem[] = [
+  { path: '/profile', label: 'CV Studio', icon: User },
+>>>>>>> live-hardening
   { path: '/style-studio', label: 'Style Studio', icon: Palette },
 ];
 
@@ -50,6 +76,7 @@ const TOOLS: NavItem[] = [
   { path: '/salary', label: 'Salary Calculator', icon: Calculator },
   { path: '/legal', label: 'Legal Hub', icon: Scale },
   { path: '/reports', label: 'Reports', icon: BarChart2 },
+<<<<<<< HEAD
   { path: '/auto-apply', label: 'Auto Apply', icon: Zap },
 ];
 
@@ -57,6 +84,18 @@ const ACCOUNT: NavItem[] = [
   { path: '/settings', label: 'Settings', icon: Settings },
   { path: '/billing', label: 'Billing', icon: CreditCard },
   { path: '/security', label: 'Security', icon: Shield },
+=======
+];
+
+const AUTOMATION: NavItem[] = [
+  { path: '/auto-apply', label: 'Auto Apply', icon: Zap },
+];
+
+const TECHNICAL: NavItem[] = [
+  { path: '/settings', label: 'Settings', icon: Settings },
+  { path: '/security', label: 'Security', icon: Shield },
+  { path: '/billing', label: 'Billing', icon: CreditCard },
+>>>>>>> live-hardening
   { path: '/faq', label: 'FAQ', icon: HelpCircle },
 ];
 
@@ -113,6 +152,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto p-3">
+<<<<<<< HEAD
         <NavSection label="Profile" items={PROFILE} />
         <NavSection label="Job Search" items={JOB_SEARCH} />
         <NavSection label="Skills" items={SKILLS} />
@@ -121,6 +161,14 @@ export default function Sidebar() {
         <NavSection label="Documents" items={DOCUMENTS} />
         <NavSection label="Tools" items={TOOLS} />
         <NavSection label="Account" items={ACCOUNT} />
+=======
+        <NavSection label="Main Flow" items={MAIN_FLOW} />
+        <NavSection label="AI & Growth" items={AI_GROWTH} />
+        <NavSection label="Profile & Documents" items={PROFILE_DOCS} />
+        <NavSection label="Tools & Insights" items={TOOLS} />
+        <NavSection label="Automation" items={AUTOMATION} />
+        <NavSection label="Technical & Account" items={TECHNICAL} />
+>>>>>>> live-hardening
       </nav>
 
       {/* Sign out */}

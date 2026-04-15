@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
+<<<<<<< HEAD
 import { FlaskConical, Loader2, ChevronRight, AlertCircle, BookOpen, ChevronDown, ExternalLink, Zap, TrendingUp, Clock, Award, Info, X } from 'lucide-react';
+=======
+import { FlaskConical, Loader2, ChevronRight, AlertCircle, BookOpen, ChevronDown, ExternalLink, Zap } from 'lucide-react';
+>>>>>>> live-hardening
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import { useProfileStore } from '@/stores/profileStore';
 import { useBillingStore } from '@/stores/billingStore';
 
+<<<<<<< HEAD
 // ── Mock data for Skills Gap & Courses sections ───────────────────────────
 
 const MY_SKILLS_MOCK = [
@@ -273,6 +278,8 @@ function RecommendedCourses() {
   );
 }
 
+=======
+>>>>>>> live-hardening
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 /** Derive a stable pseudo-level (0-10) from a skill name string. */
@@ -590,6 +597,7 @@ export default function SkillsLab() {
         </div>
       )}
 
+<<<<<<< HEAD
       {/* ── TOP ZONE — CV / Skill Monetisation ── */}
       <MonetisationZone />
 
@@ -599,6 +607,8 @@ export default function SkillsLab() {
       {/* ── BOTTOM ZONE — Recommended Courses ── */}
       <RecommendedCourses />
 
+=======
+>>>>>>> live-hardening
       {/* 2-column layout */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* LEFT — My Skills */}

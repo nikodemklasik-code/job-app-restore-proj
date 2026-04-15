@@ -401,6 +401,7 @@ export const pushSubscriptions = mysqlTable('push_subscriptions', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
 });
+<<<<<<< HEAD
 
 // ── NEW TABLES (v2 features) ──────────────────────────────────────────────────
 
@@ -489,3 +490,5 @@ export const testAccounts = mysqlTable('test_accounts', {
   createdBy: varchar('created_by', { length: 100 }).notNull().default('admin'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+=======
+>>>>>>> live-hardening

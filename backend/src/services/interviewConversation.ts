@@ -22,7 +22,11 @@ const MODE_CONTEXT: Record<string, string> = {
   behavioral: 'Focus entirely on STAR-format behavioral questions about real past experiences. After each user answer, provide a full coaching report.',
   technical: 'Focus on technical depth: system design, architecture decisions, debugging approaches, and trade-offs. After each user answer, provide a full coaching report.',
   general: 'Focus on motivations, career story, and growth mindset. After each user answer, provide a full coaching report.',
+<<<<<<< HEAD
   hr: 'Cover practical screening: salary expectations, notice period / start date, current interviews, management style, and expectations. Do NOT ask about personal availability due to family, religion, or any protected characteristic. After each user answer, provide a full coaching report.',
+=======
+  hr: 'Cover practical screening: availability, salary expectations, current interviews, management style, and expectations. After each user answer, provide a full coaching report.',
+>>>>>>> live-hardening
   'case-study': 'Present business problems or estimation questions. After each user answer, provide a full coaching report.',
   'language-check': 'Assess fluency, clarity, vocabulary range, and ability to explain complex topics simply. After each user answer, provide a full coaching report.',
 };
@@ -214,6 +218,7 @@ When the user submits an answer, always follow this exact structure:
 - If this is the start of a session with no prior answer, greet the user briefly, introduce yourself as their AI Interview Preparation Coach for the ${job.title} role at ${job.company}, and ask them to share an answer they would like to improve.
 - If the user provides an answer, evaluate it using the full required report format above.
 - If the user asks for a practice question, provide one relevant question for the role and mode, then wait for their answer.
+<<<<<<< HEAD
 - Keep greetings and transitions short. The coaching report is the main output.
 
 ---
@@ -235,6 +240,9 @@ These rules override all other instructions about question sequence.
 6. **Maximum two questions on the same topic** — if the user cannot or will not engage with a topic after two attempts, pivot to something different.
 
 7. **The conversation must feel human and adaptive** — not scripted. A user should never feel that their answer was ignored.`;
+=======
+- Keep greetings and transitions short. The coaching report is the main output.`;
+>>>>>>> live-hardening
 }
 
 export async function* streamInterviewResponse(

@@ -158,6 +158,7 @@ export async function generateCoverLetterPdf(text: string, meta: CoverLetterMeta
   doc.rect(70, y, 455, 1).fill('#e2e8f0');
   y += 16;
 
+<<<<<<< HEAD
   // Body text — supports **bold** markdown inline
   const paragraphs = text.split('\n\n').filter((p) => p.trim());
   for (const para of paragraphs) {
@@ -186,6 +187,13 @@ export async function generateCoverLetterPdf(text: string, meta: CoverLetterMeta
         }
       }
     }
+=======
+  // Body text
+  const paragraphs = text.split('\n\n').filter((p) => p.trim());
+  for (const para of paragraphs) {
+    doc.fillColor(DARK).font('Helvetica').fontSize(10.5)
+      .text(para.replace(/\n/g, ' ').trim(), 70, y, { width: 455, align: 'justify', lineGap: 3 });
+>>>>>>> live-hardening
     y = doc.y + 14;
   }
 

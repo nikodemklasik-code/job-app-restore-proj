@@ -156,6 +156,7 @@ Use real, current courses from Coursera, Udemy, LinkedIn Learning, Pluralsight, 
           };
         }
         return {
+<<<<<<< HEAD
           text: `Dear Hiring Team,\n\nI am writing to apply for the **${input.jobTitle}** position${input.company ? ` at **${input.company}**` : ''}. With my background in **${skillList || 'relevant technologies'}**, I am confident in my ability to contribute effectively to your team.\n\nI look forward to discussing this opportunity further.\n\nYours sincerely,\n${input.senderName ?? ''}`,
         };
       }
@@ -176,6 +177,19 @@ Rules:
       const userPrompt = input.type === 'cv'
         ? `Job: ${input.jobTitle}${input.company ? ` at ${input.company}` : ''}\nJob description: ${input.jobDescription ?? 'Not provided'}\n\nCandidate profile:\n${profileContext}\n\nWrite a tailored CV professional summary section and highlight the most relevant skills.`
         : `Job: ${input.jobTitle}${input.company ? ` at ${input.company}` : ''}\nJob description: ${input.jobDescription ?? 'Not provided'}\n\nCandidate profile:\n${profileContext}\nApplicant name: ${senderDisplayName}\n\nWrite a compelling cover letter addressed to the hiring team at ${input.company ?? 'the company'}.`;
+=======
+          text: `Dear Hiring Team,\n\nI am writing to apply for the ${input.jobTitle} position${input.company ? ` at ${input.company}` : ''}. With my background in ${skillList || 'relevant technologies'}, I am confident in my ability to contribute effectively.\n\nI look forward to discussing this opportunity further.\n\nYours sincerely,\n${input.senderName ?? 'Applicant'}`,
+        };
+      }
+
+      const systemPrompt = input.type === 'cv'
+        ? `You are an expert UK CV writer. Generate a professional, tailored CV summary and skills section (no template headings, pure prose sections ready to paste). Tailor it specifically to the job description provided. Use British English.`
+        : `You are an expert UK cover letter writer. Write a concise, compelling cover letter (3 paragraphs, no placeholders, ready to send). Match the tone to the company and role. Use British English.`;
+
+      const userPrompt = input.type === 'cv'
+        ? `Job: ${input.jobTitle}${input.company ? ` at ${input.company}` : ''}\nJob description: ${input.jobDescription ?? 'Not provided'}\n\nCandidate profile:\n${profileContext}\n\nWrite a tailored CV professional summary section and highlight the most relevant skills.`
+        : `Job: ${input.jobTitle}${input.company ? ` at ${input.company}` : ''}\nJob description: ${input.jobDescription ?? 'Not provided'}\n\nCandidate profile:\n${profileContext}\nApplicant name: ${input.senderName ?? 'Applicant'}\n\nWrite a compelling cover letter.`;
+>>>>>>> live-hardening
 
       try {
         const resp = await openai.chat.completions.create({
