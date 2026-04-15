@@ -24,6 +24,10 @@ const AutoApplyPage = lazy(() => import('./app/autopilot/AutoApplyPage'));
 const SkillsLab = lazy(() => import('./app/skills/SkillsLab'));
 const NegotiationCoach = lazy(() => import('./app/negotiation/NegotiationCoach'));
 const JobRadar = lazy(() => import('./app/radar/JobRadar'));
+const JobRadarLandingPage = lazy(() => import('./app/job-radar/JobRadarLandingPage'));
+const JobRadarReportPage = lazy(() => import('./app/job-radar/JobRadarReportPage'));
+const JobRadarScanPage = lazy(() => import('./app/job-radar/JobRadarScanPage'));
+const JobRadarAdminComplaintsPage = lazy(() => import('./app/job-radar/admin/JobRadarAdminComplaintsPage'));
 const InterviewWarmup = lazy(() => import('./app/warmup/InterviewWarmup'));
 const CoachPage = lazy(() => import('./app/coach/CoachPage'));
 const FAQPage = lazy(() => import('./app/faq/FAQPage'));
@@ -93,6 +97,10 @@ export const router = createBrowserRouter([
       { path: 'skills', element: withSuspense(SkillsLab) },
       { path: 'negotiation', element: withSuspense(NegotiationCoach) },
       { path: 'radar', element: withSuspense(JobRadar) },
+      { path: 'job-radar', element: withSuspense(JobRadarLandingPage) },
+      { path: 'job-radar/scan/:scanId', element: withSuspense(JobRadarScanPage) },
+      { path: 'job-radar/report/:reportId', element: withSuspense(JobRadarReportPage) },
+      { path: 'job-radar/admin/complaints', element: withSuspense(JobRadarAdminComplaintsPage) },
       { path: 'warmup', element: withSuspense(InterviewWarmup) },
       { path: 'coach', element: withSuspense(CoachPage) },
       { path: 'faq', element: withSuspense(FAQPage) },

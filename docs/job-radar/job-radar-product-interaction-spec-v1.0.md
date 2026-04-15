@@ -1,253 +1,360 @@
 # JobRadar — Product Interaction Spec v1.0
 
-**Document type:** Product / UX / content architecture (frontend-facing)  
+**Decision-support UX + legal-safe interaction model**
+
+**Document type:** Product / UX / trust / legal alignment (single source of truth for IA, copy, and behaviour)  
 **Last updated:** 2026-04-15  
-**Related policies:** [`job-radar-legal-trust-policy-v1.0.md`](./job-radar-legal-trust-policy-v1.0.md), [`job-radar-legal-safety-policy-v1.0.md`](./job-radar-legal-safety-policy-v1.0.md)
+**Audience:** Product, design, frontend, backend, trust / legal  
+**Related:** [`job-radar-legal-trust-policy-v1.0.md`](./job-radar-legal-trust-policy-v1.0.md), [`job-radar-legal-safety-policy-v1.0.md`](./job-radar-legal-safety-policy-v1.0.md), [`job-radar-frontend-trust-ui-spec-v1.0.md`](./job-radar-frontend-trust-ui-spec-v1.0.md)
 
-**Purpose:** Align information architecture, copy, and UI behaviour with a **decision-support** model (evidence-first, explainable, legally defensive) — **not** a public reputation or “employer rating” product.
-
----
-
-## Strategic one-liner
-
-JobRadar should be a **modern candidate decision-support system** built on **evidence**, **confidence**, and **explainability** — **not** a public engine for grading employers.
+**Purpose:** Stop guesswork across teams. One framing: **private candidate decision support** — evidence-first, confidence-visible, legally defensive. **Not** a public reputation engine, blacklist, or accusation product.
 
 ---
 
-## 1. Product axis (non-negotiable framing)
+## 0. Core principle (overrides everything else)
 
-### Avoid (reputation-publishing tone)
+JobRadar is a **private candidate decision-support assistant**. It helps users understand:
 
-- “We rate the employer.”
-- Headlines that read like a **verdict** on the company as a moral actor.
+- How **transparent** a job offer is  
+- How **complete** public employer information is  
+- How the role **compares to the market** (signals, not verdicts)  
+- **What to ask** before accepting an offer  
 
-### Use (decision-support tone)
+**Explicitly not:**
 
-- “We help you assess **this offer** and the **completeness / quality** of **public** information.”
+- Public employer ranking platform  
+- Reputation publishing tool  
+- Blacklist or “name and shame” surface  
+- Accusation engine  
 
-### Terminology shift
+**Consequence for frontend, copy, scoring, and interactions**
 
-| Avoid | Prefer |
+- Avoid **definitive claims** unless **source tier is high** and **confidence is high**  
+- Always **separate facts from inferences**  
+- Make **uncertainty** visible (confidence + freshness + missing data)  
+
+---
+
+## 1. UX philosophy
+
+**Main model:** Evidence → Confidence → Interpretation → Action  
+
+**Not:** Verdict → emotion → fear  
+
+**Mental flow for the user**
+
+1. What do we know?  
+2. How trustworthy is it?  
+3. What does this mean for me?  
+4. What should I do next?  
+
+Trust is built through **clarity**, not through panic before signing a contract.
+
+---
+
+## 2. Global interaction rules
+
+### Rule 1 — Facts always separated from model suggestions
+
+**A. Verified public information**  
+Structured facts: registry, official job page, offer metadata, salary **if disclosed**.
+
+**B. Model observations**  
+Derived: likely transparency issues, fit signals, benchmark mismatch, process hints.
+
+**Never mix in copy**
+
+| Bad | Good |
 | --- | --- |
-| Employer score | Offer transparency score; public data completeness |
-| Risky employer (headline) | Hiring process signals; risk **signals** (with context) |
-| Red flags about the company | Transparency gaps; process signals; items needing caution |
-| Verdict-style recommendation only | **Next best action** + guidance |
+| “Company underpays staff.” | “Public compensation signals are **below** the benchmark range for similar roles in the selected market window.” |
 
-This is **not cosmetic**: it shifts how users and third parties interpret the product.
+UI **sections** must reflect this split (dedicated regions; never one blended paragraph).
+
+### Rule 2 — Confidence and freshness always visible
+
+Every **insight**, **score**, and **recommendation** must surface:
+
+- Confidence (e.g. low / medium / high, with **why** when material)  
+- Freshness (e.g. “Updated 8h ago”, stale badge when policy applies)  
+
+Optional: “How confidence works” (tooltip or help).
+
+### Rule 3 — Missing data is product output
+
+Missing data ≠ silence.
+
+Surface explicitly, for example:
+
+- Salary not disclosed  
+- Unclear work mode  
+- Benefits missing  
+
+This improves user trust and legal defensibility.
+
+### Rule 4 — Product must suggest a next action
+
+Every report answers: **“What should the user do now?”**
+
+Examples:
+
+- Ask the recruiter about salary range  
+- Request a team interview  
+- Compare with another offer  
+- Wait for a refreshed scan / rescan when eligible  
 
 ---
 
-## 2. Evidence-first screen order
+## 3. Primary user flows
 
-Modern, safer UI **does not** open with a single score or dramatic badges.
+### Flow A — Start scan
 
-**Recommended vertical order**
+**Entry points:** saved job, search results, manual employer lookup, pasted URL.
 
-1. **What we know** — verified public facts and listing facts (sources attached).  
-2. **How reliable it is** — confidence, source tier, freshness.  
-3. **What the model suggests** — clearly labelled **model observations** (never merged with facts in copy).  
-4. **What is missing** — gaps, missing fields, stale data.  
-5. **What you should do next** — **next best action** (primary CTA).
+**Screen: Start scan**
 
-Avoid leading with: a big “64/100”, three red badges, or tabloid HR drama.
+- **Header:** “Research this employer and offer”  
+- **Subtext:** “JobRadar scans **public** information to help you evaluate transparency, pay signals, and fit.”  
+- **Inputs:** employer name, job title, location, source URL (optional)  
+- **CTA:** Start scan  
+- **Legal helper (small):** “Reports are based on public data and may be incomplete.”  
 
----
+### Flow B — Scan in progress
 
-## 3. Layer A — Information architecture (IA)
+**Screen:** Scan progress  
 
-### 3.1 Primary surfaces (private launch)
+- **Headline:** e.g. “Scanning public sources”  
+- **Body:** “We’re collecting public employer and offer data.”  
+- **Stages (real transitions, no fake theatre):** employer info → offer details → compensation benchmark → hiring signals → report build  
 
-- **Report home** for a scan: single primary narrative flow (sections below).  
-- **Trust actions** globally available: report issue, outdated data, harmful finding (per finding where applicable).  
-- **No** public employer profile, **no** SEO landing, **no** rankings (see Legal Safety Policy).
+### Flow C — Report ready
 
-### 3.2 Section taxonomy (suggested blocks)
+**1. Report header**  
+Employer, job title, location, freshness, confidence. CTAs: **Report issue**, **Rescan**.  
+Tone: **no dramatic language.**
 
-Each block is a **first-class** UI unit with its own metadata (see Layer C).
-
-| Block | Role |
+| Bad | Good |
 | --- | --- |
-| Public facts | Registry / official / listing-derived facts |
-| Data completeness | What was found vs missing |
-| Offer transparency | Salary clarity, benefits stated, process clarity |
-| Compensation context | Benchmark / range context (model + sources) |
-| Fit signals | Model — clearly separated |
-| Process / hiring signals | Neutral wording; evidence-backed |
-| Next best action | Primary guidance — not a “verdict” |
+| “Dangerous employer.” | “Some public signals may require additional review.” |
 
-### 3.3 Progressive disclosure (three levels)
+**2. What we know (top section)**  
+Structured blocks only:
 
-**Level 1 — Summary (default)**
+- **Offer facts** — salary disclosed?, work mode?, benefits?  
+- **Employer facts** — registry, size band, official site where applicable  
+- **Hiring facts** — posting frequency / consistency **only** when sourced and policy allows  
 
-- Short recommendation label (policy-constrained wording).  
-- Overall confidence + missing data summary.  
-- **Next best action** (primary).  
-- Trust entry points (report / review).
+Rules: structured facts only; source links optional but traceability must exist in the product backend.
 
-**Level 2 — Reasoning (expandable)**
+**3. Data quality / confidence panel (prominent)**  
+Overall confidence; salary / transparency / fit as needed; freshness; **short “why”** (e.g. “Salary confidence is medium because only one public listing disclosed compensation.”).
 
-- Score drivers (grouped).  
-- Findings list (with confidence + source class).  
-- Source tier legend.
+**4. What JobRadar suggests (interpretation)**  
+Cards such as: offer transparency; compensation competitiveness; fit alignment; caution signals.  
+Each: summary + confidence + “why”.  
+**Language:** no absolute moral claims (see §7).
 
-**Level 3 — Deep evidence**
+**5. Missing information (mandatory)**  
+List gaps + **“Questions worth asking the recruiter”** (curated examples).
 
-- Source list with URLs / identifiers where allowed.  
-- Provenance: collection time, parser/scoring version (as product allows).  
-- Timestamps and freshness.
+**6. Recommendation / next action**  
+Labels may map to product enums (e.g. strong fit / worth clarifying / compare / proceed with caution) but **copy** must qualify:
 
-This reduces harsh headlines while preserving traceability for trust/legal.
+> “Based on **currently available** public signals …”
+
+CTAs: compare another role, save report, rescan in 72h (when product policy allows).
 
 ---
 
-## 4. Layer B — Legal-safe content rules
+## 4. Information architecture (IA) and progressive disclosure
 
-### 4.1 Fact vs model (hard separation in copy)
+**Recommended vertical order (aligns with §3)**
 
-- **Verified public information** and **listing facts** live in dedicated UI regions.  
-- **Model observations** live in a separate region with explicit labelling.  
-- **Never** concatenate into one sentence that sounds like a factual accusation, e.g.  
-  “Company X is risky because Y and Z” mixing registry + forum noise.
+1. What we know (verified + listing facts, sources attached where shown)  
+2. How reliable it is (confidence, tier, freshness)  
+3. What the model suggests (explicitly labelled **model observations**)  
+4. What is missing (gaps, stale data)  
+5. What you should do next (**next best action** — primary CTA)
 
-### 4.2 Language policy engine (product layer)
+Avoid leading with a giant score, three red badges, or tabloid HR drama.
 
-Concept: every user-facing insight passes through a **language policy transform**.
+**Three disclosure levels**
 
-**Inputs (conceptual)**
-
-- Raw finding / signal  
-- Severity (internal)  
-- Confidence  
-- Source tier  
-- Legal sensitivity flag (if any)
-
-**Output**
-
-- **Safe UI copy** consistent with [`job-radar-legal-safety-policy-v1.0.md`](./job-radar-legal-safety-policy-v1.0.md) (forbidden terms, substitutes).
-
-**Example**
-
-| Raw (internal) | Safe UI |
-| --- | --- |
-| “Company may be fake” | “Registry data shows a material inconsistency; treat with caution and verify independently.” |
-
-The **model** may emit a signal; the **product** publishes **policy-compliant** text.
-
-### 4.3 Dynamic confidence UX (must be explanatory)
-
-“Low confidence” is not enough.
-
-For material sections, show **why** confidence is low/medium and **what would improve it** (e.g. salary not disclosed; no structured benchmark match; single weak source).
-
-Example pattern:
-
-> Confidence is **low** because the listing does not disclose salary and no strong benchmark match was found. **You can:** ask the recruiter, compare similar roles, or rescan when the posting updates.
-
-### 4.4 Verdict → guidance
-
-Replace categorical employer judgements with **actionable next steps**:
-
-- Compare with another similar role.  
-- Ask the recruiter about salary transparency.  
-- Rescan after 72h (if stale policy applies).  
-- Add preferences to improve fit quality (when product supports it).
-
-### 4.5 Visual and tonal language
-
-Aim for **due diligence / decision intelligence** — not exposé, blacklist, or “HR TripAdvisor”.
-
-- Neutral palette; restrained emphasis.  
-- Avoid sharp reputation labels as hero elements.  
-- Prefer **provenance and context** over alarm.
+1. **Summary** — recommendation label (policy-constrained), overall confidence, missing-data summary, next best action, trust entry points  
+2. **Reasoning** — score drivers, findings with confidence + source class, tier legend  
+3. **Deep evidence** — source list (URLs where allowed), provenance, parser/scoring versions as product allows  
 
 ---
 
-## 5. Layer C — Dynamic states & transitions (UI)
+## 5. Complaint and correction flow (trust product)
 
-### 5.1 Report block state model
+**Entry**
 
-Each major block should support:
+- Global **Report issue**  
+- Optional **per finding** (where a stable finding id exists)
 
-| Dimension | Values / notes |
+**Types**
+
+- Incorrect fact  
+- Outdated data  
+- Harmful phrasing  
+- Legal concern  
+
+**UX**
+
+- Simple modal: category + message  
+- Confirmation: “We’ve received your report and will review it.”  
+
+**System behaviour (align with backend policy)**
+
+For **harmful content** and **legal concern** on a **specific finding**: auto **pending review** where implemented.
+
+---
+
+## 6. Trust and review model (visibility)
+
+**Finding states**
+
+| State | Meaning |
 | --- | --- |
-| **Availability** | `available` / `partial` / `unavailable` |
-| **Confidence** | `low` / `medium` / `high` (with explanation string) |
-| **Freshness** | age or `freshness_hours`; **last checked** timestamp |
-| **Source tier** | Tier 1 / 2 / 3 (or product labels aligned with policy) |
-| **Basis** | short “based on: …” line (e.g. official listing + benchmark) |
+| `visible` | User sees content |
+| `pending_review` | User sees placeholder or soft copy: “Some information is under review.” |
+| `suppressed` | User does not see the finding |
 
-**Example — Compensation block**
+**Admin / trust**
 
-- Status: `partial`  
-- Confidence: `medium`  
-- Freshness: `8h`  
-- Based on: official listing + market benchmark (model)
+- Full audit trail, complaint source, reviewer note (internal tools; see Frontend + Trust UI spec).
 
-Nothing in this pattern asserts absolute truth; it asserts **what the product knows and how**.
+---
 
-### 5.2 Living report (not static PDF)
+## 7. Legal-safe content engine (product layer)
 
-Treat the report as **stateful knowledge**:
+### A. Never claim intent
 
-- Updates when rescan runs.  
-- Shows stale warnings when policy says so.  
-- Surfaces trust actions without hiding uncertainty.
+| Bad | Good |
+| --- | --- |
+| “Employer exploits workers.” | “Publicly available compensation signals appear **below** market benchmarks for comparable roles.” |
 
-### 5.3 Trust layer (built-in, not an afterthought)
+### B. Never diagnose culture as fact
 
-Per **report**
+| Bad | Good |
+| --- | --- |
+| “Toxic workplace.” | “Public employee sentiment signals are **mixed** and confidence is **low**.” |
 
-- Report issue  
-- Request review  
-- Data outdated?  
+### C. Never imply undisclosed certainty
 
-Per **finding** (where applicable)
+Prefer: **may**, **suggest**, **indicate**, **limited public signals**.
 
-- This finding seems harmful / inaccurate  
-- Visibility state: visible / pending review / suppressed (internal + user-visible cues as policy allows)
+### D. Sensitive red flags — downgrade logic
 
-Modern products assume fallibility and provide **correction paths** early.
+If a signal is **forum-only**, **Reddit-only**, or **anonymous review-only**:
 
-### 5.4 Scoring architecture (UX-facing)
+- No headline “alert” treatment  
+- **Low** confidence only unless corroborated by stronger tiers  
+- Do not drive recommendation alone  
 
-Present scoring as **modular streams**, not one monolithic “employer score”:
+Raw internal labels are transformed through the **language policy** into safe UI copy (align with Legal Safety Policy).
+
+---
+
+## 8. Dynamic report states (UX)
+
+| Pipeline / report state | UX |
+| --- | --- |
+| `processing` | Scan progress; live stages |
+| `partial_report` | Report + banner: “Some sources could not be reached.” |
+| Stale (freshness policy) | Report + stale treatment + rescan CTA when eligible |
+| `sources_blocked` | Partial report + “Some employer sources restrict automated access.” |
+| `scan_failed` | Safe retry UI; no blame copy |
+
+---
+
+## 9. Design system rules
+
+- **Calm, analytical, neutral**  
+- Avoid: red panic UI, sensational alerts, gamified employer shaming  
+- Prefer: muted emphasis, evidence tables, subtle caution markers  
+
+---
+
+## 10. Private beta safeguards
+
+Must show (banner or footer on report):
+
+> “This report is **experimental** and based on **public** information.”
+
+**Beta limitations (product policy)**
+
+- No share links  
+- No indexing / public SEO pages for reports  
+- Do not encourage screenshots in UI copy  
+
+**Monitoring**
+
+- Complaint rate  
+- False-positive signals (qualitative + trust review)  
+- Rescan frequency  
+- Scan failures  
+
+---
+
+## 11. KPIs that matter (not vanity)
+
+Measure:
+
+- % reports viewed to the **end** (scroll depth or section completion)  
+- % users taking a **documented next action** (compare, save, rescan, export if allowed)  
+- % users **rescanning** after stale / partial  
+- Qualitative: “helped my decision” (in-app survey when product adds it)  
+- **Complaint rate** (and time-to-triage for trust)  
+
+---
+
+## 12. Final product truth
+
+JobRadar wins if the user says:
+
+> “This helped me make a **smarter** decision.”
+
+Not:
+
+> “This app **roasted** my future employer.”
+
+The second gets attention for three weeks and lawyers for two years.
+
+---
+
+## 13. Scoring architecture (UX-facing)
+
+Present scoring as **modular streams**, not one monolithic “employer verdict”:
 
 - Data completeness  
-- Offer quality / transparency  
-- Compensation competitiveness (model + sources)  
-- Employer verification (facts, registry — careful wording)  
+- Offer transparency  
+- Compensation context (model + sources)  
+- Employer verification (facts — careful wording)  
 - Candidate fit (model)  
-- Risk **signals** (capped and explained — not a moral label)
+- Risk **signals** (capped, explained — not a moral label)
 
-**Composition model (conceptual)**
+**Composition model**
 
-1. Engines compute sub-scores / signals.  
-2. **Policy** constrains what can surface and at what severity.  
-3. **Language engine** publishes compliant copy.
+1. Engines compute sub-scores / signals  
+2. **Policy** constrains what can surface and at what severity  
+3. **Language / product layer** publishes compliant copy  
 
 ---
 
-## 6. Phased launch (product view)
+## 14. Implementation note (engineering)
 
-| Phase | Focus |
+This spec is **UX, IA, and content architecture**. Backend contracts should expose enough structure (per-block metadata, confidence reasons, freshness, source tier, finding ids for trust) so the UI does not fake provenance. Align fields with [`job-radar-openapi-v1.1.yaml`](./job-radar-openapi-v1.1.yaml) and tRPC procedures over time.
+
+---
+
+## 15. Ownership
+
+| Area | Owns |
 | --- | --- |
-| **1** | Private, candidate-only, noindex. Emphasis: offer quality, transparency, benchmark, fit. |
-| **2** | Employer verification + registry + trust workflow; legal consistency; rescans. |
-| **3** | Deeper insights — still **no** public rankings or aggressive reputational publishing. |
+| Product / design | IA, flows, progressive disclosure, visual tone |
+| Content / trust | Language rules, forbidden terms, complaint copy |
+| Engineering | Structured report model, scan states, trust APIs |
+| Legal (external) | Review before public launch or materially new surfaces |
 
----
-
-## 7. Implementation note (engineering)
-
-This spec is **UX and content architecture**. Backend contracts should expose enough structure (per-block metadata, confidence reasons, freshness, source tier, trust IDs) so the UI does not fake provenance. Align API fields with [`job-radar-openapi-v1.1.yaml`](./job-radar-openapi-v1.1.yaml) over time.
-
----
-
-## 8. Ownership
-
-- **Product / Design:** IA, progressive disclosure, visual tone.  
-- **Content / Trust:** language policy rules and forbidden terms alignment.  
-- **Engineering:** structured report model and metadata needed for honest UI.
-
-Review this spec when adding new surfaces (public pages, sharing, rankings) — **default is defensive**.
+**Default:** defensive. Revisit this document when adding sharing, public pages, rankings, or employer-facing surfaces.

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure } from '../trpc.js';
@@ -45,6 +46,33 @@ function mapHandlerError(err: unknown): never {
 }
 
 export const jobRadarRouter = router({
+  rescanReport: protectedProcedure.input(z.object({ reportId: z.string().min(1) })).mutation(async ({ ctx, input }) => {
+    const {
+      handlers: { startScanHandler },
+      repositories: { reportRepository, scanRepository },
+    } = getJobRadarModule();
+
+    try {
+      const report = await reportRepository.findByIdForUser(input.reportId, ctx.user.id);
+      if (!report) throw new Error('REPORT_NOT_FOUND');
+
+      const scan = await scanRepository.findById(String(report.scanId));
+      if (!scan) throw new Error('SCAN_NOT_FOUND');
+
+      const base = scan.inputPayload as Record<string, unknown>;
+      const payload = startScanDtoSchema.parse({ ...base, forceRescan: true });
+
+      const result = await startScanHandler.execute({
+        userId: ctx.user.id,
+        idempotencyKey: randomUUID(),
+        payload,
+      });
+      return JobRadarHttpMapper.toStartScanResponse(result);
+    } catch (err) {
+      mapHandlerError(err);
+    }
+  }),
+
   startScan: protectedProcedure.input(startScanDtoSchema).mutation(async ({ ctx, input }) => {
     const {
       handlers: { startScanHandler },

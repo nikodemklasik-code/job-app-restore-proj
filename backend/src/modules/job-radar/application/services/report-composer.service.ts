@@ -170,6 +170,7 @@ export class ReportComposerService {
     return findings
       .filter((f) => f.findingType === 'red_flag' || f.severity === 'severe')
       .map((f) => ({
+        id: f.id != null ? String(f.id) : null,
         code: f.code,
         label: f.title,
         severity: f.severity,
