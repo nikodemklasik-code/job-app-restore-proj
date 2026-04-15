@@ -25,13 +25,9 @@ const SkillsLab = lazy(() => import('./app/skills/SkillsLab'));
 const NegotiationCoach = lazy(() => import('./app/negotiation/NegotiationCoach'));
 const JobRadar = lazy(() => import('./app/radar/JobRadar'));
 const InterviewWarmup = lazy(() => import('./app/warmup/InterviewWarmup'));
-<<<<<<< HEAD
 const CoachPage = lazy(() => import('./app/coach/CoachPage'));
 const FAQPage = lazy(() => import('./app/faq/FAQPage'));
 const DocumentLab = lazy(() => import('./app/documents/DocumentLab'));
-=======
-const FAQPage = lazy(() => import('./app/faq/FAQPage'));
->>>>>>> live-hardening
 
 const PageLoader = () => (
   <div className="flex h-full items-center justify-center py-24">
@@ -98,13 +94,9 @@ export const router = createBrowserRouter([
       { path: 'negotiation', element: withSuspense(NegotiationCoach) },
       { path: 'radar', element: withSuspense(JobRadar) },
       { path: 'warmup', element: withSuspense(InterviewWarmup) },
-<<<<<<< HEAD
       { path: 'coach', element: withSuspense(CoachPage) },
       { path: 'faq', element: withSuspense(FAQPage) },
       { path: 'documents', element: withSuspense(DocumentLab) },
-=======
-      { path: 'faq', element: withSuspense(FAQPage) },
->>>>>>> live-hardening
     ],
   },
 ]);

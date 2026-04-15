@@ -24,7 +24,6 @@
     --radius: 0.75rem;
   }
 
-<<<<<<< HEAD
   /* ─── Dark / Granatowy (standard navy-dark theme) ───────────────────────── */
   .dark {
     --background: 222 47% 11%;        /* deep navy */
@@ -45,26 +44,6 @@
     --destructive-foreground: 0 0% 100%;
     --ring: 214 100% 65%;
     --radius: 0.75rem;
-=======
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --primary: 238.7 83.5% 66.7%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 100%;
-    --ring: 238.7 83.5% 66.7%;
->>>>>>> live-hardening
   }
 
   * {
@@ -165,8 +144,6 @@
   }
 }
 
-<<<<<<< HEAD
-=======
 /* ─── Neurodiversity theme (soft cream, warm, no harsh borders) ─────────────── */
 .theme-neurodiversity {
   --background: 43 70% 95%;        /* #fdf6e3 soft cream */
@@ -278,7 +255,6 @@
   transition-duration: 0.15s !important;
 }
 
->>>>>>> live-hardening
 /* ─── Respect OS-level prefers-reduced-motion globally ──────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -291,7 +267,6 @@
   }
 }
 
-<<<<<<< HEAD
 /* ══════════════════════════════════════════════════════════════════════════════
    THEME: VISUALLY IMPAIRED — 21:1 contrast, yellow-on-black, sharp geometry
    Spec: 24-visually-impaired-theme-specification.html
@@ -481,7 +456,8 @@
 /* Gold divider accent on focus ring */
 .theme-elegant :focus-visible {
   outline-color: hsl(35 40% 64%);
-=======
+}
+
 /* ─── High-contrast extra overrides ─────────────────────────────────────────── */
 .theme-high-contrast * {
   border-width: 2px !important;
@@ -552,7 +528,6 @@
   --destructive-foreground: 0 0% 100%;
   --ring: 214 100% 65%;
   --radius: 0.75rem;
->>>>>>> live-hardening
 }
 
 /* Scrollbar */

@@ -15,12 +15,6 @@ import {
   Send,
   Loader2,
   Accessibility,
-<<<<<<< HEAD
-  Sun,
-  Anchor,
-  PanelLeftClose,
-  Lock,
-=======
   Brain,
   Contrast,
   Focus,
@@ -30,7 +24,7 @@ import {
   PanelLeftClose,
   Cloud,
   Anchor,
->>>>>>> live-hardening
+  Lock,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -680,15 +674,6 @@ const THEME_OPTIONS = [
     id: 'light' as const,
     Icon: Sun,
     label: 'Light',
-<<<<<<< HEAD
-    description: 'Clean white background with blue accents. Default daytime theme.',
-  },
-  {
-    id: 'dark' as const,
-    Icon: Anchor,
-    label: 'Dark',
-    description: 'Deep navy with light blue accents. Default nighttime theme.',
-=======
     description: 'Standard bright white interface.',
   },
   {
@@ -737,7 +722,6 @@ const THEME_OPTIONS = [
     label: 'Navy',
     description:
       'Deep navy background with bright blue accents. A rich dark theme with a nautical warmth.',
->>>>>>> live-hardening
   },
 ];
 
@@ -750,21 +734,13 @@ function AccessibilityTab() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-<<<<<<< HEAD
-            <Accessibility className="h-4 w-4" /> Colour Theme
-=======
             <Accessibility className="h-4 w-4" /> Colour &amp; Visual Theme
->>>>>>> live-hardening
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">
-<<<<<<< HEAD
-            Choose the theme that works best for you. You can also toggle Light/Dark in the header.
-=======
             Choose the theme that is most comfortable for you. Accessibility themes are also
             available in the quick-access buttons in the header.
->>>>>>> live-hardening
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {THEME_OPTIONS.map(({ id, Icon, label, description }) => {
@@ -785,13 +761,8 @@ function AccessibilityTab() {
                     <Icon className="h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                     <span className="font-medium text-slate-800 dark:text-slate-200">{label}</span>
                     {isActive && (
-<<<<<<< HEAD
-                      <span className="ml-auto rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-                        ✓ Active
-=======
                       <span className="ml-auto rounded-full bg-indigo-600 px-2 py-0.5 text-[11px] font-semibold text-white">
                         Active
->>>>>>> live-hardening
                       </span>
                     )}
                   </div>
@@ -871,7 +842,6 @@ function AccessibilityTab() {
 // Main SettingsHub
 // ---------------------------------------------------------------------------
 
-<<<<<<< HEAD
 const CONSENT_KEY = 'mvh-consents';
 
 function loadConsents() {
@@ -886,8 +856,6 @@ function saveConsents(c: Record<string, boolean>) {
   localStorage.setItem(CONSENT_KEY, JSON.stringify(c));
 }
 
-=======
->>>>>>> live-hardening
 export default function SettingsHub() {
   const navigate = useNavigate();
   const { user } = useUser();
@@ -900,7 +868,6 @@ export default function SettingsHub() {
     void loadSettings();
   }, [loadSettings]);
 
-<<<<<<< HEAD
   // ── Consent state ─────────────────────────────────────────────────────────
   const saved = loadConsents();
   const [consentLinkedin, setConsentLinkedin] = useState(saved.linkedin ?? false);
@@ -920,8 +887,6 @@ export default function SettingsHub() {
     saveConsents(c);
   };
 
-=======
->>>>>>> live-hardening
   return (
     <div className="space-y-8">
       <div>
@@ -932,10 +897,7 @@ export default function SettingsHub() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-<<<<<<< HEAD
           <TabsTrigger value="privacy">Privacy &amp; Consents</TabsTrigger>
-=======
->>>>>>> live-hardening
           <TabsTrigger value="accessibility">Accessibility</TabsTrigger>
           <TabsTrigger value="email">Email &amp; SMTP</TabsTrigger>
           <TabsTrigger value="telegram">Telegram</TabsTrigger>
@@ -981,7 +943,6 @@ export default function SettingsHub() {
           </div>
         </TabsContent>
 
-<<<<<<< HEAD
         {/* PRIVACY & CONSENTS */}
         <TabsContent value="privacy">
           <div className="space-y-4">
@@ -1098,8 +1059,6 @@ export default function SettingsHub() {
           </div>
         </TabsContent>
 
-=======
->>>>>>> live-hardening
         {/* ACCESSIBILITY */}
         <TabsContent value="accessibility">
           <AccessibilityTab />

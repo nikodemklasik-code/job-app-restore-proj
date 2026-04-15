@@ -1,12 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
-<<<<<<< HEAD
-import { trpcClient } from '@/lib/api';
-import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, TrendingUp, FileDown, StickyNote, Star, Lock, Zap } from 'lucide-react';
-=======
 import { api, trpcClient } from '@/lib/api';
 import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, BookOpen, Clock, TrendingUp, FileDown, StickyNote, Star, Lock, Zap } from 'lucide-react';
->>>>>>> live-hardening
 import { interviewModeLabels } from '../../../../shared/interview';
 import type { InterviewMode } from '../../../../shared/interview';
 import { useBillingStore } from '@/stores/billingStore';
@@ -66,14 +61,8 @@ const AVATAR_STYLES = `
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Phase =
-<<<<<<< HEAD
-  | 'lobby'        // pre-call: job select + settings
-  | 'setup-check'  // mic/camera verification before starting
-  | 'connecting'   // brief "Connecting…" animation
-=======
   | 'lobby'       // pre-call: job select + camera preview
   | 'connecting'  // brief "Connecting…" animation
->>>>>>> live-hardening
   | 'ai-speaking'
   | 'user-turn'
   | 'processing'
@@ -81,7 +70,6 @@ type Phase =
 
 type AvatarState = 'idle' | 'speaking' | 'listening' | 'thinking';
 
-<<<<<<< HEAD
 export type RecruiterPersona = 'hr' | 'hiring-manager' | 'tech-lead';
 
 export const PERSONA_CONFIG: Record<RecruiterPersona, { label: string; name: string; role: string; icon: string; color: string }> = {
@@ -90,8 +78,6 @@ export const PERSONA_CONFIG: Record<RecruiterPersona, { label: string; name: str
   'tech-lead':      { label: 'Tech Lead',      name: 'Alex',  role: 'Senior Tech Lead',      icon: '💻',  color: '#0ea5e9' },
 };
 
-=======
->>>>>>> live-hardening
 interface Message {
   role: 'assistant' | 'user';
   content: string;
@@ -205,12 +191,6 @@ function generateCoachingPlan(userMessages: string[]): { area: string; action: s
   return plan.slice(0, 5);
 }
 
-<<<<<<< HEAD
-
-// ─── Question Bank data (used by Trener/Warmup module) ────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const QUESTION_BANK: Record<InterviewMode, string[]> = {
-=======
 // ─── Markdown report generator ────────────────────────────────────────────────
 
 function generateMarkdownReport(params: {
@@ -249,7 +229,6 @@ function generateMarkdownReport(params: {
 // ─── Question Bank data ────────────────────────────────────────────────────────
 
 const QUESTION_BANK: Record<InterviewMode, string[]> = {
->>>>>>> live-hardening
   behavioral: [
     'Tell me about yourself and the experience most relevant to this role.',
     'Describe a time you handled conflicting priorities under pressure.',
@@ -653,17 +632,7 @@ export default function InterviewPractice() {
   const [selectedJob, setSelectedJob] = useState<JobOption | null>(null);
   const [customCompany, setCustomCompany] = useState('');
   const [customRole, setCustomRole] = useState('');
-<<<<<<< HEAD
-  const [selectedMode] = useState<InterviewMode>('general');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_recruiterPersona, _setRecruiterPersona] = useState<RecruiterPersona>('hr');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_difficulty, _setDifficulty] = useState<'standard' | 'stretch' | 'senior'>('standard');
-  // Session memory PDF
-  const [sessionFile, setSessionFile] = useState<File | null>(null);
-=======
   const [selectedMode, setSelectedMode] = useState<InterviewMode>('behavioral');
->>>>>>> live-hardening
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [avatarState, setAvatarState] = useState<AvatarState>('idle');
@@ -677,14 +646,9 @@ export default function InterviewPractice() {
   // Post-session
   const [sessionNotes, setSessionNotes] = useState('');
   const [showNotesSaved, setShowNotesSaved] = useState(false);
-<<<<<<< HEAD
-  const [_showQuestionBank, _setShowQuestionBank] = useState(false);
-  const [_qbMode, _setQbMode] = useState<InterviewMode>('behavioral');
-=======
   const [showHistory, setShowHistory] = useState(false);
   const [showQuestionBank, setShowQuestionBank] = useState(false);
   const [qbMode, setQbMode] = useState<InterviewMode>('behavioral');
->>>>>>> live-hardening
 
   // Recording
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -693,15 +657,12 @@ export default function InterviewPractice() {
   const [micDenied, setMicDenied] = useState(false);
   const [micMuted, setMicMuted] = useState(false);
 
-<<<<<<< HEAD
   // VAD (Voice Activity Detection)
   const vadIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const silenceStartRef = useRef<number | null>(null);
   const recordingStartTimeRef = useRef<number>(0);
   const [vadCountdown, setVadCountdown] = useState<number | null>(null);
 
-=======
->>>>>>> live-hardening
   // Camera
   const videoRef = useRef<HTMLVideoElement>(null);
   const lobbyVideoRef = useRef<HTMLVideoElement>(null);
@@ -721,13 +682,6 @@ export default function InterviewPractice() {
   const [showTranscript, setShowTranscript] = useState(false);
 
   // Live Interview engine state
-<<<<<<< HEAD
-  const useLiveMode = true; // always live mode — coaching toggle removed
-  const liveSessionIdRef = useRef<string | null>(null);
-  const [liveInterviewSummary, setLiveInterviewSummary] = useState<LiveInterviewSummary | null>(null);
-
-  // History query
-=======
   const [useLiveMode, setUseLiveMode] = useState(true);
   const liveSessionIdRef = useRef<string | null>(null);
   const [liveInterviewSummary, setLiveInterviewSummary] = useState<LiveInterviewSummary | null>(null);
@@ -735,7 +689,6 @@ export default function InterviewPractice() {
   // Jobs feed & history
   const feedQuery = api.jobs.getFeed.useQuery({ limit: 20 }, { enabled: phase === 'lobby' });
   const historyQuery = api.interview.getHistory.useQuery(undefined, { enabled: showHistory });
->>>>>>> live-hardening
 
   // Feedback auto-dismiss timer
   useEffect(() => {
@@ -744,12 +697,9 @@ export default function InterviewPractice() {
     return () => clearTimeout(t);
   }, [turnFeedback]);
 
-<<<<<<< HEAD
   // Auto-start recording when it's the user's turn (ref filled in after startRecording is defined)
   const startRecordingRef = useRef<(() => Promise<void>) | null>(null);
 
-=======
->>>>>>> live-hardening
   // ── Camera setup / teardown ────────────────────────────────────────────────
 
   const startCamera = useCallback(async (targetRef: React.RefObject<HTMLVideoElement | null>) => {
@@ -772,12 +722,6 @@ export default function InterviewPractice() {
     setCameraActive(false);
   }, []);
 
-<<<<<<< HEAD
-  // Camera only starts when interview begins — not on lobby load
-  useEffect(() => {
-    return () => {
-      if (phase === 'complete') stopCamera();
-=======
   // Lobby: start camera for preview
   useEffect(() => {
     if (phase === 'lobby') {
@@ -785,7 +729,6 @@ export default function InterviewPractice() {
     }
     return () => {
       if (phase !== 'lobby') stopCamera();
->>>>>>> live-hardening
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
@@ -797,15 +740,7 @@ export default function InterviewPractice() {
         void startCamera(videoRef);
       } else if (videoRef.current) {
         videoRef.current.srcObject = cameraStreamRef.current;
-<<<<<<< HEAD
-        void videoRef.current.play().then(() => {
-          setCameraActive(true); // stream reused from lobby — mark as active
-        }).catch(() => {
-          setCameraActive(true); // still mark active even if autoplay needs gesture
-        });
-=======
         void videoRef.current.play();
->>>>>>> live-hardening
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -989,7 +924,6 @@ export default function InterviewPractice() {
     source.connect(analyser);
     startMicLevelAnimation(analyser);
 
-<<<<<<< HEAD
     // ── Voice Activity Detection ───────────────────────────────────────────
     const VAD_SILENCE_THRESHOLD = 0.04; // RMS below this = silence
     const VAD_MIN_RECORDING_MS = 1200;  // don't trigger VAD for first 1.2s
@@ -1019,8 +953,6 @@ export default function InterviewPractice() {
       }
     }, 100);
 
-=======
->>>>>>> live-hardening
     const recorder = new MediaRecorder(stream);
     chunksRef.current = [];
 
@@ -1032,12 +964,9 @@ export default function InterviewPractice() {
       stream.getTracks().forEach((t) => t.stop());
       void ctx.close();
       stopMicLevelAnimation();
-<<<<<<< HEAD
       if (vadIntervalRef.current) { clearInterval(vadIntervalRef.current); vadIntervalRef.current = null; }
       silenceStartRef.current = null;
       setVadCountdown(null);
-=======
->>>>>>> live-hardening
 
       const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
       setPhase('processing');
@@ -1109,12 +1038,9 @@ export default function InterviewPractice() {
   }, [messages, runAITurn, useLiveMode, stopCamera, startMicLevelAnimation, stopMicLevelAnimation]);
 
   const stopRecording = useCallback(() => {
-<<<<<<< HEAD
     if (vadIntervalRef.current) { clearInterval(vadIntervalRef.current); vadIntervalRef.current = null; }
     silenceStartRef.current = null;
     setVadCountdown(null);
-=======
->>>>>>> live-hardening
     recorderRef.current?.stop();
   }, []);
 
@@ -1126,7 +1052,6 @@ export default function InterviewPractice() {
     }
   }, [isRecording, startRecording, stopRecording]);
 
-<<<<<<< HEAD
   // Keep ref always pointing to latest startRecording
   startRecordingRef.current = startRecording;
 
@@ -1139,8 +1064,6 @@ export default function InterviewPractice() {
     }
   }, [phase]);
 
-=======
->>>>>>> live-hardening
   const endCall = useCallback(() => {
     recorderRef.current?.stop();
     setIsRecording(false);
@@ -1177,10 +1100,7 @@ export default function InterviewPractice() {
     setTurnFeedback(null);
     setSessionNotes('');
     setShowNotesSaved(false);
-<<<<<<< HEAD
-=======
     setShowHistory(false);
->>>>>>> live-hardening
     setLiveInterviewSummary(null);
     liveSessionIdRef.current = null;
   }, []);
@@ -1188,12 +1108,9 @@ export default function InterviewPractice() {
   // ── LOBBY SCREEN ───────────────────────────────────────────────────────────
 
   if (phase === 'lobby') {
-<<<<<<< HEAD
-=======
     const job = getJob();
     const canJoin = (selectedJob !== null) || (customCompany.trim() !== '' && customRole.trim() !== '');
 
->>>>>>> live-hardening
     return (
       <div style={{ minHeight: '100vh', background: '#050a14', color: '#f9fafb', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <style>{AVATAR_STYLES}</style>
@@ -1206,14 +1123,10 @@ export default function InterviewPractice() {
               <span style={{ fontSize: 13, color: '#94a3b8' }}>AI credits remaining:</span>
               <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{currentPlan.credits.toLocaleString()}</span>
             </div>
-<<<<<<< HEAD
-            <a href="/billing" style={{ fontSize: 12, fontWeight: 600, color: '#a5b4fc', textDecoration: 'none', padding: '5px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: 8 }}>
-=======
             <a
               href="/billing"
               style={{ fontSize: 12, fontWeight: 600, color: '#a5b4fc', textDecoration: 'none', padding: '5px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: 8, transition: 'opacity 0.15s' }}
             >
->>>>>>> live-hardening
               Buy Credits →
             </a>
           </div>
@@ -1221,72 +1134,6 @@ export default function InterviewPractice() {
 
         <div style={{ width: '100%', maxWidth: 880, display: 'flex', gap: 24, flexWrap: 'wrap', justifyContent: 'center' }}>
 
-<<<<<<< HEAD
-          {/* Left: camera placeholder — camera starts only after clicking Start */}
-          <div style={{ flex: '1 1 340px', minHeight: 320, background: '#0f172a', borderRadius: 20, border: '1px solid #1e293b', overflow: 'hidden', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <video ref={lobbyVideoRef} muted playsInline style={{ display: 'none' }} />
-            <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>👤</div>
-              <span style={{ fontSize: 13, color: '#64748b' }}>Camera starts when you begin</span>
-            </div>
-            <div style={{ position: 'absolute', bottom: 14, left: 14, background: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600, color: '#e2e8f0', zIndex: 2 }}>You</div>
-          </div>
-
-          {/* Right: simplified join panel */}
-          <div style={{ flex: '1 1 340px', display: 'flex', flexDirection: 'column', gap: 16, justifyContent: 'center' }}>
-
-            {/* Title */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#6366f1,#3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <Briefcase style={{ width: 22, height: 22, color: '#fff' }} />
-              </div>
-              <div>
-                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Interview Practice</h1>
-                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>AI-powered mock interview simulation</p>
-              </div>
-            </div>
-
-            {/* Session memory PDF banner */}
-            <div style={{ borderRadius: 16, border: '1px solid rgba(251,191,36,0.4)', background: 'rgba(251,191,36,0.06)', padding: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 16 }}>🔐</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#fbbf24' }}>Session memory (optional)</span>
-                </div>
-                {sessionFile && <span style={{ fontSize: 11, color: '#34d399', fontWeight: 600 }}>✓ {sessionFile.name}</span>}
-              </div>
-              <p style={{ margin: '0 0 8px', fontSize: 12, color: 'rgba(251,191,36,0.7)' }}>
-                Upload an encrypted PDF from a previous session so the AI can continue your coaching
-              </p>
-              <input type="file" accept=".pdf" style={{ fontSize: 12, color: '#94a3b8' }} onChange={(e) => setSessionFile(e.target.files?.[0] ?? null)} />
-            </div>
-
-            {/* Optional position field */}
-            <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>ROLE / COMPANY (OPTIONAL)</p>
-              <input
-                type="text"
-                placeholder="e.g. Senior React Developer at Google (optional)"
-                value={customRole ? `${customRole}${customCompany ? ` at ${customCompany}` : ''}` : ''}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const wMatch = val.match(/^(.+?)\s+at\s+(.+)$/i);
-                  if (wMatch) { setCustomRole(wMatch[1].trim()); setCustomCompany(wMatch[2].trim()); }
-                  else { setCustomRole(val); setCustomCompany(''); }
-                  setSelectedJob(null);
-                }}
-                style={{ width: '100%', background: '#050a14', border: '1px solid #1e293b', borderRadius: 8, padding: '10px 14px', color: '#f1f5f9', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
-              />
-            </div>
-
-            {/* Premium gate */}
-            {isPremium === false ? (
-              <div style={{ background: 'linear-gradient(135deg,rgba(99,102,241,0.18),rgba(59,130,246,0.12))', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 14, padding: '20px', textAlign: 'center' }}>
-                <Lock style={{ width: 28, height: 28, color: '#a5b4fc', margin: '0 auto 10px' }} />
-                <p style={{ fontWeight: 700, fontSize: 15, color: '#e2e8f0', marginBottom: 6 }}>AI Interview Practice is a Pro feature</p>
-                <p style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>Upgrade to Pro or Autopilot to unlock unlimited mock interviews.</p>
-                <a href="/billing" style={{ display: 'inline-block', padding: '10px 28px', background: 'linear-gradient(135deg,#6366f1,#3b82f6)', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
-=======
           {/* Left: camera preview tile */}
           <div style={{ flex: '1 1 340px', minHeight: 320, background: '#0f172a', borderRadius: 20, border: '1px solid #1e293b', overflow: 'hidden', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {/* actual video */}
@@ -1405,26 +1252,10 @@ export default function InterviewPractice() {
                   href="/billing"
                   style={{ display: 'inline-block', padding: '10px 28px', background: 'linear-gradient(135deg,#6366f1,#3b82f6)', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}
                 >
->>>>>>> live-hardening
                   Upgrade to Pro →
                 </a>
               </div>
             ) : (
-<<<<<<< HEAD
-              <>
-                <button
-                  onClick={() => void joinCall()}
-                  style={{ padding: '15px 0', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 17, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
-                >
-                  🎙️ Start Interview
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-
-=======
             <>
             {/* Mode toggle: Live Interview vs Coaching */}
             <div style={{ background: '#0f172a', borderRadius: 10, border: '1px solid #1e293b', padding: '8px', display: 'flex', gap: 4 }}>
@@ -1607,7 +1438,6 @@ export default function InterviewPractice() {
             </div>
           </div>
         )}
->>>>>>> live-hardening
       </div>
     );
   }
@@ -1646,103 +1476,6 @@ export default function InterviewPractice() {
     const scoreColor = avgScore === null ? '#64748b' : avgScore >= 80 ? '#34d399' : avgScore >= 60 ? '#fbbf24' : '#f87171';
 
     const handleExport = () => {
-<<<<<<< HEAD
-      const date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-      const duration = `${Math.floor(callSeconds / 60)}m ${callSeconds % 60}s`;
-      const userMsgs = messages.filter(m => m.role === 'user').map(m => m.content);
-      const coachingPlan = generateCoachingPlan(userMsgs);
-
-      const escape = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
-
-      const transcriptHtml = messages.map(m => {
-        const isAI = m.role === 'assistant';
-        return `<div class="msg ${isAI ? 'ai' : 'user'}">
-          <span class="speaker">${isAI ? '🤖 AI Interviewer' : '👤 You'}</span>
-          <p>${escape(m.content)}</p>
-        </div>`;
-      }).join('');
-
-      const coachHtml = coachingPlan.map((item, i) =>
-        `<div class="coach-item">
-          <h3>${i + 1}. ${escape(item.area)} <span class="priority ${item.priority}">${item.priority} priority</span></h3>
-          <p>${escape(item.action)}</p>
-        </div>`
-      ).join('');
-
-      const notesHtml = sessionNotes.trim()
-        ? `<section><h2>Your Notes</h2><p>${escape(sessionNotes)}</p></section>`
-        : '';
-
-      const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Interview Report — ${job.title} at ${job.company}</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #1e293b; background: #fff; padding: 32px 40px; max-width: 820px; margin: 0 auto; }
-    h1 { font-size: 22px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
-    .meta { font-size: 12px; color: #64748b; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 12px; }
-    .meta span { display: flex; align-items: center; gap: 4px; }
-    hr { border: none; border-top: 1px solid #e2e8f0; margin: 20px 0; }
-    h2 { font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #6366f1; display: inline-block; }
-    section { margin-bottom: 28px; }
-    .msg { margin-bottom: 14px; padding: 10px 14px; border-radius: 10px; }
-    .msg.ai { background: #f8fafc; border-left: 3px solid #6366f1; }
-    .msg.user { background: #f0fdf4; border-left: 3px solid #22c55e; }
-    .speaker { font-size: 11px; font-weight: 700; color: #64748b; display: block; margin-bottom: 4px; }
-    .msg p { font-size: 13px; line-height: 1.6; color: #334155; }
-    .coach-item { margin-bottom: 16px; padding: 12px 14px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; }
-    .coach-item h3 { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 6px; }
-    .coach-item p { font-size: 12px; color: #475569; line-height: 1.5; }
-    .priority { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
-    .priority.high { background: #fee2e2; color: #b91c1c; }
-    .priority.medium { background: #fef9c3; color: #92400e; }
-    .priority.low { background: #dcfce7; color: #166534; }
-    footer { margin-top: 32px; font-size: 11px; color: #94a3b8; text-align: center; }
-    @media print {
-      body { padding: 20px; }
-      @page { margin: 20mm; }
-    }
-  </style>
-</head>
-<body>
-  <h1>Interview Practice Report</h1>
-  <div class="meta">
-    <span>📋 ${escape(job.title)} at ${escape(job.company)}</span>
-    <span>🎯 ${escape(modeInfo.label)}</span>
-    <span>📅 ${date}</span>
-    <span>⏱ ${duration} · ${exchangeCount} exchanges</span>
-  </div>
-  <hr>
-  <section>
-    <h2>Transcript</h2>
-    ${transcriptHtml}
-  </section>
-  <hr>
-  <section>
-    <h2>Coaching Plan</h2>
-    ${coachHtml}
-  </section>
-  ${notesHtml}
-  <footer>Generated by MultivoHub · Interview Practice · ${date}</footer>
-  <script>window.onload = () => { window.print(); }<\/script>
-</body>
-</html>`;
-
-      const blob = new Blob([html], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const w = window.open(url, '_blank');
-      if (!w) {
-        // Fallback if popup blocked — direct download
-        const a = document.createElement('a');
-        const safeName = job.company.replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').toLowerCase() || 'company';
-        a.href = url;
-        a.download = `interview-report-${safeName}-${new Date().toISOString().slice(0, 10)}.html`;
-        a.click();
-      }
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
-=======
       const md = generateMarkdownReport({ job, mode: selectedMode, messages, callSeconds, exchangeCount, notes: sessionNotes, modeLabel: modeInfo.label });
       const blob = new Blob([md], { type: 'text/markdown' });
       const url = URL.createObjectURL(blob);
@@ -1752,7 +1485,6 @@ export default function InterviewPractice() {
       a.download = `interview-report-${safeName}-${new Date().toISOString().slice(0, 10)}.md`;
       a.click();
       URL.revokeObjectURL(url);
->>>>>>> live-hardening
     };
 
     const handleSaveNotes = () => {
@@ -1925,11 +1657,7 @@ export default function InterviewPractice() {
               onClick={handleExport}
               style={{ flex: '1 1 160px', padding: '13px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, color: '#94a3b8', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
             >
-<<<<<<< HEAD
-              <FileDown style={{ width: 16, height: 16 }} /> Export PDF Report
-=======
               <FileDown style={{ width: 16, height: 16 }} /> Export Report
->>>>>>> live-hardening
             </button>
             <button
               onClick={resetAll}
@@ -1949,27 +1677,15 @@ export default function InterviewPractice() {
   const job = getJob();
   const userTurnActive = phase === 'user-turn';
   const statusLabel =
-<<<<<<< HEAD
-    isRecording ? '● REC' :
-    phase === 'ai-speaking' ? 'Speaking' :
-    phase === 'processing' ? 'Thinking…' :
-    phase === 'user-turn' ? 'Your turn…' : 'Ready';
-  const statusColor =
-    isRecording ? '#f87171' :
-=======
     phase === 'ai-speaking' ? 'Speaking' :
     phase === 'processing' ? 'Thinking…' :
     phase === 'user-turn' ? 'Listening' : 'Ready';
   const statusColor =
->>>>>>> live-hardening
     phase === 'ai-speaking' ? '#818cf8' :
     phase === 'processing' ? '#fbbf24' :
     phase === 'user-turn' ? '#4ade80' : '#94a3b8';
   const statusBg =
-<<<<<<< HEAD
     isRecording ? 'rgba(239,68,68,0.2)' :
-=======
->>>>>>> live-hardening
     phase === 'ai-speaking' ? 'rgba(99,102,241,0.2)' :
     phase === 'processing' ? 'rgba(251,191,36,0.2)' :
     phase === 'user-turn' ? 'rgba(34,197,94,0.2)' : 'rgba(148,163,184,0.15)';
@@ -2001,7 +1717,6 @@ export default function InterviewPractice() {
         {/* Avatar */}
         <Avatar state={avatarState} />
 
-<<<<<<< HEAD
         {/* Recording indicator — prominent pulsing bar */}
         {isRecording && (
           <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
@@ -2024,8 +1739,6 @@ export default function InterviewPractice() {
           </div>
         )}
 
-=======
->>>>>>> live-hardening
         {/* Adaptive insights chip */}
         {adaptiveInsights && adaptiveInsights.sessionCount > 0 && (
           <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 20, padding: '4px 12px', fontSize: 12, color: '#a5b4fc' }} title={adaptiveInsights.adaptationNote ?? ''}>
@@ -2175,22 +1888,6 @@ export default function InterviewPractice() {
           boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
         }}
       >
-<<<<<<< HEAD
-        {/* Always keep video in DOM so ref is always available for startCamera */}
-        <video
-          ref={videoRef}
-          muted
-          playsInline
-          style={{
-            width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)',
-            display: cameraActive && cameraOn ? 'block' : 'none',
-          }}
-        />
-        {(!cameraActive || !cameraOn) && (
-          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, position: 'absolute', inset: 0 }}>
-            <div style={{ fontSize: 32 }}>👤</div>
-            <span style={{ fontSize: 11, color: '#475569' }}>{!cameraOn ? 'Camera off' : 'Starting camera…'}</span>
-=======
         {cameraActive && cameraOn ? (
           <video
             ref={videoRef}
@@ -2202,7 +1899,6 @@ export default function InterviewPractice() {
           <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <div style={{ fontSize: 32 }}>👤</div>
             <span style={{ fontSize: 11, color: '#475569' }}>{!cameraOn ? 'Camera off' : 'No camera'}</span>
->>>>>>> live-hardening
           </div>
         )}
 
@@ -2343,13 +2039,8 @@ export default function InterviewPractice() {
       </div>
 
       {/* Label under mic button */}
-<<<<<<< HEAD
-      <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 11, whiteSpace: 'nowrap', zIndex: 20, color: isRecording ? '#f87171' : '#475569' }}>
-        {isRecording ? 'Tap to stop early' : userTurnActive ? 'Starting mic…' : statusLabel}
-=======
       <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 11, color: '#475569', whiteSpace: 'nowrap', zIndex: 20 }}>
         {isRecording ? 'Tap to stop' : userTurnActive ? 'Tap to speak' : statusLabel}
->>>>>>> live-hardening
       </div>
     </div>
   );

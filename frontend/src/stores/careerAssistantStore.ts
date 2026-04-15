@@ -14,10 +14,7 @@ interface CareerAssistantStore {
   loadHistory: () => Promise<void>;
   sendMessage: (text: string, mode?: 'general' | 'cv' | 'interview' | 'salary') => Promise<void>;
   resetError: () => void;
-<<<<<<< HEAD
   clearMessages: () => void;
-=======
->>>>>>> live-hardening
 }
 
 function sortAsc(msgs: AssistantHistoryMessage[]): AssistantHistoryMessage[] {
@@ -99,12 +96,9 @@ export const useCareerAssistantStore = create<CareerAssistantStore>((set, get) =
   resetError() {
     set({ status: 'idle', error: null });
   },
-<<<<<<< HEAD
 
   clearMessages() {
     // Clears local view only — starts fresh conversation thread on next message
     set({ messages: [], conversationId: null, status: 'idle', error: null });
   },
-=======
->>>>>>> live-hardening
 }));
