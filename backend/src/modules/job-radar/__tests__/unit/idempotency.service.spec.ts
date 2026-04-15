@@ -16,6 +16,23 @@ describe('IdempotencyService', () => {
     expect(svc.payloadMatches(a, b)).toBe(true);
   });
 
+  it('returns true when stored payload uses alphabetically sorted keys (MySQL JSON round-trip style)', () => {
+    const incoming = {
+      scanTrigger: 'manual_search' as const,
+      employerName: 'Acme Ltd',
+      jobTitle: 'Engineer',
+      location: 'London',
+      forceRescan: false,
+    };
+    const sortedKeys = Object.keys(incoming).sort();
+    const stored = Object.fromEntries(sortedKeys.map((k) => [k, incoming[k as keyof typeof incoming]])) as Record<
+      string,
+      unknown
+    >;
+    expect(svc.payloadMatches(stored, incoming as unknown as Record<string, unknown>)).toBe(true);
+    expect(svc.payloadMatches(incoming as unknown as Record<string, unknown>, stored)).toBe(true);
+  });
+
   it('returns false when a value differs', () => {
     const a = { x: 1, y: 2 };
     const b = { y: 2, x: 2 };
