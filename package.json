@@ -1,0 +1,42 @@
+{
+  "name": "multivohub-jobapp",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "setup:openai": "bash scripts/setup-openai-key.sh",
+    "db:push": "cd backend && npx drizzle-kit push",
+    "db:generate": "cd backend && npx drizzle-kit generate",
+    "mobile:add:ios": "npx cap add ios",
+    "mobile:add:android": "npx cap add android",
+    "mobile:sync": "npm run build:frontend && npx cap sync",
+    "mobile:open:ios": "npx cap open ios",
+    "mobile:open:android": "npx cap open android",
+    "deploy": "bash scripts/deploy.sh",
+    "deploy:trigger": "bash scripts/trigger-deploy.sh",
+    "deploy:setup-vps": "bash scripts/setup-vps.sh"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.0.0",
+    "concurrently": "^9.0.0",
+    "mysql2": "^3.11.0",
+    "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/ios": "^6.0.0",
+    "@capacitor/splash-screen": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0",
+    "@capacitor/keyboard": "^6.0.0"
+  },
+  "type": "module"
+}

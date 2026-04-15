@@ -1,0 +1,353 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --primary: 238.7 83.5% 66.7%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --ring: 238.7 83.5% 66.7%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --primary: 238.7 83.5% 66.7%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+    --ring: 238.7 83.5% 66.7%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    /* Explicit font-family fallback for non-Tailwind rendering contexts */
+    font-family: var(--font-sans, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif);
+    /* Comfortable minimum size for readability */
+    font-size: 16px;
+    /* Improved readability: comfortable line-height and gentle letter-spacing */
+    line-height: 1.6;
+    letter-spacing: 0.008em;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+
+  /* ─── Global focus-visible ring (WCAG 2.4.7) ─────────────────────────────── */
+  :focus-visible {
+    outline: 3px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  /* ─── Skip-to-content link ───────────────────────────────────────────────── */
+  .skip-to-content {
+    position: absolute;
+    top: -9999px;
+    left: 0;
+    z-index: 10000;
+    padding: 0.75rem 1.5rem;
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    font-weight: 600;
+    border-radius: 0 0 0.5rem 0;
+    text-decoration: none;
+  }
+  .skip-to-content:focus {
+    top: 0;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .skip-to-content {
+      transition: top 0.1s;
+    }
+  }
+}
+
+@layer utilities {
+  .border-border {
+    border-color: hsl(var(--border));
+  }
+  .bg-background {
+    background-color: hsl(var(--background));
+  }
+  .text-foreground {
+    color: hsl(var(--foreground));
+  }
+  .bg-card {
+    background-color: hsl(var(--card));
+  }
+  .text-card-foreground {
+    color: hsl(var(--card-foreground));
+  }
+  .text-muted-foreground {
+    color: hsl(var(--muted-foreground));
+  }
+  .bg-muted {
+    background-color: hsl(var(--muted));
+  }
+  .bg-primary {
+    background-color: hsl(var(--primary));
+  }
+  .text-primary-foreground {
+    color: hsl(var(--primary-foreground));
+  }
+  .bg-secondary {
+    background-color: hsl(var(--secondary));
+  }
+  .text-secondary-foreground {
+    color: hsl(var(--secondary-foreground));
+  }
+  .text-destructive {
+    color: hsl(var(--destructive));
+  }
+  .bg-destructive {
+    background-color: hsl(var(--destructive));
+  }
+  .text-destructive-foreground {
+    color: hsl(var(--destructive-foreground));
+  }
+  .ring-ring {
+    --tw-ring-color: hsl(var(--ring));
+  }
+}
+
+/* ─── Neurodiversity theme (soft cream, warm, no harsh borders) ─────────────── */
+.theme-neurodiversity {
+  --background: 43 70% 95%;        /* #fdf6e3 soft cream */
+  --foreground: 25 30% 20%;        /* warm dark brown, not pure black */
+  --card: 43 60% 92%;              /* slightly warmer cream for cards */
+  --card-foreground: 25 30% 20%;
+  --border: 40 30% 78%;            /* soft warm border */
+  --input: 40 30% 88%;
+  --primary: 238.7 83.5% 66.7%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 43 40% 88%;
+  --secondary-foreground: 25 30% 25%;
+  --muted: 43 40% 90%;
+  --muted-foreground: 25 20% 45%;
+  --accent: 43 40% 85%;
+  --accent-foreground: 25 30% 20%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 238.7 83.5% 66.7%;
+  --radius: 1rem;
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+}
+
+/* ─── High-contrast theme (low vision) ─────────────────────────────────────── */
+.theme-high-contrast {
+  --background: 0 0% 0%;           /* pure black */
+  --foreground: 60 100% 50%;       /* bright yellow */
+  --card: 0 0% 5%;                 /* near-black for cards */
+  --card-foreground: 60 100% 50%;
+  --border: 60 100% 50%;           /* yellow border everywhere */
+  --input: 0 0% 8%;
+  --primary: 60 100% 50%;          /* yellow primary */
+  --primary-foreground: 0 0% 0%;   /* black text on yellow */
+  --secondary: 0 0% 12%;
+  --secondary-foreground: 60 100% 50%;
+  --muted: 0 0% 10%;
+  --muted-foreground: 60 80% 70%;
+  --accent: 0 0% 15%;
+  --accent-foreground: 60 100% 50%;
+  --destructive: 0 100% 60%;
+  --destructive-foreground: 0 0% 0%;
+  --ring: 60 100% 50%;
+  --radius: 0.5rem;
+  /* Readable proportions: adequate spacing, no forced bold on everything */
+  line-height: 1.75;
+  letter-spacing: 0.025em;
+}
+
+/* Headings stay prominent without forcing bold on body copy */
+.theme-high-contrast h1,
+.theme-high-contrast h2,
+.theme-high-contrast h3,
+.theme-high-contrast h4,
+.theme-high-contrast h5,
+.theme-high-contrast h6 {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+}
+
+/* Ensure buttons and interactive labels keep sufficient weight */
+.theme-high-contrast button,
+.theme-high-contrast [role="button"],
+.theme-high-contrast label {
+  font-weight: 600;
+}
+
+/* Override hardcoded slate/white utility colours so glass-effect UI is readable */
+.theme-high-contrast [class*="text-slate-"],
+.theme-high-contrast [class*="text-white"] {
+  color: hsl(60 80% 70%) !important;
+}
+.theme-high-contrast [class*="border-white"],
+.theme-high-contrast [class*="border-slate-"] {
+  border-color: hsl(60 100% 50%) !important;
+}
+.theme-high-contrast [class*="bg-white/"],
+.theme-high-contrast [class*="bg-slate-"] {
+  background-color: hsl(0 0% 8%) !important;
+}
+
+/* ─── Focus theme (ADHD-friendly, minimal noise, blue-only, reduced motion) ── */
+.theme-focus {
+  --background: 220 20% 98%;       /* near-white with blue tint */
+  --foreground: 220 40% 15%;       /* deep navy text */
+  --card: 220 15% 96%;
+  --card-foreground: 220 40% 15%;
+  --border: 220 25% 82%;           /* soft blue-grey border */
+  --input: 220 15% 92%;
+  --primary: 220 90% 56%;          /* single blue accent */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 15% 94%;
+  --secondary-foreground: 220 40% 20%;
+  --muted: 220 15% 94%;
+  --muted-foreground: 220 20% 50%;
+  --accent: 220 30% 90%;
+  --accent-foreground: 220 40% 15%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 220 90% 56%;
+  --radius: 0.75rem;
+}
+
+/* ─── Reduce animations for Focus theme (always) ────────────────────────── */
+.theme-focus * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.15s !important;
+}
+
+/* ─── Respect OS-level prefers-reduced-motion globally ──────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.1ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── High-contrast extra overrides ─────────────────────────────────────────── */
+.theme-high-contrast * {
+  border-width: 2px !important;
+  outline-color: hsl(60 100% 50%);
+}
+.theme-high-contrast button,
+.theme-high-contrast a {
+  font-weight: 800;
+  text-decoration: underline;
+}
+.theme-high-contrast input,
+.theme-high-contrast textarea,
+.theme-high-contrast select {
+  border: 2px solid hsl(60 100% 50%) !important;
+  background: hsl(0 0% 0%) !important;
+  color: hsl(60 100% 50%) !important;
+}
+
+/* ─── Neurodiversity extra overrides ────────────────────────────────────────── */
+.theme-neurodiversity * {
+  border-radius: var(--radius) !important;
+}
+.theme-neurodiversity input,
+.theme-neurodiversity textarea,
+.theme-neurodiversity select {
+  border: 1px solid hsl(var(--border)) !important;
+}
+
+/* ─── Sky theme (jasny błękit / light blue) ─────────────────────────────────── */
+.theme-sky {
+  --background: 201 70% 96%;       /* very light sky blue */
+  --foreground: 215 45% 18%;       /* dark navy text */
+  --card: 201 55% 98%;             /* near-white blue card */
+  --card-foreground: 215 45% 18%;
+  --border: 201 40% 84%;           /* soft blue border */
+  --input: 201 40% 92%;
+  --primary: 201 80% 42%;          /* vivid sky blue */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 201 40% 90%;
+  --secondary-foreground: 215 45% 20%;
+  --muted: 201 40% 92%;
+  --muted-foreground: 215 25% 50%;
+  --accent: 201 50% 86%;
+  --accent-foreground: 215 45% 18%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 201 80% 42%;
+  --radius: 0.75rem;
+}
+
+/* ─── Navy theme (granatowy / dark navy) ────────────────────────────────────── */
+.theme-navy {
+  --background: 222 47% 11%;       /* deep navy */
+  --foreground: 214 35% 88%;       /* light blue-grey text */
+  --card: 222 40% 15%;             /* slightly lighter navy for cards */
+  --card-foreground: 214 35% 88%;
+  --border: 222 30% 22%;           /* subtle navy border */
+  --input: 222 30% 18%;
+  --primary: 214 100% 65%;         /* bright cornflower blue */
+  --primary-foreground: 222 47% 8%;
+  --secondary: 222 30% 20%;
+  --secondary-foreground: 214 35% 85%;
+  --muted: 222 30% 20%;
+  --muted-foreground: 214 25% 60%;
+  --accent: 222 35% 25%;
+  --accent-foreground: 214 35% 88%;
+  --destructive: 0 62.8% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 214 100% 65%;
+  --radius: 0.75rem;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-200 dark:bg-slate-700 rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-300 dark:bg-slate-600;
+}

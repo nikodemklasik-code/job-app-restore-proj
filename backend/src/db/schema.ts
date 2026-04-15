@@ -1,0 +1,403 @@
+import { mysqlTable, varchar, text, timestamp, int, boolean, json, decimal } from 'drizzle-orm/mysql-core';
+import { relations } from 'drizzle-orm';
+
+export const users = mysqlTable('users', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  clerkId: varchar('clerk_id', { length: 255 }).notNull().unique(),
+  email: varchar('email', { length: 320 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+  // Data retention fields
+  lastSeenAt: timestamp('last_seen_at'),
+  retentionStatus: varchar('retention_status', { length: 30 }).default('active'),
+  // Values: 'active' | 'inactive_warning_1' | 'inactive_warning_2' | 'scheduled_for_deletion' | 'deleted' | 'purged'
+  deletionScheduledAt: timestamp('deletion_scheduled_at'),
+  warning1SentAt: timestamp('warning1_sent_at'),
+  warning2SentAt: timestamp('warning2_sent_at'),
+  deletedAt: timestamp('deleted_at'),
+  retentionExempt: boolean('retention_exempt').default(false),
+});
+
+export const profiles = mysqlTable('profiles', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  fullName: varchar('full_name', { length: 255 }).notNull().default(''),
+  phone: varchar('phone', { length: 50 }),
+  summary: text('summary'),
+  avatarUrl: varchar('avatar_url', { length: 500 }),
+  readinessScore: int('readiness_score').default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+export const experiences = mysqlTable('experiences', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  profileId: varchar('profile_id', { length: 36 }).notNull(),
+  employerName: varchar('employer_name', { length: 255 }).notNull(),
+  jobTitle: varchar('job_title', { length: 255 }).notNull(),
+  startDate: varchar('start_date', { length: 20 }).notNull(),
+  endDate: varchar('end_date', { length: 20 }),
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const educations = mysqlTable('educations', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  profileId: varchar('profile_id', { length: 36 }).notNull(),
+  schoolName: varchar('school_name', { length: 255 }).notNull(),
+  degree: varchar('degree', { length: 255 }).notNull(),
+  fieldOfStudy: varchar('field_of_study', { length: 255 }),
+  startDate: varchar('start_date', { length: 20 }).notNull(),
+  endDate: varchar('end_date', { length: 20 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const skills = mysqlTable('skills', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  profileId: varchar('profile_id', { length: 36 }).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  level: int('level').default(5),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const trainings = mysqlTable('trainings', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  profileId: varchar('profile_id', { length: 36 }).notNull(),
+  title: varchar('title', { length: 255 }).notNull(),
+  providerName: varchar('provider_name', { length: 255 }).notNull(),
+  issuedAt: varchar('issued_at', { length: 20 }).notNull(),
+  expiresAt: varchar('expires_at', { length: 20 }),
+  credentialUrl: varchar('credential_url', { length: 500 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const interviewSessions = mysqlTable('interview_sessions', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  mode: varchar('mode', { length: 50 }).notNull(),
+  difficulty: varchar('difficulty', { length: 50 }).notNull(),
+  status: varchar('status', { length: 50 }).default('completed').notNull(),
+  score: int('score'),
+  questionCount: int('question_count').notNull().default(3),
+  recruiterPersona: varchar('recruiter_persona', { length: 255 }),
+  selectedJobId: varchar('selected_job_id', { length: 36 }),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+export const interviewAnswers = mysqlTable('interview_answers', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  sessionId: varchar('session_id', { length: 36 }).notNull(),
+  questionId: varchar('question_id', { length: 255 }).notNull(),
+  questionText: text('question_text').notNull().default(''),
+  transcript: text('transcript').notNull(),
+  metrics: json('metrics').notNull(),
+  feedback: json('feedback').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const assistantConversations = mysqlTable('assistant_conversations', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  messageCount: int('message_count').default(0).notNull(),
+  lastMessageAt: timestamp('last_message_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const assistantMessages = mysqlTable('assistant_messages', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  conversationId: varchar('conversation_id', { length: 36 }).notNull(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  role: varchar('role', { length: 20 }).notNull(),
+  text: text('text').notNull(),
+  sourceType: varchar('source_type', { length: 50 }).notNull().default('manual_user_input'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const subscriptions = mysqlTable('subscriptions', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  stripeCustomerId: varchar('stripe_customer_id', { length: 255 }),
+  stripeSubscriptionId: varchar('stripe_subscription_id', { length: 255 }),
+  plan: varchar('plan', { length: 50 }).notNull().default('free'),
+  status: varchar('status', { length: 50 }).notNull().default('active'),
+  credits: int('credits').default(100),
+  renewalDate: timestamp('renewal_date'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+export const passkeys = mysqlTable('passkeys', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  credentialId: varchar('credential_id', { length: 500 }).notNull().unique(),
+  lastUsed: timestamp('last_used').defaultNow().notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const activeSessions = mysqlTable('active_sessions', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  device: varchar('device', { length: 255 }).notNull(),
+  location: varchar('location', { length: 255 }).notNull(),
+  lastActive: timestamp('last_active').defaultNow().notNull(),
+  isCurrent: boolean('is_current').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const usersRelations = relations(users, ({ one, many }) => ({
+  profile: one(profiles, { fields: [users.id], references: [profiles.userId] }),
+  subscription: one(subscriptions, { fields: [users.id], references: [subscriptions.userId] }),
+  passkeys: many(passkeys),
+  activeSessions: many(activeSessions),
+  interviewSessions: many(interviewSessions),
+  assistantConversations: many(assistantConversations),
+  assistantMessages: many(assistantMessages),
+}));
+
+export const assistantConversationsRelations = relations(assistantConversations, ({ one, many }) => ({
+  user: one(users, { fields: [assistantConversations.userId], references: [users.id] }),
+  messages: many(assistantMessages),
+}));
+
+export const assistantMessagesRelations = relations(assistantMessages, ({ one }) => ({
+  conversation: one(assistantConversations, { fields: [assistantMessages.conversationId], references: [assistantConversations.id] }),
+  user: one(users, { fields: [assistantMessages.userId], references: [users.id] }),
+}));
+
+export const profilesRelations = relations(profiles, ({ one, many }) => ({
+  user: one(users, { fields: [profiles.userId], references: [users.id] }),
+  experiences: many(experiences),
+  educations: many(educations),
+  skills: many(skills),
+  trainings: many(trainings),
+}));
+
+export const trainingsRelations = relations(trainings, ({ one }) => ({
+  profile: one(profiles, { fields: [trainings.profileId], references: [profiles.id] }),
+}));
+
+export const interviewSessionsRelations = relations(interviewSessions, ({ one, many }) => ({
+  user: one(users, { fields: [interviewSessions.userId], references: [users.id] }),
+  answers: many(interviewAnswers),
+}));
+
+export const interviewAnswersRelations = relations(interviewAnswers, ({ one }) => ({
+  session: one(interviewSessions, { fields: [interviewAnswers.sessionId], references: [interviewSessions.id] }),
+}));
+
+// ── New tables ────────────────────────────────────────────────────────────────
+
+export const jobs = mysqlTable('jobs', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  externalId: varchar('external_id', { length: 255 }),
+  source: varchar('source', { length: 50 }).notNull().default('manual'), // reed|adzuna|jooble|indeed|gumtree|manual
+  title: varchar('title', { length: 255 }).notNull(),
+  company: varchar('company', { length: 255 }).notNull(),
+  location: varchar('location', { length: 255 }),
+  description: text('description'),
+  applyUrl: varchar('apply_url', { length: 500 }),
+  salaryMin: decimal('salary_min', { precision: 12, scale: 2 }),
+  salaryMax: decimal('salary_max', { precision: 12, scale: 2 }),
+  workMode: varchar('work_mode', { length: 50 }),
+  requirements: json('requirements').$type<string[]>().default([]),
+  fitScore: int('fit_score'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+export const applications = mysqlTable('applications', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  jobId: varchar('job_id', { length: 36 }),
+  jobTitle: varchar('job_title', { length: 255 }).notNull().default(''),
+  company: varchar('company', { length: 255 }).notNull().default(''),
+  status: varchar('status', { length: 50 }).notNull().default('draft'),
+  fitScore: int('fit_score'),
+  cvSnapshot: text('cv_snapshot'),
+  coverLetterSnapshot: text('cover_letter_snapshot'),
+  emailSentAt: timestamp('email_sent_at'),
+  channel: varchar('channel', { length: 50 }).default('email'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+export const applicationLogs = mysqlTable('application_logs', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  applicationId: varchar('application_id', { length: 36 }).notNull(),
+  action: varchar('action', { length: 100 }).notNull(),
+  meta: json('meta'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const learningSignals = mysqlTable('learning_signals', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  signal: varchar('signal', { length: 255 }).notNull(),
+  type: varchar('type', { length: 20 }).notNull().default('positive'),
+  weight: decimal('weight', { precision: 5, scale: 2 }).default('1.00'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const cvUploads = mysqlTable('cv_uploads', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  originalFilename: varchar('original_filename', { length: 255 }).notNull(),
+  parsedText: text('parsed_text'),
+  parsedData: json('parsed_data'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Stores user's browser session cookies for Indeed / Gumtree scraping
+export const userJobSessions = mysqlTable('user_job_sessions', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  provider: varchar('provider', { length: 50 }).notNull(), // 'indeed' | 'gumtree'
+  cookies: text('cookies').notNull(), // raw Cookie header string
+  storageState: text('storage_state'), // Playwright storageState JSON (full session)
+  isActive: boolean('is_active').default(true).notNull(),
+  lastTestedAt: timestamp('last_tested_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+// Per-user email SMTP settings
+export const userEmailSettings = mysqlTable('user_email_settings', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull().unique(),
+  provider: varchar('provider', { length: 50 }).default('gmail'), // gmail|outlook|yahoo|icloud|custom
+  smtpHost: varchar('smtp_host', { length: 255 }),
+  smtpPort: int('smtp_port').default(587),
+  smtpUser: varchar('smtp_user', { length: 320 }),
+  smtpPassEncrypted: text('smtp_pass_encrypted'), // base64 obfuscated (not true encryption — user accepts risk)
+  fromName: varchar('from_name', { length: 255 }),
+  isVerified: boolean('is_verified').default(false).notNull(),
+  lastVerifiedAt: timestamp('last_verified_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+// Telegram notification settings per user
+export const userTelegramSettings = mysqlTable('user_telegram_settings', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull().unique(),
+  chatId: varchar('chat_id', { length: 50 }).notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+  notifyOnApply: boolean('notify_on_apply').default(true).notNull(),
+  notifyOnReply: boolean('notify_on_reply').default(true).notNull(),
+  notifyOnInterview: boolean('notify_on_interview').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+// Auto-apply queue (Autopilot plan)
+export const autoApplyQueue = mysqlTable('auto_apply_queue', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  jobId: varchar('job_id', { length: 36 }),
+  jobTitle: varchar('job_title', { length: 255 }).notNull(),
+  company: varchar('company', { length: 255 }).notNull(),
+  applyUrl: varchar('apply_url', { length: 500 }).notNull(),
+  applyEmail: varchar('apply_email', { length: 320 }), // employer email for email-based apply
+  source: varchar('source', { length: 50 }).default('indeed'),
+  status: varchar('status', { length: 50 }).default('pending').notNull(), // pending|processing|applied|failed|skipped
+  fitScore: int('fit_score'),
+  cvSnapshot: text('cv_snapshot'),    // generated CV text
+  clSnapshot: text('cl_snapshot'),    // generated cover letter text
+  errorMessage: text('error_message'),
+  appliedAt: timestamp('applied_at'),
+  sentAt: timestamp('sent_at'),       // when email was sent
+  scheduledAt: timestamp('scheduled_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+export const jobSourceSettings = mysqlTable('job_source_settings', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  providerName: varchar('provider_name', { length: 50 }).notNull(),
+  isEnabled: boolean('is_enabled').default(true).notNull(),
+  config: json('config'),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+export const jobScrapeLogs = mysqlTable('job_scrape_logs', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }),
+  providerName: varchar('provider_name', { length: 50 }).notNull(),
+  query: varchar('query', { length: 255 }),
+  jobCount: int('job_count').default(0),
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// Per-application IMAP inbox monitoring consent
+export const emailMonitoring = mysqlTable('email_monitoring', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  applicationId: varchar('application_id', { length: 36 }).notNull(),
+  // IMAP credentials (reuses SMTP user/pass from userEmailSettings when null)
+  imapHost: varchar('imap_host', { length: 255 }),
+  imapPort: int('imap_port').default(993),
+  // Stored encrypted just like smtpPassEncrypted
+  imapPassEncrypted: text('imap_pass_encrypted'),
+  grantedAt: timestamp('granted_at').defaultNow().notNull(),
+  revokedAt: timestamp('revoked_at'),
+  isActive: boolean('is_active').default(true).notNull(),
+  // Tracking last-checked UID to avoid re-processing old messages
+  lastUid: int('last_uid').default(0),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+// Live Interview sessions (persistent store for liveInterviewEngine)
+export const liveInterviewSessions = mysqlTable('live_interview_sessions', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  status: varchar('status', { length: 30 }).notNull().default('CREATED'),
+  stage: varchar('stage', { length: 50 }).notNull().default('INTRO'),
+  mode: varchar('mode', { length: 50 }).notNull(),
+  // roleContext fields (denormalized for easy queries)
+  targetRole: varchar('target_role', { length: 200 }).notNull(),
+  company: varchar('company', { length: 200 }),
+  seniority: varchar('seniority', { length: 100 }),
+  roleDescription: text('role_description'),
+  // config
+  maxTurns: int('max_turns').notNull().default(12),
+  maxFollowUpsPerTopic: int('max_follow_ups_per_topic').notNull().default(2),
+  turnCount: int('turn_count').notNull().default(0),
+  // rich state stored as JSON
+  memory: json('memory').notNull(),
+  summary: json('summary'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+  startedAt: timestamp('started_at'),
+  endedAt: timestamp('ended_at'),
+});
+
+export const liveInterviewTurns = mysqlTable('live_interview_turns', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  sessionId: varchar('session_id', { length: 36 }).notNull(),
+  speaker: varchar('speaker', { length: 20 }).notNull(), // 'assistant' | 'candidate'
+  message: text('message').notNull(),
+  intent: varchar('intent', { length: 50 }),
+  nextAction: varchar('next_action', { length: 50 }),
+  stage: varchar('stage', { length: 50 }).notNull(),
+  timestamp: timestamp('timestamp').defaultNow().notNull(),
+});
+
+// Web Push subscriptions (VAPID)
+export const pushSubscriptions = mysqlTable('push_subscriptions', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  endpoint: varchar('endpoint', { length: 1000 }).notNull().unique(),
+  p256dh: varchar('p256dh', { length: 500 }).notNull(),   // client public key
+  auth: varchar('auth', { length: 255 }).notNull(),        // client auth secret
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});

@@ -1,0 +1,137 @@
+name: Deploy — multivohub-jobapp
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  # ─── 1. Build ───────────────────────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate ENV schema
+        run: node lib/envSchema.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+
+      - name: Build frontend
+        run: npm run build:frontend
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_STRIPE_PRO_PRICE_ID: ${{ secrets.VITE_STRIPE_PRO_PRICE_ID }}
+          VITE_STRIPE_AUTOPILOT_PRICE_ID: ${{ secrets.VITE_STRIPE_AUTOPILOT_PRICE_ID }}
+          VITE_COINBASE_PRO_LINK: ${{ secrets.VITE_COINBASE_PRO_LINK }}
+          VITE_COINBASE_AUTOPILOT_LINK: ${{ secrets.VITE_COINBASE_AUTOPILOT_LINK }}
+
+      - name: Build backend
+        run: npm run build:backend
+
+      - name: Upload frontend dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 7
+
+      - name: Upload backend dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-dist
+          path: backend/dist/
+          retention-days: 7
+
+  # ─── 2. Deploy ──────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to VPS
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download frontend dist
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+
+      - name: Download backend dist
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-dist
+          path: backend/dist/
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Sync frontend dist
+        run: |
+          rsync -avz --delete \
+            frontend/dist/ \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${{ secrets.VPS_FRONTEND_DIST_PATH }}/
+
+      - name: Sync backend dist + infra
+        run: |
+          rsync -avz --delete \
+            --exclude='node_modules' \
+            backend/dist/ \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/multivohub-jobapp/dist/backend/
+          # Package manifests required so npm ci can install/update node_modules on the VPS
+          rsync -avz \
+            backend/package.json \
+            backend/package-lock.json \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/multivohub-jobapp/backend/
+          rsync -avz \
+            infra/ecosystem.config.cjs \
+            lib/envSchema.mjs \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/var/www/multivohub-jobapp/
+
+      - name: Install production deps on VPS + reload PM2
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} '
+            set -e
+            cd /var/www/multivohub-jobapp
+            npm ci --omit=dev --prefix backend
+            pm2 reload infra/ecosystem.config.cjs --update-env || pm2 start infra/ecosystem.config.cjs
+            pm2 save
+          '
+
+      - name: Smoke test
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} '
+            bash /var/www/multivohub-jobapp/scripts/smoke-test.sh
+          ' || (echo "Smoke test failed — check PM2 logs" && exit 1)
+
+      - name: Notify success
+        if: success()
+        run: |
+          echo "✅ Deploy complete — $(date -u '+%Y-%m-%d %H:%M UTC')"

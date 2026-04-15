@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+frontend/.env
+backend/dist/
+frontend/dist/
+*.log
+.DS_Store
+ios/
+android/
+
+# Deploy secrets (never commit)
+.env.local
+.env.production
+.deploy-token-hash

@@ -1,0 +1,98 @@
+import { create } from 'zustand';
+import { trpcClient } from '@/lib/api';
+import type { AssistantHistoryMessage } from '../../../shared/assistant';
+
+type AssistantStatus = 'idle' | 'syncing' | 'sending' | 'error';
+
+interface CareerAssistantStore {
+  conversationId: string | null;
+  messages: AssistantHistoryMessage[];
+  status: AssistantStatus;
+  error: string | null;
+  selectedJobId: string | null;
+  setSelectedJobId: (id: string | null) => void;
+  loadHistory: () => Promise<void>;
+  sendMessage: (text: string, mode?: 'general' | 'cv' | 'interview' | 'salary') => Promise<void>;
+  resetError: () => void;
+}
+
+function sortAsc(msgs: AssistantHistoryMessage[]): AssistantHistoryMessage[] {
+  return [...msgs].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  );
+}
+
+export const useCareerAssistantStore = create<CareerAssistantStore>((set, get) => ({
+  conversationId: null,
+  messages: [],
+  status: 'idle',
+  error: null,
+  selectedJobId: null,
+
+  setSelectedJobId: (id) => set({ selectedJobId: id }),
+
+  async loadHistory() {
+    if (get().status === 'syncing') return;
+    set({ status: 'syncing', error: null });
+    try {
+      const history = await trpcClient.assistant.getHistory.query();
+      set({
+        messages: sortAsc(history as AssistantHistoryMessage[]),
+        conversationId: (history[0] as AssistantHistoryMessage | undefined)?.conversationId ?? null,
+        status: 'idle',
+        error: null,
+      });
+    } catch {
+      set({ status: 'error', error: 'Could not load conversation history. Please refresh.' });
+    }
+  },
+
+  async sendMessage(text, mode = 'general') {
+    const trimmed = text.trim();
+    if (!trimmed || get().status === 'sending') return;
+
+    const optimistic: AssistantHistoryMessage = {
+      id: crypto.randomUUID(),
+      conversationId: get().conversationId ?? 'pending',
+      role: 'user',
+      text: trimmed,
+      sourceType: 'manual_user_input',
+      createdAt: new Date().toISOString(),
+    };
+
+    set((s) => ({
+      messages: sortAsc([...s.messages, optimistic]),
+      status: 'sending',
+      error: null,
+    }));
+
+    try {
+      const resp = await trpcClient.assistant.sendMessage.mutate({
+        text: trimmed,
+        mode,
+        sourceType: 'manual_user_input',
+        jobId: get().selectedJobId,
+      });
+      set((s) => ({
+        conversationId: resp.conversationId,
+        messages: sortAsc([
+          ...s.messages.filter((m) => m.id !== optimistic.id),
+          resp.userRecord as AssistantHistoryMessage,
+          resp.aiRecord as AssistantHistoryMessage,
+        ]),
+        status: 'idle',
+        error: null,
+      }));
+    } catch {
+      set((s) => ({
+        messages: s.messages.filter((m) => m.id !== optimistic.id),
+        status: 'error',
+        error: 'Message could not be sent. Please try again.',
+      }));
+    }
+  },
+
+  resetError() {
+    set({ status: 'idle', error: null });
+  },
+}));
