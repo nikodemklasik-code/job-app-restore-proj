@@ -1,11 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { Loader2, MapIcon, Lock } from 'lucide-react';
-import { Link } from 'react-router-dom';
-
-interface DashboardFormState {
-  // Who you are
-import { Loader2, MapIcon, ExternalLink } from 'lucide-react';
+import { Loader2, MapIcon, Lock, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface DashboardFormState {
@@ -122,17 +117,12 @@ export default function DashboardPage() {
     linkedinScan: stored.linkedinScan ?? false,
     facebookScan: stored.facebookScan ?? false,
     instagramScan: stored.instagramScan ?? false,
+    linkedinConsent: stored.linkedinConsent ?? false,
+    facebookConsent: stored.facebookConsent ?? false,
+    instagramConsent: stored.instagramConsent ?? false,
     targetJobTitle: stored.targetJobTitle ?? '',
     targetSalary: stored.targetSalary ?? '',
     autoApplyThreshold: stored.autoApplyThreshold ?? 75,
-  });
-
-  // TODO: Replace with api.profile.getSocialConsents tRPC call once the endpoint exists.
-  // For now we use a local placeholder — all consents default to not granted.
-  const [socialConsents] = useState({
-    linkedinConsentGranted: false,
-    facebookConsentGranted: false,
-    instagramConsentGranted: false,
   });
 
   // Debounced autosave to localStorage
@@ -271,21 +261,21 @@ export default function DashboardPage() {
               <SocialConsentRow
                 platform="LinkedIn"
                 description="Analyse your network and work history"
-                consentGranted={socialConsents.linkedinConsentGranted}
+                consentGranted={form.linkedinConsent}
                 scanEnabled={form.linkedinScan}
                 onToggle={(v) => set('linkedinScan', v)}
               />
               <SocialConsentRow
                 platform="Facebook"
                 description="Analyse your professional interests and activity"
-                consentGranted={socialConsents.facebookConsentGranted}
+                consentGranted={form.facebookConsent}
                 scanEnabled={form.facebookScan}
                 onToggle={(v) => set('facebookScan', v)}
               />
               <SocialConsentRow
                 platform="Instagram"
                 description="Analyse your personal brand"
-                consentGranted={socialConsents.instagramConsentGranted}
+                consentGranted={form.instagramConsent}
                 scanEnabled={form.instagramScan}
                 onToggle={(v) => set('instagramScan', v)}
               />
@@ -343,8 +333,6 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
           {/* Card: Auto-apply */}
           <div className={CARD_CLASS}>
@@ -354,29 +342,19 @@ export default function DashboardPage() {
             <p className="mb-5 text-sm text-slate-500 dark:text-slate-400">
               Minimum CV match score for AI to auto-apply:
             </p>
-            <Link to="/documents" className="mt-2 inline-block text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">
-              Upload documents →
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Row 3: Work Values + Auto-Apply Threshold */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Work values */}
-        <div className={CARD_CLASS}>
-          <h2 className="mb-2 text-base font-semibold text-slate-800 dark:text-white">Work Values</h2>
-          <p className="mb-4 text-sm text-slate-500 dark:text-slate-400">What matters most to you at work?</p>
-          <textarea id="workValues" rows={3}
-            className={`${INPUT_CLASS} mt-0 resize-none`}
-            placeholder="e.g. work-life balance, remote, technical growth, stability..."
-            value={form.workValues}
-            onChange={(e) => set('workValues', e.target.value)} />
-          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Separate with commas</p>
-        </div>
-
-            <div className="mt-2 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
+            <input
+              type="range"
+              min={50}
+              max={100}
+              value={form.autoApplyThreshold}
+              onChange={(e) => set('autoApplyThreshold', Number(e.target.value))}
+              className="w-full accent-indigo-600"
+            />
+            <div className="mt-2 flex items-center justify-between text-sm font-medium text-slate-700 dark:text-slate-300">
               <span>50%</span>
+              <span className="text-lg text-indigo-600 dark:text-indigo-400">
+                {form.autoApplyThreshold}%
+              </span>
               <span>100%</span>
             </div>
             <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
@@ -406,13 +384,10 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-          <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-            Roles below this threshold require your manual approval
-          </p>
         </div>
       </div>
 
-      {/* Row 4: Social consents — full width */}
+      {/* Row 2: Social consents — full width */}
       <div className={CARD_CLASS}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold text-slate-800 dark:text-white">Social Profile Analysis</h2>
