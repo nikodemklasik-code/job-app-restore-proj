@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import type { CandidateInsights } from './adaptiveInterviewer.js';
+import { UNIVERSAL_BEHAVIOR_LAYER } from '../prompts/shared/universal-behavior-layer.js';
 
 function getOpenAI(): OpenAI {
   if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not configured');
@@ -234,7 +235,9 @@ These rules override all other instructions about question sequence.
 
 6. **Maximum two questions on the same topic** — if the user cannot or will not engage with a topic after two attempts, pivot to something different.
 
-7. **The conversation must feel human and adaptive** — not scripted. A user should never feel that their answer was ignored.`;
+7. **The conversation must feel human and adaptive** — not scripted. A user should never feel that their answer was ignored.
+
+${UNIVERSAL_BEHAVIOR_LAYER}`;
 }
 
 export async function* streamInterviewResponse(

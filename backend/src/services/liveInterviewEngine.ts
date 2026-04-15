@@ -6,6 +6,7 @@ import {
   dbUpdateSession,
   dbAppendTurn,
 } from './liveInterviewRepository.js';
+import { UNIVERSAL_BEHAVIOR_LAYER } from '../prompts/shared/universal-behavior-layer.js';
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
@@ -444,7 +445,9 @@ Violation of these rules would constitute illegal pre-employment discrimination 
 SESSION MEMORY:
 ${memoryContext || 'No previous context yet.'}
 
-Respond ONLY with the interviewer's next message. No headers, no labels, no coaching, no feedback. Just the interviewer speaking.`;
+Respond ONLY with the interviewer's next message. No headers, no labels, no coaching, no feedback. Just the interviewer speaking.
+
+${UNIVERSAL_BEHAVIOR_LAYER}`;
 }
 
 async function generateInterviewerResponse(

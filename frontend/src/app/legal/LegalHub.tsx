@@ -72,10 +72,10 @@ SARs are free of charge. If you believe a recruiter or employer has mishandled y
     summary: 'Key employment rights for workers in the UK, including minimum wage, notice periods, and IR35.',
     items: [
       {
-        question: 'National Minimum Wage (2024/25)',
-        answer: `From April 2024, the National Living Wage (for workers aged 21+) is £11.44 per hour. This applies to workers on employment contracts.
+        question: 'National Minimum Wage & NLW (check GOV.UK)',
+        answer: `NLW and NMW cash rates for each age band and apprentice category are updated on a fixed timetable (usually each April) and are published only in official sources. Do not rely on any figure copied into a third-party app — it may be out of date before we update this hub.
 
-Other rates: 18–20 year olds: £8.60/hr; 16–17 year olds: £6.40/hr; Apprentice rate: £6.40/hr (first year or under 19). These are legal minimums — any contract paying below these rates is void for the underpayment portion. Workers can claim arrears going back 6 years. Employers who underpay can be fined up to 200% of the underpayment, and named publicly ("name and shame" scheme).`,
+Use the live tables at https://www.gov.uk/national-minimum-wage-rates for every rate that applies to you. Underpayment is unlawful; workers can claim arrears subject to time limits. HMRC can impose civil penalties and "naming" in serious underpayment cases — see GOV.UK for current enforcement policy.`,
       },
       {
         question: 'Notice Periods',
@@ -87,7 +87,7 @@ Your contract may specify a longer notice period — the longer of statutory or 
         question: 'IR35 — Off-Payroll Working Rules',
         answer: `IR35 (the off-payroll working rules) determines whether a contractor is genuinely self-employed or effectively an employee ("deemed employee"). If caught inside IR35, the contractor pays employee Income Tax and NI as if employed, even though they operate through a limited company.
 
-Key tests: Substitution — can you send a substitute? Mutuality of obligation — are you obliged to accept work? Control — does the client control how (not just what) you deliver? Since April 2021, medium and large private sector clients are responsible for determining IR35 status and issuing a Status Determination Statement (SDS). Small businesses (2 of: <50 employees, <£10.2m turnover, <£5.1m balance sheet) are exempt and the contractor determines their own status.`,
+Key tests: Substitution — can you send a substitute? Mutuality of obligation — are you obliged to accept work? Control — does the client control how (not just what) you deliver? Since April 2021, medium and large private sector clients are generally responsible for determining IR35 status and issuing a Status Determination Statement (SDS). "Small" clients may be exempt so the contractor determines status — the headcount, turnover, and balance-sheet tests are defined in tax law and the numeric thresholds change; always confirm the current HMRC "Check employment status for tax" guidance rather than any example figures here.`,
       },
       {
         question: 'Zero-Hours Contract Rights',
@@ -103,9 +103,9 @@ The label on your contract is NOT conclusive — courts look at the reality of t
       },
       {
         question: 'Statutory Sick Pay (SSP) and Holiday Pay',
-        answer: `SSP 2024/25: £116.75 per week, paid by employer from day 4 of illness, for up to 28 weeks. You must earn at least £123/week (Lower Earnings Limit) to qualify.
+        answer: `SSP: usually paid by the employer from the fourth qualifying day of illness, for up to 28 weeks, if you meet average earnings tests. The weekly SSP amount and the Lower Earnings Limit change — check GOV.UK "Statutory Sick Pay (SSP)" for the current rate and eligibility.
 
-Statutory Annual Leave: 5.6 weeks per year (28 days for a 5-day/week worker), including bank holidays. Holiday pay must be calculated on "normal remuneration" — including regular overtime, commission, and certain allowances, not just basic salary, following Lock v British Gas [2016] and subsequent cases.`,
+Statutory annual leave: 5.6 weeks per year (28 days for a full-time five-day week), including bank holidays. Holiday pay must be calculated on "normal remuneration" where applicable — including regular overtime, commission, and certain allowances, not just basic salary (Lock v British Gas [2016] and later cases).`,
       },
     ],
   },
@@ -157,9 +157,9 @@ Equal treatment does NOT require equal bonuses, sick pay, occupational pension, 
     items: [
       {
         question: 'Right to Work Verification',
-        answer: `Since 2016 (Immigration Act), employers have a legal duty to check that all employees have the right to work in the UK before employment starts. Failure to carry out proper checks means the employer has no "statutory excuse" if they are found to employ an illegal worker — civil penalty up to £45,000 per worker (from February 2024, increased from £15,000).
+        answer: `Since 2016 (Immigration Act), employers have a legal duty to check that all employees have the right to work in the UK before employment starts. Failure to carry out proper checks means the employer has no "statutory excuse" if they are found to employ someone illegally — civil penalties apply and maximum amounts are set in law and updated over time. Search GOV.UK for the employer right-to-work civil penalty scheme for the figures that apply when you read this.
 
-Documents: British/Irish passport or birth certificate + NI number; EU Settlement Scheme share code for EU/EEA nationals; Biometric Residence Permit or visa for other nationals. Since April 2022, certified digital identity service providers (IDSPs) can verify British/Irish citizens remotely. You must provide right to work documents before your start date — not after.`,
+Documents: British/Irish passport or birth certificate + NI number; EU Settlement Scheme share code for EU/EEA nationals; Biometric Residence Permit or visa for other nationals. Certified digital identity service providers (IDSPs) may be used for certain checks where permitted — follow the current GOV.UK employer guide. You must provide right-to-work evidence before your start date unless your employer agrees a lawful timetable.`,
       },
       {
         question: 'What Employers Cannot Legally Ask in Interviews',
@@ -177,7 +177,7 @@ An employer who gives a deliberately misleading reference (by omission or distor
         question: 'Salary History and Pay Transparency',
         answer: `There is currently no UK law prohibiting employers from asking about your salary history (unlike several US states and the EU Pay Transparency Directive which applies only to EU employers). However, the Equality Act 2010 s.77 makes it unlawful to enforce pay secrecy clauses that prevent workers from discussing pay to establish whether there is pay discrimination.
 
-From a practical standpoint: you are not obliged to disclose your current salary. It is lawful to decline by saying "I'd prefer to discuss my expectations based on the role." The EU Pay Transparency Directive (2023) requires EU employers to provide salary bands in job adverts by 2026 — UK employers are not bound by this but some are adopting it voluntarily.`,
+From a practical standpoint: you are not obliged to disclose your current salary. It is lawful to decline by saying "I'd prefer to discuss my expectations based on the role." The EU Pay Transparency Directive introduces pay-transparency rules for EU employers on a phased timetable — UK employers are not automatically bound by it for domestic roles, but some multinationals align policies voluntarily; check the role's jurisdiction.`,
       },
       {
         question: 'Offer Letters and Contract Timing',
@@ -248,7 +248,7 @@ Right to work check guidance for employers: GOV.UK > Employers' guide to right t
         question: 'How to Register at the Job Centre Plus',
         answer: `Visit gov.uk/jobseekers-allowance or go in person to your nearest Job Centre Plus to register. You will need to bring: your National Insurance (NI) number, valid photo ID (passport or driving licence), bank details, and proof of address (utility bill or bank statement within 3 months).
 
-Depending on your NI contribution record, you may be eligible for New Style JSA (contribution-based, paid for up to 6 months) or Universal Credit (means-tested). An appointment is usually arranged within 2 weeks of registration. At your first appointment you will sign a Claimant Commitment — an agreed plan of what you will do to find work.
+Depending on your NI contribution record, you may be eligible for New Style JSA (contribution-based, paid for up to 6 months) or Universal Credit (means-tested). Appointment timing varies by office and demand — confirm when you apply. At your first appointment you will sign a Claimant Commitment — an agreed plan of what you will do to find work.
 
 Contact and find your local Job Centre: gov.uk/contact-jobcentre-plus`,
       },
@@ -256,7 +256,9 @@ Contact and find your local Job Centre: gov.uk/contact-jobcentre-plus`,
         question: 'Universal Credit — What It Covers',
         answer: `Universal Credit (UC) is a monthly payment that can help with living costs, and may include amounts for: housing costs (rent), children and childcare costs, disabilities or health conditions, and caring responsibilities.
 
-There is a 5-week wait for your first payment from the date of your claim. If you need money urgently, you can apply for an Advance Payment immediately — this is repayable from future UC payments, usually over 24 months. UC is managed online through your journal at gov.uk/universal-credit where you report changes and communicate with your work coach.`,
+First payment dates, waiting periods, Advance Payments, and repayment schedules are operational rules that change. Do not rely on any example timetable here — read GOV.UK Universal Credit (including "Your first payment") for the process that applies when you claim.
+
+UC is managed online through your journal at gov.uk/universal-credit where you report changes and communicate with your work coach.`,
       },
       {
         question: 'Emergency Support While Waiting',
@@ -273,10 +275,10 @@ Citizens Advice: Free, confidential advice on benefits, debt, and housing — 08
 Shelter helpline: Emergency housing advice — 0808 800 4444 (Freephone).`,
       },
       {
-        question: 'New Enterprise Allowance',
-        answer: `If you are receiving Universal Credit and want to start your own business, the New Enterprise Allowance (NEA) can provide financial support and mentoring.
+        question: 'Self-employment support on benefits',
+        answer: `If you receive Universal Credit and want to start or grow a business, the exact grant, allowance, loan, or mentoring programme available to you depends on current DWP policy in your area — schemes and cash caps change and older programmes (such as the historic New Enterprise Allowance) may be closed to new entrants.
 
-The NEA provides: a weekly allowance while you develop your business plan (£1,274 over 26 weeks), and access to a business loan of up to £2,500 if your plan is approved. You apply through your work coach at the Job Centre — they refer you to a local business mentor who helps you develop a business plan. The allowance starts once your business plan is agreed.`,
+Always ask your work coach what is open now, and search GOV.UK for "Universal Credit" plus self-employment or start-up support. Do not rely on any past weekly cash totals reproduced in third-party guides.`,
       },
     ],
   },
@@ -338,7 +340,7 @@ Rapid Reclaim: If you have claimed UC or JSA within the last 12 months, a faster
 
 Local welfare emergency fund: Contact your local council for emergency assistance with food, fuel, and essential household items.
 
-Mortgage or rent payment deferral: Contact your lender or landlord as soon as possible. Mortgage lenders are required by FCA rules to consider requests for payment deferrals sympathetically. Many housing associations have hardship funds.`,
+Mortgage or rent payment deferral: Contact your lender or landlord as soon as possible. Regulated mortgage lenders must treat customers fairly when you ask for help with payment difficulty — see the FCA's current consumer guidance. Many housing associations have hardship funds.`,
       },
     ],
   },
@@ -431,10 +433,10 @@ export default function LegalHub() {
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'National Living Wage', value: '£11.44/hr', sub: 'Age 21+ from Apr 2024' },
-          { label: 'Holiday Entitlement', value: '5.6 weeks', sub: '28 days (5-day week)' },
-          { label: 'SSP Rate', value: '£116.75/wk', sub: 'From day 4 of illness' },
-          { label: 'ET Claim Deadline', value: '3 months', sub: 'Less one day from act' },
+          { label: 'NLW / NMW', value: 'GOV.UK', sub: 'All hourly bands — updated each April' },
+          { label: 'Holiday (statutory min.)', value: '5.6 weeks', sub: 'Typ. 28 days incl. bank hols (5-day week)' },
+          { label: 'SSP & LEL', value: 'GOV.UK', sub: 'Weekly SSP rate and earnings threshold' },
+          { label: 'ET limitation', value: '3 months', sub: 'Usual limit less one day — confirm ACAS/ET rules' },
         ].map((stat) => (
           <div key={stat.label} className="rounded-xl border border-white/10 bg-white/5 p-4">
             <p className="text-lg font-bold text-white">{stat.value}</p>
@@ -443,6 +445,11 @@ export default function LegalHub() {
           </div>
         ))}
       </div>
+      <p className="text-xs text-slate-500 -mt-2">
+        Quick tiles are memory aids only. NMW/NLW, SSP, and tax figures change — always confirm on{' '}
+        <a href="https://www.gov.uk/" className="text-indigo-400 hover:underline" target="_blank" rel="noopener noreferrer">GOV.UK</a>
+        , ACAS, or HMRC before relying on a number in a negotiation or claim.
+      </p>
 
       {/* Sections */}
       <div className="space-y-4">

@@ -16,7 +16,16 @@ export const documentsRouter = router({
   // Upload document (frontend sends extracted text — extraction happens client-side or via separate endpoint)
   upload: protectedProcedure
     .input(z.object({
-      documentType: z.enum(['cv', 'cover_letter', 'certificate', 'education', 'portfolio', 'session_memory', 'other']),
+      documentType: z.enum([
+        'cv',
+        'cover_letter',
+        'references',
+        'certificate',
+        'education',
+        'portfolio',
+        'session_memory',
+        'other',
+      ]),
       originalFilename: z.string().max(255),
       extractedText: z.string().max(50000), // plain text extracted from document
       sessionContext: z.enum(['coach', 'interview', 'negotiation']).optional(),

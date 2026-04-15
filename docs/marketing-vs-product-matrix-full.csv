@@ -1,0 +1,213 @@
+Marketing (ZIP),MultivoHub (product),%,Notes (PDF-short)
+AI-Powered Job Search That Actually Works,"AI across jobs, interview, style, assistant, reports, etc.",70%,Subjective headline; broadly true.
+"Hero: personalized CVs/cover letters, fit scores, interview AI, data-driven insights","Style Studio, applications fit, Interview Practice, Reports",85%,Matches product scope.
+Hero stat: 82% Avg Fit Score,No verified aggregate in product,0%,Needs real study; do not claim.
+Hero stat: 3x More Interviews,No verified aggregate in product,0%,Needs real study; do not claim.
+Hero stat: 10K+ Active Users,No verified aggregate in product,0%,Needs real data.
+"6 interview modes (Behavioral, Technical, HR, Case Study, Language)",InterviewPractice + shared/interview (+ General mode),100%,
+"3 difficulty levels (Standard, Stretch, Senior)",standard/stretch/senior in InterviewPractice,70%,Confirm all visible in UI.
+Adaptive AI interviewer with personalized questions,adaptiveInterviewer + session flow,85%,
+Video recording with real-time camera display,getUserMedia + video preview,100%,
+Speech-to-text transcription,POST /api/interview/transcribe,100%,
+AI voice responses with text-to-speech,POST /api/interview/tts,100%,
+"Per-turn scoring (clarity, confidence, presence)",Scoring in interview flow / backend,80%,Exact trio naming may differ.
+STAR method detection (client-side),Client-side STAR checks InterviewPractice,85%,
+Full session history with trends,Session history + trends in UI/API,80%,Verify depth vs ZIP.
+Coaching plans and adaptive insights,Coaching / adaptive notes in flow,75%,
+Interview credential PDF certificates,PDF report / pdfGenerator disclaimer text,40%,Not a formal third-party credential.
+Gold Standard answer rewrites,Coaching summaries / rewrites,70%,Label differs in UI.
+15 diverse interview questions bank,InterviewWarmup question set,90%,Count may differ; verify.
+60-second timer with voice recording,Warmup timer + recording,90%,
+Fallback text input if microphone unavailable,Text fallback in Warmup,90%,
+Client-side STAR signal detection,Warmup STAR heuristics,85%,
+"Filler word detection (um, uh, like)",Warmup filler detection,85%,
+Daily streak tracking (localStorage),localStorage streak,100%,
+Streak recovery system,Warmup streak recovery if implemented,70%,Verify in InterviewWarmup.
+Quantified outcome detection,Outcome regex in Warmup feedback,85%,
+Coaching tips per response,Per-response tips,90%,
+Response quality labels (Excellent/Good/Developing),Quality labels in Warmup,85%,
+Queue-based automatic applications,autoApply router + AutoApplyPage,100%,
+"Plan-based weekly limits (Free: 3, Pro: 15, Autopilot: 50)",PLAN_LIMITS weeklyAutoApply,100%,
+AI-generated CV + cover letter per application,Auto-apply generation pipeline,90%,
+PDF generation and email sending,PDF + SMTP send,100%,
+Fit score calculation before sending,Fit before send,90%,
+Status tracking (pending → processing → applied),Status machine in auto-apply,100%,
+Skip or retry individual applications,Skip/retry in UI,90%,
+Email application via SMTP,SMTP from user settings,100%,
+"Multi-source job aggregation (Reed, Adzuna, Jooble, Indeed, Gumtree, OpenAI Discovery)",JobsDiscovery + job sources,100%,
+AI-driven profile-based job discovery,Profile-scored discovery / jobs router,85%,
+Company targets provider,jobSources / targets (verify UI label),50%,
+"Kanban-style status tracking (Applied, Screening, Interview, Offer, Rejected, Ghosted)",ApplicationsPipeline; no Ghosted label,60%,Ghosted missing.
+Fit score per application,Per-application fit,100%,
+AI cover letter generation,generateCoverLetter,100%,
+AI CV summary generation,generateCvSummary,100%,
+Download CV and cover letter as PDF,PDF download flows,90%,
+Review queue for pending actions,ReviewQueue page,100%,
+Application logs with full history,applicationLogs / history,90%,
+Per-application notes,Notes on applications,90%,
+CV snapshot at time of application,Partial / schema-dependent,50%,Confirm DB fields.
+Bulk export (CSV/JSON),Reports / export endpoints,90%,
+Job session tracking and analytics,jobSessions router + UI,85%,
+Application funnel visualization (Applied → Screened → Interview → Offer),ReportsHub funnel,90%,Stage names may differ.
+Weekly/monthly statistics,Reports analytics,90%,
+Activity heatmap,Not implemented in ReportsHub,0%,Remove from marketing or build.
+Average job fit score,Aggregates in reports,85%,
+Response rate tracking,Analytics,85%,
+Top companies ranking,Reports,85%,
+Reports hub with PDF export,ReportsHub PDF,90%,
+JSON export capability,JSON export,90%,
+Competency gap analysis,SkillsLab,75%,
+Skill level visualization,SkillsLab,75%,
+Course recommendations per skill,SkillsLab / links,70%,
+AI-powered skill gap assessment,Skills engine / AI,75%,
+Job Radar - trending skills detection,Different: /job-radar scan vs skills trending,30%,Rename or split messaging.
+Hot/Rising/Emerging skill classification,SkillsLab partial,50%,Verify vs ZIP.
+6-month and 12-month trend predictions,Not as ZIP describes for Job Radar,20%,Job Radar v1 is role scan.
+"Course providers (Coursera, Udemy, LinkedIn Learning, Google, AWS, Microsoft)",Recommendations may include providers,60%,Verify provider list.
+PDF/DOCX/TXT CV parsing,PDF upload only; DOCX/TXT not in ProfilePage accept,40%,Fix marketing until parsers ship.
+"Automatic data extraction (name, contact, experience, education, skills)",Profile + CV parse pipeline,85%,PDF-only input.
+Full profile editor,ProfilePage,100%,
+Experience management,Experiences CRUD,100%,
+Education tracking,Educations CRUD,100%,
+Skills tagging system,Skills on profile,100%,
+Training history,Profile training fields if present,70%,Verify schema/UI.
+Contact information management,Profile contact fields,100%,
+Profile photo upload,Photo upload if enabled,80%,Verify UX.
+Upload history tracking,Upload history if present,70%,Verify.
+Style Studio - document analysis,StyleStudio + style router,100%,
+Section rewriting with AI,StyleStudio AI rewrites,100%,
+CV generation from job description,Style / CV from JD flows,90%,
+IMAP inbox monitoring (every 30 minutes),worker IMAP interval 30m,100%,
+Email classification (invitation vs other),imapMonitor classification,85%,
+Automatic status updates on replies,Status updates from monitoring,85%,
+Follow-up Copilot (AI-generated follow-ups),generateFollowUp + UI; plan-gated,80%,
+Custom SMTP configuration,emailSettings,100%,
+Email password obfuscation,Encrypted storage / masked UI,80%,Verify UX.
+"Privacy-by-design (headers only, no content storage)",Must match imapMonitor + DB,50%,Legal/eng audit.
+Automatic follow-up after 7 days of no response,followUpScheduler FOLLOW_UP_DAYS=7,100%,
+Coach mode with tactical scoring,NegotiationCoach,85%,
+Position vs interest analysis,Negotiation flows,75%,
+BATNA (Best Alternative) analysis,NegotiationCoach,85%,
+Simulator mode with real-time AI negotiation,Simulator in UI,80%,
+Setup form for negotiation scenarios,Setup form,90%,
+Money-left-on-table debrief,Debrief content,75%,
+"4 practice scenarios (salary, contract rate, partnership, vendor)",Scenarios in product,80%,Count names vs UI.
+Streaming responses (SSE),Stream API,90%,
+Multi-turn conversations with context,AssistantPage + threads,90%,
+Persistent conversation storage,DB persistence for assistant,90%,
+"Source-type guard (profile, public posts only)",assertAllowedAssistantSourceType pattern,85%,
+"Markdown rendering (inline, no external libraries)",Markdown in assistant UI,80%,
+Streaming AI responses,Streaming tRPC/stream,85%,
+"Keyboard shortcuts (Enter to send, Shift+Enter for new line)",Keyboard handling,80%,
+Scroll-to-bottom auto-scroll,UI behavior,80%,
+Copy-to-clipboard functionality,Copy button,90%,
+Telegram Bot integration,telegram router + settings,100%,
+Web Push notifications (VAPID),push router + frontend,90%,
+Push subscription management,push subscription APIs,90%,
+Real-time status alerts,Push for status changes,80%,
+Application invitation notifications,Push / classification path,80%,
+Follow-up reminders,Scheduler + notifications,75%,
+Salary Calculator (UK 2024/25),UKSalaryCalculator,100%,
+Income tax and NI calculations,Calculator,100%,
+Student loan calculations,Calculator,100%,
+Corporation tax calculator,Calculator,100%,
+Marginal rate calculator,Calculator,90%,
+PAYE vs Umbrella/Ltd comparison,Calculator,90%,
+"Legal Hub (GDPR, UK employment rights)",LegalHub + pages,100%,
+Right to be forgotten documentation,Privacy + FAQ; not standalone doc product,50%,
+Data access requests,Described in Privacy/LegalHub,60%,Process via email per FAQ.
+Non-compete clause guidance,General legal text only,40%,
+Recruitment rights information,LegalHub content,70%,
+Animated AI avatar (5 states),Interview UI elements partial,60%,
+Microphone level analyzer,Possible in interview UI,60%,Verify.
+Auto-resize textarea,UI component behavior,80%,
+Sticky notes in sessions,Interview session UI,60%,
+Turn-by-turn STAR feedback,Interview + warmup feedback,85%,
+Animated waiting bubbles,Interview UI,60%,
+Session timer (MM:SS),Interview session timer,85%,
+Free: 10 applications,PLAN_LIMITS free applications 10,100%,
+Free: 20 AI credits/month,PLAN_LIMITS 20,100%,
+Free: 3 auto-apply per week,PLAN_LIMITS 3,100%,
+Free: Job discovery (6 sources),Multiple job sources incl. OpenAI,100%,
+Free: Application tracking,Applications pages,100%,
+Free: Daily warmup,/warmup,100%,
+Free: 30-day activity history,ReportsHub 30-Day Activity Timeline,90%,
+Free: Legal Hub access,/legal,100%,
+Pro: Unlimited applications,pro applications -1 (unlimited),100%,
+Pro: 500 AI credits/month,PLAN_LIMITS 500,100%,BillingPage may wrongly show 5000; fix.
+Pro: 15 auto-apply per week,PLAN_LIMITS 15,100%,
+Pro: Interview Practice (full),/interview,100%,
+Pro: Skills Lab,/skills,100%,
+Pro: Style Studio,/style-studio,100%,
+Pro: Reports Hub,/reports,100%,
+Pro: Follow-up Copilot,follow_up_copilot feature flag billing,80%,ZIP also lists as roadmap Q2—confusing.
+Pro: Negotiation Coach,/negotiation,100%,
+Pro: Salary Calculator,/salary,100%,
+Autopilot: 2000 AI credits/month,PLAN_LIMITS 2000,100%,
+Autopilot: 50 auto-apply per week,PLAN_LIMITS 50,100%,
+Autopilot: Custom SMTP,emailSettings SMTP,100%,
+Autopilot: Telegram Bot,telegram integration,100%,
+Autopilot: Bulk export (CSV/JSON),exports,90%,
+Autopilot: Priority support,Commercial promise; not code-verified,50%,Ops/policy.
+Autopilot: Advanced source intelligence,No dedicated module named this,20%,Vague; partial via job fit explain.
+Autopilot: Outreach Assist,Not found in codebase,0%,Roadmap only in ZIP; do not sell as live.
+Autopilot: Active session management,SecurityPage sessions + Clerk,85%,
+Autopilot: Passkeys (WebAuthn),Clerk passkeys + security router,100%,Not Autopilot-exclusive in code.
+Competitor table: AI CV Generation (Job-Specific),Style Studio / CV tailoring,90%,
+Competitor table: AI Cover Letter Generation,applications.generateCoverLetter etc.,100%,
+Competitor table: Fit Score Before Applying,scoreJobFit / UI,100%,
+Competitor table: Professional PDF Export,PDF exports,100%,
+Competitor table: Mock Interview AI,Interview Practice + liveInterview,95%,
+Competitor table: Interview Practice (6 modes),Interview modes,100%,
+Competitor table: Negotiation Coach,/negotiation,100%,
+Competitor table: Scam/MLM Filter,isScamJob + JobsDiscovery warnings,100%,
+Competitor table: Application Tracking,Applications + pipeline,100%,
+Competitor table: Email Integration,IMAP + SMTP settings + monitoring,100%,
+Competitor table: Auto Apply Queue,/auto-apply,100%,
+Competitor table: Skills Lab,/skills,100%,
+Competitor table: Outcome Learning,learningService + recordOutcome on pipeline,80%,
+Competitor table: Salary Calculator,/salary,100%,
+Security: Clerk (JWT) auth,Clerk + protectedProcedure,100%,
+Security: Row-level isolation,userId scoped queries,100%,
+Security: Passkeys WebAuthn,Clerk + passkeys table,100%,
+Security: Rate limiting general 200/15m,Express rate limit if configured,80%,Verify limits match copy.
+Security: Rate limiting AI 20/min,Interview/negotiation/assistant limits,80%,Verify.
+Security: Helmet.js headers,Helmet in server,80%,
+Security: CORS whitelist FRONTEND_URL,CORS config,90%,
+Security: Zod validation all tRPC,Zod inputs,100%,
+Security: Drizzle SQL injection safe,Drizzle ORM,100%,
+Security: AI Source Guard assertAllowedAssistantSourceType,Backend guard,90%,
+Security: PII redaction redactSensitiveText,Before OpenAI calls,85%,
+Security: IMAP headers-only fetch,imapMonitor implementation,50%,Must match actual fetch.
+Security: AES-256-GCM credentials encryption,ENCRYPTION_KEY path,90%,
+Security: Stripe webhook signature verification,billing webhooks,100%,
+Security: Multer upload 10MB memory,Upload middleware,90%,
+Security: Data retention pipeline 30/45/60 days,retentionJob,80%,Verify matches Privacy copy.
+Security: Clerk session management,Clerk sessions,100%,
+Security: npm audit dependency auditing,Process not automated in repo,40%,
+Industry table: JWT Authentication,Clerk JWT,100%,ZIP marks JobApp yes.
+Industry table: Row-level Isolation,userId scope,100%,
+Industry table: PII Redaction Before AI,redactSensitiveText,85%,
+Industry table: AI Source Guard,assertAllowedAssistantSourceType,90%,
+Industry table: Credentials Encryption,AES-GCM storage,90%,
+Industry table: Passkeys/WebAuthn,Clerk + DB,100%,
+Industry table: Automated Data Retention,retentionJob,80%,
+Industry table: AI Rate Limiting,Per-route limits,80%,
+Industry table: WAF / DDoS Protection,nginx/Cloudflare ops-dependent,50%,Infra not code-only.
+Industry table: SOC2 / ISO 27001,Not certified,0%,ZIP correctly shows JobApp no.
+Roadmap: Follow-Up Copilot (Q2 2026),Partially shipped: manual + scheduler + generateFollowUp,70%,Contradicts Pro pricing bullet.
+Roadmap: Autopilot Apply Queue (Q2 2026),Shipped: auto-apply queue,100%,Roadmap card outdated vs product.
+Roadmap: Advanced Source Intelligence (Q3 2026),Partial: company profile / explain job,30%,
+Roadmap: Outreach Assist (Q3 2026),Not shipped,0%,
+Roadmap: Company Reply Rate (Q3 2026),Not shipped as described,0%,
+Roadmap: Salary Intelligence (Q2 2026),Partial: UK calculator not full market intel,40%,
+Pricing card: Autopilot £39/mo (ZIP),Product £24.99 in PLAN_PRICES,0%,Update all marketing.
+(ZIP omits) MultivoHub brand vs JobApp,Product branding MultivoHub,N/A,Marketing pack uses JobApp.
+(ZIP omits) Job Radar v1 role scan/report/complaints,/job-radar/* + admin complaints,100%,Major module absent from ZIP narrative.
+(ZIP omits) Legacy Job Radar page /radar,/radar JobRadar.tsx,100%,Sidebar label Job Radar.
+(ZIP omits) Coach /coach,coachRouter + CoachPage,100%,
+(ZIP omits) Document Lab /documents,documentsRouter + DocumentLab,100%,
+(ZIP omits) Live interview mode (liveInterview router),InterviewPractice live mode + liveInterview tRPC,95%,Not spelled out on landing checklist.
+(ZIP omits) FAQ /faq,FAQPage,100%,
+(ZIP omits) Dashboard /dashboard,DashboardPage,100%,ZIP focuses on reports funnel wording.
+(ZIP omits) Read page aloud / accessibility shell,AppShell a11y control,80%,Not in ZIP feature grid.

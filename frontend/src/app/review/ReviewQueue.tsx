@@ -16,6 +16,7 @@ import {
   Briefcase,
   Bell,
   RotateCcw,
+  History,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -158,18 +159,28 @@ function SummaryBar({ apps }: { apps: Application[] }) {
 
 // ─── Queue card ───────────────────────────────────────────────────────────────
 
+type LogEntry = { id: string; action: string; createdAt: Date | string };
+
 function QueueCard({
   item,
   onStatusChange,
   onGoToInterview,
   onGoToNegotiation,
   isPending,
+  logsExpanded,
+  onToggleLogs,
+  logEntries,
+  logsLoading,
 }: {
   item: QueueItem;
   onStatusChange: (id: string, status: AppStatus) => void;
   onGoToInterview: () => void;
   onGoToNegotiation: () => void;
   isPending: boolean;
+  logsExpanded: boolean;
+  onToggleLogs: () => void;
+  logEntries: LogEntry[];
+  logsLoading: boolean;
 }) {
   const { app, action, urgency, label, detail } = item;
   const cfg = ACTION_CONFIG[action];
@@ -280,7 +291,43 @@ function QueueCard({
             Reopen as draft
           </button>
         )}
+
+        <button
+          type="button"
+          onClick={onToggleLogs}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-400 hover:bg-white/10 transition-colors"
+        >
+          <History className="h-3.5 w-3.5" />
+          {logsExpanded ? 'Hide activity' : 'Activity log'}
+        </button>
       </div>
+
+      {logsExpanded && (
+        <div className="mt-4 border-t border-white/8 pt-4">
+          {logsLoading ? (
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-400" />
+              Loading events…
+            </div>
+          ) : logEntries.length === 0 ? (
+            <p className="text-xs text-slate-500">No logged events for this application yet.</p>
+          ) : (
+            <ul className="max-h-40 space-y-2 overflow-y-auto text-xs">
+              {logEntries.map((entry) => (
+                <li
+                  key={entry.id}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-white/6 bg-black/20 px-2.5 py-1.5"
+                >
+                  <span className="font-medium text-slate-300">{entry.action}</span>
+                  <span className="shrink-0 text-slate-500">
+                    {new Date(entry.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -337,14 +384,23 @@ export default function ReviewQueue() {
   const userId = user?.id ?? '';
 
   const [filter, setFilter] = useState<FilterType>('all');
+  const [logForAppId, setLogForAppId] = useState<string | null>(null);
 
   const appsQuery = api.applications.getAll.useQuery(
     { userId },
     { enabled: isLoaded && !!userId },
   );
 
+  const logsQuery = api.applications.getLogs.useQuery(
+    { userId, applicationId: logForAppId ?? '' },
+    { enabled: isLoaded && !!userId && !!logForAppId },
+  );
+
   const statusMutation = api.applications.updateStatus.useMutation({
-    onSuccess: () => void appsQuery.refetch(),
+    onSuccess: () => {
+      void appsQuery.refetch();
+      void logsQuery.refetch();
+    },
   });
 
   if (!isLoaded) return null;
@@ -470,6 +526,10 @@ export default function ReviewQueue() {
               onGoToInterview={() => navigate('/interview')}
               onGoToNegotiation={() => navigate('/negotiation')}
               isPending={statusMutation.isPending}
+              logsExpanded={logForAppId === item.app.id}
+              onToggleLogs={() => setLogForAppId((cur) => (cur === item.app.id ? null : item.app.id))}
+              logEntries={(logsQuery.data ?? []) as LogEntry[]}
+              logsLoading={logForAppId === item.app.id && logsQuery.isFetching}
             />
           ))}
         </div>
@@ -479,10 +539,10 @@ export default function ReviewQueue() {
       {apps.length > 0 && (
         <div className="flex justify-center pt-2">
           <button
-            onClick={() => navigate('/applications')}
+            onClick={() => navigate('/applications/board')}
             className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-300 transition-colors"
           >
-            View full pipeline
+            Open kanban board
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>

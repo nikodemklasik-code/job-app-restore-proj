@@ -61,13 +61,13 @@ const FAQ_ITEMS: FaqItem[] = [
     category: 'AI Features',
     question: 'What AI features are available?',
     answer:
-      'MultivoHub includes: AI Assistant (career Q&A), Interview Ready (6-mode interview practice with STAR detection), Style Studio (CV and cover letter rewriting), CV Studio (CV generation), Negotiation Coach, Skills Lab, and Job Radar. All AI features use your profile data for personalised results.',
+      'MultivoHub includes: AI Assistant (career Q&A), Interview (6-mode practice with STAR detection), Daily Warmup, Style Studio (CV and cover letter rewriting), CV tools on the Profile page, Negotiation Coach, Skills Lab, Coach, and Job Radar. All AI features use your profile data for personalised results where you use them.',
   },
   {
     category: 'AI Features',
     question: 'How does Interview Ready work?',
     answer:
-      'Interview Ready simulates a real conversation with an AI recruiter. Choose a mode: Behavioral, Technical, HR, Case Study, Language Check, or General. The AI asks contextual questions, you respond, and get real-time STAR framework feedback and a coaching score at the end.',
+      'Interview (Interview Ready) simulates a conversation with an AI interviewer. Choose a mode: Behavioral, Technical, HR, Case Study, Language Check, or General. The AI asks contextual questions, you respond, and get real-time STAR-style feedback and a coaching score at the end.',
   },
   {
     category: 'AI Features',
@@ -93,13 +93,13 @@ const FAQ_ITEMS: FaqItem[] = [
     category: 'Privacy & Security',
     question: 'How are my interview sessions stored?',
     answer:
-      'Interview sessions are stored on your account and accessible only to you. Coaching reports are cryptographically signed to ensure they cannot be tampered with or fabricated.',
+      'Interview sessions and coaching output are stored against your account and are only available when you are signed in. They are not shared with employers automatically. Keep your own export (e.g. PDF from Interview) if you need an offline record.',
   },
   {
     category: 'Privacy & Security',
     question: 'Can I delete my data?',
     answer:
-      'Yes. You can remove your profile data at any time from the Profile page. To fully delete your account and all associated data, contact support.',
+      'Yes. You can edit or remove profile and CV content from the Profile page. Export application records from Reports (JSON/CSV). For full account erasure and formal data-subject requests under UK GDPR, email privacy@multivohub.com from your registered address — see the Privacy Policy for timelines and retention.',
   },
 
   // Billing & Plans
@@ -107,7 +107,7 @@ const FAQ_ITEMS: FaqItem[] = [
     category: 'Billing & Plans',
     question: 'What is included in the free plan?',
     answer:
-      'The free plan includes limited job searches, basic CV Studio access, and limited AI assistant queries. Upgrade to Pro or Autopilot for unlimited interviews, coaching reports, and full AI feature access.',
+      'The free plan includes limited job searches, basic CV and profile tools, and a lower monthly AI allowance. Upgrade to Pro or Autopilot from the Billing page for higher AI limits and access to paid-only features (exact entitlements are shown in-app and may change).',
   },
   {
     category: 'Billing & Plans',
@@ -265,8 +265,8 @@ export default function FAQPage() {
 
       {/* Questions */}
       <div className="space-y-3">
-        {filtered.map((item, i) => (
-          <FaqAccordion key={i} item={item} />
+        {filtered.map((item) => (
+          <FaqAccordion key={`${item.category}::${item.question}`} item={item} />
         ))}
       </div>
 

@@ -28,20 +28,21 @@ const PLANS = [
 
 // Feature comparison matrix — null = not in plan, true = included, string = note
 const COMPARISON_ROWS: { label: string; free: string | boolean | null; pro: string | boolean | null; autopilot: string | boolean | null }[] = [
-  { label: 'Profile builder',           free: true,   pro: true,  autopilot: true  },
-  { label: 'CV upload',                 free: true,   pro: true,  autopilot: true  },
-  { label: 'Job listings',              free: true,   pro: true,  autopilot: true  },
-  { label: 'Applications (max)',        free: '10',   pro: '∞',   autopilot: '∞'   },
-  { label: 'AI credits / month',        free: '500',  pro: '5 000', autopilot: '∞' },
-  { label: 'AI-generated documents',    free: null,   pro: true,  autopilot: true  },
-  { label: 'Interview practice',        free: null,   pro: true,  autopilot: true  },
-  { label: 'Negotiation Coach',         free: null,   pro: true,  autopilot: true  },
-  { label: 'Skills Lab',                free: null,   pro: true,  autopilot: true  },
-  { label: 'Style Studio',              free: null,   pro: true,  autopilot: true  },
-  { label: 'Salary Calculator',         free: null,   pro: true,  autopilot: true  },
-  { label: 'Auto-apply to matched jobs',free: null,   pro: null,  autopilot: true  },
-  { label: 'Telegram notifications',    free: null,   pro: null,  autopilot: true  },
-  { label: 'Follow-up email copilot',   free: null,   pro: null,  autopilot: true  },
+  { label: 'Profile builder',            free: true,   pro: true,  autopilot: true  },
+  { label: 'CV upload',                  free: true,   pro: true,  autopilot: true  },
+  { label: 'Job listings',               free: true,   pro: true,  autopilot: true  },
+  { label: 'Applications (max)',         free: '10',   pro: '∞',   autopilot: '∞'   },
+  { label: 'AI credits / month',         free: '500',  pro: '5 000', autopilot: '∞' },
+  { label: 'AI policy depth (system)',   free: 'Core', pro: 'Extended', autopilot: 'Full' },
+  { label: 'AI-generated documents',     free: null,   pro: true,  autopilot: true  },
+  { label: 'Interview practice',         free: null,   pro: true,  autopilot: true  },
+  { label: 'Negotiation Coach',          free: null,   pro: true,  autopilot: true  },
+  { label: 'Skills Lab',                 free: null,   pro: true,  autopilot: true  },
+  { label: 'Style Studio',               free: null,   pro: true,  autopilot: true  },
+  { label: 'Salary Calculator',          free: null,   pro: true,  autopilot: true  },
+  { label: 'Auto-apply to matched jobs', free: null,   pro: null,  autopilot: true  },
+  { label: 'Telegram notifications',     free: null,   pro: null,  autopilot: true  },
+  { label: 'Follow-up email copilot',    free: null,   pro: null,  autopilot: true  },
 ];
 
 function Cell({ value }: { value: string | boolean | null }) {
@@ -124,60 +125,77 @@ export default function BillingPage() {
   const referralLink = `https://jobs.multivohub.com/ref/${userId?.slice(0, 8) ?? 'YOUR_CODE'}`;
 
   return (
-    <div className="space-y-8">
-      <div>
+    <div className="mx-auto max-w-6xl space-y-10 pb-12">
+      <header className="space-y-1">
         <h1 className="text-3xl font-bold text-white">Billing &amp; Credits</h1>
-        <p className="mt-1 text-slate-400">Manage your plan, credits, and billing history.</p>
+        <p className="text-slate-400">Plans, top-ups, comparison table, and billing history in one place.</p>
+      </header>
+
+      {/* Alerts */}
+      <div className="space-y-3">
+        {statusMessage && (
+          <div className={`rounded-xl px-5 py-3 text-sm font-medium ${statusMessage.type === 'success' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+            {statusMessage.text}
+          </div>
+        )}
+        {capturingPayPal && (
+          <div className="flex items-center gap-3 rounded-xl bg-amber-500/10 px-5 py-3 text-sm text-amber-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Confirming your PayPal payment…
+          </div>
+        )}
       </div>
 
-      {statusMessage && (
-        <div className={`rounded-xl px-5 py-3 text-sm font-medium ${statusMessage.type === 'success' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-          {statusMessage.text}
-        </div>
-      )}
-
-      {capturingPayPal && (
-        <div className="flex items-center gap-3 rounded-xl bg-amber-500/10 px-5 py-3 text-sm text-amber-400">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Confirming your PayPal payment…
-        </div>
-      )}
-
-      {/* Current plan — compact banner */}
-      {currentPlan && (
-        <div className="flex items-center justify-between gap-4 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-5 py-3">
-          <div className="flex items-center gap-4">
-            <div>
-              <span className="text-xs text-slate-400 uppercase tracking-wider">Current plan</span>
-              <p className="text-lg font-bold text-white capitalize leading-tight">{currentPlan.plan}</p>
+      {/* Account snapshot */}
+      <section aria-labelledby="billing-account-heading" className="space-y-3">
+        <h2 id="billing-account-heading" className="text-lg font-semibold text-white">
+          Your account
+        </h2>
+        <p className="text-sm text-slate-500">Active subscription and remaining AI credits from the server.</p>
+        {currentPlan && (
+          <div className="flex flex-col gap-4 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-4">
+              <div>
+                <span className="text-xs text-slate-400 uppercase tracking-wider">Current plan</span>
+                <p className="text-lg font-bold capitalize leading-tight text-white">{currentPlan.plan}</p>
+              </div>
+              <div className="hidden h-8 w-px bg-white/10 sm:block" aria-hidden />
+              <div>
+                <span className="text-2xl font-bold text-white">{currentPlan.credits.toLocaleString()}</span>
+                <span className="ml-1.5 text-sm text-slate-400">AI credits</span>
+              </div>
+              {currentPlan.renewalDate && (
+                <>
+                  <div className="hidden h-8 w-px bg-white/10 sm:block" aria-hidden />
+                  <span className="text-sm text-slate-400">Renews {currentPlan.renewalDate}</span>
+                </>
+              )}
             </div>
-            <div className="h-8 w-px bg-white/10" />
-            <div>
-              <span className="text-2xl font-bold text-white">{currentPlan.credits.toLocaleString()}</span>
-              <span className="ml-1.5 text-sm text-slate-400">AI credits</span>
-            </div>
-            {currentPlan.renewalDate && (
-              <>
-                <div className="h-8 w-px bg-white/10" />
-                <span className="text-sm text-slate-400">Renews {currentPlan.renewalDate}</span>
-              </>
-            )}
+            <button
+              type="button"
+              onClick={() => { if (userId) void openCustomerPortal(userId).then((url) => { if (url) window.open(url, '_blank'); }); }}
+              className="flex shrink-0 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white transition hover:bg-white/10 sm:justify-start"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Manage in Stripe portal
+            </button>
           </div>
-          <button
-            onClick={() => { if (userId) void openCustomerPortal(userId).then((url) => { if (url) window.open(url, '_blank'); }); }}
-            className="flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white transition hover:bg-white/10"
-          >
-            <ExternalLink className="h-4 w-4" />
-            Manage
-          </button>
-        </div>
-      )}
+        )}
+      </section>
 
-      {/* Payment method toggle — only show when upgrade is possible */}
+      {/* Plans & payment */}
+      <section aria-labelledby="billing-plans-heading" className="space-y-5">
+        <div>
+          <h2 id="billing-plans-heading" className="text-lg font-semibold text-white">
+            Plans &amp; upgrades
+          </h2>
+          <p className="mt-0.5 text-sm text-slate-500">Pick a tier, then pay with card, PayPal, or crypto where enabled.</p>
+        </div>
+
       {currentRank < PLAN_RANK['autopilot'] && (
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <span className="text-sm text-slate-400">Pay with:</span>
-          <div className="flex rounded-xl border border-white/10 bg-white/5 p-1 gap-1 flex-wrap">
+          <div className="flex flex-wrap gap-1 rounded-xl border border-white/10 bg-white/5 p-1">
             <button onClick={() => setPaymentMethod('stripe')}
               className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition ${paymentMethod === 'stripe' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>
               <CreditCard className="h-4 w-4" />
@@ -198,12 +216,11 @@ export default function BillingPage() {
             <p className="text-xs text-slate-500">Card, Apple Pay &amp; Google Pay available at checkout via Stripe.</p>
           )}
           {paymentMethod === 'crypto' && (
-            <p className="text-xs text-amber-400/80">BTC, ETH, USDC via Coinbase Commerce. Activates within 10 min.</p>
+            <p className="w-full text-xs text-amber-400/80 sm:w-auto">BTC, ETH, USDC via Coinbase Commerce. Activates within 10 min.</p>
           )}
         </div>
       )}
 
-      {/* Plan cards */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {PLANS.map((plan) => {
           const isCurrentPlan = currentPlan?.plan === plan.id;
@@ -273,15 +290,16 @@ export default function BillingPage() {
           );
         })}
       </div>
+      </section>
 
-      {/* ── Buy Credits ─────────────────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-6 space-y-5">
+      {/* Buy Credits */}
+      <section aria-labelledby="billing-topup-heading" className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-6 space-y-5">
         <div className="flex items-center gap-3">
           <div className="inline-flex rounded-xl bg-amber-500/15 p-2.5">
             <Coins className="h-5 w-5 text-amber-400" />
           </div>
           <div>
-            <h2 className="font-semibold text-white">Buy Extra Credits</h2>
+            <h2 id="billing-topup-heading" className="font-semibold text-white">Buy Extra Credits</h2>
             <p className="text-sm text-slate-400">Top up any time — credits never expire and stack with your monthly allowance</p>
           </div>
         </div>
@@ -331,13 +349,14 @@ export default function BillingPage() {
             </div>
           ))}
         </div>
-        <p className="text-xs text-slate-500 text-center">Credits are added instantly after payment · No subscriptions · Works with any plan</p>
-      </div>
+        <p className="text-center text-xs text-slate-500">Credits are added instantly after payment · No subscriptions · Works with any plan</p>
+      </section>
 
       {/* Plan comparison table */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-        <div className="px-6 py-4 border-b border-white/10">
-          <h2 className="font-semibold text-white">Plan Comparison</h2>
+      <section aria-labelledby="billing-compare-heading" className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+        <div className="border-b border-white/10 px-6 py-4">
+          <h2 id="billing-compare-heading" className="font-semibold text-white">Plan comparison</h2>
+          <p className="mt-1 text-sm text-slate-500">Monthly allowances and included capabilities by subscription tier.</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -364,13 +383,13 @@ export default function BillingPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
 
       {/* Annual plans coming soon */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
-        <div className="flex items-center justify-between">
+      <section aria-labelledby="billing-annual-heading" className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-semibold text-white">Annual &amp; Long-Term Plans</h2>
+            <h2 id="billing-annual-heading" className="font-semibold text-white">Annual &amp; Long-Term Plans</h2>
             <p className="mt-0.5 text-sm text-slate-400">Save more with quarterly, semi-annual and annual billing — launching soon.</p>
           </div>
           <span className="rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-400">Coming Soon</span>
@@ -391,12 +410,12 @@ export default function BillingPage() {
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
       {/* Billing history */}
       {billingHistory.length > 0 && (
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-          <h2 className="mb-4 font-semibold text-white">Billing History</h2>
+        <section aria-labelledby="billing-history-heading" className="rounded-2xl border border-white/10 bg-white/5 p-6">
+          <h2 id="billing-history-heading" className="mb-4 font-semibold text-white">Billing history</h2>
           <div className="space-y-3">
             {billingHistory.map((item, idx) => (
               <div key={`${item.date}-${idx}`} className="flex items-center justify-between border-b border-white/10 pb-3 last:border-0">
@@ -411,17 +430,17 @@ export default function BillingPage() {
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {/* Patronage */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-5">
+      <section aria-labelledby="billing-patronage-heading" className="space-y-5 rounded-2xl border border-white/10 bg-white/5 p-6">
         <div className="flex items-center gap-3">
           <div className="inline-flex rounded-xl bg-rose-500/10 p-2.5">
             <Heart className="h-5 w-5 text-rose-400" />
           </div>
           <div>
-            <h2 className="font-semibold text-white">Support MultivoHub</h2>
+            <h2 id="billing-patronage-heading" className="font-semibold text-white">Support MultivoHub</h2>
             <p className="text-sm text-slate-400">Help keep this platform free for job seekers in difficult situations</p>
           </div>
         </div>
@@ -461,11 +480,11 @@ export default function BillingPage() {
           ))}
         </div>
         <p className="text-center text-xs text-slate-500">100% of patronage goes to platform costs and supporting users who cannot afford Pro</p>
-      </div>
+      </section>
 
       {/* Refer a Friend */}
-      <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-6">
-        <h3 className="text-lg font-semibold text-white">Refer a Friend</h3>
+      <section aria-labelledby="billing-refer-heading" className="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-6">
+        <h2 id="billing-refer-heading" className="text-lg font-semibold text-white">Refer a friend</h2>
         <p className="mt-1 text-sm text-slate-400">
           For every friend who signs up and buys any plan — you get <strong className="text-white">1 month free</strong>.
         </p>
@@ -483,11 +502,11 @@ export default function BillingPage() {
             {copySuccess ? 'Copied!' : 'Copy'}
           </button>
         </div>
-      </div>
+      </section>
 
       {isLoading && (
-        <div className="flex h-16 items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+        <div className="flex h-16 items-center justify-center rounded-2xl border border-white/5 bg-white/[0.02]">
+          <Loader2 className="h-6 w-6 animate-spin text-indigo-500" aria-label="Loading billing data" />
         </div>
       )}
     </div>

@@ -7,6 +7,11 @@ export * from './shared/adaptation-rules.js';
 export * from './shared/output-format-rules.js';
 export * from './shared/abuse-resistance-rules.js';
 export * from './shared/persona-stability-rules.js';
+export * from './shared/capacity-adaptation-rules.js';
+export * from './shared/skill-growth-rules.js';
+export * from './shared/positive-motivation-rules.js';
+export * from './shared/neurodiversity-aware-coaching-rules.js';
+export * from './shared/universal-behavior-layer.js';
 
 export * from './assistant/assistant-system.prompt.js';
 export * from './warmup/warmup-evaluation.prompt.js';

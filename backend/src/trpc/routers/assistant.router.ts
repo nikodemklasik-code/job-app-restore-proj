@@ -9,6 +9,7 @@ import {
   generateCareerResponse,
   redactSensitiveText,
 } from '../../services/openai.js';
+import { getUserPlan, planToPromptBehaviorTier } from '../../services/billingGuard.js';
 import { protectedProcedure, router } from '../trpc.js';
 
 async function getOrCreateConversation(userId: string): Promise<string> {
@@ -94,9 +95,13 @@ export const assistantRouter = router({
         .orderBy(desc(assistantMessages.createdAt))
         .limit(12);
 
+      const plan = await getUserPlan(ctx.user.clerkId);
+      const behaviorTier = planToPromptBehaviorTier(plan);
+
       const aiText = await generateCareerResponse({
         mode: input.mode,
         sourceType,
+        behaviorTier,
         messages: recent.reverse().map((m) => ({
           role: m.role as 'user' | 'assistant',
           content: m.role === 'user' ? redactSensitiveText(m.text) : m.text,

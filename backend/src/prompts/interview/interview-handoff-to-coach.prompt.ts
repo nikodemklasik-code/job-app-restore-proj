@@ -1,6 +1,7 @@
 import { SYSTEM_CORE } from '../shared/system-core.js';
 import { FEEDBACK_RULES } from '../shared/feedback-rules.js';
 import { OUTPUT_FORMAT_RULES } from '../shared/output-format-rules.js';
+import { UNIVERSAL_BEHAVIOR_LAYER } from '../shared/universal-behavior-layer.js';
 
 export function buildInterviewHandoffPrompt(params: {
   targetRole: string;
@@ -13,6 +14,7 @@ export function buildInterviewHandoffPrompt(params: {
 ${SYSTEM_CORE}
 ${FEEDBACK_RULES}
 ${OUTPUT_FORMAT_RULES}
+${UNIVERSAL_BEHAVIOR_LAYER}
 
 Mode: Interview -> Coach Handoff
 

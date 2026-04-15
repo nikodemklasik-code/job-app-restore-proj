@@ -1,8 +1,23 @@
 import { db } from '../db/index.js';
 import { subscriptions, users } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
+import type { BehaviorLayerTier } from '../prompts/shared/universal-behavior-layer.js';
 
 export type PlanTier = 'free' | 'pro' | 'autopilot';
+
+/** Subscription → how much universal behavior policy is injected on tiered AI routes (Assistant, Style). */
+export function planToPromptBehaviorTier(plan: PlanTier): BehaviorLayerTier {
+  switch (plan) {
+    case 'free':
+      return 'minimal';
+    case 'pro':
+      return 'standard';
+    case 'autopilot':
+      return 'full';
+    default:
+      return 'minimal';
+  }
+}
 
 export const PLAN_FEATURES: Record<PlanTier, string[]> = {
   free: [

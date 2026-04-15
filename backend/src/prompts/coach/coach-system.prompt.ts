@@ -3,6 +3,7 @@ import { TONE_RULES } from '../shared/tone-rules.js';
 import { FEEDBACK_RULES } from '../shared/feedback-rules.js';
 import { COMPLIANCE_RULES } from '../shared/compliance-rules.js';
 import { OUTPUT_FORMAT_RULES } from '../shared/output-format-rules.js';
+import { UNIVERSAL_BEHAVIOR_LAYER } from '../shared/universal-behavior-layer.js';
 
 export function buildCoachSystemPrompt(params: {
   targetRole: string;
@@ -16,6 +17,7 @@ ${TONE_RULES}
 ${FEEDBACK_RULES}
 ${COMPLIANCE_RULES}
 ${OUTPUT_FORMAT_RULES}
+${UNIVERSAL_BEHAVIOR_LAYER}
 
 Mode: Coach
 

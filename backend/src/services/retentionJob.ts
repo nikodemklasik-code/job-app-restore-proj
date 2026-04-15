@@ -20,7 +20,11 @@ import { eq, inArray } from 'drizzle-orm';
 import nodemailer from 'nodemailer';
 
 const DAY = 24 * 60 * 60 * 1000;
-const APP_URL = 'https://jobapp.multivohub.com';
+/** Canonical app URL for retention emails (must match FRONTEND_URL in production). */
+const APP_URL =
+  process.env.FRONTEND_URL?.replace(/\/$/, '') ||
+  process.env.APP_URL?.replace(/\/$/, '') ||
+  'https://jobs.multivohub.com';
 
 async function getTransport() {
   if (!process.env.SMTP_HOST) return null;
@@ -83,12 +87,12 @@ function retentionEmailHtml(type: 1 | 2): string {
         </td></tr></table>
         <p style="color:#475569;margin:28px 0 0;font-size:13px;text-align:center;line-height:1.6;">
           If you have an active paid subscription, your account is safe and this message doesn't apply.<br>
-          To permanently delete your account now, visit Settings in the app.
+          To request full account deletion under UK GDPR, email privacy@multivohub.com from your registered address.
         </p>
       </td></tr>
       <!-- Footer -->
       <tr><td style="border-top:1px solid #1e293b;padding:24px 40px;text-align:center;">
-        <p style="color:#475569;margin:0;font-size:12px;">MultivoHub · jobapp.multivohub.com<br>
+        <p style="color:#475569;margin:0;font-size:12px;">MultivoHub<br>
         You're receiving this because your account has been inactive. <a href="${APP_URL}/settings" style="color:#6366f1;">Manage notifications</a></p>
       </td></tr>
     </table>

@@ -4,6 +4,7 @@ import { FEEDBACK_RULES } from '../shared/feedback-rules.js';
 import { COMPLIANCE_RULES } from '../shared/compliance-rules.js';
 import { MULTIMODAL_RULES } from '../shared/multimodal-rules.js';
 import { ADAPTATION_RULES } from '../shared/adaptation-rules.js';
+import { UNIVERSAL_BEHAVIOR_LAYER } from '../shared/universal-behavior-layer.js';
 
 export function buildInterviewSystemPrompt(params: {
   targetRole: string;
@@ -19,6 +20,7 @@ ${FEEDBACK_RULES}
 ${COMPLIANCE_RULES}
 ${MULTIMODAL_RULES}
 ${ADAPTATION_RULES}
+${UNIVERSAL_BEHAVIOR_LAYER}
 
 Mode: AI Interview
 

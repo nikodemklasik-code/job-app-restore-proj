@@ -229,6 +229,7 @@ export default function AssistantPage() {
   const { isSignedIn } = useUser();
 
   const [input, setInput] = useState('');
+  const [replyMode, setReplyMode] = useState<'general' | 'cv' | 'interview' | 'salary'>('general');
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -298,7 +299,12 @@ export default function AssistantPage() {
     if (!input.trim() || isSending) return;
     const text = input;
     setInput('');
-    await sendMessage(text, 'general');
+    await sendMessage(text, replyMode);
+  };
+
+  const handleQuickStart = async (prompt: string, mode: 'general' | 'cv' | 'interview' | 'salary') => {
+    setReplyMode(mode);
+    await sendMessage(prompt, mode);
   };
 
   const handleSpeak = async (msgId: string, text: string) => {
@@ -374,7 +380,7 @@ export default function AssistantPage() {
             </div>
           ) : messages.length === 0 ? (
             <EmptyState
-              onAction={(prompt, mode) => void sendMessage(prompt, mode)}
+              onAction={(prompt, mode) => void handleQuickStart(prompt, mode)}
               isSending={isSending}
             />
           ) : (
@@ -394,7 +400,31 @@ export default function AssistantPage() {
         </div>
 
         {/* ── Input bar ───────────────────────────────────────────────── */}
-        <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur-sm">
+        <div className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur-sm">
+          <div className="flex flex-wrap gap-1.5">
+            {(
+              [
+                { id: 'general' as const, label: 'General' },
+                { id: 'cv' as const, label: 'CV' },
+                { id: 'interview' as const, label: 'Interview' },
+                { id: 'salary' as const, label: 'Salary' },
+              ]
+            ).map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setReplyMode(m.id)}
+                className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${
+                  replyMode === m.id
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200'
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-end gap-2">
           <textarea
             ref={textareaRef}
             rows={1}
@@ -435,10 +465,11 @@ export default function AssistantPage() {
               <Send className="h-4 w-4" />
             </button>
           </div>
+          </div>
         </div>
 
         <p className="text-center text-[11px] text-slate-600">
-          Enter to send · Shift+Enter for new line · Mic for voice
+          Mode applies to typed messages · Enter to send · Shift+Enter for new line · Mic for voice
         </p>
     </div>
   );

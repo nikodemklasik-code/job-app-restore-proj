@@ -1,6 +1,8 @@
-import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Sparkles, ArrowLeft } from 'lucide-react';
 
+/** When you change AI / liability materially, bump `AI_ASSISTED_NOTICE_VERSION` in `src/lib/legalNoticeVersion.ts`. */
 const LAST_UPDATED = '15 April 2026';
 
 interface Section {
@@ -55,6 +57,12 @@ const SECTIONS: Section[] = [
           The Service is intended for individuals seeking employment in the United Kingdom. While some features
           may be useful for international job seekers, our AI tools and legal reference content are calibrated
           to UK norms, legislation, and employer expectations.
+        </p>
+        <p className="mt-3">
+          MultivoHub relies heavily on artificial intelligence across core workflows (including document drafting,
+          interview simulation, coaching, job matching, Job Radar, and optional automation). By using the Service you
+          accept the risk allocation and disclaimers in Section 6 (AI-Generated Content) and Section 9 (Limitation of
+          Liability) in addition to the rest of these Terms.
         </p>
         <p className="mt-3">
           We reserve the right to modify, suspend, or discontinue any part of the Service at any time with
@@ -112,6 +120,10 @@ const SECTIONS: Section[] = [
           <li>Attempt to gain unauthorised access to any part of the Service or its infrastructure</li>
           <li>Reverse engineer, decompile, or disassemble any software component of the Service</li>
           <li>Use AI-generated output from the Service to impersonate another person or create deceptive content</li>
+          <li>Use AI features to generate or send unlawful, harassing, hateful, or discriminatory content to any person or organisation</li>
+          <li>Attempt to probe, extract, or circumvent system prompts, safety filters, rate limits, metering, or other technical controls on AI features</li>
+          <li>Use the Service or AI output to mislead employers, regulators, or public authorities, or to conceal material facts you are legally required to disclose</li>
+          <li>Use the Service (including Autopilot or integrations) to interact with third-party websites, APIs, or employers in a way that violates their terms of service or applicable law, including by excessive automated submissions</li>
           <li>Resell, sublicense, or commercialise access to the Service without our express written consent</li>
           <li>Interfere with or disrupt the integrity or performance of the Service or the data contained therein</li>
         </ul>
@@ -142,22 +154,25 @@ const SECTIONS: Section[] = [
           <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
             <p className="font-semibold text-white">Pro</p>
             <p className="text-sm text-slate-400 mt-1">
-              Unlimited AI tools, full application pipeline, interview practice, style studio, and priority support.
-              Billed monthly or annually at the rate displayed at checkout.
+              Higher monthly AI allowance than Free, full application pipeline, interview practice, Style Studio,
+              and other features as shown on the Billing page. AI usage may be metered — limits are displayed in-app
+              and at checkout. Billed monthly or annually at the rate displayed at checkout.
             </p>
           </div>
           <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
             <p className="font-semibold text-white">Autopilot</p>
             <p className="text-sm text-slate-400 mt-1">
-              All Pro features plus automated job application submission and advanced AI personalisation.
-              Billed monthly or annually at the rate displayed at checkout.
+              Pro-equivalent features plus automated job application submission and advanced AI personalisation, with
+              the highest AI allowance tier we offer (see Billing for current limits). Billed monthly or annually at
+              the rate displayed at checkout.
             </p>
           </div>
         </div>
         <p className="mt-4">
-          Payments are processed securely by Stripe or PayPal. By subscribing to a paid plan, you authorise
-          us to charge the applicable fees to your chosen payment method on a recurring basis. All prices are
-          shown in GBP and include VAT where applicable.
+          Payments are processed securely by Stripe, PayPal, and/or other methods we offer at checkout (such as
+          cryptocurrency via a third-party checkout). By subscribing to a paid plan, you authorise us to charge
+          the applicable fees on a recurring basis where that payment method supports it. All prices are shown in
+          GBP and include VAT where applicable.
         </p>
         <p className="mt-3">
           You may cancel your subscription at any time. Cancellation takes effect at the end of the current
@@ -179,39 +194,57 @@ const SECTIONS: Section[] = [
     content: (
       <>
         <p>
-          MultivoHub uses artificial intelligence, including large language models provided by third parties
-          such as OpenAI, to generate CVs, cover letters, interview responses, and other content on your behalf
-          ("AI-Generated Content").
+          MultivoHub uses artificial intelligence, including large language models and related services provided by
+          third parties (for example OpenAI), to power CVs, cover letters, interview and negotiation coaching,
+          assistant chat, Job Radar summaries, fit scoring, Autopilot drafts, and other features ("AI-Generated
+          Content" includes text, scores, classifications, and structured suggestions produced for you).
         </p>
         <p className="mt-3">
           You acknowledge and agree that:
         </p>
         <ul className="list-disc pl-6 mt-3 space-y-1.5">
           <li>
-            AI-Generated Content is provided for assistance only and does not constitute professional advice
-            of any kind, including legal, financial, career, or medical advice
+            AI-Generated Content is provided for assistance only and does not constitute professional advice of any
+            kind, including legal, tax, financial, medical, immigration, or regulated career advice. You must obtain
+            your own professional advice where decisions carry legal or financial consequences.
           </li>
           <li>
-            You are solely responsible for reviewing, editing, and verifying the accuracy of any AI-Generated
-            Content before submitting it to employers, recruiters, or any third party
+            You are solely responsible for reviewing, editing, and verifying the accuracy, completeness, and
+            lawfulness of any AI-Generated Content before you rely on it, publish it, or submit it to employers,
+            recruiters, platforms, or any third party — including any fields pre-filled by Autopilot or similar
+            automation. You remain the author and sender of anything sent in your name.
           </li>
           <li>
-            Inaccuracies, hallucinations, or errors may appear in AI-Generated Content; MultivoHub does not
-            warrant that such content is accurate, complete, or fit for any particular purpose
+            Models can produce inaccuracies, omissions, bias, unsafe suggestions, or "hallucinated" facts or
+            citations. Similar wording may appear for different users. We do not warrant uniqueness, originality,
+            non-infringement, or fitness of AI-Generated Content for any particular purpose.
           </li>
           <li>
-            You must not submit AI-Generated Content that misrepresents your qualifications, experience, or
-            identity — doing so may constitute fraud and is a violation of these Terms
+            Third-party AI providers process inputs and outputs under their own technical and contractual terms in
+            addition to ours. Features may be modified, suspended, or withdrawn if a provider changes policy,
+            pricing, or availability, or where we reasonably need to address misuse, safety, or compliance.
           </li>
           <li>
-            By submitting input to AI features, you grant us a licence to process that input solely for the
-            purpose of providing the Service
+            You must not submit AI-Generated Content that misrepresents your qualifications, experience, or identity,
+            or that conceals material information you are required to disclose — doing so may constitute fraud or
+            breach of law and is a violation of these Terms.
+          </li>
+          <li>
+            By submitting input to AI features, you confirm you have the rights to do so and you grant MultivoHub a
+            licence to process that input (and related account data strictly necessary for context) solely to
+            provide and secure the Service, as further described in our Privacy Policy.
+          </li>
+          <li>
+            Where you enable microphone, camera, or other device features for interview or coaching tools, you
+            consent to capture and transmission of that media to our systems and subprocessors solely to run those
+            features, subject to your device permissions and our Privacy Policy.
           </li>
         </ul>
         <p className="mt-3">
-          MultivoHub shall not be liable for any loss or damage arising from your use of or reliance on
-          AI-Generated Content, including any consequences arising from submissions made to third parties
-          on the basis of such content.
+          To the fullest extent permitted by applicable law, MultivoHub and its suppliers shall not be liable for any
+          loss or damage arising from your use of or reliance on AI-Generated Content, including rejected
+          applications, reputational harm, missed opportunities, or disputes with third parties, except where liability
+          cannot be excluded under applicable law (see Section 9).
         </p>
       </>
     ),
@@ -296,6 +329,13 @@ const SECTIONS: Section[] = [
           You represent and warrant that you own or have the necessary rights to any User Content you submit,
           and that such content does not infringe the intellectual property rights of any third party.
         </p>
+        <p className="mt-3">
+          If a third party makes a written claim that specific User Content you uploaded infringes their intellectual
+          property rights, you agree to cooperate in good faith with MultivoHub, including by providing factual
+          information we reasonably request, by promptly removing or amending that content where we reasonably ask, and
+          by not settling any matter in MultivoHub&apos;s name without our prior written consent. You remain solely
+          responsible for unlawful User Content you supply.
+        </p>
       </>
     ),
   },
@@ -318,6 +358,10 @@ const SECTIONS: Section[] = [
             viruses or other harmful components
           </li>
           <li>
+            We are not liable for delays or failures caused by events outside our reasonable control, including
+            failures of third-party AI providers, hosting networks, payment networks, or telecommunications.
+          </li>
+          <li>
             MultivoHub shall not be liable for any indirect, incidental, special, consequential, or
             punitive damages, including loss of profits, data, goodwill, or business opportunities,
             arising from your use of or inability to use the Service
@@ -326,6 +370,11 @@ const SECTIONS: Section[] = [
             Our total aggregate liability to you for any claims arising under or in connection with these
             Terms shall not exceed the greater of (a) the total fees paid by you to MultivoHub in the
             12 months preceding the claim, or (b) £100
+          </li>
+          <li>
+            Without limiting the foregoing, dissatisfaction with the quality, tone, accuracy, or outcome of
+            AI-Generated Content, or with automated recommendations or scores, falls within the same limitations
+            and aggregate cap, subject always to rights you cannot waive as a consumer under UK law.
           </li>
         </ul>
         <p className="mt-3">
@@ -426,8 +475,46 @@ const SECTIONS: Section[] = [
     ),
   },
   {
+    id: 'general-legal',
+    title: '14. General legal terms',
+    content: (
+      <>
+        <p>
+          <span className="text-white font-medium">Severability:</span> If any provision of these Terms is held to be
+          invalid or unenforceable, the remaining provisions remain in full force and effect.
+        </p>
+        <p className="mt-3">
+          <span className="text-white font-medium">No waiver:</span> Failure by MultivoHub to enforce any right or
+          provision does not waive our right to enforce that or any other provision later.
+        </p>
+        <p className="mt-3">
+          <span className="text-white font-medium">Survival:</span> Provisions that by their nature should survive
+          termination of your account (including payment obligations accrued before termination, intellectual property
+          provisions, disclaimers and limitations of liability where permitted, AI risk allocation in Section 6, and
+          governing law) survive termination.
+        </p>
+        <p className="mt-3">
+          <span className="text-white font-medium">Assignment:</span> You may not assign or transfer these Terms or
+          your account without our prior written consent. MultivoHub may assign these Terms to an affiliate or a
+          successor in connection with a merger, acquisition, corporate reorganisation, or sale of assets, with
+          reasonable notice (including by email or in-app message).
+        </p>
+        <p className="mt-3">
+          <span className="text-white font-medium">Equitable relief:</span> Without limiting other remedies, we may
+          seek injunctive or equitable relief where your breach of these Terms (including Acceptable Use or misuse of
+          AI features) threatens harm that would not be adequately compensated by damages alone.
+        </p>
+        <p className="mt-3">
+          <span className="text-white font-medium">Electronic contracting and records:</span> You consent to conduct
+          business and communicate electronically. You agree that notices and records provided electronically satisfy
+          any legal writing requirement where permitted by applicable law.
+        </p>
+      </>
+    ),
+  },
+  {
     id: 'contact',
-    title: '14. Contact',
+    title: '15. Contact',
     content: (
       <>
         <p>
@@ -467,6 +554,17 @@ const SECTIONS: Section[] = [
 ];
 
 export default function TermsPage() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const hash = location.hash?.replace(/^#/, '');
+    if (!hash) return;
+    const t = window.setTimeout(() => {
+      document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+    return () => window.clearTimeout(t);
+  }, [location.hash]);
+
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       {/* Header */}
@@ -496,8 +594,9 @@ export default function TermsPage() {
           <p className="mt-2 text-sm text-slate-500">Last updated: {LAST_UPDATED}</p>
           <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3">
             <p className="text-sm text-amber-300 leading-relaxed">
-              Please read these Terms carefully before using MultivoHub. By creating an account or using
-              the Service you agree to be bound by them.
+              Please read these Terms carefully before using MultivoHub. By creating an account or using the Service
+              you agree to be bound by them, including the AI risk allocation in Section 6 and the limitation of
+              liability in Section 9.
             </p>
           </div>
         </div>

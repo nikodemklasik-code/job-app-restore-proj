@@ -12,6 +12,7 @@ import {
   Mail,
   Loader2,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 
 function statusBadge(status: string) {
@@ -117,11 +118,19 @@ export default function ApplicationsPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Applications</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Manage draft applications, prepare documents, send employer emails, and track application lifecycle.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Applications</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Prepare documents, send employer email, and track lifecycle — all backed by your account data.
+          </p>
+        </div>
+        <Link
+          to="/applications/board"
+          className="shrink-0 self-start rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          Kanban board view
+        </Link>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">

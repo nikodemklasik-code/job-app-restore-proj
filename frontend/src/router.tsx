@@ -6,6 +6,7 @@ import AppShell from './components/layout/AppShell';
 const AuthPage = lazy(() => import('./app/auth/AuthPage'));
 const DashboardPage = lazy(() => import('./app/dashboard/DashboardPage'));
 const JobsDiscovery = lazy(() => import('./app/jobs/JobsDiscovery'));
+const ApplicationsPage = lazy(() => import('./app/applications/ApplicationsPage'));
 const ApplicationsPipeline = lazy(() => import('./app/applications/ApplicationsPipeline'));
 const ReviewQueue = lazy(() => import('./app/review/ReviewQueue'));
 const AssistantPage = lazy(() => import('./app/assistant/AssistantPage'));
@@ -90,7 +91,8 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: 'dashboard', element: withSuspense(DashboardPage) },
       { path: 'jobs', element: withSuspense(JobsDiscovery) },
-      { path: 'applications', element: withSuspense(ApplicationsPipeline) },
+      { path: 'applications', element: withSuspense(ApplicationsPage) },
+      { path: 'applications/board', element: withSuspense(ApplicationsPipeline) },
       { path: 'review', element: withSuspense(ReviewQueue) },
       { path: 'assistant', element: withSuspense(AssistantPage) },
       { path: 'interview', element: withSuspense(InterviewPractice) },

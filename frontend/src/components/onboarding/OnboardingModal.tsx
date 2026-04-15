@@ -1,11 +1,27 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Sparkles, User, Briefcase, Mic, ChevronRight, X,
-  Upload, Search, ClipboardList, CheckCircle, Bot,
+  Sparkles,
+  User,
+  Briefcase,
+  Mic,
+  ChevronRight,
+  X,
+  Search,
+  ClipboardList,
+  CheckCircle,
+  Bot,
+  PanelTop,
+  Volume2,
+  VolumeX,
+  ChevronUp,
+  FileText,
+  LayoutGrid,
 } from 'lucide-react';
 
 const STORAGE_KEY = 'multivohub_onboarding_done';
+const SESSION_UI_KEY = 'multivohub_onboarding_ui';
+const SESSION_STEP_KEY = 'multivohub_onboarding_step';
 
 export function hasCompletedOnboarding(): boolean {
   try {
@@ -15,11 +31,70 @@ export function hasCompletedOnboarding(): boolean {
   }
 }
 
+export function readOnboardingSessionUi(): 'minimized' | null {
+  try {
+    return sessionStorage.getItem(SESSION_UI_KEY) === 'minimized' ? 'minimized' : null;
+  } catch {
+    return null;
+  }
+}
+
+export function readOnboardingSessionStep(): number | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_STEP_KEY);
+    if (raw == null) return null;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) ? n : null;
+  } catch {
+    return null;
+  }
+}
+
 function markOnboardingDone(): void {
   try {
     localStorage.setItem(STORAGE_KEY, 'true');
   } catch {
     // ignore storage errors
+  }
+}
+
+function clearOnboardingSession(): void {
+  try {
+    sessionStorage.removeItem(SESSION_UI_KEY);
+    sessionStorage.removeItem(SESSION_STEP_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+/** Clear only the minimized UI flag so the next visit opens fullscreen while keeping step in session. */
+export function clearOnboardingMinimizedFlag(): void {
+  try {
+    sessionStorage.removeItem(SESSION_UI_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export function completeOnboardingForever(): void {
+  markOnboardingDone();
+  clearOnboardingSession();
+}
+
+function persistOnboardingSessionMinimized(step: number): void {
+  try {
+    sessionStorage.setItem(SESSION_UI_KEY, 'minimized');
+    sessionStorage.setItem(SESSION_STEP_KEY, String(step));
+  } catch {
+    // ignore
+  }
+}
+
+function persistStepOnly(step: number): void {
+  try {
+    sessionStorage.setItem(SESSION_STEP_KEY, String(step));
+  } catch {
+    // ignore
   }
 }
 
@@ -39,9 +114,9 @@ const STEPS: Step[] = [
     icon: Sparkles,
     title: 'Welcome to MultivoHub',
     description:
-      "Your AI-powered career workspace. We help you find great roles, prepare for interviews, and land the job — faster.",
+      'Your AI-powered career workspace. We help you find great roles, prepare for interviews, and land the job — faster.',
     aiTip:
-      "Hey! I'm your AI guide 👋 I'll walk you through the key features in under 2 minutes. You can revisit any section from the sidebar at any time.",
+      "Hey! I'm your AI guide. I'll walk you through the key features in under 2 minutes. You can revisit any section from the sidebar at any time.",
   },
   {
     icon: User,
@@ -49,7 +124,7 @@ const STEPS: Step[] = [
     description:
       "Upload your CV (PDF) and we'll auto-fill your profile. Your data powers CV generation, cover letters, and job matching.",
     aiTip:
-      "Pro tip: the more complete your CV Studio is, the better your job match scores. Even a rough CV is fine — you can always refine it later inside the editor.",
+      'The more complete your CV Studio is, the better your job match scores. Even a rough CV is fine — you can refine it later in the editor.',
     cta: 'Go to CV Studio',
     route: '/profile',
   },
@@ -59,7 +134,7 @@ const STEPS: Step[] = [
     description:
       'Search live jobs from Reed, Adzuna, Jooble, and more. Each result shows an AI-calculated fit score based on your profile.',
     aiTip:
-      "I calculate a fit score (0–100%) for every listing using your skills, title, and experience. Green = strong match. Focus there first to save time.",
+      'I calculate a fit score for every listing using your skills, title, and experience. Strong matches show in green — focus there first to save time.',
     cta: 'Browse Jobs',
     route: '/jobs',
   },
@@ -69,9 +144,9 @@ const STEPS: Step[] = [
     description:
       'Add jobs to your pipeline and track them through stages: Saved → Applied → In Review → Interview → Offer. Never lose track.',
     aiTip:
-      "Treat your pipeline like a Kanban board. Moving a card to 'Expired' or 'Closed' keeps your focus on live opportunities — no clutter, no confusion.",
-    cta: 'Open Pipeline',
-    route: '/applications',
+      "Treat your pipeline like a Kanban board. Move stale cards to Expired or Closed so you stay focused on live opportunities.",
+    cta: 'Open pipeline board',
+    route: '/applications/board',
   },
   {
     icon: Mic,
@@ -79,7 +154,7 @@ const STEPS: Step[] = [
     description:
       'Use Interview Ready to practice with an AI coach. Choose from Behavioral, Technical, HR, Case Study, and more. Get instant STAR feedback.',
     aiTip:
-      "I score every answer on STAR structure, clarity, and confidence. Candidates who practice 3+ sessions see measurably better real-interview outcomes. Let's go! 💪",
+      'Every answer is scored on STAR structure, clarity, and confidence. Candidates who practice several sessions often feel calmer in real interviews.',
     cta: 'Start Practicing',
     route: '/interview',
   },
@@ -87,13 +162,50 @@ const STEPS: Step[] = [
     icon: Briefcase,
     title: "You're all set!",
     description:
-      'Explore the sidebar to discover all tools: Career Assistant, Style Studio, Review Queue, and more. Good luck! 🚀',
+      'Explore the sidebar to discover all tools: Career Assistant, Style Studio, Review Queue, and more. Good luck with your search.',
     aiTip:
-      "You're ready! Remember: I'm always one click away in Career Assistant if you need strategy advice, help writing a cover letter, or just want to think out loud. You've got this!",
+      "You're ready. I am always one click away in Career Assistant if you need strategy advice, cover letter help, or a thinking partner.",
     cta: 'Go to Dashboard',
     route: '/dashboard',
   },
 ];
+
+export const ONBOARDING_STEP_COUNT = STEPS.length;
+
+function stepCtaIcon(stepIndex: number, isLast: boolean) {
+  if (isLast) return CheckCircle;
+  const s = STEPS[stepIndex];
+  if (s.route === '/profile') return FileText;
+  if (s.route === '/jobs') return Search;
+  if (s.route === '/applications/board') return LayoutGrid;
+  if (s.route === '/interview') return Mic;
+  if (s.route === '/dashboard') return ChevronRight;
+  return ChevronRight;
+}
+
+function stripForSpeech(text: string): string {
+  return text.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').replace(/\s+/g, ' ').trim();
+}
+
+function speakOnboardingBlock(text: string, onEnd?: () => void): void {
+  if (typeof window === 'undefined' || !window.speechSynthesis) {
+    onEnd?.();
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(stripForSpeech(text));
+  u.lang = 'en-GB';
+  u.rate = 0.95;
+  u.onend = () => onEnd?.();
+  u.onerror = () => onEnd?.();
+  window.speechSynthesis.speak(u);
+}
+
+function stopOnboardingSpeech(): void {
+  if (typeof window !== 'undefined' && window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
+}
 
 // ── Typing animation hook ──────────────────────────────────────────────────
 
@@ -119,37 +231,139 @@ function useTypingText(text: string, enabled: boolean): string {
   return displayed;
 }
 
-// ── Component ──────────────────────────────────────────────────────────────
+// ── Minimized dock ─────────────────────────────────────────────────────────
 
-interface OnboardingModalProps {
-  onClose: () => void;
+export interface OnboardingDockProps {
+  step: number;
+  onExpand: () => void;
+  onDontShowAgain: () => void;
 }
 
-export default function OnboardingModal({ onClose }: OnboardingModalProps) {
-  const [step, setStep] = useState(0);
+export function OnboardingDock({ step, onExpand, onDontShowAgain }: OnboardingDockProps) {
+  const [speaking, setSpeaking] = useState(false);
+  const safeStep = Math.min(Math.max(step, 0), STEPS.length - 1);
+  const current = STEPS[safeStep]!;
+
+  const listenLabel = useCallback(() => {
+    return `${current.title}. ${current.description} ${current.aiTip}`;
+  }, [current]);
+
+  const toggleListen = () => {
+    if (speaking) {
+      stopOnboardingSpeech();
+      setSpeaking(false);
+      return;
+    }
+    setSpeaking(true);
+    speakOnboardingBlock(listenLabel(), () => setSpeaking(false));
+  };
+
+  useEffect(() => () => stopOnboardingSpeech(), []);
+
+  return (
+    <div
+      className="fixed bottom-6 left-6 z-[60] flex max-w-md flex-col gap-2 rounded-2xl border border-indigo-500/30 bg-slate-900/95 p-3 shadow-2xl backdrop-blur-md sm:flex-row sm:items-center"
+      role="region"
+      aria-label="Onboarding minimized"
+    >
+      <div className="min-w-0 flex-1 px-1">
+        <p className="text-xs font-medium text-indigo-300">Setup guide</p>
+        <p className="truncate text-sm font-semibold text-white">{current.title}</p>
+        <p className="text-[10px] text-slate-500">
+          Step {safeStep + 1} of {STEPS.length} · Tap expand to continue
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+        <button
+          type="button"
+          onClick={toggleListen}
+          disabled={typeof window !== 'undefined' && !window.speechSynthesis}
+          title={speaking ? 'Stop' : 'Listen to this step'}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-medium text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {speaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          {speaking ? 'Stop' : 'Listen'}
+        </button>
+        <button
+          type="button"
+          onClick={onExpand}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-indigo-500"
+        >
+          <PanelTop className="h-4 w-4" />
+          Expand
+        </button>
+        <button
+          type="button"
+          onClick={onDontShowAgain}
+          className="rounded-lg px-2 py-2 text-[10px] font-medium uppercase tracking-wide text-slate-500 hover:text-slate-300"
+        >
+          Don&apos;t show again
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Fullscreen modal ───────────────────────────────────────────────────────
+
+export interface OnboardingModalProps {
+  step: number;
+  onStepChange: (step: number) => void;
+  onMinimize: () => void;
+  onFullyDismiss: () => void;
+}
+
+export default function OnboardingModal({ step, onStepChange, onMinimize, onFullyDismiss }: OnboardingModalProps) {
   const [animEnabled] = useState(
     () => !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
+  const [speaking, setSpeaking] = useState(false);
   const navigate = useNavigate();
-  const current = STEPS[step];
-  const isLast = step === STEPS.length - 1;
+  const safeStep = Math.min(Math.max(step, 0), STEPS.length - 1);
+  const current = STEPS[safeStep]!;
+  const isLast = safeStep === STEPS.length - 1;
   const Icon = current.icon;
   const typedTip = useTypingText(current.aiTip, animEnabled);
 
+  const fullSpeechText = `${current.title}. ${current.description} ${current.aiTip}`;
+
+  const toggleListen = () => {
+    if (speaking) {
+      stopOnboardingSpeech();
+      setSpeaking(false);
+      return;
+    }
+    setSpeaking(true);
+    speakOnboardingBlock(fullSpeechText, () => setSpeaking(false));
+  };
+
+  useEffect(() => () => stopOnboardingSpeech(), []);
+
+  function finishAndDismiss(navigateTo?: string) {
+    stopOnboardingSpeech();
+    markOnboardingDone();
+    clearOnboardingSession();
+    onFullyDismiss();
+    if (navigateTo) void navigate(navigateTo);
+  }
+
   function handleNext() {
+    stopOnboardingSpeech();
     if (isLast) {
-      markOnboardingDone();
-      onClose();
-      if (current.route) void navigate(current.route);
+      const dest = current.route;
+      finishAndDismiss(dest);
     } else {
-      setStep((s) => s + 1);
+      const next = safeStep + 1;
+      onStepChange(next);
+      persistStepOnly(next);
     }
   }
 
   function handleCta() {
+    stopOnboardingSpeech();
     if (current.route) {
-      markOnboardingDone();
-      onClose();
+      persistOnboardingSessionMinimized(safeStep);
+      onMinimize();
       void navigate(current.route);
     } else {
       handleNext();
@@ -157,9 +371,10 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
   }
 
   function handleSkip() {
-    markOnboardingDone();
-    onClose();
+    finishAndDismiss();
   }
+
+  const CtaIcon = stepCtaIcon(safeStep, isLast);
 
   return (
     <div
@@ -169,8 +384,33 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
       aria-label="Welcome onboarding"
     >
       <div className="relative mx-4 w-full max-w-md rounded-2xl border border-white/10 bg-slate-900 p-8 shadow-2xl">
-        {/* Skip */}
+        <div className="absolute right-12 top-4 flex items-center gap-1">
+          <button
+            type="button"
+            onClick={toggleListen}
+            disabled={typeof window !== 'undefined' && !window.speechSynthesis}
+            title={speaking ? 'Stop reading' : 'Listen to this step'}
+            aria-label={speaking ? 'Stop reading' : 'Listen to this step'}
+            className="flex h-7 w-7 items-center justify-center rounded-full text-slate-500 transition hover:bg-white/10 hover:text-slate-300 disabled:opacity-40"
+          >
+            {speaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              stopOnboardingSpeech();
+              persistOnboardingSessionMinimized(safeStep);
+              onMinimize();
+            }}
+            title="Minimize and keep working (e.g. upload a document)"
+            aria-label="Minimize onboarding"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-slate-500 transition hover:bg-white/10 hover:text-slate-300"
+          >
+            <ChevronUp className="h-4 w-4" />
+          </button>
+        </div>
         <button
+          type="button"
           onClick={handleSkip}
           className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full text-slate-500 transition hover:bg-white/10 hover:text-slate-300"
           aria-label="Skip onboarding"
@@ -178,37 +418,33 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
           <X className="h-4 w-4" />
         </button>
 
-        {/* Progress dots */}
         <div className="mb-6 flex items-center justify-center gap-2">
           {STEPS.map((_, i) => (
             <button
               key={i}
-              onClick={() => setStep(i)}
+              type="button"
+              onClick={() => {
+                onStepChange(i);
+                persistStepOnly(i);
+              }}
               aria-label={`Go to step ${i + 1}`}
               className={[
                 'h-2 rounded-full transition-all',
-                i === step
-                  ? 'w-6 bg-indigo-500'
-                  : i < step
-                  ? 'w-2 bg-indigo-400/60'
-                  : 'w-2 bg-white/20',
+                i === safeStep ? 'w-6 bg-indigo-500' : i < safeStep ? 'w-2 bg-indigo-400/60' : 'w-2 bg-white/20',
               ].join(' ')}
             />
           ))}
         </div>
 
-        {/* Icon */}
         <div className="mb-5 flex justify-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/20">
             <Icon className="h-8 w-8 text-indigo-400" />
           </div>
         </div>
 
-        {/* Content */}
         <h2 className="mb-3 text-center text-xl font-bold text-white">{current.title}</h2>
         <p className="mb-5 text-center text-sm leading-relaxed text-slate-400">{current.description}</p>
 
-        {/* AI Guide bubble */}
         <div className="mb-7 flex gap-3 rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-4">
           <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-600">
             <Bot className="h-4 w-4 text-white" />
@@ -225,18 +461,19 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
           </p>
         </div>
 
-        {/* Actions */}
         <div className="flex flex-col gap-3">
           {current.cta && current.route && (
             <button
+              type="button"
               onClick={handleCta}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500"
             >
-              {isLast ? <CheckCircle className="h-4 w-4" /> : <Upload className="h-4 w-4" />}
+              {isLast ? <CheckCircle className="h-4 w-4" /> : <CtaIcon className="h-4 w-4" />}
               {current.cta}
             </button>
           )}
           <button
+            type="button"
             onClick={handleNext}
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-medium text-slate-300 transition hover:bg-white/10"
           >
@@ -245,9 +482,8 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
           </button>
         </div>
 
-        {/* Step count */}
         <p className="mt-5 text-center text-xs text-slate-600">
-          {step + 1} / {STEPS.length}
+          {safeStep + 1} / {STEPS.length}
         </p>
       </div>
     </div>

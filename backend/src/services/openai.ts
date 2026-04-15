@@ -5,6 +5,10 @@ import {
   type AllowedAssistantSourceType,
   type AssistantMode,
 } from '../../../shared/assistant.js';
+import {
+  buildUniversalBehaviorLayer,
+  type BehaviorLayerTier,
+} from '../prompts/shared/universal-behavior-layer.js';
 
 const apiKey = process.env.OPENAI_API_KEY;
 
@@ -72,6 +76,8 @@ interface GenerateCareerInput {
   mode: AssistantMode | string;
   sourceType: AllowedAssistantSourceType;
   messages: { role: 'user' | 'assistant'; content: string }[];
+  /** When omitted, full policy stack (interview/coach parity). */
+  behaviorTier?: BehaviorLayerTier;
 }
 
 export const generateCareerResponse = async (input: GenerateCareerInput): Promise<string> => {
@@ -79,13 +85,16 @@ export const generateCareerResponse = async (input: GenerateCareerInput): Promis
 
   // Validate mode — fall back to 'general' if not in the allowed list
   const safeMode = (assistantModes as readonly string[]).includes(input.mode) ? input.mode : 'general';
-  const system = systemPrompts[safeMode] ?? systemPrompts.general!;
+  const baseSystem = systemPrompts[safeMode] ?? systemPrompts.general!;
 
   // Source-type context hint in system message
   const sourceHint =
     input.sourceType !== 'manual_user_input'
       ? `\n\nContext source: ${input.sourceType.replace(/_/g, ' ')} (public data — no private messages).`
       : '';
+
+  const behaviorLayer = buildUniversalBehaviorLayer(input.behaviorTier ?? 'full');
+  const system = `${baseSystem}\n\n${behaviorLayer}${sourceHint}`;
 
   const prior = input.messages.slice(-24).map((m) => ({
     role: m.role,
@@ -101,7 +110,7 @@ export const generateCareerResponse = async (input: GenerateCareerInput): Promis
   const completion = await client.chat.completions.create({
     model: 'gpt-4o',
     messages: [
-      { role: 'system', content: system + sourceHint },
+      { role: 'system', content: system },
       ...prior,
       { role: 'user', content: lastMsg.content },
     ],

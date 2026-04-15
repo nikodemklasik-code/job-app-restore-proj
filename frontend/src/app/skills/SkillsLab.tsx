@@ -1,248 +1,76 @@
 import { useState, useEffect } from 'react';
-import { FlaskConical, Loader2, ChevronRight, AlertCircle, BookOpen, ChevronDown, ExternalLink, Zap, TrendingUp, Clock, Award } from 'lucide-react';
+import { FlaskConical, Loader2, ChevronRight, AlertCircle, BookOpen, ChevronDown, ExternalLink, Zap, Briefcase, GraduationCap } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import { useProfileStore } from '@/stores/profileStore';
 import { useBillingStore } from '@/stores/billingStore';
+import type { ProfileSnapshot, ProfileExperience, ProfileEducation } from '../../../../shared/profile';
 
-// ── Mock data for Skills Gap & Courses sections ───────────────────────────
+// ── Live profile context (no fabricated salaries or market %) ─────────────
 
-const MY_SKILLS_MOCK = [
-  { name: 'React', current: 80 },
-  { name: 'Node.js', current: 60 },
-  { name: 'TypeScript', current: 75 },
-  { name: 'AWS', current: 30 },
-  { name: 'Docker', current: 45 },
-  { name: 'SQL', current: 70 },
-];
+function LiveProfileSnapshot({ profile }: { profile: ProfileSnapshot }) {
+  const { personalInfo, experiences, educations, trainings } = profile;
+  const summary = personalInfo.summary?.trim();
 
-const MARKET_REQUIREMENTS_MOCK = [
-  { name: 'React', required: 90 },
-  { name: 'Node.js', required: 85 },
-  { name: 'TypeScript', required: 80 },
-  { name: 'AWS', required: 60 },
-  { name: 'Docker', required: 65 },
-  { name: 'SQL', required: 70 },
-];
-
-const COURSES_MOCK = [
-  { name: 'AWS Certified Developer – Associate', platform: 'Udemy', duration: '30h', url: '#', skills: ['AWS'] },
-  { name: 'Docker & Kubernetes: The Complete Guide', platform: 'Udemy', duration: '22h', url: '#', skills: ['Docker'] },
-  { name: 'Node.js: Advanced Concepts', platform: 'Udemy', duration: '16h', url: '#', skills: ['Node.js'] },
-  { name: 'React – The Complete Guide', platform: 'Coursera', duration: '48h', url: '#', skills: ['React', 'TypeScript'] },
-  { name: 'The Web Developer Bootcamp', platform: 'freeCodeCamp', duration: '60h', url: '#', skills: ['Node.js', 'SQL'] },
-];
-
-function gapColor(current: number, required: number): string {
-  const diff = required - current;
-  if (diff <= 0) return '#34d399'; // green — meets or exceeds
-  if (diff < 15) return '#f97316'; // orange — close
-  return '#f87171'; // red — significant gap
-}
-
-// ── Monetisation Zone ─────────────────────────────────────────────────────
-
-function MonetisationZone() {
   return (
-    <div className="space-y-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-amber-400/90">
-        Sample data — not your salary or live market estimate
-      </p>
-      {/* Salary cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {/* Current valuation */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Current market value</p>
-          <p className="text-2xl font-black text-white">£42,000 – £55,000</p>
-          <p className="text-sm font-medium text-slate-400">/ yr</p>
-          <p className="text-xs text-slate-500 mt-1">Based on your current skills</p>
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-            <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-emerald-400" style={{ width: '62%' }} />
-          </div>
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-5">
+      <h2 className="font-semibold text-white text-sm uppercase tracking-wider">From your profile</h2>
+      {summary ? (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">Summary</p>
+          <p className="text-sm text-slate-300 leading-relaxed line-clamp-6">{summary}</p>
         </div>
-        {/* Max potential */}
-        <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-5 space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
-            <TrendingUp className="inline h-3.5 w-3.5 mr-1" />
-            Max potential
-          </p>
-          <p className="text-2xl font-black text-white">£65,000 – £85,000</p>
-          <p className="text-sm font-medium text-indigo-300">/ yr</p>
-          <p className="text-xs text-slate-500 mt-1">After reaching career goals</p>
-          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-            <div className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" style={{ width: '88%' }} />
-          </div>
-        </div>
+      ) : (
+        <p className="text-sm text-slate-500">Add a professional summary in Profile to anchor skill context.</p>
+      )}
+
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1.5">
+          <Briefcase className="h-3.5 w-3.5" /> Experience ({experiences.length})
+        </p>
+        {experiences.length === 0 ? (
+          <p className="text-xs text-slate-500">No roles saved yet.</p>
+        ) : (
+          <ul className="space-y-2 max-h-48 overflow-y-auto">
+            {experiences.map((ex: ProfileExperience) => (
+              <li key={ex.id} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-xs">
+                <span className="font-medium text-slate-200">{ex.jobTitle}</span>
+                <span className="text-slate-500"> · {ex.employerName}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-      {/* Disclaimer */}
-      <p className="text-xs text-slate-500 leading-relaxed">
-        Illustration only. Real market-value tooling is not wired to live data in this build.
-      </p>
+
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1.5">
+          <GraduationCap className="h-3.5 w-3.5" /> Education ({educations.length})
+        </p>
+        {educations.length === 0 ? (
+          <p className="text-xs text-slate-500">No education entries yet.</p>
+        ) : (
+          <ul className="space-y-2 max-h-36 overflow-y-auto">
+            {educations.map((ed: ProfileEducation) => (
+              <li key={ed.id} className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-xs text-slate-300">
+                {ed.schoolName}
+                {ed.degree ? <span className="text-slate-500"> — {ed.degree}</span> : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {trainings.length > 0 && (
+        <p className="text-xs text-slate-400">
+          {trainings.length} training{trainings.length === 1 ? '' : 's'} on file — open Profile to edit.
+        </p>
+      )}
     </div>
   );
-}
-
-// ── Skills Gap Split ──────────────────────────────────────────────────────
-
-function SkillsGapSplit() {
-  return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      {/* Left — My skills */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
-        <h3 className="font-semibold text-white text-sm uppercase tracking-wider">
-          Your Skills <span className="font-normal text-slate-500 normal-case">(mock list)</span>
-        </h3>
-        <div className="space-y-3">
-          {MY_SKILLS_MOCK.map((skill) => {
-            const req = MARKET_REQUIREMENTS_MOCK.find((r) => r.name === skill.name)?.required ?? 70;
-            const color = gapColor(skill.current, req);
-            return (
-              <div key={skill.name} className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-300">{skill.name}</span>
-                  <span className="font-semibold" style={{ color }}>{skill.current}%</span>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{ width: `${skill.current}%`, backgroundColor: color }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      {/* Right — Market requirements */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
-        <h3 className="font-semibold text-white text-sm uppercase tracking-wider">
-          Market Requirements <span className="font-normal text-slate-500 normal-case">(mock)</span>
-        </h3>
-        <div className="space-y-3">
-          {MARKET_REQUIREMENTS_MOCK.map((req) => {
-            const mine = MY_SKILLS_MOCK.find((s) => s.name === req.name)?.current ?? 0;
-            const color = gapColor(mine, req.required);
-            return (
-              <div key={req.name} className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-300">{req.name}</span>
-                  <span className="font-semibold text-slate-400">{req.required}% required</span>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{ width: `${req.required}%`, backgroundColor: color }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        {/* Legend */}
-        <div className="flex flex-wrap items-center gap-3 border-t border-white/10 pt-3">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-3 rounded-sm bg-emerald-400" />
-            <span className="text-xs text-slate-500">Met</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-3 rounded-sm bg-orange-400" />
-            <span className="text-xs text-slate-500">Close (&lt;15%)</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-3 rounded-sm bg-red-400" />
-            <span className="text-xs text-slate-500">Gap (&gt;15%)</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Recommended Courses ───────────────────────────────────────────────────
-
-const PLATFORM_COLORS: Record<string, string> = {
-  Udemy: 'rgba(167,139,250,0.15)',
-  Coursera: 'rgba(59,130,246,0.15)',
-  freeCodeCamp: 'rgba(52,211,153,0.15)',
-};
-const PLATFORM_TEXT: Record<string, string> = {
-  Udemy: '#a78bfa',
-  Coursera: '#93c5fd',
-  freeCodeCamp: '#34d399',
-};
-
-function RecommendedCourses() {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Award className="h-5 w-5 text-indigo-400" />
-        <h2 className="font-semibold text-white">
-          Recommended Courses <span className="text-xs font-normal text-slate-500">(placeholder links)</span>
-        </h2>
-        <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-400">
-          {COURSES_MOCK.length} courses
-        </span>
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {COURSES_MOCK.map((course, i) => (
-          <a
-            key={i}
-            href={course.url}
-            className="group rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3 hover:border-indigo-500/40 hover:bg-white/[0.08] transition-all"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-sm font-semibold text-white leading-snug group-hover:text-indigo-200 transition-colors">
-                {course.name}
-              </p>
-              <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-600 group-hover:text-indigo-400 transition-colors mt-0.5" />
-            </div>
-            <div className="flex items-center gap-2 text-xs">
-              <span
-                className="rounded-md px-2 py-0.5 font-medium"
-                style={{ background: PLATFORM_COLORS[course.platform] ?? 'rgba(255,255,255,0.08)', color: PLATFORM_TEXT[course.platform] ?? '#e2e8f0' }}
-              >
-                {course.platform}
-              </span>
-              <Clock className="h-3 w-3 text-slate-500" />
-              <span className="text-slate-500">{course.duration}</span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {course.skills.map((s) => (
-                <span
-                  key={s}
-                  className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-medium text-slate-400"
-                >
-                  {s}
-                </span>
-              ))}
-            </div>
-          </a>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-/** Derive a stable pseudo-level (0-10) from a skill name string. */
-function pseudoLevel(name: string): number {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash * 31 + name.charCodeAt(i)) & 0xffff;
-  }
-  return (hash % 7) + 4; // range 4-10 — skills assumed at least moderate
-}
-
-function levelColor(pct: number): string {
-  if (pct >= 80) return '#34d399'; // emerald
-  if (pct >= 50) return '#fbbf24'; // amber
-  return '#f87171'; // red
 }
 
 interface SkillBarProps {
   name: string;
-  level: number; // 0-10
 }
 
 interface Course {
@@ -252,18 +80,12 @@ interface Course {
   level: string;
 }
 
-function SkillBar({ name, level }: SkillBarProps) {
-  const pct = level * 10;
-  const segments = 10;
-  const filledSegments = Math.round(level);
-  const color = levelColor(pct);
-
+function SkillBar({ name }: SkillBarProps) {
   const [expanded, setExpanded] = useState(false);
   const [courses, setCourses] = useState<Course[] | null>(null);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const suggestMutation = (api as any).style.suggestCoursesForSkill.useMutation({
-    onSuccess: (data: { courses: Course[] }) => setCourses(data.courses),
+  const suggestMutation = api.style.suggestCoursesForSkill.useMutation({
+    onSuccess: (data) => setCourses(data.courses),
   });
 
   function handleToggle() {
@@ -276,27 +98,15 @@ function SkillBar({ name, level }: SkillBarProps) {
   return (
     <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden">
       <div className="group flex items-center gap-3 px-3 py-2">
-        <span className="w-28 shrink-0 truncate text-sm text-slate-300 group-hover:text-white transition-colors">
+        <span className="min-w-0 flex-1 truncate text-sm text-slate-300 group-hover:text-white transition-colors">
           {name}
         </span>
-        <div className="flex flex-1 items-center gap-0.5">
-          {Array.from({ length: segments }).map((_, i) => (
-            <div
-              key={i}
-              className="h-3 flex-1 rounded-sm transition-all"
-              style={{
-                backgroundColor: i < filledSegments ? color : 'rgba(255,255,255,0.07)',
-                opacity: i < filledSegments ? 1 - i * 0.04 : 1,
-              }}
-            />
-          ))}
-        </div>
-        <span className="w-9 shrink-0 text-right text-xs font-semibold" style={{ color }}>
-          {pct}%
+        <span className="shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+          Declared
         </span>
         <button
           onClick={handleToggle}
-          title="Suggest courses"
+          title="Suggest courses (live)"
           className="ml-1 flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-1.5 py-1 text-xs text-slate-400 hover:border-indigo-500/40 hover:text-indigo-300 transition-all"
         >
           {suggestMutation.isPending ? (
@@ -503,7 +313,6 @@ export default function SkillsLab() {
   }, [userId, currentPlan, loadBillingData]);
 
   const rawSkills: string[] = profile?.skills ?? [];
-  const skillItems = rawSkills.map((name) => ({ name, level: pseudoLevel(name) }));
 
   function handleAnalyze() {
     if (!targetInput.trim() || !userId) return;
@@ -512,11 +321,10 @@ export default function SkillsLab() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-        <strong className="text-amber-200">How this screen works today:</strong>{' '}
-        The charts and course cards below use <strong>sample mock data</strong> for layout only.
-        Your real skills (left column) come from your profile. &quot;Analyse gap&quot; uses{' '}
-        <code className="rounded bg-white/10 px-1 text-xs">style.analyzeDocument</code> (OpenAI when configured), not the full SkillUp engine from the roadmap.
+      <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+        <strong className="text-emerald-200">Live data:</strong> skills, summary, experience, and education load from your saved profile.
+        Course suggestions load from <code className="rounded bg-white/10 px-1 text-xs">style.suggestCoursesForSkill</code> when you expand a skill.
+        Gap analysis uses <code className="rounded bg-white/10 px-1 text-xs">style.analyzeDocument</code> on the job text you paste — we do not show fabricated salary or &quot;market %&quot; bars.
       </div>
       {/* Header */}
       <div className="flex items-center gap-3">
@@ -526,7 +334,7 @@ export default function SkillsLab() {
         <div>
           <h1 className="text-2xl font-bold text-white">Skills Lab</h1>
           <p className="text-sm text-slate-400">
-            Profile skills + document-style gap analysis. Full verification pipeline is not live here yet.
+            Profile-backed skills, AI course hints per skill, and gap analysis from your target role text.
           </p>
         </div>
       </div>
@@ -548,27 +356,20 @@ export default function SkillsLab() {
         </div>
       )}
 
-      {/* ── GÓRNA STREFA — CV / Skill Monetisation ── */}
-      <MonetisationZone />
-
-      {/* ── ŚRODKOWA STREFA — Skills Gap Split ── */}
-      <SkillsGapSplit />
-
-      {/* ── DOLNA STREFA — Rekomendowane kursy ── */}
-      <RecommendedCourses />
+      {profile && !isLoadingProfile ? <LiveProfileSnapshot profile={profile} /> : null}
 
       {/* 2-column layout */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* LEFT — My Skills */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-5">
           <p className="text-xs text-slate-500">
-            Bar lengths use a simple hash from the skill name (illustrative), not verified proficiency scores.
+            Proficiency is not stored on your profile yet — expand a skill for live course suggestions from the API.
           </p>
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-white">My Skills</h2>
-            {skillItems.length > 0 && (
+            {rawSkills.length > 0 && (
               <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-400">
-                {skillItems.length} skills
+                {rawSkills.length} skills
               </span>
             )}
           </div>
@@ -577,7 +378,7 @@ export default function SkillsLab() {
             <div className="flex h-32 items-center justify-center">
               <Loader2 className="h-5 w-5 animate-spin text-indigo-400" />
             </div>
-          ) : skillItems.length === 0 ? (
+          ) : rawSkills.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-10 text-center">
               <AlertCircle className="h-8 w-8 text-slate-600" />
               <p className="text-sm text-slate-400">No skills in your profile yet.</p>
@@ -587,27 +388,11 @@ export default function SkillsLab() {
             </div>
           ) : (
             <div className="space-y-3">
-              {skillItems.map((skill) => (
-                <SkillBar key={skill.name} name={skill.name} level={skill.level} />
+              {rawSkills.map((name) => (
+                <SkillBar key={name} name={name} />
               ))}
             </div>
           )}
-
-          {/* Legend */}
-          <div className="flex items-center gap-4 border-t border-white/10 pt-4">
-            <div className="flex items-center gap-1.5">
-              <span className="h-2 w-3 rounded-sm bg-emerald-400" />
-              <span className="text-xs text-slate-500">Proficient (80%+)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="h-2 w-3 rounded-sm bg-amber-400" />
-              <span className="text-xs text-slate-500">Developing (50–79%)</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="h-2 w-3 rounded-sm bg-red-400" />
-              <span className="text-xs text-slate-500">Beginner (&lt;50%)</span>
-            </div>
-          </div>
         </div>
 
         {/* RIGHT — Target Position */}

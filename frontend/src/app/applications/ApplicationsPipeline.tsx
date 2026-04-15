@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import {
@@ -147,14 +148,20 @@ export default function ApplicationsPipeline() {
     <div className="space-y-6">
 
       {/* ── Page header ───────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">My Applications</h1>
-          <p className="mt-1 text-sm text-slate-400">Track every role from first draft to signed offer.</p>
+          <p className="mt-1 text-sm text-slate-400">Kanban view — same data as the list &amp; email screen.</p>
+          <Link
+            to="/applications"
+            className="mt-2 inline-block text-xs font-medium text-indigo-400 hover:text-indigo-300"
+          >
+            List, prepare documents &amp; send email →
+          </Link>
         </div>
         <button
           onClick={() => setShowNewModal(true)}
-          className="flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+          className="flex shrink-0 items-center gap-2 self-start rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
         >
           <Plus className="h-4 w-4" />
           Add Application

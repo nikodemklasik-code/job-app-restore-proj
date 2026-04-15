@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { UNIVERSAL_BEHAVIOR_LAYER } from '../prompts/shared/universal-behavior-layer.js';
 
 function getOpenAI(): OpenAI {
   if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not configured');
@@ -208,7 +209,9 @@ When the user submits a negotiation move or transcript, always follow this exact
 - If the user provides a negotiation move or transcript, evaluate it using the full required report format above.
 - If the user asks for a practice scenario, provide a realistic negotiation scenario (salary, contract, partnership, procurement, etc.) and wait for their response.
 - Keep greetings and transitions short. The coaching report is the main output.
-- Always respond in English regardless of the language of the user input.`;
+- Always respond in English regardless of the language of the user input.
+
+${UNIVERSAL_BEHAVIOR_LAYER}`;
 }
 
 export async function* streamNegotiationResponse(
@@ -273,7 +276,9 @@ ${marketRate ? `Market rate for this role: ${sym}${marketRate.toLocaleString()}.
 - Do NOT reveal the candidate's target salary unless they mention it.
 - Respond in English. Keep responses concise (2-4 sentences during the simulation).
 - Be realistic: do not instantly agree to any number without pushback.
-- After the debrief, return to normal coaching mode if the user has further questions.`;
+- After the debrief, return to normal coaching mode if the user has further questions.
+
+${UNIVERSAL_BEHAVIOR_LAYER}`;
 }
 
 export async function* streamNegotiationSimulation(
