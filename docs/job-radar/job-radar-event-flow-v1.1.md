@@ -54,6 +54,16 @@ stateDiagram-v2
   end note
 ```
 
+## Benchmark compute — single path (invariant)
+
+**Do not add a second benchmark computation path.** In the current module:
+
+1. **Only** `ScanOrchestratorService.finalizeBasic` calls `ComputeBenchmarkHandler.execute({ scanId })` (after dedupe + conflict resolution, when the scan is not `sources_blocked` / `scan_failed` on the parse outcome path).
+2. `ComputeBenchmarkHandler` runs `BenchmarkEngineService.compute(scanId)` (persist benchmark / signals as implemented), then **enqueues** `benchmark_ready` on the outbox.
+3. In `processJobRadarOutbox` (`backend/src/modules/job-radar/infrastructure/process-job-radar-outbox.ts`), `benchmark_ready` is listed in **`AUDIT_ONLY_EVENTS`**: the row is consumed and **marked published with no worker side-effect** (same treatment as cache-hit / fetch lifecycle audit events). It exists for **audit / observability**, not to trigger another compute.
+
+If you need downstream reactions to benchmarks, extend explicit worker routing — do **not** re-invoke `BenchmarkEngineService.compute` from the outbox loop for the same scan.
+
 ## Internal events (outbox / queue)
 
 | Event | When |
@@ -68,6 +78,7 @@ stateDiagram-v2
 | `source_parsed` | `parse_status` updated |
 | `signals_extracted` | Rows in `extracted_signals` |
 | `conflicts_resolved` | Tier/freshness rules applied |
+| `benchmark_ready` | Emitted **after** benchmark rows are written inside `ComputeBenchmarkHandler`; outbox consumer treats it as **audit-only** (no pipeline handler) |
 | `benchmark_resolved` | `market_benchmarks` row selected or fallback |
 | `fit_computed` | User prefs vs offer/employer |
 | `scores_computed` | `radar_scores` + `score_drivers` |
