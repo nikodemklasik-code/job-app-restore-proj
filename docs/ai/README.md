@@ -25,7 +25,7 @@ This documentation covers:
 ## Career growth, agency, and SkillUp (v1.0)
 - **[Career growth, agency, and evidence](./principles/career-growth-agency-and-evidence-v1.0.md)** — supreme AI behaviour: detect development, dynamic skills, boundaries, positive motivation, module examples, metrics.  
 - **[Neurodiversity-aware coaching](./principles/neurodiversity-aware-coaching-v1.0.md)** — adaptive support without diagnosis; goal standard preserved.  
-- **[SkillUp — data model and verification engine](./skillup/skillup-data-model-verification-v1.0.md)** — claims, evidence, assessments, gaps, value snapshots, milestones, sessions.
+- **[SkillUp — data model and verification engine](./skillup/skillup-data-model-verification-v1.0.md)** — claims, evidence, assessments, gaps, value snapshots, milestones, sessions. **Drizzle (MySQL):** `backend/src/db/schemas/skillup.ts`.
 
 ## Core Rule
 All modules are complementary, but each must remain independently usable.

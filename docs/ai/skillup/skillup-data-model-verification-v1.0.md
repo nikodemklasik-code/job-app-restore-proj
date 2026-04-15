@@ -420,7 +420,7 @@ Map composite ranges to `verificationStatus` for roadmap and UI confidence.
 
 ## 12. Next engineering artifacts
 
-1. **Drizzle / SQL schema** for SkillUp tables (`skill_claim`, `skill_evidence`, `skill_assessment`, `language_assessment`, `skill_gap`, `career_value_snapshot`, `growth_milestone`, `verification_session`, `skill_profile`).  
+1. **Drizzle schema (implemented)** — `backend/src/db/schemas/skillup.ts` (exported via `backend/src/db/schema.ts`). Apply matching **MySQL DDL** on the server before using these tables in production (generate from Drizzle or maintain a reference SQL migration under `docs/` when added).  
 2. **Verification engine logic spec** — how transcripts become `skill_evidence`, how `observed_level` is derived, when `inconsistent` triggers, how milestones refresh.
 
-Until schema exists, treat this document as the **contract** for those implementations.
+The document remains the **product contract**; the Drizzle file is the **app-side schema source of truth**.
