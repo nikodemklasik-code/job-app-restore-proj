@@ -417,7 +417,10 @@ export class ScoringEngineService {
       });
     }
 
-    if (scoring.marketPayScore >= 60) {
+    // Final market pay uses base 30 + drivers (capLowConfidenceDrivers). Best case is 30 + 22 = 52
+    // (p75+ salary vs benchmark with non-low benchmark confidence). Median-or-better tier is 30 + 12 = 42.
+    // A threshold of 60 was never reachable; keep this at or below 52 so strong matches can surface.
+    if (scoring.marketPayScore >= 42) {
       findings.push({
         id: randomUUID(),
         scanId,

@@ -13,4 +13,16 @@ describe('capLowConfidenceDrivers', () => {
     const score = capLowConfidenceDrivers(50, drivers, 10);
     expect(score).toBe(50 + 20 - 10);
   });
+
+  it('market pay: base 30 + best single driver (+22) yields 52 — PAY_BENCHMARK_OK must not use a threshold above 52', () => {
+    const drivers: Driver[] = [
+      {
+        label: 'Salary is above upper benchmark range',
+        impact: 22,
+        confidence: 'high',
+        driverType: 'positive',
+      },
+    ];
+    expect(capLowConfidenceDrivers(30, drivers)).toBe(52);
+  });
 });

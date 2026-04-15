@@ -105,7 +105,11 @@ export class ScanOrchestratorService {
    * After a fetch attempt: enqueue parse jobs for pending sources, or finalize if nothing to parse
    * (e.g. fetch failed, blocked-only, or empty).
    */
-  async afterSourceFetch(scanId: string): Promise<void> {
+  /**
+   * @param currentSourceFetchOutboxEventId - Outbox row for this fetch; excluded until `markPublished` runs
+   *   after the worker returns (see `processJobRadarOutbox`).
+   */
+  async afterSourceFetch(scanId: string, currentSourceFetchOutboxEventId?: string): Promise<void> {
     const pending = await this.sourceRepository.findPendingParseSources(scanId);
     if (pending.length > 0) {
       for (const source of pending) {
@@ -125,7 +129,12 @@ export class ScanOrchestratorService {
       return;
     }
 
-    if (await this.outboxRepository.hasUnpublishedSourceFetchRequested(scanId)) {
+    if (
+      await this.outboxRepository.hasUnpublishedSourceFetchRequested(
+        scanId,
+        currentSourceFetchOutboxEventId,
+      )
+    ) {
       return;
     }
 

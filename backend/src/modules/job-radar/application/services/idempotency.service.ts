@@ -4,6 +4,11 @@
  * object keys) do not cause false mismatches vs `JSON.stringify` byte equality.
  */
 export class IdempotencyService {
+  /**
+   * Structural equality for JSON-like payloads. Do not use `JSON.stringify` here:
+   * MySQL JSON columns may reorder object keys on read, which would break string equality
+   * for the same logical body and falsely trigger idempotency conflicts on retries.
+   */
   payloadMatches(existingPayload: Record<string, unknown>, incomingPayload: Record<string, unknown>): boolean {
     return deepJsonSemanticEqual(existingPayload, incomingPayload);
   }

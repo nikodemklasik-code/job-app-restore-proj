@@ -54,6 +54,7 @@ export class StartScanHandler {
       );
 
       if (existing) {
+        // Key-order–insensitive semantic match (stored row vs request); not JSON.stringify.
         if (this.idempotencyService.payloadMatches(existing.inputPayload, payloadRecord)) {
           return {
             scanId: existing.id,

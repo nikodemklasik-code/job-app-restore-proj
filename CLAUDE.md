@@ -3,7 +3,8 @@
 ## Gałąź Claude'a
 - Claude zawsze pracuje na gałęzi **`claude/improvements`**
 - Nie commituj bezpośrednio do `main` ani do gałęzi Copilota (`neurodiversity`, `copilot/*`)
-- Po skończonej pracy: `git push origin claude/improvements` i otwórz PR do `main`
+- **Deploy na VPS:** push na `claude/improvements` → GitHub Actions (build) + self-hosted runner (rsync + PM2). Merge do `main` tylko gdy chcesz zsynchronizować stabilną bazę — nie jest potrzebny przy każdej iteracji na produkcję.
+- Po skończonej pracy: `git push origin claude/improvements`; PR do `main` wg potrzeby review, nie jako warunek deployu.
 
 ## Struktura projektu
 ```
@@ -16,7 +17,13 @@
   frontend/
 ```
 
-## Deploy — jak to działa (manualny)
+## Deploy — automatyczny (domyślny)
+- Workflow: `.github/workflows/deploy.yml` — trigger: **push** na `claude/improvements` lub ręcznie **Run workflow**.
+- W logu sukcesu jest **`github.ref_name`**, żeby od razu było widać, z której gałęzi poszedł deploy.
+- **Ten sam produkcyjny VPS** co wcześniej z `main`: `/var/www/multivohub/`, `/root/project/backend/dist/`, `pm2 restart jobapp-server`. Osobny staging = inne ścieżki albo osobny workflow.
+- W GitHubie muszą być **te same secrets** co przy starym deployu z `main`; runner self-hosted musi mieć label **`production`** (jak w `runs-on` w jobie deploy).
+
+## Deploy — ręcznie (gdy Actions nie działają)
 
 ### Frontend (statyczne pliki)
 ```bash
@@ -42,24 +49,17 @@ ssh root@147.93.86.209 "pm2 restart jobapp-server"
 - User: `root`
 - Web server: Nginx (config: `infra/nginx/multivohub-jobapp.conf`)
 
-## Workflow z wieloma agentami
-
-### Zasady (potwierdzone przez oba agenty)
-| Agent | Gałąź | PR | Merge |
-|---|---|---|---|
-| **Claude** | `claude/improvements` (lub `claude/<temat>`) | otwiera PR | właściciel |
-| **GitHub Copilot** | `copilot/<temat>` | otwiera PR | właściciel |
-| **main** | zawsze stabilny | — | tylko właściciel |
+## Agenci i gałęzie
+| Agent | Gałąź robocza | PR / merge do `main` |
+|---|---|---|
+| **Claude** | `claude/improvements` lub `claude/<temat>` | tylko właściciel (PR); konflikty przy merge PR rozwiązuje właściciel |
+| **Copilot** | `copilot/*` | tylko właściciel (PR) |
 
 ### Reguły dla Claude'a
-- Na początku każdej sesji: `git fetch origin && git merge origin/main` (sync z mainem)
-- Nigdy nie commituj do `main` ani do gałęzi `copilot/*`
-- Jeden PR = jeden temat (nie mieszaj niezwiązanych zmian)
-- Konflikty rozwiązuje właściciel podczas merge PR
-
-### Kiedy mogą być konflikty
-Tylko podczas merge PR — kontrolowany proces po stronie właściciela.
-Ryzyko: Claude i Copilot edytują ten sam plik w tym samym czasie → właściciel rozwiązuje przy merge.
+- Na początku sesji: **`git fetch origin`**. Gdy `main` ma nowe commity — zsynchronizuj się przez **`git rebase origin/main`** na swojej gałęzi; unikaj **`git merge origin/main`**, żeby nie mnożyć merge commitów.
+- Nigdy nie commituj do `main` ani do `copilot/*`.
+- Jeden PR = jeden temat.
+- Współdzielona gałąź **`claude/improvements`**: po rebase historia się zmienia — przed `git push` uzgodnij z innymi; użyj **`git push --force-with-lease`**, żeby nie nadpisać cudzych commitów. Przy pracy samodzielnej rebase + push zwykle daje najczystszą linię historii.
 
 ## Kluczowe endpointy backendu
 - `/api/interview/transcribe` — Whisper STT (FormData: `audio` blob)
@@ -89,7 +89,10 @@ Zdefiniowane w `frontend/src/index.css` i `frontend/src/stores/themeStore.ts`:
 - `noir` — czarno-biały filmowy
 - `elegant` — kremowo-złoty
 
+## Plan wykonawczy (rollout)
+- **Kanoniczny plan kolejności, MVP, DoD, ryzyka:** [`docs/executive-plan/final-rollout-execution-plan-v1.0.md`](docs/executive-plan/final-rollout-execution-plan-v1.0.md)
+
 ## TODO / otwarte zadania
-- [ ] Automatyczny CI/CD (GitHub Actions → build → deploy na VPS)
+- [x] CI/CD: push na `claude/improvements` → GitHub Actions (build) + self-hosted runner → deploy na VPS
 - [ ] Avatar w rozmowie kwalifikacyjnej — dopracowanie
-- [ ] Merge `claude/improvements` → `main` po review
+- [ ] Merge `claude/improvements` → `main` — rzadki, świadomy krok wyrównania stabilnej bazy (opcjonalny względem deployu; nie jest warunkiem każdego wdrożenia)

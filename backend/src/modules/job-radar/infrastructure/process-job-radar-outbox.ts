@@ -35,7 +35,7 @@ export async function processJobRadarOutbox(
       if (name === JOB_RADAR_EVENTS.SCAN_REQUESTED) {
         await workers.scanRequested.handle(event.payload);
       } else if (name === JOB_RADAR_EVENTS.SOURCE_FETCH_REQUESTED) {
-        await workers.sourceFetch.handle(event.payload);
+        await workers.sourceFetch.handle(event);
       } else if (name === JOB_RADAR_EVENTS.PARSE_SOURCE_REQUESTED) {
         await workers.parseSource.handle(event.payload);
       } else if (AUDIT_ONLY_EVENTS.has(name)) {

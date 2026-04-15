@@ -320,6 +320,24 @@ export const applicationsRouter = router({
       return { base64: pdfBuffer.toString('base64') };
     }),
 
+  getLogs: publicProcedure
+    .input(z.object({ userId: z.string(), applicationId: z.string() }))
+    .query(async ({ input }) => {
+      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      if (!userRecord[0]) return [];
+      const rows = await db
+        .select({ userId: applications.userId })
+        .from(applications)
+        .where(eq(applications.id, input.applicationId))
+        .limit(1);
+      if (!rows[0] || rows[0].userId !== userRecord[0].id) return [];
+      return db
+        .select()
+        .from(applicationLogs)
+        .where(eq(applicationLogs.applicationId, input.applicationId))
+        .orderBy(desc(applicationLogs.createdAt));
+    }),
+
   downloadCandidateReport: publicProcedure
     .input(z.object({ userId: z.string() }))
     .mutation(async ({ input }) => {

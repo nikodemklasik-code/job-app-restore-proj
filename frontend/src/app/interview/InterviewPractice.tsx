@@ -396,12 +396,15 @@ function Avatar({ state }: { state: AvatarState }) {
   const pupilDy = state === 'thinking' ? -2 : 0;
   const pupilDx = state === 'thinking' ? 1 : 0;
 
+  /** Scales on phones / large displays; keeps interview face readable */
+  const avatarSize = 'clamp(132px, 36vmin, 220px)';
+
   return (
     <div
       className="relative"
       style={{
-        width: 160,
-        height: 160,
+        width: avatarSize,
+        height: avatarSize,
         animation: ringAnimation,
       }}
       aria-label={`AI interviewer — ${state}`}
@@ -422,7 +425,7 @@ function Avatar({ state }: { state: AvatarState }) {
       {/* SVG face — animated as a unit */}
       <svg
         viewBox="0 0 160 160"
-        style={{ width: 160, height: 160, borderRadius: '50%', animation: faceAnimation, display: 'block' }}
+        style={{ width: '100%', height: '100%', borderRadius: '50%', animation: faceAnimation, display: 'block' }}
         aria-hidden="true"
       >
         {/* Dark background */}
@@ -1527,6 +1530,10 @@ export default function InterviewPractice() {
         background: '#050a14',
         color: '#f1f5f9',
         overflow: 'hidden',
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        paddingLeft: 'env(safe-area-inset-left, 0px)',
+        paddingRight: 'env(safe-area-inset-right, 0px)',
       }}
     >
       <style>{AVATAR_STYLES}</style>
@@ -1540,6 +1547,9 @@ export default function InterviewPractice() {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
+          paddingTop: 56,
+          paddingBottom: 120,
+          boxSizing: 'border-box',
           background: 'radial-gradient(ellipse at 50% 40%, #0d1a2e 0%, #050a14 100%)',
         }}
       >
@@ -1584,10 +1594,12 @@ export default function InterviewPractice() {
           top: 0,
           left: 0,
           right: 0,
-          padding: '14px 20px',
+          padding: '14px 16px',
           display: 'flex',
           alignItems: 'center',
-          gap: 12,
+          flexWrap: 'wrap',
+          gap: 10,
+          rowGap: 8,
           background: 'linear-gradient(to bottom, rgba(5,10,20,0.95), transparent)',
           zIndex: 10,
         }}
@@ -1630,11 +1642,11 @@ export default function InterviewPractice() {
         <div
           style={{
             position: 'absolute',
-            bottom: 100,
+            bottom: 'max(100px, env(safe-area-inset-bottom, 0px))',
             left: '50%',
             transform: 'translateX(-50%)',
             maxWidth: 640,
-            width: 'calc(100% - 48px)',
+            width: 'min(640px, calc(100% - 32px))',
             zIndex: 10,
             textAlign: 'center',
           }}
@@ -1681,7 +1693,7 @@ export default function InterviewPractice() {
             borderRadius: 16,
             padding: '14px 20px',
             width: 340,
-            maxWidth: 'calc(100vw - 260px)',
+            maxWidth: 'min(340px, calc(100vw - 24px))',
             animation: 'slide-up 0.3s ease',
           }}
         >
@@ -1705,10 +1717,12 @@ export default function InterviewPractice() {
       <div
         style={{
           position: 'absolute',
-          bottom: 100,
-          right: 20,
-          width: 200,
-          height: 150,
+          bottom: 'max(108px, calc(88px + env(safe-area-inset-bottom, 0px)))',
+          right: 'max(12px, env(safe-area-inset-right, 0px))',
+          width: 'min(200px, 42vw)',
+          aspectRatio: '4 / 3',
+          height: 'auto',
+          maxHeight: '28vh',
           borderRadius: 14,
           overflow: 'hidden',
           border: '2px solid rgba(255,255,255,0.12)',
@@ -1758,17 +1772,20 @@ export default function InterviewPractice() {
       <div
         style={{
           position: 'absolute',
-          bottom: 28,
+          bottom: 'max(20px, env(safe-area-inset-bottom, 0px))',
           left: '50%',
           transform: 'translateX(-50%)',
           display: 'flex',
           alignItems: 'center',
           gap: 12,
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          maxWidth: 'calc(100vw - 24px)',
           background: 'rgba(15,23,42,0.85)',
           backdropFilter: 'blur(12px)',
           border: '1px solid rgba(255,255,255,0.08)',
           borderRadius: 999,
-          padding: '10px 20px',
+          padding: '10px 16px',
           zIndex: 20,
           boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
         }}
@@ -1871,7 +1888,19 @@ export default function InterviewPractice() {
       </div>
 
       {/* Label under mic button */}
-      <div style={{ position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)', fontSize: 11, whiteSpace: 'nowrap', zIndex: 20, color: isRecording ? '#f87171' : '#475569' }}>
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 'max(4px, env(safe-area-inset-bottom, 0px))',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          fontSize: 11,
+          textAlign: 'center',
+          maxWidth: 'min(100vw - 24px, 280px)',
+          zIndex: 20,
+          color: isRecording ? '#f87171' : '#475569',
+        }}
+      >
         {isRecording ? 'Tap to stop early' : userTurnActive ? 'Starting mic…' : statusLabel}
       </div>
     </div>

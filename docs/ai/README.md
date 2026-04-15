@@ -2,6 +2,8 @@
 
 This directory is the human-readable source of truth for the AI Career System.
 
+**Rollout order (repo-wide, operational):** [Final rollout execution plan v1.0](../executive-plan/final-rollout-execution-plan-v1.0.md) — deploy → Job Radar → Skill Lab / SkillUp → Assistant → cleanup.
+
 ## Scope
 This documentation covers:
 - system architecture,
@@ -14,7 +16,7 @@ This documentation covers:
 - implementation conventions.
 
 ## Product Modules
-- Assistant
+- Assistant — **[Final spec v1.0](../assistant/ai-assistant-final-spec-v1.0.md)** (canonical) · [Configuration sheet](./assistant/ai-assistant-configuration-sheet-v1.0.md) (optional team worksheet)
 - Daily Warmup
 - Interview
 - Coach

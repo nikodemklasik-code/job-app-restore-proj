@@ -1,5 +1,6 @@
 import type { SourceFetchHandler } from '../../application/handlers/source-fetch.handler.js';
 import type { ScanOrchestratorService } from '../../application/services/scan-orchestrator.service.js';
+import type { OutboxEvent } from '../../domain/repositories/radar-outbox.repository.js';
 
 export class SourceFetchWorker {
   constructor(
@@ -7,7 +8,8 @@ export class SourceFetchWorker {
     private readonly orchestrator: ScanOrchestratorService,
   ) {}
 
-  async handle(payload: Record<string, unknown>): Promise<void> {
+  async handle(event: OutboxEvent): Promise<void> {
+    const payload = event.payload;
     const scanId = String(payload.scan_id ?? '');
     await this.handler.execute({
       scanId,
@@ -20,6 +22,6 @@ export class SourceFetchWorker {
       timeoutMs: Number(payload.timeout_ms ?? 8000),
     });
 
-    await this.orchestrator.afterSourceFetch(scanId);
+    await this.orchestrator.afterSourceFetch(scanId, event.id);
   }
 }

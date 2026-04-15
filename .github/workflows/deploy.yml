@@ -1,15 +1,27 @@
+# Multivohub-jobapp — production deploy
+#
+# Ops notes:
+# - Success step prints github.ref_name so the log shows which branch was deployed.
+# - Same production VPS targets as the old main-based flow: /var/www/multivohub/,
+#   /root/project/backend/dist/, pm2 restart jobapp-server.
+# - A real staging environment would need different paths and/or a separate workflow.
+# - Repository secrets (VITE_* including VITE_CLERK_PUBLISHABLE_KEY, etc.) must be configured; the deploy job expects a
+#   self-hosted runner with labels: self-hosted, linux, x64, production (see runs-on).
+
 name: Deploy — multivohub-jobapp
 
 on:
   push:
-    branches: [main]
+    branches:
+      - claude/improvements
   workflow_dispatch:
 
 permissions:
   contents: read
 
+# One deploy at a time to the same VPS paths.
 concurrency:
-  group: deploy-production
+  group: deploy-vps
   cancel-in-progress: false
 
 jobs:
@@ -40,6 +52,9 @@ jobs:
 
       - name: Build backend
         run: npm run build:backend
+        env:
+          # Same Clerk publishable key as the SPA (pk_…); backend reads it at runtime on the VPS.
+          CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
 
       - name: Upload frontend dist
         uses: actions/upload-artifact@v4
@@ -95,4 +110,4 @@ jobs:
 
       - name: Notify success
         if: success()
-        run: echo "✅ Deploy complete — $(date -u '+%Y-%m-%d %H:%M UTC')"
+        run: echo "✅ Deploy complete (${{ github.ref_name }}) — $(date -u '+%Y-%m-%d %H:%M UTC')"

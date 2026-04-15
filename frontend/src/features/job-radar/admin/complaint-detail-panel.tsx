@@ -25,17 +25,19 @@ export function ComplaintDetailPanel({ complaint }: Props) {
     );
   }
 
+  const item = complaint;
+
   async function handleAction(action: 'approve_visible' | 'keep_pending' | 'suppress') {
-    if (!complaint.findingId) return;
+    if (!item.findingId) return;
     await reviewMutation.mutateAsync({
-      complaintId: complaint.id,
-      findingId: complaint.findingId,
+      complaintId: item.id,
+      findingId: item.findingId,
       action,
       note: note.trim() || null,
     });
   }
 
-  const canAct = Boolean(complaint.findingId);
+  const canAct = Boolean(item.findingId);
 
   return (
     <div className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950">
@@ -44,19 +46,19 @@ export function ComplaintDetailPanel({ complaint }: Props) {
       <dl className="mt-4 space-y-2 text-sm text-neutral-800 dark:text-neutral-200">
         <div>
           <dt className="text-neutral-500 dark:text-neutral-400">Complaint type</dt>
-          <dd>{complaint.complaintType}</dd>
+          <dd>{item.complaintType}</dd>
         </div>
         <div>
           <dt className="text-neutral-500 dark:text-neutral-400">Status</dt>
-          <dd>{complaint.status}</dd>
+          <dd>{item.status}</dd>
         </div>
         <div>
           <dt className="text-neutral-500 dark:text-neutral-400">Report</dt>
-          <dd className="font-mono text-xs">{complaint.reportId}</dd>
+          <dd className="font-mono text-xs">{item.reportId}</dd>
         </div>
         <div>
           <dt className="text-neutral-500 dark:text-neutral-400">Finding</dt>
-          <dd className="font-mono text-xs">{complaint.findingId ?? 'No finding linked'}</dd>
+          <dd className="font-mono text-xs">{item.findingId ?? 'No finding linked'}</dd>
         </div>
       </dl>
 

@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, isNull, ne } from 'drizzle-orm';
 import { jobRadarOutbox } from '../../../../db/schema.js';
 import { JOB_RADAR_EVENTS } from '../../constants/event-names.js';
 import type { OutboxEvent, RadarOutboxRepository } from '../../domain/repositories/radar-outbox.repository.js';
@@ -49,17 +49,20 @@ export class DrizzleRadarOutboxRepository implements RadarOutboxRepository {
       .where(eq(jobRadarOutbox.id, eventId));
   }
 
-  async hasUnpublishedSourceFetchRequested(scanId: string): Promise<boolean> {
+  async hasUnpublishedSourceFetchRequested(scanId: string, excludeEventId?: string): Promise<boolean> {
+    const conditions = [
+      eq(jobRadarOutbox.aggregateId, scanId),
+      eq(jobRadarOutbox.eventName, JOB_RADAR_EVENTS.SOURCE_FETCH_REQUESTED),
+      isNull(jobRadarOutbox.publishedAt),
+    ];
+    if (excludeEventId) {
+      conditions.push(ne(jobRadarOutbox.id, excludeEventId));
+    }
+
     const rows = await this.db
       .select({ id: jobRadarOutbox.id })
       .from(jobRadarOutbox)
-      .where(
-        and(
-          eq(jobRadarOutbox.aggregateId, scanId),
-          eq(jobRadarOutbox.eventName, JOB_RADAR_EVENTS.SOURCE_FETCH_REQUESTED),
-          isNull(jobRadarOutbox.publishedAt),
-        ),
-      )
+      .where(and(...conditions))
       .limit(1);
 
     return rows.length > 0;
