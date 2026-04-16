@@ -5,6 +5,7 @@ import {
   Pencil, Trash2, Briefcase, GraduationCap, Award,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { markJobsSearchPendingAfterCv } from '@/lib/jobsAfterCvSync';
 import { useProfileStore } from '@/stores/profileStore';
 import type {
   ProfileExperienceInput,
@@ -71,6 +72,7 @@ export default function ProfilePage() {
 
   const importToProfileMutation = api.cv.importToProfile.useMutation({
     onSuccess: () => {
+      markJobsSearchPendingAfterCv();
       void loadProfile();
       setUploadedCvId(null);
       setParsedCv(null);

@@ -1,6 +1,11 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
+import {
+  clearPendingCvJobsSearchMarker,
+  hasPendingCvJobsSearchMarker,
+} from '@/lib/jobsAfterCvSync';
+import type { ProfileSnapshot } from '../../../../shared/profile';
 import { Search, MapPin, DollarSign, Plus, ExternalLink, Loader2, Cookie, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Sparkles, Wifi, BookOpen, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -40,6 +45,18 @@ const SOURCE_META: Record<Source, { label: string; color: string; requiresSessio
   gumtree: { label: 'Gumtree', color: 'bg-green-500/20 text-green-400', requiresSession: true, url: 'https://www.gumtree.com/jobs' },
 };
 
+
+/** Build a search string from saved profile / CV data so Jobs can auto-load listings. */
+function deriveJobSearchQueryFromProfile(profile: ProfileSnapshot | undefined): string {
+  if (!profile) return '';
+  const exp = profile.experiences?.[0];
+  if (exp?.jobTitle?.trim()) return exp.jobTitle.trim().slice(0, 120);
+  const skills = (profile.skills ?? []).filter((s) => s?.trim());
+  if (skills.length > 0) return skills.slice(0, 5).join(' ').slice(0, 120);
+  const summary = profile.personalInfo?.summary?.trim();
+  if (summary) return summary.split(/\s+/).slice(0, 14).join(' ').slice(0, 120);
+  return '';
+}
 
 function formatSalary(min: number | null, max: number | null): string | null {
   if (!min && !max) return null;
@@ -112,6 +129,47 @@ function CompanyCard({ companyName, jobTitle }: { companyName: string; jobTitle:
       <div className="rounded-lg border border-indigo-500/20 bg-indigo-500/10 px-3 py-2">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-indigo-400 mb-1">Interview style</p>
         <p className="text-slate-300 leading-relaxed">{profile.interviewStyle}</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Job results grid: placeholder tiles (same shell as JobCard, empty content) ─
+
+const JOB_CARD_PLACEHOLDER_COUNT = 6;
+
+function JobCardPlaceholder({ pulsing }: { pulsing?: boolean }) {
+  return (
+    <div
+      className={`flex flex-col gap-0 overflow-hidden rounded-2xl border border-white/10 bg-white/5 ${
+        pulsing ? 'animate-pulse' : ''
+      } opacity-[0.55]`}
+      aria-hidden
+    >
+      <div className="flex flex-col gap-3 p-5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="h-10 w-10 shrink-0 rounded-xl bg-white/10" />
+          <div className="flex items-center gap-1.5">
+            <div className="h-5 w-14 rounded-full bg-white/10" />
+            <div className="h-5 w-16 rounded-full bg-white/10" />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <div className="h-4 max-w-[88%] rounded bg-white/10" />
+          <div className="h-3 max-w-[55%] rounded bg-white/10" />
+        </div>
+        <div className="flex flex-wrap gap-2 pt-0.5">
+          <div className="h-3 w-24 rounded bg-white/10" />
+          <div className="h-3 w-20 rounded bg-white/10" />
+          <div className="ml-auto h-4 w-14 rounded-full bg-white/10" />
+        </div>
+      </div>
+      <div className="border-t border-white/5 px-5 py-2.5">
+        <div className="h-3 w-36 rounded bg-white/10" />
+      </div>
+      <div className="mt-auto flex flex-col gap-2 px-5 pb-5 pt-2">
+        <div className="h-9 rounded-xl bg-white/10" />
+        <div className="h-9 rounded-xl bg-white/10" />
       </div>
     </div>
   );
@@ -641,6 +699,20 @@ export default function JobsDiscovery() {
   const [showSessions, setShowSessions] = useState(false);
   const [manualForm, setManualForm] = useState({ title: '', company: '', location: '', applyUrl: '' });
   const [explainJobId, setExplainJobId] = useState<string | null>(null);
+  /** After CV upload/import elsewhere: wait for profile refetch, then re-run profile-derived search. */
+  const [pendingJobsSearchAfterCv, setPendingJobsSearchAfterCv] = useState(false);
+
+  const utils = api.useUtils();
+  const startCvJobsFlow = useCallback(() => {
+    setSearchParams(null);
+    setPendingJobsSearchAfterCv(true);
+    void utils.profile.getProfile.invalidate();
+  }, [utils]);
+
+  const profileQuery = api.profile.getProfile.useQuery(undefined, {
+    enabled: !!userId,
+    staleTime: 15_000,
+  });
 
   const sessionQuery = api.jobSessions.getStatus.useQuery(
     { userId },
@@ -652,6 +724,81 @@ export default function JobsDiscovery() {
     searchParams ?? { query: '', location: 'United Kingdom', sources: ['reed'] },
     { enabled: searchParams !== null }
   );
+
+  const profileSearchFingerprint = useMemo(() => {
+    const p = profileQuery.data as ProfileSnapshot | undefined;
+    if (!p) return '';
+    return JSON.stringify({
+      jt: (p.experiences?.[0]?.jobTitle ?? '').slice(0, 80),
+      sk: (p.skills ?? []).slice(0, 8).join('|'),
+      sm: (p.personalInfo?.summary ?? '').slice(0, 120),
+    });
+  }, [profileQuery.data]);
+
+  // CV upload/import: session marker (survives navigation) or same-tab custom event.
+  useEffect(() => {
+    if (!userId) return;
+    if (!hasPendingCvJobsSearchMarker()) return;
+    startCvJobsFlow();
+  }, [userId, startCvJobsFlow]);
+
+  useEffect(() => {
+    if (!userId) return;
+    const onCvSync = () => {
+      startCvJobsFlow();
+    };
+    window.addEventListener('multivohub:cv-sync-jobs', onCvSync);
+    return () => window.removeEventListener('multivohub:cv-sync-jobs', onCvSync);
+  }, [userId, startCvJobsFlow]);
+
+  // After profile/CV data exists, replace placeholder tiles with a real search (until the user runs Search manually).
+  useEffect(() => {
+    if (!userId || profileQuery.isLoading || profileQuery.isError) return;
+    if (pendingJobsSearchAfterCv && profileQuery.isFetching) return;
+    if (searchParams !== null) return;
+    const profile = profileQuery.data as ProfileSnapshot | undefined;
+    const q = deriveJobSearchQueryFromProfile(profile);
+    if (!q.trim()) return;
+
+    setQuery(q);
+    setSearchParams({
+      query: q,
+      location,
+      sources: [...sources],
+      userId: userId || undefined,
+    });
+  }, [
+    userId,
+    profileQuery.isLoading,
+    profileQuery.isError,
+    profileQuery.isFetching,
+    profileSearchFingerprint,
+    location,
+    sources,
+    searchParams,
+    pendingJobsSearchAfterCv,
+  ]);
+
+  useEffect(() => {
+    if (!pendingJobsSearchAfterCv) return;
+    if (profileQuery.isFetching) return;
+    const q = deriveJobSearchQueryFromProfile(profileQuery.data as ProfileSnapshot | undefined);
+    if (!q.trim() && searchParams === null) {
+      clearPendingCvJobsSearchMarker();
+      setPendingJobsSearchAfterCv(false);
+      return;
+    }
+    if (searchParams !== null && !searchQuery.isFetching) {
+      clearPendingCvJobsSearchMarker();
+      setPendingJobsSearchAfterCv(false);
+    }
+  }, [
+    pendingJobsSearchAfterCv,
+    profileQuery.isFetching,
+    profileQuery.data,
+    searchParams,
+    searchQuery.isFetching,
+  ]);
 
   const saveManualMutation = api.jobs.saveManual.useMutation({
     onSuccess: () => {
@@ -725,6 +872,19 @@ export default function JobsDiscovery() {
           </button>
         </div>
       </div>
+
+      {pendingJobsSearchAfterCv && (
+        <div className="flex items-center gap-3 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-100">
+          <Loader2 className="h-5 w-5 shrink-0 animate-spin text-indigo-300" aria-hidden />
+          <p>
+            {profileQuery.isFetching
+              ? 'Syncing your profile from your CV…'
+              : searchQuery.isFetching
+                ? 'Searching for jobs that match your updated profile…'
+                : 'Starting job search from your CV…'}
+          </p>
+        </div>
+      )}
 
       {/* Session panels */}
       {showSessions && userId && (
@@ -801,42 +961,58 @@ export default function JobsDiscovery() {
         </div>
       </div>
 
-      {/* Error */}
-        {searchQuery.isError && (
-        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400">
-          Search failed. Please try again.
-        </p>
-      )}
-
       {/* Results */}
-      {searchQuery.isFetching ? (
-        <div className="flex h-48 items-center justify-center">
-          <div className="text-center space-y-2">
-            <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mx-auto" />
-            <p className="text-sm text-slate-500">Searching {sources.join(', ')}…</p>
-          </div>
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Results</h2>
+          {searchQuery.isError ? (
+            <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs text-red-400 sm:max-w-md">
+              Search Failed — Please Try Again
+            </p>
+          ) : searchQuery.isFetching ? (
+            <p className="flex items-center gap-2 text-xs text-slate-500">
+              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-indigo-400" />
+              Searching {sources.join(', ')}…
+            </p>
+          ) : jobResults.length > 0 ? (
+            <p className="text-xs text-slate-500">
+              {jobResults.length} listing{jobResults.length === 1 ? '' : 's'}
+            </p>
+          ) : searchParams !== null ? (
+            <p className="text-xs text-slate-500">No Listings For This Search — Try Other Keywords Or Location</p>
+          ) : (
+            <p className="text-xs text-slate-500">
+              {pendingJobsSearchAfterCv && profileQuery.isFetching
+                ? 'Waiting For Profile After CV…'
+                : pendingJobsSearchAfterCv && deriveJobSearchQueryFromProfile(profileQuery.data as ProfileSnapshot | undefined)
+                  ? 'Preparing Search From Your CV…'
+                : profileQuery.isLoading
+                  ? 'Loading Your Profile…'
+                  : deriveJobSearchQueryFromProfile(profileQuery.data as ProfileSnapshot | undefined)
+                    ? 'Searching From Your Profile…'
+                    : pendingJobsSearchAfterCv
+                      ? 'CV Synced — Add A Job Title Or Skills On Your Profile, Then Search'
+                      : 'Placeholder Cards — Add Experience, Skills, Or Summary On Profile, Then Search'}
+            </p>
+          )}
         </div>
-      ) : jobResults.length > 0 ? (
+
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {jobResults.map((job) => (
-            <JobCard
-              key={job.id}
-              job={job}
-              applicationStatus={jobStatusMap[job.id]}
-              userId={userId}
-              onExplainFit={setExplainJobId}
-            />
-          ))}
+          {jobResults.length > 0
+            ? jobResults.map((job) => (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  applicationStatus={jobStatusMap[job.id]}
+                  userId={userId}
+                  onExplainFit={setExplainJobId}
+                />
+              ))
+            : Array.from({ length: JOB_CARD_PLACEHOLDER_COUNT }, (_, i) => (
+                <JobCardPlaceholder key={`job-placeholder-${i}`} pulsing={searchQuery.isFetching} />
+              ))}
         </div>
-      ) : searchParams !== null ? (
-        <div className="flex h-48 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-500">
-          No jobs found. Try different keywords or locations.
-        </div>
-      ) : (
-        <div className="flex h-48 items-center justify-center rounded-2xl border-2 border-dashed border-white/10 text-slate-500">
-          Enter a search query above and click Search to find jobs.
-        </div>
-      )}
+      </div>
 
       {/* Explain Fit Modal */}
       {explainJobId && (

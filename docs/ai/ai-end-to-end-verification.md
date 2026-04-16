@@ -90,6 +90,21 @@ If any of the above is missing, symptoms are: empty errors, 401 on tRPC, “Open
 
 ---
 
+## Path 7 — Job listings (search vs explain)
+
+Two different mechanisms live in `backend/src/trpc/routers/jobs.router.ts` and `backend/src/services/aiPersonalizer.ts`:
+
+| Procedure | AI? | What it does |
+|-----------|-----|----------------|
+| **`jobs.search`** | **No LLM** for the list score | For each listing, `scoreJobFit()` runs a **fast heuristic** (skills vs description/requirements, title vs summary). No OpenAI call — cheap enough to run for every card. `fitScore` on cards comes from this. |
+| **`jobs.explainFit`** | **Yes, when `OPENAI_API_KEY` is set** | `explainJobFit()` calls OpenAI (`gpt-4o-mini`, JSON) for strengths, gaps, advice, optional `extractedRequirements`, and may fold in **interview session insights**. If the key is missing, it **falls back** to the same style of output using `scoreJobFit` only (weaker copy). |
+
+**Manual check:** Open **Job Listings**, run a search with a profile that has skills → scores should move with profile. Open a job detail / “explain fit” UI (if wired) → expect richer text only with API key.
+
+**Product honesty:** Marketing must not claim “AI-calculated fit” for the **search grid** if you mean only LLM — the default sort score is **rule-based** unless you change `jobs.search` to call `explainJobFit` per job (expensive).
+
+---
+
 ## End-to-end definition (product)
 
 For release sign-off, treat **E2E AI** as:

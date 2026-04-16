@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
+import { markJobsSearchPendingAfterCv } from '@/lib/jobsAfterCvSync';
 import { useFileUpload } from '@/lib/useFileUpload';
 import {
   Upload,
@@ -215,6 +216,7 @@ export default function StyleStudio() {
   const uploadMutation = api.cv.upload.useMutation();
   const importMutation = api.cv.importToProfile.useMutation({
     onSuccess: () => {
+      markJobsSearchPendingAfterCv();
       setImportSuccess('Profile updated from CV.');
       void profileQuery.refetch();
     },

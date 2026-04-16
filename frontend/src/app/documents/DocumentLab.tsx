@@ -6,6 +6,7 @@ import {
 import { useUser } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
+import { markJobsSearchPendingAfterCv } from '@/lib/jobsAfterCvSync';
 
 /** Runtime may expose `documents` router before it is merged into shared `AppRouter` types. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -334,6 +335,7 @@ export default function DocumentLab() {
               mimeType: mime,
             });
             await utils.profile.getProfile.invalidate();
+            markJobsSearchPendingAfterCv();
           } else {
             await documentsUploadMutation.mutateAsync({
               documentType: primaryDocType,
