@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { Briefcase, TrendingUp, MessageSquare, Award, ChevronRight, Loader2 } from 'lucide-react';
+import { Briefcase, TrendingUp, MessageSquare, Award, ChevronRight, Loader2, Radio } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 
@@ -204,6 +204,49 @@ export default function DashboardPage() {
           ))}
         </div>
       )}
+
+      {/* Active job listing sources (aggregated in Jobs) */}
+      <section className="rounded-2xl border border-white/10 bg-white/5 p-5" aria-labelledby="dash-sources-heading">
+        <div className="mb-3 flex items-center gap-2">
+          <Radio className="h-4 w-4 text-emerald-400" aria-hidden />
+          <h2 id="dash-sources-heading" className="text-sm font-semibold text-white">
+            Active listing sources
+          </h2>
+        </div>
+        <p className="mb-3 text-xs text-slate-500">
+          Job search pulls live listings where API keys are configured (Reed, Adzuna, Jooble). Inactive keys are skipped automatically.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {(['Reed', 'Adzuna', 'Jooble'] as const).map((name) => (
+            <span
+              key={name}
+              className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-200"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
+              {name}
+            </span>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3 border-t border-white/5 pt-4 text-xs">
+          <a
+            href="https://findajob.dwp.gov.uk/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-indigo-400 underline-offset-2 hover:underline"
+          >
+            UK Find a job (DWP)
+          </a>
+          <span className="text-slate-600">·</span>
+          <a
+            href="https://www.gov.uk/sign-in-universal-credit"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-indigo-400 underline-offset-2 hover:underline"
+          >
+            Universal Credit sign in
+          </a>
+        </div>
+      </section>
 
       {/* Live Job Ticker */}
       <LiveTicker />

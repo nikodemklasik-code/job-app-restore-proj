@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
+import { Link } from 'react-router-dom';
 import {
-  Save, Plus, X, Upload, Download, Loader2, FileText, User,
-  Pencil, Trash2, Briefcase, GraduationCap, Award,
+  Save, Plus, X, Download, Loader2,
+  Pencil, Trash2, Briefcase, GraduationCap, Award, FolderOpen,
 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { markJobsSearchPendingAfterCv } from '@/lib/jobsAfterCvSync';
 import { useProfileStore } from '@/stores/profileStore';
 import type {
   ProfileExperienceInput,
@@ -37,7 +37,6 @@ export default function ProfilePage() {
 
   const [newSkill, setNewSkill] = useState('');
   const [form, setForm] = useState({ fullName: '', email: '', phone: '', summary: '' });
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Experience state ──────────────────────────────────────────────────────
   const [expEditingIdx, setExpEditingIdx] = useState<number | null>(null);
@@ -53,31 +52,6 @@ export default function ProfilePage() {
   const [trainEditingIdx, setTrainEditingIdx] = useState<number | null>(null);
   const [trainForm, setTrainForm] = useState<TrainForm>(emptyTrain());
   const [trainIsAdding, setTrainIsAdding] = useState(false);
-
-  // ── CV upload state ───────────────────────────────────────────────────────
-  const [uploadedCvId, setUploadedCvId] = useState<string | null>(null);
-  const [parsedCv, setParsedCv] = useState<{
-    fullName?: string;
-    email?: string;
-    skills?: string[];
-    summary?: string;
-  } | null>(null);
-
-  const uploadCvMutation = api.cv.upload.useMutation({
-    onSuccess: (data) => {
-      setUploadedCvId(data.id);
-      setParsedCv(data.parsed);
-    },
-  });
-
-  const importToProfileMutation = api.cv.importToProfile.useMutation({
-    onSuccess: () => {
-      markJobsSearchPendingAfterCv();
-      void loadProfile();
-      setUploadedCvId(null);
-      setParsedCv(null);
-    },
-  });
 
   const downloadCvMutation = api.applications.downloadCvPdf.useMutation({
     onSuccess: (data) => {
@@ -284,21 +258,6 @@ export default function ProfilePage() {
 
   const handleCancelTrain = () => { setTrainIsAdding(false); setTrainEditingIdx(null); setTrainForm(emptyTrain()); };
 
-  // ── CV handlers ───────────────────────────────────────────────────────────
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !userId) return;
-    if (!file.name.endsWith('.pdf')) { alert('Please upload a PDF file.'); return; }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = (reader.result as string).split(',')[1];
-      uploadCvMutation.mutate({ userId, filename: file.name, base64 });
-    };
-    reader.readAsDataURL(file);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
   if (!isLoaded || isLoadingProfile) {
     return (
       <div className="flex h-48 items-center justify-center">
@@ -314,8 +273,8 @@ export default function ProfilePage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-white">Profile &amp; CV</h1>
-        <p className="mt-1 text-slate-400">Keep your professional profile up to date for best AI fit scores.</p>
+        <h1 className="text-3xl font-bold text-white">Profile</h1>
+        <p className="mt-1 text-slate-400">Edit your details here. Upload CVs and documents in Document Lab — not on this page.</p>
       </div>
 
       {/* Error Banner */}
@@ -328,96 +287,62 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* CV Upload Section */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/20">
-            <FileText className="h-5 w-5 text-indigo-400" />
+      {/* Document Lab — CV upload & parse moved here */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-indigo-500/25 bg-indigo-500/5 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20">
+            <FolderOpen className="h-5 w-5 text-indigo-400" />
           </div>
           <div>
-            <h2 className="font-semibold text-white">CV Studio</h2>
-            <p className="text-xs text-slate-400">Upload your CV to auto-fill your profile</p>
+            <h2 className="font-semibold text-white">CV &amp; documents</h2>
+            <p className="text-xs text-slate-400">Upload and parse your CV in Document Lab, then use Build to analyse style and import into this profile.</p>
           </div>
         </div>
-        <div className="flex gap-3">
-          <input ref={fileInputRef} type="file" accept=".pdf" onChange={(e) => void handleFileChange(e)} className="hidden" id="cv-file-input" />
-          <label htmlFor="cv-file-input" className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300 transition hover:bg-white/10">
-            {uploadCvMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin text-indigo-400" /> : <Upload className="h-4 w-4 text-indigo-400" />}
-            {uploadCvMutation.isPending ? 'Parsing...' : 'Choose PDF'}
-          </label>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            to="/documents"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
+          >
+            Open Document Lab
+          </Link>
           {userId && (
             <button
+              type="button"
               onClick={() => downloadCvMutation.mutate({ userId })}
               disabled={downloadCvMutation.isPending}
-              className="flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-400 transition hover:bg-emerald-500/20 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-400 transition hover:bg-emerald-500/20 disabled:opacity-60"
             >
               {downloadCvMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              Download CV as PDF
+              Download CV PDF
             </button>
           )}
         </div>
-        {uploadCvMutation.isError && <p className="text-sm text-red-400">CV upload failed. Please try again.</p>}
-        {downloadCvMutation.isError && <p className="text-sm text-red-400">CV download failed. Please try again.</p>}
-
-        {parsedCv && uploadedCvId && (
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-              <User className="h-4 w-4 text-indigo-400" />
-              Parsed from your CV
-            </h3>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              {parsedCv.fullName && <div><span className="text-xs text-slate-500">Name</span><p className="text-white">{parsedCv.fullName}</p></div>}
-              {parsedCv.email && <div><span className="text-xs text-slate-500">Email</span><p className="text-white">{parsedCv.email}</p></div>}
-            </div>
-            {parsedCv.skills && parsedCv.skills.length > 0 && (
-              <div>
-                <span className="text-xs text-slate-500">Skills found ({parsedCv.skills.length})</span>
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {parsedCv.skills.slice(0, 15).map((skill) => (
-                    <span key={skill} className="rounded-full bg-indigo-500/20 px-2.5 py-0.5 text-xs text-indigo-300">{skill}</span>
-                  ))}
-                  {parsedCv.skills.length > 15 && <span className="text-xs text-slate-500">+{parsedCv.skills.length - 15} more</span>}
-                </div>
-              </div>
-            )}
-            {parsedCv.summary && <div><span className="text-xs text-slate-500">Summary</span><p className="mt-1 text-sm text-slate-300 line-clamp-3">{parsedCv.summary}</p></div>}
-            <div className="flex gap-3 pt-1">
-              <button onClick={() => { setUploadedCvId(null); setParsedCv(null); }} className={cancelBtnCls}>Discard</button>
-              <button
-                onClick={() => { if (userId && uploadedCvId) importToProfileMutation.mutate({ userId, cvUploadId: uploadedCvId }); }}
-                disabled={importToProfileMutation.isPending}
-                className={saveBtnCls}
-              >
-                {importToProfileMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                Import to Profile
-              </button>
-            </div>
-            {importToProfileMutation.isError && <p className="text-sm text-red-400">Import failed. Please try again.</p>}
-            {importToProfileMutation.isSuccess && <p className="text-sm text-emerald-400">Profile updated from CV!</p>}
-          </div>
-        )}
+        {downloadCvMutation.isError && <p className="text-sm text-red-400 sm:w-full">CV download failed. Please try again.</p>}
       </div>
 
-      {/* Personal Information */}
+      {/* Personal Information — contact column + summary column */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
         <h2 className="font-semibold text-white">Personal Information</h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <label htmlFor="fullName" className="block text-xs text-slate-400">Full Name</label>
-            <input id="fullName" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} placeholder="Alex Morgan" className={inputCls} />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="fullName" className="block text-xs text-slate-400">Full name</label>
+              <input id="fullName" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} placeholder="Alex Morgan" className={inputCls} />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="email" className="block text-xs text-slate-400">Email</label>
+              <input id="email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="alex@example.com" className={inputCls} />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="phone" className="block text-xs text-slate-400">Phone</label>
+              <input id="phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+44 7700 000000" className={inputCls} />
+            </div>
+            <p className="text-xs text-slate-500">Add LinkedIn or other links in your summary for now; dedicated social fields will follow.</p>
           </div>
-          <div className="space-y-2">
-            <label htmlFor="email" className="block text-xs text-slate-400">Email</label>
-            <input id="email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="alex@example.com" className={inputCls} />
+          <div className="space-y-2 flex flex-col min-h-[12rem]">
+            <label htmlFor="summary" className="block text-xs text-slate-400">Professional summary</label>
+            <textarea id="summary" value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} placeholder="Senior frontend engineer with 8 years of experience..." rows={8} className={`${inputCls} resize-y flex-1 min-h-[10rem]`} />
           </div>
-          <div className="space-y-2">
-            <label htmlFor="phone" className="block text-xs text-slate-400">Phone</label>
-            <input id="phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+44 7700 000000" className={inputCls} />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <label htmlFor="summary" className="block text-xs text-slate-400">Professional Summary</label>
-          <textarea id="summary" value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} placeholder="Senior frontend engineer with 8 years of experience..." rows={4} className={`${inputCls} resize-none`} />
         </div>
         <button onClick={() => void handleSaveInfo()} disabled={isSaving} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60">
           {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}

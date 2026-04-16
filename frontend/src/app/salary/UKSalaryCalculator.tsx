@@ -197,11 +197,14 @@ function PAYECalculator() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Net Annual" value={fmt(calc.netAnnual)} highlight />
-        <StatCard label="Net Monthly" value={fmt(calc.netMonthly)} highlight />
-        <StatCard label="Income Tax" value={fmt(calc.incomeTax)} sub={fmtPct((calc.incomeTax / Math.max(1, calc.g)) * 100) + ' of gross'} />
-        <StatCard label="Effective Rate" value={fmtPct(calc.effectiveTaxRate)} sub="Tax + NI combined" />
+      {/* Sticky summary tiles — stay visible while scrolling breakdown (PAYE tab) */}
+      <div className="sticky top-2 z-20 rounded-xl border border-white/10 bg-slate-950/92 p-3 shadow-lg shadow-black/30 backdrop-blur-md md:top-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard label="Net Annual" value={fmt(calc.netAnnual)} highlight />
+          <StatCard label="Net Monthly" value={fmt(calc.netMonthly)} highlight />
+          <StatCard label="Income Tax" value={fmt(calc.incomeTax)} sub={fmtPct((calc.incomeTax / Math.max(1, calc.g)) * 100) + ' of gross'} />
+          <StatCard label="Effective Rate" value={fmtPct(calc.effectiveTaxRate)} sub="Tax + NI combined" />
+        </div>
       </div>
 
       <div className="rounded-xl border border-white/10 bg-white/5 p-5">

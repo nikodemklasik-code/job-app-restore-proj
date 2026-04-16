@@ -92,6 +92,13 @@ Zdefiniowane w `frontend/src/index.css` i `frontend/src/stores/themeStore.ts`:
 ## Plan wykonawczy (rollout)
 - **Kanoniczny plan kolejności, MVP, DoD, ryzyka:** [`docs/executive-plan/final-rollout-execution-plan-v1.0.md`](docs/executive-plan/final-rollout-execution-plan-v1.0.md)
 
+## Quality Control Developer (bramka jakości)
+- Obowiązuje rola finalnego recenzenta techniczno-produktowego przed integracją.
+- Żaden task nie ma statusu "done" bez jawnej decyzji: **Approved For Integration** albo **Not Approved**.
+- Pełna specyfikacja roli, checklista i formaty decyzji: [`docs/policies/quality-control-developer-role-spec.md`](docs/policies/quality-control-developer-role-spec.md)
+- QC musi egzekwować folder-aware commands (komendy build/deploy/setup/recovery zawsze z pełnym folderem).
+- QC porównuje równolegle dostarczone implementacje (A/B) i decyduje: użyj A, użyj B, połącz A+B, albo odrzuć obie.
+
 ## TODO / otwarte zadania
 - [x] CI/CD: push na `claude/improvements` → GitHub Actions (build) + self-hosted runner → deploy na VPS
 - [ ] Avatar w rozmowie kwalifikacyjnej — dopracowanie

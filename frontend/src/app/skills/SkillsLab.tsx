@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { FlaskConical, Loader2, ChevronRight, AlertCircle, BookOpen, ChevronDown, ExternalLink, Zap, Briefcase, GraduationCap } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { FlaskConical, Loader2, ChevronRight, AlertCircle, BookOpen, ChevronDown, ExternalLink, Zap, Briefcase, GraduationCap, TrendingUp } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import { useProfileStore } from '@/stores/profileStore';
@@ -355,6 +356,28 @@ export default function SkillsLab() {
           </a>
         </div>
       )}
+
+      <div className="rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-slate-900/40 p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20">
+              <TrendingUp className="h-5 w-5 text-indigo-300" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-white">CV score &amp; valuation</h2>
+              <p className="text-sm text-slate-400">
+                Run an AI-backed CV score on uploaded documents in Document Lab; use Build for style analysis. Skill Lab focuses on skills and gap analysis from job text.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/documents?tab=upload"
+            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
+          >
+            Open Document Lab
+          </Link>
+        </div>
+      </div>
 
       {profile && !isLoadingProfile ? <LiveProfileSnapshot profile={profile} /> : null}
 

@@ -3,7 +3,7 @@ import { useClerk } from '@clerk/clerk-react';
 import {
   LayoutDashboard, Briefcase, ClipboardList, FileText,
   MessageSquare, Mic, User, CreditCard, Settings,
-  Shield, Palette, LogOut, Sparkles, Calculator, Scale, BarChart2, Zap, FlaskConical, Handshake, Radar, Flame, HelpCircle,
+  Shield, LogOut, Sparkles, Calculator, Scale, BarChart2, Zap, FlaskConical, Handshake, Radar, Flame, HelpCircle,
   GraduationCap, FolderOpen,
 } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -34,8 +34,7 @@ const AI_GROWTH: NavItem[] = [
 
 const PROFILE_DOCS: NavItem[] = [
   { path: '/profile', label: 'Profile', icon: User },
-  { path: '/documents', label: 'Documents Upload', icon: FolderOpen },
-  { path: '/style-studio', label: 'Style Studio', icon: Palette },
+  { path: '/documents', label: 'Document Lab', icon: FolderOpen },
 ];
 
 const TOOLS: NavItem[] = [

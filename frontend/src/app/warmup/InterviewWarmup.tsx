@@ -113,6 +113,34 @@ const ACCENT_GLOW: Record<WarmupTier['accent'], string> = {
   rose: 'shadow-[0_0_40px_-8px_rgba(244,63,94,0.4)]',
 };
 
+type TrainingDifficulty = 'Beginner' | 'Intermediate' | 'Advanced';
+type TrainingTopic = {
+  id: string;
+  title: string;
+  difficulty: TrainingDifficulty;
+  credits: number;
+  active: boolean;
+};
+
+const TRAINING_TOPICS: TrainingTopic[] = [
+  { id: 'star-basics', title: 'STAR Basics', difficulty: 'Beginner', credits: 10, active: true },
+  { id: 'confidence-voice', title: 'Confidence & Voice', difficulty: 'Beginner', credits: 12, active: true },
+  { id: 'cv-story', title: 'CV Storytelling', difficulty: 'Beginner', credits: 14, active: true },
+  { id: 'behavioural-pressure', title: 'Pressure Questions', difficulty: 'Intermediate', credits: 20, active: true },
+  { id: 'stakeholder-influence', title: 'Stakeholder Influence', difficulty: 'Intermediate', credits: 24, active: true },
+  { id: 'technical-clarity', title: 'Technical Clarity', difficulty: 'Intermediate', credits: 28, active: true },
+  { id: 'leadership-signals', title: 'Leadership Signals', difficulty: 'Advanced', credits: 36, active: true },
+  { id: 'salary-pushback', title: 'Salary Pushback', difficulty: 'Advanced', credits: 42, active: false },
+  { id: 'cross-exam-defence', title: 'Cross-Exam Defence', difficulty: 'Advanced', credits: 48, active: false },
+  { id: 'boardroom-grilling', title: 'Boardroom Grilling', difficulty: 'Advanced', credits: 55, active: false },
+];
+
+const DIFFICULTY_BADGE: Record<TrainingDifficulty, string> = {
+  Beginner: 'border-emerald-500/35 bg-emerald-500/12 text-emerald-300',
+  Intermediate: 'border-amber-500/35 bg-amber-500/12 text-amber-300',
+  Advanced: 'border-rose-500/35 bg-rose-500/12 text-rose-300',
+};
+
 // ─── Scoring (client-side) ───────────────────────────────────────────────────
 
 function scoreWarmup(transcript: string): { score: number; tip: string; label: string } {
@@ -535,6 +563,38 @@ export default function InterviewWarmup() {
                 </button>
               );
             })}
+          </div>
+
+          <div className="relative mt-10 rounded-2xl border border-white/10 bg-black/20 p-5 sm:p-6">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">Training tracks</h2>
+              <span className="text-xs text-slate-500">10 topics · 7 active · 3 soon</span>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              {TRAINING_TOPICS.map((topic) => (
+                <div
+                  key={topic.id}
+                  className={[
+                    'rounded-xl border p-3 transition-all',
+                    topic.active
+                      ? 'border-white/10 bg-slate-900/60 hover:border-white/20'
+                      : 'border-white/5 bg-slate-900/40 opacity-55 blur-[0.4px]',
+                  ].join(' ')}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${DIFFICULTY_BADGE[topic.difficulty]}`}>
+                      {topic.difficulty}
+                    </span>
+                    {topic.active ? (
+                      <span className="text-[10px] font-semibold text-slate-400">{topic.credits} credits</span>
+                    ) : (
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Soon</span>
+                    )}
+                  </div>
+                  <p className="mt-2 text-sm font-medium leading-snug text-white">{topic.title}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>

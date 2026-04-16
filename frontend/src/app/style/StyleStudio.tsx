@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import { markJobsSearchPendingAfterCv } from '@/lib/jobsAfterCvSync';
@@ -175,9 +175,11 @@ function UploadSlot({
   );
 }
 
+export type StyleStudioVariant = 'page' | 'embedded';
+
 // ─── main ─────────────────────────────────────────────────────────────────────
 
-export default function StyleStudio() {
+export default function StyleStudio({ variant = 'page' }: { variant?: StyleStudioVariant }) {
   const { user, isLoaded } = useUser();
   const userId = user?.id ?? null;
   const { fileToBase64 } = useFileUpload();
@@ -431,9 +433,25 @@ export default function StyleStudio() {
     }
   }
 
-  // ── derived ────────────────────────────────────────────────────────────────
+  // ── derived: embedded Build tab uses latest parsed CV from library (no uploads here) ──
 
-  const cvDoc = docs.cv;
+  const latestCvAsDoc: UploadedDoc | undefined = useMemo(() => {
+    const row = latestQuery.data;
+    if (!row?.parsedText || String(row.parsedText).trim().length === 0) return undefined;
+    const pd = row.parsedData as { skills?: string[]; fullName?: string; summary?: string } | undefined;
+    return {
+      id: row.id,
+      category: 'cv',
+      filename: row.originalFilename ?? 'CV',
+      preview: String(row.parsedText).slice(0, 300),
+      skills: Array.isArray(pd?.skills) ? (pd.skills as string[]) : [],
+      fullName: pd?.fullName,
+      summary: pd?.summary,
+      rawText: String(row.parsedText),
+    };
+  }, [latestQuery.data]);
+
+  const cvDoc = docs.cv ?? (variant === 'embedded' ? latestCvAsDoc : undefined);
   const localAnalysis = cvDoc?.rawText ? analyseTextLocal(cvDoc.rawText) : null;
   const profile = profileQuery.data;
 
@@ -456,9 +474,13 @@ export default function StyleStudio() {
           <Palette className="h-6 w-6 text-purple-400" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white">Style Studio</h1>
+          <h1 className="text-2xl font-bold text-white">
+            {variant === 'embedded' ? 'Build — style & generation' : 'Style Studio'}
+          </h1>
           <p className="mt-0.5 text-sm text-slate-400">
-            Upload your documents, analyse writing style, and build your profile.
+            {variant === 'embedded'
+              ? 'Analyse CV text from your library, rewrite sections, generate from jobs, and export PDFs. Upload files in the Upload tab.'
+              : 'Upload your documents, analyse writing style, and build your profile.'}
           </p>
         </div>
       </div>
@@ -477,41 +499,49 @@ export default function StyleStudio() {
         </div>
       )}
 
-      {/* ── upload section ── */}
-      <section>
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-500">
-          Document Upload
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <UploadSlot
-            category="cv"
-            label="CV / Résumé"
-            icon={FileText}
-            doc={docs.cv}
-            loading={Boolean(loadingCat.cv)}
-            onFile={(f, c) => void handleFile(f, c)}
-            onRemove={removeDoc}
-          />
-          <UploadSlot
-            category="coverletter"
-            label="Cover Letter"
-            icon={BookOpen}
-            doc={docs.coverletter}
-            loading={Boolean(loadingCat.coverletter)}
-            onFile={(f, c) => void handleFile(f, c)}
-            onRemove={removeDoc}
-          />
-          <UploadSlot
-            category="skills"
-            label="Skills List"
-            icon={FileBadge}
-            doc={docs.skills}
-            loading={Boolean(loadingCat.skills)}
-            onFile={(f, c) => void handleFile(f, c)}
-            onRemove={removeDoc}
-          />
+      {/* ── upload section (full page only — Document Lab handles uploads) ── */}
+      {variant !== 'embedded' && (
+        <section>
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-500">
+            Document Upload
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <UploadSlot
+              category="cv"
+              label="CV / Résumé"
+              icon={FileText}
+              doc={docs.cv}
+              loading={Boolean(loadingCat.cv)}
+              onFile={(f, c) => void handleFile(f, c)}
+              onRemove={removeDoc}
+            />
+            <UploadSlot
+              category="coverletter"
+              label="Cover Letter"
+              icon={BookOpen}
+              doc={docs.coverletter}
+              loading={Boolean(loadingCat.coverletter)}
+              onFile={(f, c) => void handleFile(f, c)}
+              onRemove={removeDoc}
+            />
+            <UploadSlot
+              category="skills"
+              label="Skills List"
+              icon={FileBadge}
+              doc={docs.skills}
+              loading={Boolean(loadingCat.skills)}
+              onFile={(f, c) => void handleFile(f, c)}
+              onRemove={removeDoc}
+            />
+          </div>
+        </section>
+      )}
+
+      {variant === 'embedded' && !cvDoc && (
+        <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-sm text-amber-200">
+          No CV text in your library yet. Upload a CV in the <strong className="text-white">Upload</strong> tab, then return here for style analysis and generation.
         </div>
-      </section>
+      )}
 
       {/* ── style analysis ── */}
       {cvDoc && localAnalysis && (
@@ -794,7 +824,7 @@ export default function StyleStudio() {
         </section>
       )}
 
-      {/* ── document library ── */}
+      {variant !== 'embedded' && (
       <section>
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-500">
           Document Library
@@ -859,8 +889,9 @@ export default function StyleStudio() {
           )}
         </div>
       </section>
+      )}
 
-      {/* ── Generate from Job section ── */}
+      {/* ── Generate from Job ── */}
       <section>
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-500">
           Generate from Job

@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
 import {
   Upload, FileText, Trash2, Loader2, CheckCircle2,
-  FlaskConical, ChevronRight, AlertCircle, Users,
+  FlaskConical, ChevronRight, AlertCircle, Users, Import,
 } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import StyleStudio from '@/app/style/StyleStudio';
 import { api } from '@/lib/api';
 import { markJobsSearchPendingAfterCv } from '@/lib/jobsAfterCvSync';
 
@@ -247,11 +248,14 @@ function CvScorePanel({
 export default function DocumentLab() {
   const { user } = useUser();
   const userId = user?.id ?? '';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const labTab = searchParams.get('tab') === 'build' ? 'build' : 'upload';
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [importNotice, setImportNotice] = useState<string | null>(null);
   const [primaryDocType, setPrimaryDocType] = useState<DocumentLabType>('cv');
   const [referenceText, setReferenceText] = useState('');
   const [referenceSaveState, setReferenceSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -278,6 +282,16 @@ export default function DocumentLab() {
 
   const cvUploadMutation = api.cv.upload.useMutation();
   const documentsUploadMutation = api.documents.upload.useMutation();
+  const importToProfileMutation = api.cv.importToProfile.useMutation({
+    onSuccess: () => {
+      setImportNotice('Profile updated from latest parsed CV.');
+      void utils.profile.getProfile.invalidate();
+    },
+    onError: (err) => {
+      setImportNotice(null);
+      setUploadError(err.message || 'Import to profile failed');
+    },
+  });
 
   const handleSaveReferenceText = async () => {
     const text = referenceText.trim();
@@ -373,38 +387,78 @@ export default function DocumentLab() {
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Document Lab</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           <strong className="font-medium text-slate-600 dark:text-slate-300">PDF, DOC, DOCX</strong> for a <strong className="font-medium text-slate-600 dark:text-slate-300">CV</strong> are parsed on the server and saved to your CV library.
-          For other types (cover letter, <strong className="font-medium text-slate-600 dark:text-slate-300">references</strong>, certificates), choose the type below — binary files are kept with a short note unless you add text.
-          Plain <strong className="font-medium text-slate-600 dark:text-slate-300">.txt</strong> uploads store full extracted text. Use{' '}
-          <Link to="/profile" className="text-indigo-600 hover:underline dark:text-indigo-400">Profile → Import from CV</Link> to push parsed CV fields into your profile.
-          The score panel uses <strong className="font-medium text-slate-600 dark:text-slate-300">Style → analyse document</strong> (OpenAI when configured).
+          For other types (cover letter, <strong className="font-medium text-slate-600 dark:text-slate-300">references</strong>, certificates), choose the type chips below — binary files are kept with a short note unless you add text.
+          Plain <strong className="font-medium text-slate-600 dark:text-slate-300">.txt</strong> uploads store full extracted text. Open{' '}
+          <Link to="/profile" className="text-indigo-600 hover:underline dark:text-indigo-400">Profile</Link> to edit fields, or use <strong className="font-medium text-slate-600 dark:text-slate-300">Build</strong> to import parsed CV data into your profile after upload.
+          CV scoring uses the same <strong className="font-medium text-slate-600 dark:text-slate-300">analyse document</strong> pipeline as Build (OpenAI when configured).
         </p>
       </div>
 
+      {/* Tabs: Upload (files + score) vs Build (style, rewrite, generate — no file upload) */}
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Document Lab sections">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={labTab === 'upload'}
+          onClick={() => { setSearchParams({}); }}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${labTab === 'upload' ? 'bg-indigo-600 text-white' : 'border border-slate-200 bg-white text-slate-600 hover:border-indigo-300 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'}`}
+        >
+          Upload &amp; CV score
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={labTab === 'build'}
+          onClick={() => { setSearchParams({ tab: 'build' }); }}
+          className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${labTab === 'build' ? 'bg-indigo-600 text-white' : 'border border-slate-200 bg-white text-slate-600 hover:border-indigo-300 dark:border-white/10 dark:bg-white/5 dark:text-slate-300'}`}
+        >
+          Build (style &amp; generation)
+        </button>
+      </div>
+
+      {labTab === 'build' && (
+        <div className="rounded-2xl border border-slate-200 bg-slate-950 p-4 dark:border-white/10">
+          <StyleStudio variant="embedded" />
+        </div>
+      )}
+
+      {labTab === 'upload' && (
+      <>
       {uploadError && (
         <div className="flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {uploadError}
         </div>
       )}
+      {importNotice && (
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          {importNotice}
+        </div>
+      )}
 
       {/* ── Document type + references field ─────────────────────────── */}
       <div className="grid gap-6 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800/80 lg:grid-cols-2">
         <div className="space-y-2">
-          <label htmlFor="doc-lab-type" className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          <p id="doc-lab-type" className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
             Primary type for this upload
-          </label>
-          <select
-            id="doc-lab-type"
-            value={primaryDocType}
-            onChange={(e) => setPrimaryDocType(e.target.value as DocumentLabType)}
-            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100"
-          >
+          </p>
+          <div className="flex flex-wrap gap-2" role="group" aria-labelledby="doc-lab-type">
             {DOCUMENT_TYPE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => setPrimaryDocType(o.value)}
+                className={`rounded-full border px-3 py-1.5 text-left text-xs font-medium transition sm:text-sm ${
+                  primaryDocType === o.value
+                    ? 'border-indigo-500 bg-indigo-500/15 text-indigo-700 dark:border-indigo-400 dark:bg-indigo-500/20 dark:text-indigo-200'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300 dark:border-white/10 dark:bg-slate-900 dark:text-slate-300'
+                }`}
+              >
                 {o.label}
-              </option>
+              </button>
             ))}
-          </select>
+          </div>
           <p className="text-xs text-slate-500 dark:text-slate-400">
             PDF/DOCX is sent to the CV parser only when type is <strong className="text-slate-600 dark:text-slate-300">CV / résumé</strong>. For references as PDF, add the text in the field on the right (or upload a .txt file).
           </p>
@@ -513,6 +567,37 @@ export default function DocumentLab() {
         </div>
       )}
 
+      {/* ── CV extraction + mapping action ───────────────────────────── */}
+      {latestCvQuery.data && (
+        <div className="rounded-2xl border border-indigo-500/25 bg-indigo-500/5 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-white">Latest parsed CV</p>
+              <p className="text-xs text-slate-400">
+                {latestCvQuery.data.originalFilename} — upload complete. Click import to map extracted data into Profile.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setUploadError(null);
+                setImportNotice(null);
+                importToProfileMutation.mutate({ userId, cvUploadId: latestCvQuery.data!.id });
+              }}
+              disabled={!userId || importToProfileMutation.isPending}
+              className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {importToProfileMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Import className="h-4 w-4" />
+              )}
+              {importToProfileMutation.isPending ? 'Importing…' : 'Import to Profile'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── CV Score ────────────────────────────────────────────────── */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
@@ -521,6 +606,8 @@ export default function DocumentLab() {
         </div>
         <CvScorePanel docs={docs} userId={userId} latestCv={latestCvForScore} />
       </div>
+      </>
+      )}
 
     </div>
   );

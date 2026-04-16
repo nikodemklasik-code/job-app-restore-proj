@@ -38,7 +38,7 @@ const COMPARISON_ROWS: { label: string; free: string | boolean | null; pro: stri
   { label: 'Interview practice',         free: null,   pro: true,  autopilot: true  },
   { label: 'Negotiation Coach',          free: null,   pro: true,  autopilot: true  },
   { label: 'Skills Lab',                 free: null,   pro: true,  autopilot: true  },
-  { label: 'Style Studio',               free: null,   pro: true,  autopilot: true  },
+  { label: 'Document Lab (style & build)', free: null, pro: true, autopilot: true },
   { label: 'Salary Calculator',          free: null,   pro: true,  autopilot: true  },
   { label: 'Auto-apply to matched jobs', free: null,   pro: null,  autopilot: true  },
   { label: 'Telegram notifications',     free: null,   pro: null,  autopilot: true  },
@@ -146,6 +146,55 @@ export default function BillingPage() {
         )}
       </div>
 
+      {/* Patronage — optional support (moved up per product layout) */}
+      <section aria-labelledby="billing-patronage-heading" className="space-y-5 rounded-2xl border border-white/10 bg-white/5 p-6">
+        <div className="flex items-center gap-3">
+          <div className="inline-flex rounded-xl bg-rose-500/10 p-2.5">
+            <Heart className="h-5 w-5 text-rose-400" />
+          </div>
+          <div>
+            <h2 id="billing-patronage-heading" className="font-semibold text-white">Support MultivoHub</h2>
+            <p className="text-sm text-slate-400">Help keep career tools accessible — optional patron tiers.</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {([
+            { id: 'supporter', name: 'Supporter', price: '£3', cta: 'Buy us a coffee', description: 'Helps cover API costs' },
+            { id: 'patron', name: 'Patron', price: '£7', cta: 'Become a Patron', description: 'Keeps free-tier capacity healthy' },
+            { id: 'champion', name: 'Champion', price: '£15', cta: 'Champion the Cause', description: 'Sponsors job seekers who need Pro' },
+          ] as const).map((tier) => (
+            <div key={tier.id} className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+              <div>
+                <p className="font-semibold text-white">{tier.name}</p>
+                <div className="mt-1 flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-white">{tier.price}</span>
+                  <span className="text-xs text-slate-400">/month or one-time</span>
+                </div>
+                <p className="mt-1 text-xs text-slate-400">{tier.description}</p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <a href={`https://buy.stripe.com/multivohub-${tier.id}`} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2 text-xs font-medium text-white transition hover:bg-indigo-700">
+                  <CreditCard className="h-3.5 w-3.5" />
+                  Card / Apple Pay / Google Pay
+                </a>
+                <a href={`https://www.paypal.com/donate?hosted_button_id=multivohub_${tier.id}`} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-2 text-xs font-medium text-white transition hover:bg-white/10">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.041.254-.93 4.778-4.005 7.201-9.138 7.201h-2.19a.563.563 0 0 0-.556.479l-1.187 7.527h-.506l-.24 1.516a.56.56 0 0 0 .554.647h3.882c.46 0 .85-.334.922-.788.06-.26.76-4.852.816-5.09a.932.932 0 0 1 .923-.788h.58c3.76 0 6.705-1.528 7.565-5.946.36-1.847.174-3.388-.777-4.471z" /></svg>
+                  PayPal
+                </a>
+                <a href={`https://commerce.coinbase.com/checkout/multivohub-${tier.id}`} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 py-2 text-xs font-medium text-amber-400 transition hover:bg-amber-500/20">
+                  <Bitcoin className="h-3.5 w-3.5" />
+                  Bitcoin / Crypto
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-center text-xs text-slate-500">Patronage helps cover infrastructure and support users who cannot afford paid tiers.</p>
+      </section>
+
       {/* Account snapshot */}
       <section aria-labelledby="billing-account-heading" className="space-y-3">
         <h2 id="billing-account-heading" className="text-lg font-semibold text-white">
@@ -182,6 +231,89 @@ export default function BillingPage() {
           </div>
         )}
       </section>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
+        <section aria-labelledby="billing-refer-heading" className="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-6">
+          <h2 id="billing-refer-heading" className="text-lg font-semibold text-white">Refer a friend</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            For every friend who signs up and buys any plan — you get <strong className="text-white">1 month free</strong>.
+          </p>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <input readOnly value={referralLink}
+              className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-300" />
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard.writeText(referralLink);
+                setCopySuccess(true);
+                setTimeout(() => setCopySuccess(false), 2000);
+              }}
+              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition sm:min-w-[88px]"
+            >
+              {copySuccess ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+        </section>
+
+        <section aria-labelledby="billing-topup-heading" className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-6 space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="inline-flex rounded-xl bg-amber-500/15 p-2.5">
+              <Coins className="h-5 w-5 text-amber-400" />
+            </div>
+            <div>
+              <h2 id="billing-topup-heading" className="font-semibold text-white">Buy extra credits</h2>
+              <p className="text-sm text-slate-400">Choose a pack — one-time checkout. Credits stack with your plan allowance.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {([
+              { credits: '1 000', price: '£2', desc: 'Small top-up', priceId: import.meta.env.VITE_STRIPE_CREDITS_1000 ?? '', popular: false },
+              { credits: '5 000', price: '£8', desc: 'Most popular', priceId: import.meta.env.VITE_STRIPE_CREDITS_5000 ?? '', popular: true },
+              { credits: '15 000', price: '£20', desc: 'Best value', priceId: import.meta.env.VITE_STRIPE_CREDITS_15000 ?? '', popular: false },
+            ] as const).map((pkg) => (
+              <div key={pkg.credits}
+                className={`relative flex flex-col gap-3 rounded-2xl border p-4 ${pkg.popular ? 'border-amber-500/50 ring-2 ring-amber-500/20' : 'border-white/10 bg-white/[0.03]'}`}
+                style={pkg.popular ? { background: 'rgba(251,191,36,0.06)' } : undefined}
+              >
+                {pkg.popular && (
+                  <span className="absolute -top-2 left-3 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-black">Popular</span>
+                )}
+                <div>
+                  <p className="text-xl font-bold text-white">{pkg.credits}</p>
+                  <p className="text-xs text-slate-500">AI credits</p>
+                  <div className="mt-1 flex items-baseline gap-1">
+                    <span className="text-lg font-bold text-amber-400">{pkg.price}</span>
+                    <span className="text-xs text-slate-500">one-time</span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-slate-400">{pkg.desc}</p>
+                </div>
+                {pkg.priceId ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!userId || !userEmail) return;
+                      try {
+                        const { url } = await trpcClient.billing.createCheckoutSession.mutate({ userId, priceId: pkg.priceId, customerEmail: userEmail });
+                        window.location.href = url;
+                      } catch {
+                        setStatusMessage({ type: 'error', text: 'Could not start checkout. Please try again.' });
+                      }
+                    }}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-amber-500 py-2 text-sm font-semibold text-black transition hover:bg-amber-400"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    Buy
+                  </button>
+                ) : (
+                  <div className="flex items-center justify-center rounded-xl border border-white/10 bg-white/5 py-2 text-[10px] text-slate-500">
+                    Set <code className="text-amber-400">VITE_STRIPE_CREDITS_*</code>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
 
       {/* Plans & payment */}
       <section aria-labelledby="billing-plans-heading" className="space-y-5">
@@ -251,7 +383,7 @@ export default function BillingPage() {
 
               <ul className="flex-1 space-y-2">
                 {(plan.id === 'free' ? ['Basic job matching', 'Profile builder', 'CV upload', 'Up to 10 applications'] :
-                  plan.id === 'pro' ? ['Unlimited applications', 'AI-generated documents', 'Interview practice', 'Skills Lab', 'Style Studio', 'Salary Calculator'] :
+                  plan.id === 'pro' ? ['Unlimited applications', 'AI-generated documents', 'Interview practice', 'Skills Lab', 'Document Lab (style & build)', 'Salary Calculator'] :
                   ['Everything in Pro', 'Auto-apply to matched jobs', 'Telegram notifications', 'Follow-up email copilot']
                 ).map((f) => (
                   <li key={f} className="flex items-center gap-2 text-sm text-slate-400">
@@ -292,66 +424,6 @@ export default function BillingPage() {
       </div>
       </section>
 
-      {/* Buy Credits */}
-      <section aria-labelledby="billing-topup-heading" className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-6 space-y-5">
-        <div className="flex items-center gap-3">
-          <div className="inline-flex rounded-xl bg-amber-500/15 p-2.5">
-            <Coins className="h-5 w-5 text-amber-400" />
-          </div>
-          <div>
-            <h2 id="billing-topup-heading" className="font-semibold text-white">Buy Extra Credits</h2>
-            <p className="text-sm text-slate-400">Top up any time — credits never expire and stack with your monthly allowance</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {([
-            { credits: '1 000', price: '£2', desc: 'Small top-up', priceId: import.meta.env.VITE_STRIPE_CREDITS_1000 ?? '', popular: false },
-            { credits: '5 000', price: '£8', desc: 'Most popular', priceId: import.meta.env.VITE_STRIPE_CREDITS_5000 ?? '', popular: true },
-            { credits: '15 000', price: '£20', desc: 'Best value', priceId: import.meta.env.VITE_STRIPE_CREDITS_15000 ?? '', popular: false },
-          ] as const).map((pkg) => (
-            <div key={pkg.credits}
-              className={`relative flex flex-col gap-4 rounded-2xl border p-5 ${pkg.popular ? 'border-amber-500/50 ring-2 ring-amber-500/20' : 'border-white/10 bg-white/[0.03]'}`}
-              style={pkg.popular ? { background: 'rgba(251,191,36,0.06)' } : undefined}
-            >
-              {pkg.popular && (
-                <span className="absolute -top-2.5 left-4 rounded-full bg-amber-500 px-3 py-0.5 text-[10px] font-bold text-black">Most popular</span>
-              )}
-              <div>
-                <p className="text-2xl font-bold text-white">{pkg.credits}</p>
-                <p className="text-xs text-slate-500">AI credits</p>
-                <div className="mt-2 flex items-baseline gap-1">
-                  <span className="text-xl font-bold text-amber-400">{pkg.price}</span>
-                  <span className="text-xs text-slate-500">one-time</span>
-                </div>
-                <p className="mt-1 text-xs text-slate-400">{pkg.desc}</p>
-              </div>
-              {pkg.priceId ? (
-                <button
-                  onClick={async () => {
-                    if (!userId || !userEmail) return;
-                    try {
-                      const { url } = await trpcClient.billing.createCheckoutSession.mutate({ userId, priceId: pkg.priceId, customerEmail: userEmail });
-                      window.location.href = url;
-                    } catch {
-                      setStatusMessage({ type: 'error', text: 'Could not start checkout. Please try again.' });
-                    }
-                  }}
-                  className="flex items-center justify-center gap-2 rounded-xl bg-amber-500 py-2.5 text-sm font-semibold text-black transition hover:bg-amber-400"
-                >
-                  <CreditCard className="h-4 w-4" />
-                  Buy {pkg.credits} credits
-                </button>
-              ) : (
-                <div className="flex items-center justify-center rounded-xl border border-white/10 bg-white/5 py-2.5 text-xs text-slate-500">
-                  Set <code className="mx-1 text-amber-400">VITE_STRIPE_CREDITS_*</code> to enable
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-        <p className="text-center text-xs text-slate-500">Credits are added instantly after payment · No subscriptions · Works with any plan</p>
-      </section>
-
       {/* Plan comparison table */}
       <section aria-labelledby="billing-compare-heading" className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
         <div className="border-b border-white/10 px-6 py-4">
@@ -383,6 +455,17 @@ export default function BillingPage() {
             </tbody>
           </table>
         </div>
+      </section>
+
+      {/* How to use this page */}
+      <section aria-labelledby="billing-how-heading" className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-3">
+        <h2 id="billing-how-heading" className="font-semibold text-white">How to pay and what to configure</h2>
+        <ul className="list-disc space-y-2 pl-5 text-sm text-slate-400">
+          <li><strong className="text-slate-200">Subscriptions:</strong> pick Pro or Autopilot above, choose card / PayPal / crypto, complete checkout — your plan updates in-app.</li>
+          <li><strong className="text-slate-200">Credit packs:</strong> use the packs in &quot;Buy extra credits&quot; — requires <code className="text-amber-400">VITE_STRIPE_CREDITS_*</code> price IDs in your deployment env (see repo <code className="text-slate-500">.env.example</code>).</li>
+          <li><strong className="text-slate-200">Stripe portal:</strong> &quot;Manage in Stripe portal&quot; opens billing history and cancellation for card subscriptions.</li>
+          <li><strong className="text-slate-200">Patronage:</strong> optional one-off or recurring tips — separate from subscription; links point to your configured Stripe/PayPal/Coinbase pages.</li>
+        </ul>
       </section>
 
       {/* Annual plans coming soon */}
@@ -432,77 +515,6 @@ export default function BillingPage() {
           </div>
         </section>
       )}
-
-      {/* Patronage */}
-      <section aria-labelledby="billing-patronage-heading" className="space-y-5 rounded-2xl border border-white/10 bg-white/5 p-6">
-        <div className="flex items-center gap-3">
-          <div className="inline-flex rounded-xl bg-rose-500/10 p-2.5">
-            <Heart className="h-5 w-5 text-rose-400" />
-          </div>
-          <div>
-            <h2 id="billing-patronage-heading" className="font-semibold text-white">Support MultivoHub</h2>
-            <p className="text-sm text-slate-400">Help keep this platform free for job seekers in difficult situations</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {([
-            { id: 'supporter', name: 'Supporter', price: '£3', cta: 'Buy us a coffee', description: 'Helps cover API costs' },
-            { id: 'patron',    name: 'Patron',    price: '£7', cta: 'Become a Patron', description: 'Keeps 5 free users running' },
-            { id: 'champion',  name: 'Champion',  price: '£15', cta: 'Champion the Cause', description: 'Sponsors a job seeker in difficulty' },
-          ] as const).map((tier) => (
-            <div key={tier.id} className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-              <div>
-                <p className="font-semibold text-white">{tier.name}</p>
-                <div className="mt-1 flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-white">{tier.price}</span>
-                  <span className="text-xs text-slate-400">/month or one-time</span>
-                </div>
-                <p className="mt-1 text-xs text-slate-400">{tier.description}</p>
-              </div>
-              <div className="flex flex-col gap-2">
-                <a href={`https://buy.stripe.com/multivohub-${tier.id}`} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2 text-xs font-medium text-white transition hover:bg-indigo-700">
-                  <CreditCard className="h-3.5 w-3.5" />
-                  Card / Apple Pay / Google Pay
-                </a>
-                <a href={`https://www.paypal.com/donate?hosted_button_id=multivohub_${tier.id}`} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-2 text-xs font-medium text-white transition hover:bg-white/10">
-                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.041.254-.93 4.778-4.005 7.201-9.138 7.201h-2.19a.563.563 0 0 0-.556.479l-1.187 7.527h-.506l-.24 1.516a.56.56 0 0 0 .554.647h3.882c.46 0 .85-.334.922-.788.06-.26.76-4.852.816-5.09a.932.932 0 0 1 .923-.788h.58c3.76 0 6.705-1.528 7.565-5.946.36-1.847.174-3.388-.777-4.471z" /></svg>
-                  PayPal
-                </a>
-                <a href={`https://commerce.coinbase.com/checkout/multivohub-${tier.id}`} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 py-2 text-xs font-medium text-amber-400 transition hover:bg-amber-500/20">
-                  <Bitcoin className="h-3.5 w-3.5" />
-                  Bitcoin / Crypto
-                </a>
-              </div>
-            </div>
-          ))}
-        </div>
-        <p className="text-center text-xs text-slate-500">100% of patronage goes to platform costs and supporting users who cannot afford Pro</p>
-      </section>
-
-      {/* Refer a Friend */}
-      <section aria-labelledby="billing-refer-heading" className="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-6">
-        <h2 id="billing-refer-heading" className="text-lg font-semibold text-white">Refer a friend</h2>
-        <p className="mt-1 text-sm text-slate-400">
-          For every friend who signs up and buys any plan — you get <strong className="text-white">1 month free</strong>.
-        </p>
-        <div className="mt-4 flex items-center gap-2">
-          <input readOnly value={referralLink}
-            className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-300" />
-          <button
-            onClick={() => {
-              void navigator.clipboard.writeText(referralLink);
-              setCopySuccess(true);
-              setTimeout(() => setCopySuccess(false), 2000);
-            }}
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition min-w-[80px]"
-          >
-            {copySuccess ? 'Copied!' : 'Copy'}
-          </button>
-        </div>
-      </section>
 
       {isLoading && (
         <div className="flex h-16 items-center justify-center rounded-2xl border border-white/5 bg-white/[0.02]">
