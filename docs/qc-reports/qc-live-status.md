@@ -16,6 +16,8 @@ Last Update: 2026-04-16 (PO — anti-idle: MVP + checkpoint 2h + FU-PAR; **kolej
 
 **Kanał komunikacji:** tylko `docs/qc-reports/` + łańcuch Agent → QC → PO (bez „statusu z czatu” jako dowodu wejścia do QC).
 
+**Job Radar OpenAPI (wątek kontraktu / handoff dev — jeden plik):** `docs/qc-reports/qc-job-radar-openapi-contract-dev-handoff-2026-04-16.md` — ustalenia PO↔wykonawca **tylko** tam (sekcje `PO note` / `Executor reply`), bez dublowania „oficjalnej” prawdy na czacie.
+
 Jeśli coś się rozjeżdża z tą tablicą — **poprawcie ten plik** albo napiszcie wprost w PR, żeby QC mógł zsynchronizować prawdę.
 
 ---
