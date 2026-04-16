@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import Stripe from 'stripe';
 import { TRPCError } from '@trpc/server';
 import { publicProcedure, router } from '../trpc.js';
@@ -78,6 +78,38 @@ export const billingRouter = router({
         renewalDate: sub?.renewalDate?.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) ?? 'N/A',
         status: sub?.status ?? 'active',
       };
+    }),
+
+  /** Used by Interview Warmup paid tiers (30 / 45 / 60 credit sessions). */
+  deductCredits: publicProcedure
+    .input(
+      z.object({
+        userId: z.string().min(1),
+        amount: z.number().int().positive().max(10_000),
+        feature: z.enum(['warmup_session']).optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const userRow = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      const localUserId = userRow[0]?.id;
+      if (!localUserId) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found' });
+      }
+      const sub = (
+        await db.select({ credits: subscriptions.credits }).from(subscriptions).where(eq(subscriptions.userId, localUserId)).limit(1)
+      )[0];
+      const current = sub?.credits ?? 100;
+      if (current < input.amount) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: `Not enough credits. This session costs ${input.amount} credits. You have ${current} remaining.`,
+        });
+      }
+      await db
+        .update(subscriptions)
+        .set({ credits: sql`${subscriptions.credits} - ${input.amount}` })
+        .where(eq(subscriptions.userId, localUserId));
+      return { creditsRemaining: current - input.amount };
     }),
 
   getBillingHistory: publicProcedure
