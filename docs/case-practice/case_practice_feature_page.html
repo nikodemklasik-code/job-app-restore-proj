@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Case Practice — Ćwicz jak w prawdziwej pracy</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      background: #0d0f14;
+      color: #e8eaf0;
+      line-height: 1.65;
+      overflow-x: hidden;
+    }
+    h1, h2, h3, h4 { font-weight: 700; letter-spacing: -0.02em; }
+    h1 { font-size: clamp(2.4rem, 5vw, 4rem); }
+    h2 { font-size: clamp(1.8rem, 3.5vw, 2.8rem); }
+    h3 { font-size: 1.25rem; }
+    p  { color: #a8afc4; }
+    strong { color: #e8eaf0; }
+
+    :root {
+      --red:    #e74c3c;
+      --red-dk: #c0392b;
+      --blue:   #3b82f6;
+      --teal:   #14b8a6;
+      --gold:   #f59e0b;
+      --violet: #8b5cf6;
+      --card-bg: #161a24;
+      --border:  #2a2f3e;
+      --muted:   #6b7280;
+    }
+
+    .container { max-width: 1160px; margin: 0 auto; padding: 0 1.5rem; }
+    .tag {
+      display: inline-block;
+      font-size: 0.72rem; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 0.3rem 0.8rem; border-radius: 999px; margin-bottom: 1rem;
+    }
+    .tag-red    { background: rgba(231,76,60,.15);  color: var(--red);    border: 1px solid rgba(231,76,60,.3); }
+    .tag-blue   { background: rgba(59,130,246,.15); color: var(--blue);   border: 1px solid rgba(59,130,246,.3); }
+    .tag-teal   { background: rgba(20,184,166,.15); color: var(--teal);   border: 1px solid rgba(20,184,166,.3); }
+    .tag-gold   { background: rgba(245,158,11,.15); color: var(--gold);   border: 1px solid rgba(245,158,11,.3); }
+    .tag-violet { background: rgba(139,92,246,.15); color: var(--violet); border: 1px solid rgba(139,92,246,.3); }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.85rem 1.8rem; border-radius: 8px;
+      font-weight: 600; font-size: 0.95rem;
+      cursor: pointer; text-decoration: none; transition: all .2s;
+    }
+    .btn-primary { background: var(--red); color: #fff; }
+    .btn-primary:hover { background: var(--red-dk); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(231,76,60,.35); }
+    .btn-ghost { border: 1px solid var(--border); color: #e8eaf0; background: transparent; }
+    .btn-ghost:hover { border-color: var(--red); color: var(--red); }
+
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(13,15,20,.9); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border); padding: 1rem 0;
+    }
+    nav .inner { display: flex; align-items: center; justify-content: space-between; }
+    .nav-logo { font-weight: 800; font-size: 1.1rem; color: #fff; text-decoration: none; letter-spacing: -0.03em; }
+    .nav-logo span { color: var(--red); }
+    .nav-links { display: flex; gap: 2rem; list-style: none; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.9rem; transition: color .2s; }
+    .nav-links a:hover { color: #fff; }
+
+    .hero {
+      position: relative; padding: 7rem 0 5rem; text-align: center; overflow: hidden;
+    }
+    .hero::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(231,76,60,.12), transparent 70%);
+      pointer-events: none;
+    }
+    .hero h1 { max-width: 820px; margin: 0 auto 1.5rem; }
+    .hero h1 em { font-style: normal; color: var(--red); }
+    .hero .subtitle { font-size: 1.15rem; max-width: 640px; margin: 0 auto 2.5rem; color: #8892a4; }
+    .hero-cta { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+    .section { padding: 5rem 0; }
+    .section-header { text-align: center; margin-bottom: 3.5rem; }
+    .section-header p { max-width: 620px; margin: 1rem auto 0; font-size: 1.05rem; }
+
+    /* ── Principle strip ── */
+    .principle-strip {
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 16px; padding: 2.5rem 3rem;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem;
+    }
+    .principle-item h4 { font-size: 0.95rem; color: #fff; margin-bottom: 0.4rem; }
+    .principle-item p  { font-size: 0.85rem; color: var(--muted); }
+    .principle-icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+
+    /* ── Feature rows ── */
+    .feature-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 4rem;
+      align-items: center; margin-bottom: 5rem;
+    }
+    .feature-row.reverse { direction: rtl; }
+    .feature-row.reverse > * { direction: ltr; }
+    .feature-visual {
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 16px; padding: 2rem; min-height: 320px;
+      display: flex; flex-direction: column; gap: 1rem;
+      position: relative; overflow: hidden;
+    }
+    .feature-visual::after {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(circle at 80% 20%, rgba(231,76,60,.06), transparent 60%);
+      pointer-events: none;
+    }
+    .feature-text h2 { margin-bottom: 1rem; }
+    .feature-text p  { margin-bottom: 1.5rem; }
+    .feature-list { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
+    .feature-list li {
+      display: flex; align-items: flex-start; gap: 0.6rem;
+      font-size: 0.92rem; color: #a8afc4;
+    }
+    .feature-list li::before { content: '→'; color: var(--red); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Mock UI ── */
+    .mock-case-card {
+      background: #1c2130; border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem 1.4rem;
+    }
+    .mock-case-card .case-type { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--red); margin-bottom: 0.4rem; }
+    .mock-case-card .case-title { font-size: 0.95rem; font-weight: 600; color: #e8eaf0; margin-bottom: 0.6rem; }
+    .mock-case-card .case-meta { display: flex; gap: 0.8rem; flex-wrap: wrap; }
+    .mock-badge { font-size: 0.7rem; padding: 0.2rem 0.6rem; border-radius: 4px; font-weight: 600; }
+    .mock-badge-pressure { background: rgba(231,76,60,.15); color: var(--red); }
+    .mock-badge-time     { background: rgba(245,158,11,.15); color: var(--gold); }
+    .mock-badge-skill    { background: rgba(59,130,246,.15); color: var(--blue); }
+
+    .mock-analysis-block {
+      background: #1c2130; border: 1px solid var(--border); border-radius: 10px; padding: 1.4rem;
+    }
+    .mock-analysis-block .ab-label {
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; margin-bottom: 0.8rem;
+    }
+    .ab-row {
+      display: flex; gap: 0.6rem; align-items: flex-start;
+      font-size: 0.82rem; color: #a8afc4; margin-bottom: 0.5rem; line-height: 1.5;
+    }
+    .ab-row .ab-icon { flex-shrink: 0; font-size: 0.9rem; margin-top: 1px; }
+
+    .mock-direction-block {
+      background: rgba(20,184,166,.07); border: 1px solid rgba(20,184,166,.25);
+      border-radius: 10px; padding: 1.2rem 1.4rem;
+    }
+    .mock-direction-block .dir-label {
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--teal); margin-bottom: 0.6rem;
+    }
+    .dir-item {
+      display: flex; gap: 0.5rem; font-size: 0.82rem; color: #a8afc4;
+      margin-bottom: 0.4rem; align-items: flex-start;
+    }
+    .dir-item::before { content: '↗'; color: var(--teal); flex-shrink: 0; font-weight: 700; }
+
+    .mock-pressure-bar {
+      background: #1c2130; border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.2rem;
+    }
+    .pb-label { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .pb-track { background: #2a2f3e; border-radius: 99px; height: 6px; overflow: hidden; }
+    .pb-fill  { height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--red), #ff6b6b); }
+
+    .mock-growth-signal {
+      background: rgba(20,184,166,.08); border: 1px solid rgba(20,184,166,.25);
+      border-radius: 8px; padding: 0.8rem 1rem;
+      font-size: 0.82rem; color: var(--teal);
+      display: flex; align-items: flex-start; gap: 0.5rem;
+    }
+    .mock-growth-signal::before { content: '↑'; font-weight: 700; flex-shrink: 0; }
+
+    /* ── AI principle highlight ── */
+    .ai-principle-box {
+      background: linear-gradient(135deg, rgba(139,92,246,.08), rgba(20,184,166,.06));
+      border: 1px solid rgba(139,92,246,.3);
+      border-radius: 16px; padding: 3rem;
+      position: relative; overflow: hidden;
+    }
+    .ai-principle-box::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--violet), var(--teal));
+    }
+    .ai-principle-box h3 { color: #e8eaf0; font-size: 1.4rem; margin-bottom: 0.8rem; }
+    .ai-principle-box .principle-lead { font-size: 1.05rem; color: #c4c9d8; margin-bottom: 2rem; }
+    .contrast-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+    .contrast-col h4 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem; }
+    .contrast-col.not h4 { color: var(--red); }
+    .contrast-col.yes h4 { color: var(--teal); }
+    .contrast-item {
+      display: flex; gap: 0.6rem; align-items: flex-start;
+      font-size: 0.85rem; color: #a8afc4; margin-bottom: 0.7rem;
+      background: rgba(255,255,255,.03); border-radius: 8px; padding: 0.7rem 0.9rem;
+      line-height: 1.5;
+    }
+    .contrast-item .ci-icon { flex-shrink: 0; }
+
+    /* ── Skills grid ── */
+    .skills-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+    .skill-card {
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.4rem; transition: border-color .2s, transform .2s;
+    }
+    .skill-card:hover { border-color: var(--red); transform: translateY(-2px); }
+    .skill-card .sk-icon { font-size: 1.4rem; margin-bottom: 0.6rem; }
+    .skill-card h4 { font-size: 0.9rem; color: #e8eaf0; margin-bottom: 0.3rem; }
+    .skill-card p  { font-size: 0.8rem; color: var(--muted); }
+
+    /* ── Categories ── */
+    .categories-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.2rem; }
+    .cat-card {
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.6rem; transition: border-color .2s;
+    }
+    .cat-card:hover { border-color: var(--blue); }
+    .cat-card h3 { font-size: 1rem; color: #e8eaf0; margin-bottom: 0.5rem; }
+    .cat-card p  { font-size: 0.82rem; color: var(--muted); }
+
+    /* ── Verdicts ── */
+    .verdict-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+    .verdict-item { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.4rem; }
+    .verdict-item .vi-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; }
+    .verdict-item h4 { font-size: 0.95rem; color: #e8eaf0; margin-bottom: 0.4rem; }
+    .verdict-item p  { font-size: 0.8rem; color: var(--muted); }
+    .vi-green  .vi-label { color: var(--teal); }
+    .vi-yellow .vi-label { color: var(--gold); }
+    .vi-red    .vi-label { color: var(--red); }
+    .vi-blue   .vi-label { color: var(--blue); }
+
+    /* ── AI roles ── */
+    .roles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
+    .role-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.4rem; text-align: center; }
+    .role-card .role-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; margin: 0 auto 0.8rem; }
+    .role-card h4 { font-size: 0.9rem; color: #e8eaf0; margin-bottom: 0.4rem; }
+    .role-card p  { font-size: 0.78rem; color: var(--muted); }
+
+    /* ── Game mechanics ── */
+    .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.2rem; }
+    .game-card {
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 14px; padding: 1.8rem; transition: border-color .2s, transform .2s;
+      position: relative; overflow: hidden;
+    }
+    .game-card:hover { transform: translateY(-2px); }
+    .game-card.rank:hover  { border-color: var(--gold); }
+    .game-card.signal:hover { border-color: var(--teal); }
+    .game-card.unlock:hover { border-color: var(--violet); }
+    .game-card.streak:hover { border-color: var(--red); }
+    .game-card.growth:hover { border-color: var(--blue); }
+    .game-card .gc-icon { font-size: 1.8rem; margin-bottom: 0.8rem; }
+    .game-card h3 { font-size: 1rem; color: #e8eaf0; margin-bottom: 0.5rem; }
+    .game-card p  { font-size: 0.82rem; color: var(--muted); margin-bottom: 1rem; }
+    .game-card .gc-example {
+      background: rgba(255,255,255,.04); border-radius: 8px;
+      padding: 0.7rem 0.9rem; font-size: 0.8rem; color: #c4c9d8;
+      font-style: italic; border-left: 2px solid;
+    }
+    .game-card.rank   .gc-example { border-color: var(--gold); }
+    .game-card.signal .gc-example { border-color: var(--teal); }
+    .game-card.unlock .gc-example { border-color: var(--violet); }
+    .game-card.streak .gc-example { border-color: var(--red); }
+    .game-card.growth .gc-example { border-color: var(--blue); }
+
+    .rank-levels {
+      display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;
+    }
+    .rank-level {
+      display: flex; align-items: center; gap: 0.8rem;
+      background: rgba(255,255,255,.03); border-radius: 8px; padding: 0.6rem 0.9rem;
+    }
+    .rank-level .rl-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .rank-level .rl-name { font-size: 0.82rem; font-weight: 600; color: #e8eaf0; min-width: 110px; }
+    .rank-level .rl-desc { font-size: 0.75rem; color: var(--muted); }
+
+    .anti-pattern-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.8rem; margin-top: 2rem; }
+    .anti-item {
+      display: flex; gap: 0.6rem; align-items: flex-start;
+      background: rgba(231,76,60,.05); border: 1px solid rgba(231,76,60,.15);
+      border-radius: 8px; padding: 0.8rem 1rem; font-size: 0.82rem; color: #a8afc4;
+    }
+    .anti-item .ai-x { color: var(--red); font-weight: 700; flex-shrink: 0; }
+
+    /* ── Comparison ── */
+    .comparison-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .comparison-table th { padding: 1rem 1.2rem; text-align: left; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); border-bottom: 1px solid var(--border); }
+    .comparison-table td { padding: 1rem 1.2rem; border-bottom: 1px solid var(--border); color: #a8afc4; }
+    .comparison-table tr:last-child td { border-bottom: none; }
+    .comparison-table tr:hover td { background: rgba(255,255,255,.02); }
+    .comparison-table .check { color: var(--teal); font-weight: 700; }
+    .comparison-table .cross { color: var(--red); }
+    .comparison-table .col-cp { color: #e8eaf0; font-weight: 600; }
+
+    /* ── CTA ── */
+    .cta-section {
+      text-align: center; padding: 6rem 0;
+      position: relative; overflow: hidden;
+    }
+    .cta-section::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse 70% 70% at 50% 50%, rgba(231,76,60,.1), transparent 70%);
+      pointer-events: none;
+    }
+    .cta-section h2 { margin-bottom: 1rem; }
+    .cta-section p  { max-width: 520px; margin: 0 auto 2.5rem; font-size: 1.05rem; }
+
+    footer { border-top: 1px solid var(--border); padding: 2rem 0; text-align: center; color: var(--muted); font-size: 0.82rem; }
+
+    @media (max-width: 768px) {
+      .feature-row { grid-template-columns: 1fr; gap: 2rem; }
+      .feature-row.reverse { direction: ltr; }
+      .principle-strip { padding: 2rem; }
+      .contrast-grid { grid-template-columns: 1fr; }
+      nav .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="container inner">
+    <a class="nav-logo" href="#">Case<span>Practice</span></a>
+    <ul class="nav-links">
+      <li><a href="#how-it-works">Jak działa</a></li>
+      <li><a href="#ai-core">Zasada AI</a></li>
+      <li><a href="#features">Funkcje</a></li>
+      <li><a href="#game">Progresja</a></li>
+      <li><a href="#categories">Przypadki</a></li>
+    </ul>
+    <a href="#cta" class="btn btn-primary">Zacznij Ćwiczyć</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <div style="margin-bottom:1.5rem;"><span class="tag tag-red">Nowy Moduł</span></div>
+    <h1>Ćwicz jak w <em>prawdziwej pracy</em>.<br>Nie jak na egzaminie.</h1>
+    <p class="subtitle">
+      Realistyczne wyzwania zawodowe pojawiają się w czasie rzeczywistym. AI analizuje siłę Twojej argumentacji i konstruktywnie wskazuje kierunek — zanim trudna rozmowa wydarzy się naprawdę.
+    </p>
+    <div class="hero-cta">
+      <a href="#cta" class="btn btn-primary">Rozpocznij Trening →</a>
+      <a href="#how-it-works" class="btn btn-ghost">Jak to działa</a>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- PRINCIPLE STRIP -->
+<section class="section" id="how-it-works">
+  <div class="container">
+    <div class="principle-strip">
+      <div class="principle-item">
+        <div class="principle-icon">📥</div>
+        <h4>Przypadki przychodzą do Ciebie</h4>
+        <p>Nie wybierasz z listy. Sytuacje pojawiają się jak w prawdziwej pracy — z presją i konsekwencjami.</p>
+      </div>
+      <div class="principle-item">
+        <div class="principle-icon">🔍</div>
+        <h4>AI analizuje siłę argumentacji</h4>
+        <p>Nie ocenia Ciebie. Analizuje, gdzie argumentacja była silna, gdzie straciła spójność i dlaczego.</p>
+      </div>
+      <div class="principle-item">
+        <div class="principle-icon">↗</div>
+        <h4>Konstruktywnie wskazuje kierunek</h4>
+        <p>Każda sesja kończy się konkretnym wskazaniem: co wzmocnić, co skrócić, od czego zacząć następnym razem.</p>
+      </div>
+      <div class="principle-item">
+        <div class="principle-icon">📈</div>
+        <h4>Wzrost widoczny w czasie</h4>
+        <p>Sygnały umiejętności i ranga presji rosną razem z realnym postępem — nie z samą liczbą sesji.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- AI CORE PRINCIPLE -->
+<section class="section" id="ai-core">
+  <div class="container">
+    <div class="section-header">
+      <span class="tag tag-violet">Zasada AI</span>
+      <h2>AI analizuje. Nie ocenia.</h2>
+      <p>To nie jest system, który wystawia noty ani osądza Twój charakter. AI analizuje siłę argumentacji i konstruktywnie wskazuje kierunek — zawsze konkretnie, nigdy personalnie.</p>
+    </div>
+
+    <div class="ai-principle-box">
+      <h3>Fundamentalna różnica</h3>
+      <p class="principle-lead">Większość narzędzi pyta: <strong>"Czy masz rację?"</strong> Case Practice pyta: <strong>"Jak silna jest Twoja argumentacja i w którym kierunku ją rozwinąć?"</strong></p>
+      <div class="contrast-grid">
+        <div class="contrast-col not">
+          <h4>AI nie mówi</h4>
+          <div class="contrast-item"><span class="ci-icon">✗</span><span>"Jesteś zbyt defensywny."</span></div>
+          <div class="contrast-item"><span class="ci-icon">✗</span><span>"Nie jesteś wystarczająco asertywny."</span></div>
+          <div class="contrast-item"><span class="ci-icon">✗</span><span>"Byłeś słaby pod presją."</span></div>
+          <div class="contrast-item"><span class="ci-icon">✗</span><span>"Twoja odpowiedź była zła."</span></div>
+          <div class="contrast-item"><span class="ci-icon">✗</span><span>"Powinieneś był powiedzieć X."</span></div>
+        </div>
+        <div class="contrast-col yes">
+          <h4>AI wskazuje</h4>
+          <div class="contrast-item"><span class="ci-icon">↗</span><span>"Główna teza pojawiła się zbyt późno — pozycja stała się trudniejsza do usłyszenia."</span></div>
+          <div class="contrast-item"><span class="ci-icon">↗</span><span>"Granica była obecna, ale pozostała nienazwana wprost."</span></div>
+          <div class="contrast-item"><span class="ci-icon">↗</span><span>"Struktura argumentacji osłabła gdy wzrosła presja czasowa."</span></div>
+          <div class="contrast-item"><span class="ci-icon">↗</span><span>"Fakty były spójne — następny krok to wcześniejsze nazwanie problemu."</span></div>
+          <div class="contrast-item"><span class="ci-icon">↗</span><span>"Pierwsze zdanie jest najsilniejszym miejscem do wzmocnienia."</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:2rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.2rem;">
+      <div class="mock-analysis-block">
+        <div class="ab-label" style="color:var(--violet);">Analiza Argumentacji</div>
+        <div class="ab-row"><span class="ab-icon">🔍</span><span>Fakty były spójne i chronologicznie ułożone.</span></div>
+        <div class="ab-row"><span class="ab-icon">🔍</span><span>Główna teza pojawiła się w trzeciej odpowiedzi — zbyt późno, by zakotwić rozmowę.</span></div>
+        <div class="ab-row"><span class="ab-icon">🔍</span><span>Granica była obecna w treści, ale nie została nazwana wprost.</span></div>
+        <div class="ab-row"><span class="ab-icon">🔍</span><span>Pod presją sprzeczności struktura osłabła — odpowiedzi stały się dłuższe, nie silniejsze.</span></div>
+      </div>
+      <div class="mock-direction-block">
+        <div class="dir-label">Kierunek</div>
+        <div class="dir-item">Zacznij od nazwania problemu — nie od tła.</div>
+        <div class="dir-item">Pierwsze zdanie to najsilniejsze miejsce Twojej pozycji.</div>
+        <div class="dir-item">Gdy pojawia się presja — skróć, nie rozbudowuj.</div>
+        <div class="dir-item">Granica powiedziana wprost jest silniejsza niż sugerowana.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- FEATURES -->
+<section class="section" id="features">
+  <div class="container">
+
+    <!-- Feature 1: Case Inbox -->
+    <div class="feature-row">
+      <div class="feature-visual">
+        <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.5rem;">Case Inbox</div>
+        <div class="mock-case-card">
+          <div class="case-type">Boundary Setting</div>
+          <div class="case-title">Twój manager prosi Cię o nadgodziny po raz trzeci w tym tygodniu</div>
+          <div class="case-meta">
+            <span class="mock-badge mock-badge-pressure">Presja: Wysoka</span>
+            <span class="mock-badge mock-badge-time">~12 min</span>
+            <span class="mock-badge mock-badge-skill">Granice</span>
+          </div>
+        </div>
+        <div class="mock-case-card">
+          <div class="case-type">Defend Your Decision</div>
+          <div class="case-title">Wybrałeś rozwiązanie A. Stakeholder kwestionuje Twoją decyzję na spotkaniu</div>
+          <div class="case-meta">
+            <span class="mock-badge mock-badge-pressure">Presja: Średnia</span>
+            <span class="mock-badge mock-badge-time">~8 min</span>
+            <span class="mock-badge mock-badge-skill">Obrona Decyzji</span>
+          </div>
+        </div>
+        <div class="mock-case-card" style="opacity:.45;">
+          <div class="case-type">Fair Treatment Concern</div>
+          <div class="case-title">Kolega dostał awans, który Ci obiecano. Co teraz?</div>
+          <div class="case-meta">
+            <span class="mock-badge mock-badge-pressure">Presja: Wysoka</span>
+            <span class="mock-badge mock-badge-time">~15 min</span>
+          </div>
+        </div>
+      </div>
+      <div class="feature-text">
+        <span class="tag tag-red">Case Inbox</span>
+        <h2>Przypadki, które czekają na Twoją decyzję</h2>
+        <p>Zamiast wybierać ćwiczenia z katalogu, otwierasz skrzynkę i widzisz sytuacje wymagające reakcji. Każda ma określony typ presji, szacowany czas i kompetencje, które możesz wzmocnić.</p>
+        <ul class="feature-list">
+          <li>Nowe przypadki, Live Opportunities i prywatne zaproszenia w jednym miejscu</li>
+          <li>Widoczny typ presji: czasowa, emocjonalna, wiarygodnościowa, sprzeczności, autorytetu</li>
+          <li>Tryb solo, sesja live lub przygotowanie na jutro — wybór należy do Ciebie</li>
+          <li>Zapis przypadków do późniejszego powrotu bez utraty kontekstu</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 2: Evaluation Distinction -->
+    <div class="feature-row reverse">
+      <div class="feature-visual">
+        <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.8rem;">Analiza Wielowymiarowa</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;">
+          <div class="mock-pressure-bar">
+            <div class="pb-label">Siła Sprawy</div>
+            <div class="pb-track"><div class="pb-fill" style="width:85%;background:linear-gradient(90deg,var(--teal),#5eead4);"></div></div>
+          </div>
+          <div class="mock-pressure-bar">
+            <div class="pb-label">Siła Argumentu</div>
+            <div class="pb-track"><div class="pb-fill" style="width:60%;background:linear-gradient(90deg,var(--blue),#93c5fd);"></div></div>
+          </div>
+          <div class="mock-pressure-bar">
+            <div class="pb-label">Siła Dostarczenia</div>
+            <div class="pb-track"><div class="pb-fill" style="width:40%;"></div></div>
+          </div>
+          <div class="mock-pressure-bar">
+            <div class="pb-label">Kontrola Retoryczna</div>
+            <div class="pb-track"><div class="pb-fill" style="width:70%;background:linear-gradient(90deg,var(--gold),#fcd34d);"></div></div>
+          </div>
+        </div>
+        <div style="margin-top:.8rem;background:#1c2130;border:1px solid var(--border);border-radius:8px;padding:1rem;font-size:.82rem;color:#a8afc4;">
+          <strong style="color:var(--gold);">Silna sprawa, słabe dostarczenie.</strong><br>
+          Fakty i rozumowanie wspierają pozycję — główna teza dotarła zbyt późno i straciła siłę pod presją.
+        </div>
+      </div>
+      <div class="feature-text">
+        <span class="tag tag-gold">Analiza Wielowymiarowa</span>
+        <h2>AI analizuje sprawę, argument i dostarczenie osobno</h2>
+        <p>System nie pyta "czy masz rację" — analizuje, czy Twoja racja jest <strong>słyszalna, spójna i odporna na wyzwania</strong>. To trzy różne wymiary, które mogą działać niezależnie od siebie.</p>
+        <ul class="feature-list">
+          <li>Silna sprawa może stracić siłę przez chaotyczne dostarczenie</li>
+          <li>Słaba sprawa może brzmieć przekonująco przy dobrej strukturze</li>
+          <li>System wskazuje konkretnie, który wymiar wymaga wzmocnienia</li>
+          <li>Kierunek jest zawsze konstruktywny: co zrobić inaczej, nie co było złe</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 3: Psychological Layer -->
+    <div class="feature-row">
+      <div class="feature-visual">
+        <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.8rem;">Analiza Wzorców Komunikacyjnych</div>
+        <div style="display:flex;flex-direction:column;gap:.7rem;">
+          <div style="background:#1c2130;border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:.9rem 1rem;font-size:.82rem;">
+            <span style="color:var(--gold);font-weight:700;">Wzorzec: Opóźniona Teza</span><br>
+            <span style="color:#a8afc4;">"Główna myśl pojawiła się w trzeciej odpowiedzi. Pozycja stała się trudniejsza do usłyszenia."</span>
+          </div>
+          <div style="background:#1c2130;border:1px solid rgba(59,130,246,.3);border-radius:8px;padding:.9rem 1rem;font-size:.82rem;">
+            <span style="color:var(--blue);font-weight:700;">Wzorzec: Nienazwana Granica</span><br>
+            <span style="color:#a8afc4;">"Granica była obecna w treści, ale nie została powiedziana wprost."</span>
+          </div>
+          <div style="background:#1c2130;border:1px solid rgba(20,184,166,.3);border-radius:8px;padding:.9rem 1rem;font-size:.82rem;">
+            <span style="color:var(--teal);font-weight:700;">Wzorzec: Stabilna Struktura</span><br>
+            <span style="color:#a8afc4;">"Argumentacja zachowała spójność nawet po dwóch rundach wyzwań."</span>
+          </div>
+          <div style="background:#1c2130;border:1px solid rgba(231,76,60,.3);border-radius:8px;padding:.9rem 1rem;font-size:.82rem;">
+            <span style="color:var(--red);font-weight:700;">Wzorzec: Osłabienie pod Presją</span><br>
+            <span style="color:#a8afc4;">"Odpowiedzi stały się dłuższe i mniej konkretne gdy wzrosła presja czasowa."</span>
+          </div>
+        </div>
+      </div>
+      <div class="feature-text">
+        <span class="tag tag-teal">Wzorce Komunikacyjne</span>
+        <h2>AI widzi, jak zmienia się argumentacja pod presją</h2>
+        <p>Większość narzędzi analizuje tylko treść. Case Practice analizuje, jak argumentacja zmienia się gdy rozmowa staje się trudna — i opisuje to jako <strong>trenowalne wzorce komunikacyjne</strong>, nie cechy osobowości.</p>
+        <ul class="feature-list">
+          <li>Wykrywanie wzorców: opóźniona teza, nienazwana granica, osłabienie struktury pod presją</li>
+          <li>Wzorce opisywane jako "tendencje komunikacyjne" — nigdy jako ocena osoby</li>
+          <li>Wskazanie konstruktywne: "Pierwsze zdanie to najsilniejsze miejsce Twojej pozycji"</li>
+          <li>Szczególne wsparcie dla użytkowników z neurodywersją i przeciążeniem sensorycznym</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Feature 4: Verdict & Direction -->
+    <div class="feature-row reverse">
+      <div class="feature-visual">
+        <div class="mock-analysis-block">
+          <div class="ab-label" style="color:var(--teal);">Wynik Sesji</div>
+          <div style="font-size:1.05rem;font-weight:700;color:#e8eaf0;margin-bottom:.8rem;">Silna sprawa, słabe dostarczenie</div>
+          <div class="ab-row"><span class="ab-icon">🔍</span><span>Fakty wspierały pozycję — chronologia była spójna.</span></div>
+          <div class="ab-row"><span class="ab-icon">🔍</span><span>Główna teza pojawiła się za późno, by zakotwić rozmowę.</span></div>
+          <div class="ab-row"><span class="ab-icon">🔍</span><span>Pod presją odpowiedzi stały się dłuższe, nie silniejsze.</span></div>
+        </div>
+        <div class="mock-direction-block" style="margin-top:.8rem;">
+          <div class="dir-label">Kierunek na następny raz</div>
+          <div class="dir-item">Zacznij od problemu — nie od tła.</div>
+          <div class="dir-item">Skróć wstęp o połowę.</div>
+          <div class="dir-item">Pod presją — jedno zdanie, nie trzy.</div>
+        </div>
+        <div style="margin-top:.8rem;display:flex;flex-direction:column;gap:.5rem;">
+          <div class="mock-growth-signal">Twoje granice są wyraźniejsze niż w ostatnich przypadkach.</div>
+          <div class="mock-growth-signal">Szybciej docierasz do sedna problemu.</div>
+        </div>
+      </div>
+      <div class="feature-text">
+        <span class="tag tag-blue">Wynik i Kierunek</span>
+        <h2>Nie punkty. Analiza i konkretny kierunek.</h2>
+        <p>Zamiast liczby od 1 do 100, każda sesja kończy się analizą siły argumentacji i konstruktywnym wskazaniem kierunku. Zawsze konkretnie — co wzmocnić, co skrócić, od czego zacząć następnym razem.</p>
+        <ul class="feature-list">
+          <li>10 typów wyników odpowiadających realnym rezultatom rozmów zawodowych</li>
+          <li>Struktura: Wynik → Analiza → Co zadziałało → Co osłabiło → Kierunek</li>
+          <li>Sygnały wzrostu porównujące aktualną sesję z poprzednimi</li>
+          <li>Sugestia kolejnego przypadku dopasowana do wykrytych wzorców</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- SKILLS -->
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <span class="tag tag-teal">Profil Umiejętności</span>
+      <h2>10 kompetencji, które budujesz każdą sesją</h2>
+      <p>Każdy przypadek wzmacnia konkretne sygnały w Twoim profilu. Z czasem widzisz, gdzie argumentacja jest już stabilna, a gdzie pojawia się stały wzorzec do przepracowania.</p>
+    </div>
+    <div class="skills-grid">
+      <div class="skill-card"><div class="sk-icon">🎯</div><h4>Position Clarity</h4><p>Precyzyjne formułowanie i obrona swojego stanowiska.</p></div>
+      <div class="skill-card"><div class="sk-icon">📋</div><h4>Fact Discipline</h4><p>Oddzielanie faktów od emocji i logiczne ich organizowanie.</p></div>
+      <div class="skill-card"><div class="sk-icon">🛡️</div><h4>Boundary Competence</h4><p>Asertywne stawianie granic bez przepraszania i wycofywania się.</p></div>
+      <div class="skill-card"><div class="sk-icon">⚡</div><h4>Conflict Handling</h4><p>Konstruktywne zarządzanie sporami i napięciami.</p></div>
+      <div class="skill-card"><div class="sk-icon">🤝</div><h4>Mediation Readiness</h4><p>Deeskalacja i poszukiwanie rozwiązań bez utraty pozycji.</p></div>
+      <div class="skill-card"><div class="sk-icon">🧘</div><h4>Pressure Stability</h4><p>Zachowanie struktury i spójności argumentacji gdy rozmowa staje się trudna.</p></div>
+      <div class="skill-card"><div class="sk-icon">📢</div><h4>Professional Self-Advocacy</h4><p>Skuteczne reprezentowanie własnych interesów w środowisku pracy.</p></div>
+      <div class="skill-card"><div class="sk-icon">🔍</div><h4>Decision Defence</h4><p>Argumentowanie i obrona podjętych decyzji pod wyzwaniem.</p></div>
+      <div class="skill-card"><div class="sk-icon">⚖️</div><h4>Fairness Framing</h4><p>Odwoływanie się do zasad uczciwości i procedur w sposób przekonujący.</p></div>
+      <div class="skill-card"><div class="sk-icon">🏁</div><h4>Outcome Orientation</h4><p>Skupienie na konstruktywnym wyniku zamiast na "wygraniu" sporu.</p></div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- GAME MECHANICS -->
+<section class="section" id="game">
+  <div class="container">
+    <div class="section-header">
+      <span class="tag tag-gold">Progresja</span>
+      <h2>Postęp oparty na realnym wzroście</h2>
+      <p>Żaden element progresji nie tworzy poczucia postępu bez rzeczywistego postępu. Ranga, sygnały i odblokowania rosną razem z siłą argumentacji — nie z samą aktywnością.</p>
+    </div>
+
+    <!-- Pressure Rank -->
+    <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:2.5rem;margin-bottom:2rem;">
+      <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.5rem;">
+        <span style="font-size:1.8rem;">🏅</span>
+        <div>
+          <h3 style="color:#e8eaf0;margin-bottom:.3rem;">Pressure Rank — Ranga Presji</h3>
+          <p style="font-size:.88rem;color:var(--muted);margin:0;">Zamiast poziomów, ranga określa z jakim typem presji argumentacja jest już stabilna.</p>
+        </div>
+      </div>
+      <div class="rank-levels">
+        <div class="rank-level"><div class="rl-dot" style="background:#6b7280;"></div><div class="rl-name">Grounded</div><div class="rl-desc">Argumentacja stabilna przy niskiej presji</div></div>
+        <div class="rank-level"><div class="rl-dot" style="background:var(--blue);"></div><div class="rl-name">Steady</div><div class="rl-desc">Argumentacja stabilna przy średniej presji</div></div>
+        <div class="rank-level"><div class="rl-dot" style="background:var(--teal);"></div><div class="rl-name">Resilient</div><div class="rl-desc">Argumentacja stabilna przy wysokiej presji</div></div>
+        <div class="rank-level"><div class="rl-dot" style="background:var(--gold);"></div><div class="rl-name">Pressure-Proof</div><div class="rl-desc">Argumentacja stabilna przy wszystkich typach presji</div></div>
+        <div class="rank-level"><div class="rl-dot" style="background:var(--red);"></div><div class="rl-name">Under Fire</div><div class="rl-desc">Mistrzowska spójność przy presji wielowymiarowej</div></div>
+      </div>
+    </div>
+
+    <!-- Game cards grid -->
+    <div class="game-grid">
+      <div class="game-card signal">
+        <div class="gc-icon">📊</div>
+        <h3>Skill Signals</h3>
+        <p>Każda z 10 kompetencji ma własny wskaźnik pewności: od <em>Emerging</em> do <em>Strong</em>. Rośnie tylko wtedy, gdy dana umiejętność była aktywnie ćwiczona i wykazała postęp.</p>
+        <div class="gc-example">"Boundary Competence: Consistent — granica była nazwana wprost w 4 z ostatnich 5 sesji."</div>
+      </div>
+
+      <div class="game-card unlock">
+        <div class="gc-icon">🔓</div>
+        <h3>Case Unlocks</h3>
+        <p>Najtrudniejsze przypadki są początkowo zablokowane. Dostęp do nich otwiera się gdy argumentacja w łatwiejszych scenariuszach jest już stabilna — nie po upływie czasu.</p>
+        <div class="gc-example">"Nowy przypadek dostępny. Twoja stabilność pod presją wysoką jest wystarczająca."</div>
+      </div>
+
+      <div class="game-card streak">
+        <div class="gc-icon">🔥</div>
+        <h3>Activity Streak</h3>
+        <p>Seria aktywnych dni — ale rośnie tylko po ukończeniu pełnej sesji, nie po samym otwarciu. Zawsze powiązana z konkretną obserwacją wzrostu, nie z ogólną pochwałą.</p>
+        <div class="gc-example">"3 dni z rzędu. Struktura argumentacji jest coraz szybsza."</div>
+      </div>
+
+      <div class="game-card growth">
+        <div class="gc-icon">✨</div>
+        <h3>Growth Moments</h3>
+        <p>Precyzyjne powiadomienia gdy system wykryje realny postęp w czasie. Maksymalnie raz na 3 sesje. Zawsze konkretne — nigdy ogólne gratulacje.</p>
+        <div class="gc-example">"Twoje pierwsze zdanie jest teraz silniejsze niż 2 tygodnie temu."</div>
+      </div>
+
+      <div class="game-card rank">
+        <div class="gc-icon">📍</div>
+        <h3>Position Record</h3>
+        <p>Najsilniejsza sesja w każdej kategorii zachowana jako punkt odniesienia. Możesz wrócić i zobaczyć dokładnie, co zadziałało — i odtworzyć ten wzorzec.</p>
+        <div class="gc-example">"Twój rekord w Boundary Setting: argumentacja stabilna przy presji High."</div>
+      </div>
+
+      <div class="game-card signal">
+        <div class="gc-icon">👥</div>
+        <h3>Joint Call Matchmaking</h3>
+        <p>Dopasowanie do sesji live na podstawie poziomu presji i sygnałów umiejętności — tak, by sesja była wartościowa dla obu stron. Zawsze opcjonalne.</p>
+        <div class="gc-example">"Podobny użytkownik dostępny teraz. Chcesz dołączyć do wspólnej sesji?"</div>
+      </div>
+    </div>
+
+    <!-- Anti-patterns -->
+    <div style="margin-top:3rem;">
+      <h3 style="color:#e8eaf0;margin-bottom:.5rem;">Czego celowo nie ma w Case Practice</h3>
+      <p style="font-size:.88rem;color:var(--muted);margin-bottom:1.5rem;">Elementy, które tworzą poczucie postępu bez rzeczywistego postępu — i które celowo wykluczyliśmy.</p>
+      <div class="anti-pattern-grid">
+        <div class="anti-item"><span class="ai-x">✗</span><span>Punkty liczbowe (XP, score)</span></div>
+        <div class="anti-item"><span class="ai-x">✗</span><span>Leaderboardy i rankingi</span></div>
+        <div class="anti-item"><span class="ai-x">✗</span><span>Odznaki za samą aktywność</span></div>
+        <div class="anti-item"><span class="ai-x">✗</span><span>Animacje świętowania po każdej sesji</span></div>
+        <div class="anti-item"><span class="ai-x">✗</span><span>Presja na codzienne logowanie</span></div>
+        <div class="anti-item"><span class="ai-x">✗</span><span>Porównywanie z innymi użytkownikami</span></div>
+        <div class="anti-item"><span class="ai-x">✗</span><span>Poziomy bez znaczenia merytorycznego</span></div>
+        <div class="anti-item"><span class="ai-x">✗</span><span>Ogólne "Świetna robota!" bez treści</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- CASE CATEGORIES -->
+<section class="section" id="categories">
+  <div class="container">
+    <div class="section-header">
+      <span class="tag tag-red">Kategorie Przypadków</span>
+      <h2>Realistyczne sytuacje z prawdziwego życia zawodowego</h2>
+      <p>Każda kategoria trenuje inny zestaw kompetencji i wystawia argumentację na inny typ presji.</p>
+    </div>
+    <div class="categories-grid">
+      <div class="cat-card"><span class="tag tag-red" style="margin-bottom:.8rem;">Wyjaśnij Co Się Stało</span><h3>Explain What Happened</h3><p>Trenujesz chronologię, wiarygodność i porządek faktów. Uczysz się oddzielać fakty od interpretacji.</p></div>
+      <div class="cat-card"><span class="tag tag-blue" style="margin-bottom:.8rem;">Obroń Decyzję</span><h3>Defend Your Decision</h3><p>Trenujesz obronę decyzji pod presją. Uczysz się utrzymywać pozycję gdy ktoś kwestionuje Twój wybór.</p></div>
+      <div class="cat-card"><span class="tag tag-teal" style="margin-bottom:.8rem;">Mediacja</span><h3>Mediation</h3><p>Trenujesz rozwiązywanie konfliktów bez wymazywania siebie. Uczysz się nazywać prawdziwy problem.</p></div>
+      <div class="cat-card"><span class="tag tag-gold" style="margin-bottom:.8rem;">Trudna Rozmowa</span><h3>Difficult Conversation</h3><p>Trenujesz bezpośrednie, kontrolowane przekazywanie trudnych informacji bez ataku i bez ucieczki.</p></div>
+      <div class="cat-card"><span class="tag tag-red" style="margin-bottom:.8rem;">Stawianie Granic</span><h3>Boundary Setting</h3><p>Trenujesz odmawianie i wyznaczanie limitów bez nadmiernych przeprosin i bez wycofywania się pod presją.</p></div>
+      <div class="cat-card"><span class="tag tag-blue" style="margin-bottom:.8rem;">Przygotowanie na Jutro</span><h3>Prepare For Tomorrow</h3><p>Trenujesz strukturyzowanie myśli przed ważnym spotkaniem lub trudną rozmową.</p></div>
+      <div class="cat-card"><span class="tag tag-teal" style="margin-bottom:.8rem;">Uczciwe Traktowanie</span><h3>Fair Treatment Concern</h3><p>Trenujesz nazywanie i formułowanie nierównego traktowania w sposób konkretny i wiarygodny.</p></div>
+      <div class="cat-card"><span class="tag tag-gold" style="margin-bottom:.8rem;">Rozsądne Dostosowania</span><h3>Reasonable Adjustments</h3><p>Trenujesz profesjonalne wyrażanie potrzeb i prośby o wsparcie bez poczucia winy.</p></div>
+      <div class="cat-card"><span class="tag tag-red" style="margin-bottom:.8rem;">Dyskryminacja</span><h3>Discrimination Concern</h3><p>Trenujesz ostrożne, oparte na faktach formułowanie potencjalnie dyskryminującego traktowania.</p></div>
+      <div class="cat-card"><span class="tag tag-blue" style="margin-bottom:.8rem;">Sprzedaj Swoją Wartość</span><h3>Sell Your Value</h3><p>Trenujesz przekonującą autoprezentację bez zarozumiałości i bez wycofywania się pod presją.</p></div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- VERDICTS -->
+<section class="section" id="verdicts">
+  <div class="container">
+    <div class="section-header">
+      <span class="tag tag-teal">Wyniki Sesji</span>
+      <h2>Wyniki, które coś znaczą</h2>
+      <p>Nie ma tu punktów od 1 do 100. Każdy wynik opisuje rzeczywisty rezultat rozmowy zawodowej i zawiera analizę tego, co zadecydowało o sile argumentacji.</p>
+    </div>
+    <div class="verdict-grid">
+      <div class="verdict-item vi-green"><div class="vi-label">Pełna Siła</div><h4>Przekonałeś mnie</h4><p>Argumentacja była jasna, spójna i odporna na wyzwania. Pozycja pozostała silna przez całą sesję.</p></div>
+      <div class="verdict-item vi-green"><div class="vi-label">Ochrona Pozycji</div><h4>Ochroniłeś swoją pozycję</h4><p>Nie uzyskałeś pełnej zgody, ale argumentacja pozostała wyraźna i profesjonalna pod presją.</p></div>
+      <div class="verdict-item vi-green"><div class="vi-label">Konstruktywny Wynik</div><h4>Osiągnąłeś konstruktywny wynik</h4><p>Rozmowa zakończyła się realnym postępem. Argumentacja prowadziła ku rozwiązaniu.</p></div>
+      <div class="verdict-item vi-yellow"><div class="vi-label">Prawie</div><h4>Prawie przekonałeś mnie</h4><p>Byłeś blisko. Jeden element — fakty, argument lub dostarczenie — osłabił końcowy efekt.</p></div>
+      <div class="verdict-item vi-yellow"><div class="vi-label">Silna Sprawa, Słabe Dostarczenie</div><h4>Miałeś rację, ale nie było jej słychać</h4><p>Fakty były po Twojej stronie. Sposób prezentacji nie pozwolił im dotrzeć z pełną siłą.</p></div>
+      <div class="verdict-item vi-yellow"><div class="vi-label">Gotowość Pozycji</div><h4>Twoja pozycja jest gotowa</h4><p>Przygotowałeś solidne stanowisko. Argumentacja jest wystarczająco silna na jutrzejsze spotkanie.</p></div>
+      <div class="verdict-item vi-red"><div class="vi-label">Nienazwany Problem</div><h4>Nie przekonałeś mnie</h4><p>Główny problem pozostał ukryty lub argumentacja nie przetrwała wyzwania.</p></div>
+      <div class="verdict-item vi-red"><div class="vi-label">Przedwczesna Eskalacja</div><h4>Eskalowałeś zbyt wcześnie</h4><p>Punkt był trafny, ale framing stał się trudny do przyjęcia zanim argumentacja zdążyła zadziałać.</p></div>
+      <div class="verdict-item vi-blue"><div class="vi-label">Kierunek: Pierwsza Teza</div><h4>Twoja pozycja nie jest jeszcze wyraźna</h4><p>Masz materiał. Następny krok: silniejsze pierwsze zdanie i wcześniejsze nazwanie problemu.</p></div>
+      <div class="verdict-item vi-blue"><div class="vi-label">Rozumowanie vs Dostarczenie</div><h4>Rozumowanie było trafne, dostarczenie osłabiło siłę</h4><p>Logika działała. Sposób jej przekazania pod presją zmniejszył jej wpływ na rozmowę.</p></div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- AI ROLES -->
+<section class="section" id="ai">
+  <div class="container">
+    <div class="section-header">
+      <span class="tag tag-blue">Role AI</span>
+      <h2>AI, które gra różne role — nie tylko analizuje</h2>
+      <p>W zależności od przypadku i trybu, AI przyjmuje różne funkcje, tworząc realistyczne środowisko interakcji zawodowej.</p>
+    </div>
+    <div class="roles-grid">
+      <div class="role-card">
+        <div class="role-icon" style="background:rgba(231,76,60,.15);">⚔️</div>
+        <h4>Challenger</h4>
+        <p>Testuje argumenty, wywiera presję, eksponuje niejasności i sprawdza odporność pozycji.</p>
+      </div>
+      <div class="role-card">
+        <div class="role-icon" style="background:rgba(59,130,246,.15);">🔍</div>
+        <h4>Observer</h4>
+        <p>Analizuje siłę argumentacji — odróżnia siłę sprawy od siły argumentu i siły dostarczenia.</p>
+      </div>
+      <div class="role-card">
+        <div class="role-icon" style="background:rgba(245,158,11,.15);">🎙️</div>
+        <h4>Moderator</h4>
+        <p>Pilnuje struktury sesji, kontroluje czas i utrzymuje użyteczność wymiany.</p>
+      </div>
+      <div class="role-card">
+        <div class="role-icon" style="background:rgba(20,184,166,.15);">🕊️</div>
+        <h4>Mediator</h4>
+        <p>Redukuje niepotrzebną eskalację, klaruje prawdziwy problem i wspiera konstruktywny ruch.</p>
+      </div>
+      <div class="role-card">
+        <div class="role-icon" style="background:rgba(139,92,246,.15);">👤</div>
+        <h4>Counterpart</h4>
+        <p>Wciela się w managera, rekrutera, HR, klienta lub neutralnego słuchacza — zależnie od przypadku.</p>
+      </div>
+    </div>
+
+    <div style="margin-top:2.5rem;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:2.5rem;">
+      <h3 style="color:#e8eaf0;margin-bottom:1.5rem;">AI analizuje siłę argumentacji — nie ocenia osoby</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;">
+        <div>
+          <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--red);margin-bottom:.8rem;">AI nie zakłada</div>
+          <ul class="feature-list">
+            <li>że istnieje jedna poprawna fraza do odgadnięcia</li>
+            <li>że język prawniczy jest wymagany w każdym przypadku</li>
+            <li>że pewność siebie automatycznie oznacza siłę argumentacji</li>
+            <li>że emocje automatycznie osłabiają sprawę</li>
+            <li>że jeden styl komunikacji jest zawsze "najlepszy"</li>
+          </ul>
+        </div>
+        <div>
+          <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--teal);margin-bottom:.8rem;">AI analizuje</div>
+          <ul class="feature-list">
+            <li>czy fakty trzymają się razem i są chronologicznie spójne</li>
+            <li>czy pozycja jest widoczna i wyraźna dla słuchacza</li>
+            <li>czy rozumowanie przetrwało presję bez utraty struktury</li>
+            <li>czy dostarczenie wzmocniło czy osłabiło siłę argumentacji</li>
+            <li>czy argumentacja zmierza ku jasności czy od niej</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- COMPARISON -->
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <span class="tag tag-gold">Porównanie</span>
+      <h2>Case Practice vs. inne podejścia</h2>
+      <p>Dlaczego tradycyjne metody szkoleniowe nie wystarczają do budowania prawdziwych kompetencji zawodowych.</p>
+    </div>
+    <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;overflow:hidden;">
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Cecha</th>
+            <th class="col-cp">Case Practice</th>
+            <th>Statyczna biblioteka</th>
+            <th>Symulator z punktacją</th>
+            <th>Kurs online</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Dynamiczne przypadki bez ustalonego wyniku</td><td class="check col-cp">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td>AI analizuje siłę argumentacji (nie ocenia osoby)</td><td class="check col-cp">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td>Konstruktywne wskazanie kierunku po każdej sesji</td><td class="check col-cp">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td>Rozróżnienie: sprawa / argument / dostarczenie</td><td class="check col-cp">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td>Wyniki opisowe zamiast punktów liczbowych</td><td class="check col-cp">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td>Progresja oparta na realnym wzroście (nie aktywności)</td><td class="check col-cp">✓</td><td class="cross">✗</td><td style="color:var(--muted);">Częściowo</td><td class="cross">✗</td></tr>
+          <tr><td>Wsparcie neurodywersji</td><td class="check col-cp">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+          <tr><td>Tryb multiplayer / sesje live</td><td class="check col-cp">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- CTA -->
+<section class="cta-section" id="cta">
+  <div class="container">
+    <span class="tag tag-red">Zacznij Dziś</span>
+    <h2>Twoja argumentacja jest ważna.<br>Naucz się ją budować.</h2>
+    <p>Case Practice to przestrzeń, w której AI analizuje siłę Twojej argumentacji i konstruktywnie wskazuje kierunek — zanim trudna rozmowa wydarzy się naprawdę.</p>
+    <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
+      <a href="#" class="btn btn-primary">Otwórz Case Inbox →</a>
+      <a href="#features" class="btn btn-ghost">Poznaj Funkcje</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <p>Case Practice &mdash; AI analizuje siłę argumentacji i konstruktywnie wskazuje kierunek. &copy; 2026</p>
+  </div>
+</footer>
+
+</body>
+</html>
