@@ -29,6 +29,7 @@ This directory is the source of truth for AI behavior, product structure, and qu
 
 - **[AI mastery backlog v2](./roadmap/ai-mastery-backlog-v2.md)**
 - **[Evaluation dataset spec](./evaluation/evaluation-dataset-spec.md)** — minimum 100 scenarios, coverage areas, release rule.
+- **[AI end-to-end verification](./ai-end-to-end-verification.md)** — how AI reaches OpenAI from the app, env checks, manual smoke paths.
 
 ## Scope (existing deep docs)
 

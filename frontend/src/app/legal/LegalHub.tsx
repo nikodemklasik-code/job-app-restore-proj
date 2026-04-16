@@ -1,5 +1,16 @@
-import { useState } from 'react';
-import { Scale, ChevronDown, Shield, Briefcase, Users, ClipboardCheck, ExternalLink, Building2, AlertTriangle } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import {
+  Scale,
+  ChevronDown,
+  Shield,
+  Briefcase,
+  Users,
+  ClipboardCheck,
+  ExternalLink,
+  Building2,
+  AlertTriangle,
+  Landmark,
+} from 'lucide-react';
 
 interface AccordionItem {
   question: string;
@@ -106,6 +117,47 @@ The label on your contract is NOT conclusive — courts look at the reality of t
         answer: `SSP: usually paid by the employer from the fourth qualifying day of illness, for up to 28 weeks, if you meet average earnings tests. The weekly SSP amount and the Lower Earnings Limit change — check GOV.UK "Statutory Sick Pay (SSP)" for the current rate and eligibility.
 
 Statutory annual leave: 5.6 weeks per year (28 days for a full-time five-day week), including bank holidays. Holiday pay must be calculated on "normal remuneration" where applicable — including regular overtime, commission, and certain allowances, not just basic salary (Lock v British Gas [2016] and later cases).`,
+      },
+    ],
+  },
+  {
+    id: 'acas',
+    title: 'ACAS',
+    icon: Landmark,
+    color: 'text-cyan-400',
+    bg: 'bg-cyan-500/10',
+    summary:
+      'The Advisory, Conciliation and Arbitration Service — free workplace guidance, early conciliation before tribunal claims, and statutory Codes of Practice.',
+    items: [
+      {
+        question: 'What is ACAS?',
+        answer: `ACAS (Advisory, Conciliation and Arbitration Service) is an independent public body funded by the Department for Business and Trade. It provides impartial information and advice on employment rights and good practice to employers, workers, and representatives across England, Scotland, and Wales.
+
+ACAS is not a court and does not decide legal claims, but it helps people understand the law and resolve disputes without going to an Employment Tribunal where possible.`,
+      },
+      {
+        question: 'What is ACAS for?',
+        answer: `Common reasons job seekers and employees use ACAS include: understanding rights at work (notice, dismissal, discrimination, pay, flexible working); preparing for a disciplinary or grievance process; getting help before resigning or after a dispute; and Early Conciliation — a free process you must usually complete before lodging most Employment Tribunal claims.
+
+The ACAS helpline offers confidential, tailored guidance. ACAS also publishes practical guidance pages and statutory Codes of Practice that tribunals can take into account when deciding cases.`,
+      },
+      {
+        question: 'Official ACAS links',
+        answer: `Home and all guidance: https://www.acas.org.uk/
+
+Early conciliation (before most tribunal claims): https://www.acas.org.uk/early-conciliation
+
+Contact ACAS (phone, web form, opening hours — check the site for updates): https://www.acas.org.uk/contact-us
+
+Helpline (as widely publicised; confirm current number on the ACAS site): 0300 123 1100`,
+      },
+      {
+        question: 'ACAS Codes of Practice — what they are',
+        answer: `ACAS publishes Codes of Practice on topics such as disciplinary and grievance procedures, and other employment practices. Some codes are issued under powers in the Employment Rights Act 1996 and other legislation. Where a code is designated as a statutory code, Employment Tribunals can adjust compensation by up to 25% if an employer or employee has unreasonably failed to follow it (depending on the rules that apply to the claim).
+
+The best-known example for day-to-day work is the ACAS Code of Practice on disciplinary and grievance procedures, which sets expectations for fair handling of misconduct issues and grievances. Always read the current version on ACAS — wording and guidance are updated from time to time.
+
+Direct link (verify it still matches ACAS navigation): https://www.acas.org.uk/acas-code-of-practice-on-disciplinary-and-grievance-procedures`,
       },
     ],
   },
@@ -346,6 +398,26 @@ Mortgage or rent payment deferral: Contact your lender or landlord as soon as po
   },
 ];
 
+/** Turn bare https:// URLs in a string into clickable links (GOV.UK, ACAS, etc.). */
+function linkifyText(text: string): ReactNode {
+  const parts = text.split(/(https:\/\/[^\s]+)/g);
+  return parts.map((part, i) =>
+    part.startsWith('https://') ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-indigo-400 hover:underline break-all"
+      >
+        {part}
+      </a>
+    ) : (
+      <span key={i}>{part}</span>
+    ),
+  );
+}
+
 // ── Accordion Item ────────────────────────────────────────────────────────────
 
 function AccordionCard({ item }: { item: AccordionItem }) {
@@ -364,7 +436,9 @@ function AccordionCard({ item }: { item: AccordionItem }) {
         <div className="px-5 pb-5">
           <div className="border-t border-white/10 pt-4">
             {item.answer.split('\n\n').map((para, i) => (
-              <p key={i} className={`text-sm text-slate-300 leading-relaxed ${i > 0 ? 'mt-3' : ''}`}>{para}</p>
+              <p key={i} className={`text-sm text-slate-300 leading-relaxed ${i > 0 ? 'mt-3' : ''}`}>
+                {linkifyText(para)}
+              </p>
             ))}
           </div>
         </div>
@@ -461,7 +535,7 @@ export default function LegalHub() {
       {/* Footer note */}
       <div className="rounded-xl border border-white/10 bg-white/5 px-5 py-4">
         <p className="text-xs text-slate-500 leading-relaxed">
-          Sources: Employment Rights Act 1996; Equality Act 2010; UK GDPR (retained EU law); Conduct of Employment Agencies and Employment Businesses Regulations 2003; Agency Workers Regulations 2010; IR35 / Income Tax (Earnings and Pensions) Act 2003 Chapter 8; National Minimum Wage Act 1998. Case law cited: Uber BV v Aslam [2021] UKSC 5; Spring v Guardian Assurance plc [1994] 3 All ER 129; Lock v British Gas Trading Ltd [2016] EWCA Civ 983.
+          Sources: Employment Rights Act 1996; Equality Act 2010; UK GDPR (retained EU law); Conduct of Employment Agencies and Employment Businesses Regulations 2003; Agency Workers Regulations 2010; IR35 / Income Tax (Earnings and Pensions) Act 2003 Chapter 8; National Minimum Wage Act 1998; ACAS statutory codes and guidance (acas.org.uk). Case law cited: Uber BV v Aslam [2021] UKSC 5; Spring v Guardian Assurance plc [1994] 3 All ER 129; Lock v British Gas Trading Ltd [2016] EWCA Civ 983.
         </p>
       </div>
     </div>
