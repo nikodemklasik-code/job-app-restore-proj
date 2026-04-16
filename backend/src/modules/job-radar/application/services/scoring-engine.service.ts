@@ -391,7 +391,9 @@ export class ScoringEngineService {
       });
     }
 
-    if (scoring.riskScore >= 40) {
+    // Risk score is base 20 + drivers (max +14: salary_missing +8, missing-field cluster +6 → ceiling 34).
+    // A threshold of 40 was never reachable (same class of issue as PAY_BENCHMARK_OK).
+    if (scoring.riskScore >= 26) {
       findings.push({
         id: randomUUID(),
         scanId,
