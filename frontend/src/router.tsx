@@ -34,6 +34,7 @@ const InterviewWarmup = lazy(() => import('./app/warmup/InterviewWarmup'));
 const CoachPage = lazy(() => import('./app/coach/CoachPage'));
 const FAQPage = lazy(() => import('./app/faq/FAQPage'));
 const DocumentLab = lazy(() => import('./app/documents/DocumentLab'));
+const CasePracticePage = lazy(() => import('./app/case-practice/CasePracticePage'));
 
 const PageLoader = () => (
   <div className="flex h-full items-center justify-center py-24">
@@ -116,6 +117,7 @@ export const router = createBrowserRouter([
       { path: 'coach', element: withSuspense(CoachPage) },
       { path: 'faq', element: withSuspense(FAQPage) },
       { path: 'documents', element: withSuspense(DocumentLab) },
+      { path: 'case-practice', element: withSuspense(CasePracticePage) },
     ],
   },
 ]);

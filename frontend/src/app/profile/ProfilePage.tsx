@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import {
@@ -52,6 +52,23 @@ export default function ProfilePage() {
   const [trainEditingIdx, setTrainEditingIdx] = useState<number | null>(null);
   const [trainForm, setTrainForm] = useState<TrainForm>(emptyTrain());
   const [trainIsAdding, setTrainIsAdding] = useState(false);
+
+  const skillsAndCourses = useMemo(() => {
+    const skills = profile?.skills ?? [];
+    const trainings = profile?.trainings ?? [];
+
+    return skills.slice(0, 6).map((skill, idx) => {
+      const token = skill.toLowerCase();
+      const linked = trainings.filter((training) =>
+        training.title.toLowerCase().includes(token)
+        || training.providerName.toLowerCase().includes(token),
+      );
+      const fallback = linked.length === 0 && trainings[idx] ? [trainings[idx]] : linked;
+      const relatedSkills = skills.filter((item) => item !== skill).slice(0, 3);
+
+      return { skill, relatedSkills, linkedCourses: fallback };
+    });
+  }, [profile?.skills, profile?.trainings]);
 
   const downloadCvMutation = api.applications.downloadCvPdf.useMutation({
     onSuccess: (data) => {
@@ -586,6 +603,76 @@ export default function ProfilePage() {
           </div>
         )}
         {(profile?.trainings ?? []).length === 0 && !trainIsAdding && <p className="text-sm text-slate-500">No trainings added yet. Click "Add Training" to get started.</p>}
+      </div>
+
+      <div className="rounded-2xl border border-blue-500/25 bg-blue-500/5 p-6 space-y-4">
+        <h2 className="font-semibold text-white">Skills And Courses Link</h2>
+        <p className="text-sm text-slate-400">
+          This section connects your core skills with trainings and certificates as visible learning evidence.
+        </p>
+
+        {skillsAndCourses.length === 0 ? (
+          <p className="text-sm text-slate-500">
+            Add skills and trainings first to generate course-evidence links.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {skillsAndCourses.map((entry) => (
+              <article key={entry.skill} className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+                <p className="text-sm font-semibold text-white">{entry.skill}</p>
+
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-500">Related Skills</p>
+                  <p className="mt-1 text-xs text-slate-300">
+                    {entry.relatedSkills.join(', ') || 'Add complementary skills to strengthen this area.'}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-500">Courses Supporting This Skill</p>
+                  {entry.linkedCourses.length === 0 ? (
+                    <p className="mt-1 text-xs text-slate-400">No matching course yet.</p>
+                  ) : (
+                    <div className="mt-1 space-y-1.5">
+                      {entry.linkedCourses.map((course) => (
+                        <p key={`${entry.skill}-${course.id}`} className="text-xs text-slate-300">
+                          {course.title} <span className="text-slate-500">({course.providerName})</span>
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-500">This Course Strengthens</p>
+                  <p className="mt-1 text-xs text-slate-300">
+                    Applied delivery quality and confidence for <span className="text-white">{entry.skill}</span>.
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-500">Learning Evidence</p>
+                  <p className="mt-1 text-xs text-slate-300">
+                    {entry.linkedCourses.some((course) => Boolean(course.credentialUrl))
+                      ? 'Credential URL present and can be externally verified.'
+                      : 'Add a credential URL or project outcome to improve evidence quality.'}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-wider text-amber-300">Still Needs Practice</p>
+                    <p className="mt-1 text-xs text-amber-100">Use this skill in one documented case or interview response this week.</p>
+                  </div>
+                  <div className="rounded-lg border border-rose-500/25 bg-rose-500/10 px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-wider text-rose-300">Still Needs Verification</p>
+                    <p className="mt-1 text-xs text-rose-100">Add metrics and outcomes in Experience to verify this skill claim.</p>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Growth Plan */}

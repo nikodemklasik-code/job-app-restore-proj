@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { FlaskConical, Loader2, ChevronRight, AlertCircle, BookOpen, ChevronDown, ExternalLink, Zap, Briefcase, GraduationCap, TrendingUp } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
@@ -79,6 +79,41 @@ interface Course {
   provider: string;
   url: string;
   level: string;
+}
+
+interface SkillCourseLink {
+  skill: string;
+  relatedSkills: string[];
+  supportingCourses: Array<{ title: string; providerName: string; credentialUrl: string | null }>;
+}
+
+function buildSkillCourseLinks(
+  skills: string[],
+  trainings: Array<{ title: string; providerName: string; credentialUrl?: string | null }>,
+): SkillCourseLink[] {
+  return skills.slice(0, 6).map((skill, idx) => {
+    const token = skill.toLowerCase();
+    const supportingCourses = trainings.filter((training) =>
+      training.title.toLowerCase().includes(token)
+      || training.providerName.toLowerCase().includes(token),
+    );
+    const fallback = supportingCourses.length === 0 && trainings[idx]
+      ? [trainings[idx]]
+      : supportingCourses;
+    const relatedSkills = skills
+      .filter((item) => item !== skill)
+      .slice(0, 3);
+
+    return {
+      skill,
+      relatedSkills,
+      supportingCourses: fallback.map((course) => ({
+        title: course.title,
+        providerName: course.providerName,
+        credentialUrl: course.credentialUrl ?? null,
+      })),
+    };
+  });
 }
 
 function SkillBar({ name }: SkillBarProps) {
@@ -314,6 +349,11 @@ export default function SkillsLab() {
   }, [userId, currentPlan, loadBillingData]);
 
   const rawSkills: string[] = profile?.skills ?? [];
+  const trainingEntries = profile?.trainings ?? [];
+  const skillCourseLinks = useMemo(
+    () => buildSkillCourseLinks(rawSkills, trainingEntries),
+    [rawSkills, trainingEntries],
+  );
 
   function handleAnalyze() {
     if (!targetInput.trim() || !userId) return;
@@ -423,6 +463,77 @@ export default function SkillsLab() {
       </div>
 
       {profile && !isLoadingProfile ? <LiveProfileSnapshot profile={profile} /> : null}
+
+      <div className="rounded-2xl border border-blue-500/25 bg-blue-500/5 p-5">
+        <h2 className="font-semibold text-white">Skills And Courses</h2>
+        <p className="mt-1 text-sm text-slate-400">
+          Courses act as learning evidence for each skill. This view links your declared skills with available course and certification proof.
+        </p>
+
+        {skillCourseLinks.length === 0 ? (
+          <div className="mt-4 rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-4 text-sm text-slate-500">
+            Add skills and trainings in Profile to generate skill-course links.
+          </div>
+        ) : (
+          <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {skillCourseLinks.map((entry) => (
+              <article key={entry.skill} className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+                <p className="text-sm font-semibold text-white">{entry.skill}</p>
+
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-500">Related Skills</p>
+                  <p className="mt-1 text-xs text-slate-300">
+                    {entry.relatedSkills.join(', ') || 'Add adjacent skills to show stronger capability clusters.'}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-500">Courses Supporting This Skill</p>
+                  {entry.supportingCourses.length === 0 ? (
+                    <p className="mt-1 text-xs text-slate-400">No supporting course linked yet.</p>
+                  ) : (
+                    <div className="mt-1 space-y-1.5">
+                      {entry.supportingCourses.map((course) => (
+                        <div key={`${entry.skill}-${course.title}`} className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-slate-300">
+                          <p className="font-medium text-slate-200">{course.title}</p>
+                          <p className="text-slate-500">{course.providerName}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-500">This Course Strengthens</p>
+                  <p className="mt-1 text-xs text-slate-300">
+                    Applied execution and confidence for <span className="text-white">{entry.skill}</span> in role-level scenarios.
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-500">Learning Evidence</p>
+                  <p className="mt-1 text-xs text-slate-300">
+                    {entry.supportingCourses.some((course) => Boolean(course.credentialUrl))
+                      ? 'Certificate link available for verification.'
+                      : 'Add a credential URL or project example as verifiable evidence.'}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-wider text-amber-300">Still Needs Practice</p>
+                    <p className="mt-1 text-xs text-amber-100">Run one scenario in Interview or Case Practice using this skill.</p>
+                  </div>
+                  <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-wider text-rose-300">Still Needs Verification</p>
+                    <p className="mt-1 text-xs text-rose-100">Add measurable outcomes linked to this skill in Profile experience entries.</p>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* 2-column layout */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

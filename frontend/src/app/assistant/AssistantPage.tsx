@@ -2,10 +2,12 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Send, Bot, User, RefreshCw, X, Volume2, VolumeX,
   MessageSquarePlus, Mic, MicOff, Sparkles,
-  FileText, TrendingUp, Briefcase, DollarSign,
+  FileText, TrendingUp, Briefcase, DollarSign, ChevronRight, Route, Link2,
 } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
+import { useNavigate } from 'react-router-dom';
 import { useCareerAssistantStore } from '@/stores/careerAssistantStore';
+import type { AssistantResponseMeta } from '../../../../shared/assistant';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -223,10 +225,178 @@ function EmptyState({ onAction, isSending }: {
   );
 }
 
+function ContextSidebar({
+  replyMode,
+  messageCount,
+  meta,
+}: {
+  replyMode: 'general' | 'cv' | 'interview' | 'salary';
+  messageCount: number;
+  meta: AssistantResponseMeta | null;
+}) {
+  const modeLabel =
+    replyMode === 'cv' ? 'CV Support' :
+    replyMode === 'interview' ? 'Interview Prep' :
+    replyMode === 'salary' ? 'Salary & Negotiation' :
+    'General Guidance';
+
+  return (
+    <aside className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Current Context</p>
+        <p className="mt-1 text-sm font-medium text-white">{modeLabel}</p>
+        <p className="mt-1 text-xs text-slate-400">Using profile and recent conversation context.</p>
+      </div>
+      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+        <p className="text-xs text-slate-500">Conversation Depth</p>
+        <p className="mt-0.5 text-sm font-semibold text-white">{messageCount} turns</p>
+      </div>
+      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+        <p className="text-xs text-slate-500">Detected Intent</p>
+        <p className="mt-0.5 text-sm text-slate-300">
+          {meta?.detectedIntent ? meta.detectedIntent.replaceAll('_', ' ') : 'Guidance + Next Best Step'}
+        </p>
+      </div>
+      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+        <p className="text-xs text-slate-500">Linked Modules</p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {(meta?.routeSuggestions?.map((route) => route.label) ?? ['Coach', 'Interview', 'Negotiation', 'Job Radar']).map((m) => (
+            <span key={m} className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-slate-300">
+              {m}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+        <p className="text-xs text-slate-500">Safety Layer</p>
+        <p className="mt-0.5 text-sm text-slate-300">{meta?.safetyNotes?.[0]?.text ?? 'General Career Guidance Only.'}</p>
+      </div>
+      {meta?.complianceFlags?.length ? (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+          <p className="text-xs text-amber-200">Compliance Flags</p>
+          <p className="mt-0.5 text-xs text-amber-100">{meta.complianceFlags.join(' • ')}</p>
+        </div>
+      ) : null}
+      {meta?.nextBestStep ? (
+        <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-3">
+          <p className="text-xs text-indigo-300">Next Best Step</p>
+          <p className="mt-0.5 text-sm font-semibold text-white">{meta.nextBestStep}</p>
+        </div>
+      ) : null}
+    </aside>
+  );
+}
+
+function ActionRail({
+  onRoute,
+  meta,
+}: {
+  onRoute: (path: string, prompt: string, mode: 'general' | 'cv' | 'interview' | 'salary') => void;
+  meta: AssistantResponseMeta | null;
+}) {
+  const routeForAction = (label: string): string => {
+    const normalized = label.toLowerCase();
+    if (normalized.includes('interview')) return '/interview';
+    if (normalized.includes('negotiation') || normalized.includes('salary')) return '/negotiation';
+    if (normalized.includes('style')) return '/style-studio';
+    if (normalized.includes('profile')) return '/profile';
+    if (normalized.includes('case')) return '/case-practice';
+    if (normalized.includes('radar')) return '/job-radar';
+    if (normalized.includes('application')) return '/applications';
+    if (normalized.includes('coach')) return '/coach';
+    return '/assistant';
+  };
+  const fallbackActions = [
+    { label: 'Open Coach', path: '/coach', prompt: 'I need deeper confidence and narrative support.', mode: 'general' as const },
+    { label: 'Open Interview', path: '/interview', prompt: 'Move me to mock interview practice.', mode: 'interview' as const },
+    { label: 'Open Negotiation', path: '/negotiation', prompt: 'Help me prepare compensation and boundary language.', mode: 'salary' as const },
+    { label: 'Open Job Radar', path: '/job-radar', prompt: 'Review this employer risk and fit signals.', mode: 'general' as const },
+    { label: 'Open Applications Review', path: '/review', prompt: 'What should I follow up and when?', mode: 'general' as const },
+    { label: 'Open Case Practice', path: '/case-practice', prompt: 'I want pressure-based case rehearsal.', mode: 'general' as const },
+  ];
+  const actions = meta?.suggestedActions?.length
+    ? meta.suggestedActions.map((action) => ({
+      label: action.label,
+      path: action.route ?? routeForAction(action.label),
+      prompt: action.prompt,
+      mode: action.mode ?? ('general' as const),
+    }))
+    : fallbackActions;
+
+  return (
+    <section className="space-y-2 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="flex items-center gap-2">
+        <Route className="h-4 w-4 text-indigo-400" />
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Suggested Actions</p>
+      </div>
+      {actions.slice(0, 3).map((action) => (
+        <button
+          key={action.label}
+          type="button"
+          onClick={() => onRoute(action.path, action.prompt, action.mode)}
+          className="group flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-slate-200 transition hover:border-indigo-500/40 hover:bg-white/10"
+        >
+          <span>{action.label}</span>
+          <ChevronRight className="h-4 w-4 text-slate-500 transition group-hover:text-indigo-400" />
+        </button>
+      ))}
+      <details className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+        <summary className="cursor-pointer text-xs font-semibold text-slate-400">More Actions</summary>
+        <div className="mt-2 space-y-2">
+          {actions.slice(3).map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              onClick={() => onRoute(action.path, action.prompt, action.mode)}
+              className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs text-slate-300 transition hover:bg-white/10"
+            >
+              <span>{action.label}</span>
+              <Link2 className="h-3.5 w-3.5 text-slate-500" />
+            </button>
+          ))}
+        </div>
+      </details>
+    </section>
+  );
+}
+
+function RoutingBlocks({
+  meta,
+  onRoute,
+}: {
+  meta: AssistantResponseMeta | null;
+  onRoute: (path: string, prompt: string, mode: 'general' | 'cv' | 'interview' | 'salary') => void;
+}) {
+  if (!meta?.routeSuggestions?.length) return null;
+
+  return (
+    <section className="rounded-2xl border border-indigo-500/30 bg-indigo-500/10 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300">Routing Suggestions</p>
+      <div className="mt-3 space-y-2">
+        {meta.routeSuggestions.map((route) => (
+          <button
+            key={`${route.route}-${route.label}`}
+            type="button"
+            onClick={() => onRoute(route.route, `Open ${route.label} for deeper workflow support.`, 'general')}
+            className="flex w-full items-center justify-between rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-left transition hover:bg-white/10"
+          >
+            <div>
+              <p className="text-sm font-semibold text-white">{route.label}</p>
+              <p className="text-xs text-slate-400">{route.reason}</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-indigo-300" />
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function AssistantPage() {
   const { isSignedIn } = useUser();
+  const navigate = useNavigate();
 
   const [input, setInput] = useState('');
   const [replyMode, setReplyMode] = useState<'general' | 'cv' | 'interview' | 'salary'>('general');
@@ -318,6 +488,13 @@ export default function AssistantPage() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); }
   };
 
+  const handleRouteAction = (path: string, prompt: string, mode: 'general' | 'cv' | 'interview' | 'salary') => {
+    void sendMessage(prompt, mode);
+    void navigate(path);
+  };
+  const latestAssistantMeta =
+    [...messages].reverse().find((msg) => msg.role === 'assistant' && msg.meta)?.meta ?? null;
+
   return (
     <div className="flex h-[calc(100vh-10rem)] flex-col gap-4">
 
@@ -366,37 +543,48 @@ export default function AssistantPage() {
           </div>
         )}
 
-        {/* ── Messages ────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto rounded-2xl border border-white/8 bg-white/[0.02]">
-          {isLoading ? (
-            <div className="flex h-full items-center justify-center gap-1.5">
-              {[0, 1, 2].map((i) => (
-                <span
-                  key={i}
-                  className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce"
-                  style={{ animationDelay: `${i * 0.15}s` }}
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+          {/* ── Conversation Panel ───────────────────────────────────── */}
+          <div className="flex min-h-0 flex-col gap-4">
+            <div className="flex-1 overflow-y-auto rounded-2xl border border-white/8 bg-white/[0.02]">
+              {isLoading ? (
+                <div className="flex h-full items-center justify-center gap-1.5">
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      className="h-2 w-2 rounded-full bg-indigo-400 animate-bounce"
+                      style={{ animationDelay: `${i * 0.15}s` }}
+                    />
+                  ))}
+                </div>
+              ) : messages.length === 0 ? (
+                <EmptyState
+                  onAction={(prompt, mode) => void handleQuickStart(prompt, mode)}
+                  isSending={isSending}
                 />
-              ))}
+              ) : (
+                <div className="space-y-5 p-5">
+                  {messages.map((msg) => (
+                    <MessageBubble
+                      key={msg.id}
+                      msg={msg}
+                      speakingId={speakingMsgId}
+                      onSpeak={(id, text) => void handleSpeak(id, text)}
+                    />
+                  ))}
+                  {isSending && <TypingIndicator />}
+                  <RoutingBlocks meta={latestAssistantMeta} onRoute={handleRouteAction} />
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
             </div>
-          ) : messages.length === 0 ? (
-            <EmptyState
-              onAction={(prompt, mode) => void handleQuickStart(prompt, mode)}
-              isSending={isSending}
-            />
-          ) : (
-            <div className="space-y-5 p-5">
-              {messages.map((msg) => (
-                <MessageBubble
-                  key={msg.id}
-                  msg={msg}
-                  speakingId={speakingMsgId}
-                  onSpeak={(id, text) => void handleSpeak(id, text)}
-                />
-              ))}
-              {isSending && <TypingIndicator />}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
+          </div>
+
+          {/* ── Context + actions sidebar ────────────────────────────── */}
+          <div className="hidden min-h-0 flex-col gap-4 overflow-y-auto lg:flex">
+            <ContextSidebar replyMode={replyMode} messageCount={messages.length} meta={latestAssistantMeta} />
+            <ActionRail onRoute={handleRouteAction} meta={latestAssistantMeta} />
+          </div>
         </div>
 
         {/* ── Input bar ───────────────────────────────────────────────── */}

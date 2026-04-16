@@ -97,6 +97,8 @@ Zdefiniowane w `frontend/src/index.css` i `frontend/src/stores/themeStore.ts`:
 - Obowiązuje rola finalnego recenzenta techniczno-produktowego przed integracją.
 - Żaden task nie ma statusu "done" bez jawnej decyzji: **Approved For Integration** albo **Not Approved**.
 - Pełna specyfikacja roli, checklista i formaty decyzji: [`docs/policies/quality-control-developer-role-spec.md`](docs/policies/quality-control-developer-role-spec.md)
+- Obowiązkowy standard meldowania wykonania i wejścia do QC: [`docs/policies/execution-reporting-standard.md`](docs/policies/execution-reporting-standard.md)
+- Łańcuch komunikacji Agent -> QC -> Product Owner -> Agent jest obowiązkowy i opisany w politykach repo.
 - QC musi egzekwować folder-aware commands (komendy build/deploy/setup/recovery zawsze z pełnym folderem).
 - QC porównuje równolegle dostarczone implementacje (A/B) i decyduje: użyj A, użyj B, połącz A+B, albo odrzuć obie.
 - Podział pracy między agentów (A/B/QC): [`docs/policies/agent-work-split.md`](docs/policies/agent-work-split.md)

@@ -33,6 +33,17 @@
 
 No "done" status without QC acceptance.
 
+## Communication Flow (Mandatory)
+
+1. Agent -> QC: execution report in repository with required template.
+2. QC -> Product Owner: verified quality report with decision.
+3. Product Owner -> Agent: next instructions, fixes, priority updates.
+4. Product Owner -> QC: acceptance criteria, business scope, priorities.
+
+Default rule:
+- QC does not directly manage Agent backlog execution.
+- QC may request quick technical clarification only.
+
 ## Task Split Rules
 
 ### Rule 1 — No ownership overlap
@@ -86,6 +97,10 @@ No "done" status without QC acceptance.
 ## Risks / Follow-ups
 - ...
 ```
+
+Mandatory execution reporting policy:
+- `docs/policies/execution-reporting-standard.md`
+- No task enters QC without repository report and explicit `READY FOR QC`.
 
 ## Required QC Decision Format
 

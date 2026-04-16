@@ -2,6 +2,8 @@ import OpenAI from 'openai';
 import {
   allowedAssistantSourceTypes,
   assistantModes,
+  type AssistantIntent,
+  type AssistantResponseMeta,
   type AllowedAssistantSourceType,
   type AssistantMode,
 } from '../../../shared/assistant.js';
@@ -9,6 +11,21 @@ import {
   buildUniversalBehaviorLayer,
   type BehaviorLayerTier,
 } from '../prompts/shared/universal-behavior-layer.js';
+
+const ASSISTANT_INTENT_SET = new Set<AssistantIntent>([
+  'ask_for_advice',
+  'review_answer',
+  'rewrite_answer',
+  'prepare_for_interview',
+  'salary_negotiation',
+  'improve_cv',
+  'improve_profile',
+  'explain_fit',
+  'job_search_help',
+  'followup_message',
+  'skill_verification_request',
+  'route_to_module',
+]);
 
 const apiKey = process.env.OPENAI_API_KEY;
 
@@ -61,6 +78,22 @@ export function redactSensitiveText(input: string): string {
 const BOUNDARY =
   'Scope: career, job search, CV/cover letters, interviews, salary, workplace skills, learning paths for those topics. If the user asks for something outside that (e.g. doing homework, illegal acts, medical/legal diagnosis), briefly refuse and suggest a career-related angle instead.';
 
+const CASE_PRACTICE_SAFETY_LAYER = `
+Case Practice Legal/Safety Rules:
+- You are not legal advice, legal representation, or an outcome predictor.
+- Never state certainty like "you will win", "this is definitely unlawful", or guaranteed tribunal outcomes.
+- Use cautious wording: "This May Raise A Concern", "This May Warrant Qualified Advice".
+- If user mentions tribunal, ACAS, discrimination, harassment, retaliation, or grievance, keep guidance practical and non-deterministic.
+- For immediate danger or safeguarding risk, prioritise emergency/human support signposting.
+`;
+const LEGAL_SAFETY_LAYER = `
+Legal and Safety Rules:
+- Never provide legal advice as fact; provide general informational guidance and suggest consulting a qualified professional.
+- Refuse requests involving deception, credential fabrication, discriminatory tactics, harassment, or manipulation.
+- If user asks for unsafe or unethical actions, provide a safe alternative within career development scope.
+- Keep response calm, non-judgmental, and action-oriented.
+`;
+
 const systemPrompts: Record<string, string> = {
   general: `You are a world-class career strategist. ${BOUNDARY} Be direct, specific, and actionable. When the user wants depth, use structure (headings/bullets) but stay conversational.`,
   cv: `You are an expert CV writer and ATS optimization specialist. ${BOUNDARY}`,
@@ -94,7 +127,7 @@ export const generateCareerResponse = async (input: GenerateCareerInput): Promis
       : '';
 
   const behaviorLayer = buildUniversalBehaviorLayer(input.behaviorTier ?? 'full');
-  const system = `${baseSystem}\n\n${behaviorLayer}${sourceHint}`;
+  const system = `${baseSystem}\n\n${CASE_PRACTICE_SAFETY_LAYER}\n\n${LEGAL_SAFETY_LAYER}\n\n${behaviorLayer}${sourceHint}`;
 
   const prior = input.messages.slice(-24).map((m) => ({
     role: m.role,
@@ -122,3 +155,167 @@ export const generateCareerResponse = async (input: GenerateCareerInput): Promis
     'I was unable to generate a response. Please try again.'
   );
 };
+
+function detectIntent(userText: string): AssistantIntent {
+  const t = userText.toLowerCase();
+  if (/(salary|offer|negotiat|compensation)/.test(t)) return 'salary_negotiation';
+  if (/(interview|mock|question|star)/.test(t)) return 'prepare_for_interview';
+  if (/(cv|resume|cover letter)/.test(t)) return 'improve_cv';
+  if (/(profile|headline|summary|experience section)/.test(t)) return 'improve_profile';
+  if (/(rewrite|rephrase|improve this answer|better wording)/.test(t)) return 'rewrite_answer';
+  if (/(review|rate this answer|feedback on answer)/.test(t)) return 'review_answer';
+  if (/(fit|match|qualified|good for this role)/.test(t)) return 'explain_fit';
+  if (/(job search|where to apply|search strategy)/.test(t)) return 'job_search_help';
+  if (/(follow[- ]?up|thank you email)/.test(t)) return 'followup_message';
+  if (/(skill gap|verify skill|market value|missing skills)/.test(t)) return 'skill_verification_request';
+  if (/(which module|where should i go|route me|what next module)/.test(t)) return 'route_to_module';
+  return 'ask_for_advice';
+}
+
+function buildRouteSuggestions(userText: string): AssistantResponseMeta['routeSuggestions'] {
+  const t = userText.toLowerCase();
+  const suggestions: AssistantResponseMeta['routeSuggestions'] = [];
+  if (/(case practice|workplace case|grievance|harassment|discrimination|tribunal|acas|retaliation|victimisation)/.test(t)) {
+    suggestions.push({ label: 'Case Practice', route: '/case-practice', reason: 'Practice high-pressure workplace scenarios safely.' });
+  }
+  if (/(skill|market value|gap|grow)/.test(t)) {
+    suggestions.push({ label: 'Skill Lab', route: '/skills', reason: 'Analyze skill gaps and growth direction.' });
+  }
+  if (/(employer|company risk|benefits|compensation data)/.test(t)) {
+    suggestions.push({ label: 'Job Radar', route: '/job-radar', reason: 'Run employer and role-quality checks.' });
+  }
+  if (/(cv|resume|cover letter|application)/.test(t)) {
+    suggestions.push({ label: 'Applications', route: '/applications', reason: 'Work through application readiness and messaging.' });
+  }
+  if (/(interview|mock interview)/.test(t)) {
+    suggestions.push({ label: 'Interview', route: '/interview', reason: 'Practice structured interview responses.' });
+  }
+  if (/(salary|offer|compensation|negotiat)/.test(t)) {
+    suggestions.push({ label: 'Negotiation', route: '/negotiation', reason: 'Prepare salary positioning and pushback responses.' });
+  }
+  return suggestions.slice(0, 3);
+}
+
+function buildSafetyNotes(userText: string): AssistantResponseMeta['safetyNotes'] {
+  const t = userText.toLowerCase();
+  const notes: AssistantResponseMeta['safetyNotes'] = [];
+  if (/(tribunal|acas|et1|employment tribunal|legal claim)/.test(t)) {
+    notes.push({ level: 'warning', text: 'This Is Practice Support, Not Legal Advice Or Outcome Prediction.' });
+  }
+  if (/(discrimination|harassment|victimisation|retaliation|bullying)/.test(t)) {
+    notes.push({ level: 'warning', text: 'This May Raise A Formal Concern. Document Facts And Consider Qualified Advice.' });
+  }
+  if (/(threat|unsafe|violence|self harm|suicide|emergency)/.test(t)) {
+    notes.push({ level: 'block', text: 'If There Is Immediate Risk, Contact Emergency Or Human Support Now.' });
+  }
+  if (/(lie|fake|fabricate|invent experience|false credential)/.test(t)) {
+    notes.push({ level: 'block', text: 'Fabricating experience or credentials is not supported.' });
+  }
+  if (/(legal advice|lawsuit|sue|contract law)/.test(t)) {
+    notes.push({ level: 'warning', text: 'Guidance is informational only and not legal advice.' });
+  }
+  if (!notes.length) {
+    notes.push({ level: 'info', text: 'Advice is guidance, not a hiring or legal decision.' });
+  }
+  return notes;
+}
+
+function buildActionSuggestions(userText: string, intent: AssistantIntent): AssistantResponseMeta['suggestedActions'] {
+  const basePrompt = userText.trim().slice(0, 180);
+  const map: Record<AssistantIntent, AssistantResponseMeta['suggestedActions']> = {
+    ask_for_advice: [
+      { id: 'advice-next-step', label: 'Get A 3-Step Plan', prompt: `Give me a 3-step plan for: ${basePrompt}` },
+      { id: 'advice-risk-check', label: 'Run Risk Check', prompt: `What are the top risks in this approach: ${basePrompt}` },
+    ],
+    review_answer: [
+      { id: 'review-score', label: 'Score My Answer', prompt: `Score this answer and explain why: ${basePrompt}` },
+      { id: 'review-upgrade', label: 'Upgrade Answer', prompt: `Improve this answer while keeping my tone: ${basePrompt}` },
+    ],
+    rewrite_answer: [
+      { id: 'rewrite-concise', label: 'Rewrite Concise', prompt: `Rewrite this in a concise way: ${basePrompt}` },
+      { id: 'rewrite-impact', label: 'Rewrite With Impact', prompt: `Rewrite with stronger impact and clarity: ${basePrompt}` },
+    ],
+    prepare_for_interview: [
+      { id: 'interview-mock', label: 'Start Mock Questions', prompt: 'Give me 5 realistic interview questions for this role.' },
+      { id: 'interview-star', label: 'Create STAR Answers', prompt: 'Help me draft STAR-based interview answers for my profile.' },
+    ],
+    salary_negotiation: [
+      { id: 'salary-script', label: 'Build Negotiation Script', prompt: 'Create a salary negotiation script for my situation.' },
+      { id: 'salary-counter', label: 'Prepare Counter Offer', prompt: 'Prepare a respectful counter-offer response.' },
+    ],
+    improve_cv: [
+      { id: 'cv-bullets', label: 'Rewrite CV Bullets', prompt: 'Rewrite my CV bullets with measurable impact.' },
+      { id: 'cv-ats', label: 'ATS Optimization', prompt: 'Optimize my CV for ATS screening.' },
+    ],
+    improve_profile: [
+      { id: 'profile-summary', label: 'Improve Profile Summary', prompt: 'Rewrite my profile summary for clarity and impact.' },
+      { id: 'profile-experience', label: 'Improve Experience Section', prompt: 'Improve my experience section with stronger outcomes.' },
+    ],
+    explain_fit: [
+      { id: 'fit-gap', label: 'Explain Fit Gaps', prompt: 'Explain my fit gaps for this role and how to close them.' },
+      { id: 'fit-strengths', label: 'Highlight Strengths', prompt: 'Highlight my strongest signals for this role.' },
+    ],
+    job_search_help: [
+      { id: 'search-weekly', label: 'Weekly Search Plan', prompt: 'Build a focused weekly job search plan.' },
+      { id: 'search-priority', label: 'Prioritize Opportunities', prompt: 'Help me prioritize which opportunities to pursue first.' },
+    ],
+    followup_message: [
+      { id: 'followup-draft', label: 'Draft Follow-Up', prompt: 'Draft a concise post-interview follow-up email.' },
+      { id: 'followup-strong', label: 'Stronger Follow-Up', prompt: 'Rewrite my follow-up message to sound more confident.' },
+    ],
+    skill_verification_request: [
+      { id: 'skill-gap-map', label: 'Map Skill Gaps', prompt: 'Map my key skill gaps for my target role.' },
+      { id: 'skill-proof-plan', label: 'Build Proof Plan', prompt: 'Build an evidence plan to prove my critical skills.' },
+    ],
+    route_to_module: [
+      { id: 'route-best', label: 'Recommend Best Module', prompt: 'Recommend the best module for my current goal and explain why.' },
+      { id: 'route-fastest', label: 'Fastest Next Step', prompt: 'What is the fastest useful next step in product modules?' },
+    ],
+  };
+  return map[intent].slice(0, 3);
+}
+
+export function buildAssistantResponseMeta(userText: string): AssistantResponseMeta {
+  const detectedIntent = detectIntent(userText);
+  const safeIntent = ASSISTANT_INTENT_SET.has(detectedIntent) ? detectedIntent : 'ask_for_advice';
+  const routeSuggestions = buildRouteSuggestions(userText);
+  const suggestedActions = buildActionSuggestions(userText, safeIntent);
+  const safetyNotes = buildSafetyNotes(userText);
+  const mappedRouteRefs: AssistantResponseMeta['contextRefs'] = routeSuggestions.map((item): AssistantResponseMeta['contextRefs'][number] => {
+    const refType: AssistantResponseMeta['contextRefs'][number]['type'] = item.route === '/skills'
+      ? 'skills'
+      : item.route === '/applications'
+        ? 'applications'
+        : item.route === '/job-radar'
+          ? 'job_radar'
+          : item.route === '/documents'
+            ? 'documents'
+            : 'assistant';
+    return {
+      type: refType,
+      label: 'Suggested Route',
+      value: item.label,
+    };
+  });
+  const contextRefs: AssistantResponseMeta['contextRefs'] = [
+    { type: 'assistant', label: 'Reply Mode', value: 'Assistant' },
+    ...mappedRouteRefs,
+  ];
+
+  const complianceFlags = [
+    /(tribunal|acas|et1|employment tribunal|legal claim)/.test(userText.toLowerCase()) ? 'Case Practice Legal Caution' : null,
+    /(discrimination|harassment|victimisation|retaliation|bullying)/.test(userText.toLowerCase()) ? 'Sensitive Workplace Concern' : null,
+    /(threat|unsafe|violence|self harm|suicide|emergency)/.test(userText.toLowerCase()) ? 'Urgent Safeguarding' : null,
+  ].filter((f): f is string => Boolean(f));
+  const nextBestStep = routeSuggestions[0]?.label ?? suggestedActions[0]?.label ?? 'Open Coach';
+
+  return {
+    detectedIntent: safeIntent,
+    suggestedActions,
+    routeSuggestions,
+    contextRefs: contextRefs.slice(0, 4),
+    safetyNotes,
+    nextBestStep,
+    complianceFlags,
+  };
+}

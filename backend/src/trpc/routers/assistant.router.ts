@@ -1,16 +1,45 @@
 import { randomUUID } from 'crypto';
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { allowedAssistantSourceTypes, assistantModes } from '../../../../shared/assistant.js';
+import {
+  allowedAssistantSourceTypes,
+  assistantModes,
+  type AssistantContextRef,
+} from '../../../../shared/assistant.js';
 import { assistantConversations, assistantMessages } from '../../db/schema.js';
 import { db } from '../../db/index.js';
 import {
   assertAllowedAssistantSourceType,
+  buildAssistantResponseMeta,
   generateCareerResponse,
   redactSensitiveText,
 } from '../../services/openai.js';
 import { getUserPlan, planToPromptBehaviorTier } from '../../services/billingGuard.js';
 import { protectedProcedure, router } from '../trpc.js';
+
+function inferModeFromText(text: string): (typeof assistantModes)[number] {
+  const t = text.toLowerCase();
+  if (/\b(cv|resume|cover letter|ats)\b/.test(t)) return 'cv';
+  if (/\b(interview|star|mock)\b/.test(t)) return 'interview';
+  if (/\b(salary|offer|negotiat|compensation)\b/.test(t)) return 'salary';
+  return 'general';
+}
+
+function buildContextRefs(
+  mode: (typeof assistantModes)[number],
+  sourceType: (typeof allowedAssistantSourceTypes)[number],
+): AssistantContextRef[] {
+  const refs: AssistantContextRef[] = [
+    { type: 'assistant', label: 'Mode', value: mode.toUpperCase() },
+    { type: 'assistant', label: 'Source Type', value: sourceType.replace(/_/g, ' ') },
+  ];
+  if (sourceType === 'job_listing_table') {
+    refs.push({ type: 'applications', label: 'Active Job Context', value: 'Job Listing Context Available' });
+  }
+  if (mode === 'cv') refs.push({ type: 'documents', label: 'Document Context', value: 'CV Improvement Focus' });
+  if (mode === 'interview') refs.push({ type: 'skills', label: 'Practice Context', value: 'Interview Readiness Focus' });
+  return refs;
+}
 
 async function getOrCreateConversation(userId: string): Promise<string> {
   const existing = await db
@@ -48,7 +77,30 @@ export const assistantRouter = router({
       .orderBy(asc(assistantMessages.createdAt))
       .limit(100);
 
-    return rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }));
+    let lastUserText = '';
+    let lastMode: (typeof assistantModes)[number] = 'general';
+    return rows.map((r) => {
+      if (r.role === 'user') {
+        lastUserText = r.text;
+        lastMode = inferModeFromText(r.text);
+        return { ...r, createdAt: r.createdAt.toISOString(), meta: null };
+      }
+      const baseMeta = buildAssistantResponseMeta(lastUserText || r.text);
+      const inferredContext = buildContextRefs(lastMode, r.sourceType as (typeof allowedAssistantSourceTypes)[number]);
+      return {
+        ...r,
+        createdAt: r.createdAt.toISOString(),
+        meta: {
+          detectedIntent: baseMeta.detectedIntent,
+          suggestedActions: baseMeta.suggestedActions,
+          routeSuggestions: baseMeta.routeSuggestions,
+          contextRefs: [...baseMeta.contextRefs, ...inferredContext].slice(0, 6),
+          safetyNotes: baseMeta.safetyNotes,
+          nextBestStep: baseMeta.nextBestStep ?? 'Open Coach',
+          complianceFlags: baseMeta.complianceFlags ?? [],
+        },
+      };
+    });
   }),
 
   sendMessage: protectedProcedure
@@ -64,6 +116,8 @@ export const assistantRouter = router({
       const userId = ctx.user.id;
       const sourceType = assertAllowedAssistantSourceType(input.sourceType);
       const conversationId = await getOrCreateConversation(userId);
+      const baseMeta = buildAssistantResponseMeta(input.text);
+      const contextRefs = buildContextRefs(input.mode, sourceType);
 
       // Insert user message
       const userMsgId = randomUUID();
@@ -107,6 +161,11 @@ export const assistantRouter = router({
           content: m.role === 'user' ? redactSensitiveText(m.text) : m.text,
         })),
       });
+      const safetyPrefix = baseMeta.safetyNotes
+        .filter((note) => note.level !== 'info')
+        .map((note) => `Safety Note: ${note.text}`)
+        .join('\n');
+      const aiTextWithSafety = safetyPrefix ? `${safetyPrefix}\n\n${aiText}` : aiText;
 
       // Insert AI message
       const aiMsgId = randomUUID();
@@ -115,7 +174,7 @@ export const assistantRouter = router({
         conversationId,
         userId,
         role: 'assistant',
-        text: aiText,
+        text: aiTextWithSafety,
         sourceType,
         createdAt: new Date(),
       });
@@ -138,10 +197,32 @@ export const assistantRouter = router({
         throw new Error('Failed to retrieve inserted messages');
       }
 
+      const nextBestStep = baseMeta.nextBestStep ?? 'Open Coach';
+
       return {
         conversationId,
         userRecord: { ...userRecord, createdAt: userRecord.createdAt.toISOString() },
-        aiRecord: { ...aiRecord, createdAt: aiRecord.createdAt.toISOString() },
+        aiRecord: {
+          ...aiRecord,
+          createdAt: aiRecord.createdAt.toISOString(),
+          meta: {
+            detectedIntent: baseMeta.detectedIntent,
+            suggestedActions: baseMeta.suggestedActions,
+            routeSuggestions: baseMeta.routeSuggestions,
+            contextRefs: [...baseMeta.contextRefs, ...contextRefs].slice(0, 6),
+            safetyNotes: baseMeta.safetyNotes,
+            nextBestStep,
+            complianceFlags: baseMeta.complianceFlags ?? [],
+          },
+        },
+        structured: {
+          conversation: aiTextWithSafety,
+          relevantContext: [...baseMeta.contextRefs, ...contextRefs].slice(0, 6),
+          suggestedActions: baseMeta.suggestedActions,
+          nextBestStep,
+          routeSuggestions: baseMeta.routeSuggestions,
+          safetyNotes: baseMeta.safetyNotes,
+        },
       };
     }),
 });

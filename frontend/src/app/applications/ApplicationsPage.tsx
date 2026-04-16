@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
@@ -34,7 +35,7 @@ function statusLabel(status: string) {
     draft: 'Draft',
     prepared: 'Prepared',
     sent: 'Sent',
-    follow_up_sent: 'Follow-up sent',
+    follow_up_sent: 'Follow-Up Sent',
     interview: 'Interview',
     rejected: 'Rejected',
     accepted: 'Accepted',
@@ -96,6 +97,8 @@ export default function ApplicationsPage() {
   });
 
   const applications = applicationsQuery.data ?? [];
+  const hasApplicationsError = applicationsQuery.isError;
+  const hasLogsError = logsQuery.isError;
 
   async function handlePrepare(application: { id: string }) {
     if (!userId) return;
@@ -129,21 +132,36 @@ export default function ApplicationsPage() {
           to="/applications/board"
           className="shrink-0 self-start rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
         >
-          Kanban board view
+          Kanban Board View
         </Link>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-4">
-          {applications.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
-              No applications yet.
-            </div>
+          {applicationsQuery.isLoading ? (
+            <Card>
+              <CardContent className="flex h-28 items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading Applications...
+              </CardContent>
+            </Card>
+          ) : hasApplicationsError ? (
+            <Card>
+              <CardContent className="py-6 text-sm text-rose-600 dark:text-rose-400">
+                Failed To Load Applications. Please Refresh And Try Again.
+              </CardContent>
+            </Card>
+          ) : applications.length === 0 ? (
+            <Card>
+              <CardContent className="py-6 text-sm text-slate-500 dark:text-slate-400">
+                No Applications Yet.
+              </CardContent>
+            </Card>
           ) : (
             applications.map((application: any) => (
-              <div
+              <Card
                 key={application.id}
-                className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"
+                className="p-5"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -181,7 +199,7 @@ export default function ApplicationsPage() {
                       className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
                     >
                       {generateDocumentsMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                      Prepare documents
+                      Prepare Documents
                     </button>
                   )}
 
@@ -191,7 +209,7 @@ export default function ApplicationsPage() {
                       className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                     >
                       <Mail className="h-4 w-4" />
-                      Send email
+                      Send Email
                     </button>
                   )}
 
@@ -208,7 +226,7 @@ export default function ApplicationsPage() {
                       className="inline-flex items-center gap-2 rounded-xl border border-blue-200 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 dark:border-blue-900 dark:text-blue-300 dark:hover:bg-blue-950/40"
                     >
                       <Clock3 className="h-4 w-4" />
-                      Mark follow-up sent
+                      Mark Follow-Up Sent
                     </button>
                   )}
 
@@ -257,14 +275,16 @@ export default function ApplicationsPage() {
                     Accepted
                   </button>
                 </div>
-              </div>
+              </Card>
             ))
           )}
         </div>
 
         <div className="space-y-6">
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
-            <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Email send panel</h2>
+          <Card className="p-5">
+            <CardHeader className="p-0">
+              <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-100">Email Send Panel</CardTitle>
+            </CardHeader>
 
             {selectedApplication ? (
               <div className="mt-4 space-y-4">
@@ -280,11 +300,11 @@ export default function ApplicationsPage() {
                 ) : null}
 
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  The message uses your profile and the prepared cover letter snapshot. Run &quot;Prepare documents&quot; first; PDFs are attached automatically.
+                  The Message Uses Your Profile And The Prepared Cover Letter Snapshot. Run &quot;Prepare Documents&quot; First; PDFs Are Attached Automatically.
                 </p>
 
                 <div>
-                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Employer email</label>
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Employer Email</label>
                   <input
                     value={employerEmail}
                     onChange={(e) => setEmployerEmail(e.target.value)}
@@ -309,20 +329,31 @@ export default function ApplicationsPage() {
                   className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
                 >
                   {sendByEmailMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  Send application email
+                  Send Application Email
                 </button>
               </div>
             ) : (
               <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-                Select an application card to prepare and send email content.
+                Select An Application Card To Prepare And Send Email Content.
               </p>
             )}
-          </section>
+          </Card>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900">
-            <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Lifecycle history</h2>
+          <Card className="p-5">
+            <CardHeader className="p-0">
+              <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-100">Lifecycle History</CardTitle>
+            </CardHeader>
 
-            {logsQuery.data?.length ? (
+            {logsQuery.isLoading ? (
+              <div className="mt-4 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading Lifecycle History...
+              </div>
+            ) : hasLogsError ? (
+              <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">
+                Failed To Load Lifecycle History.
+              </p>
+            ) : logsQuery.data?.length ? (
               <div className="mt-4 space-y-2">
                 {logsQuery.data.map((entry: any) => (
                   <div
@@ -338,10 +369,10 @@ export default function ApplicationsPage() {
               </div>
             ) : (
               <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-                No lifecycle events yet.
+                No Lifecycle Events Yet.
               </p>
             )}
-          </section>
+          </Card>
         </div>
       </div>
     </div>
