@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # ─── Pre-deploy backup — multivohub-jobapp ────────────────────────────────────
-# Creates timestamped backups of the currently deployed frontend and backend
-# before a new deploy overwrites them. Keeps the 3 most recent backups.
+# Copies the currently deployed frontend dist and backend build output into
+# /var/backups/multivohub with timestamps. Keeps the 3 most recent backups per type.
 #
-# Paths (must match deploy.yml / deploy.sh):
-#   Frontend : /var/www/multivohub/
-#   Backend  : /root/project/backend/dist/
+# Paths (must match scripts/deploy.sh and .github/workflows/deploy.yml):
+#   REMOTE_BASE=/var/www/multivohub-jobapp
+#   Frontend : ${REMOTE_BASE}/frontend/dist/
+#   Backend  : ${REMOTE_BASE}/dist/backend/
 #
-# Usage (on the VPS or self-hosted runner):
+# Usage (on the VPS or from CI over SSH):
 #   bash scripts/backup.sh
 #
 set -euo pipefail
@@ -15,8 +16,9 @@ set -euo pipefail
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_ROOT="/var/backups/multivohub"
 
-FRONTEND_SRC="/var/www/multivohub"
-BACKEND_SRC="/root/project/backend/dist"
+REMOTE_BASE="${REMOTE_BASE:-/var/www/multivohub-jobapp}"
+FRONTEND_SRC="${REMOTE_BASE}/frontend/dist"
+BACKEND_SRC="${REMOTE_BASE}/dist/backend"
 
 FRONTEND_BACKUP="${BACKUP_ROOT}/frontend-${TIMESTAMP}"
 BACKEND_BACKUP="${BACKUP_ROOT}/backend-${TIMESTAMP}"
@@ -41,7 +43,6 @@ fi
 
 # ── Retention: keep only the 3 most recent backups of each type ───────────────
 for PREFIX in frontend backend; do
-  # Build list safely — shopt nullglob prevents errors when no matches exist
   OLD=()
   while IFS= read -r -d '' DIR; do
     OLD+=("$DIR")

@@ -1,12 +1,14 @@
-# Multivohub-jobapp — production deploy
+# Multivohub-jobapp — production deploy (SSH + GitHub-hosted runner)
 #
-# Ops notes:
-# - Success step prints github.ref_name so the log shows which branch was deployed.
-# - Same production VPS targets as the old main-based flow: /var/www/multivohub/,
-#   /root/project/backend/dist/, pm2 restart jobapp-server.
-# - A real staging environment would need different paths and/or a separate workflow.
-# - Repository secrets (VITE_* including VITE_CLERK_PUBLISHABLE_KEY, etc.) must be configured; the deploy job expects a
-#   self-hosted runner with labels: self-hosted, linux, x64, production (see runs-on).
+# Aligns with scripts/deploy.sh and infra/ecosystem.config.cjs:
+#   REMOTE_BASE=/var/www/multivohub-jobapp
+#   Frontend static files → ${REMOTE_BASE}/frontend/dist/
+#   Backend compiled output → ${REMOTE_BASE}/dist/backend/   (PM2 script: dist/backend/src/server.js)
+#
+# Secrets: VPS_SSH_KEY (private key), VPS_HOST (hostname or IP), VPS_USER (e.g. root),
+#   plus the same build secrets as in the build job (VITE_*, DATABASE_URL, etc.).
+#
+# Optional: GitHub Environment "production" for approval gates on deploy.
 
 name: Deploy — multivohub-jobapp
 
@@ -19,15 +21,36 @@ on:
 permissions:
   contents: read
 
-# One deploy at a time to the same VPS paths.
 concurrency:
-  group: deploy-vps
+  group: deploy-multivohub-jobapp
   cancel-in-progress: false
 
+env:
+  REMOTE_BASE: /var/www/multivohub-jobapp
+
 jobs:
-  # ─── 1. Build ───────────────────────────────────────────────────────────────
+  # ─── 1. CI tests (must pass before build/deploy) ─────────────────────────────
+  test:
+    name: CI tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Backend unit tests
+        run: npm test -w multivohub-jobapp-backend
+
+  # ─── 2. Build ───────────────────────────────────────────────────────────────
   build:
     name: Build
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -63,7 +86,6 @@ jobs:
       - name: Build backend
         run: npm run build:backend
         env:
-          # Same Clerk publishable key as the SPA (pk_…); backend reads it at runtime on the VPS.
           CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
 
       - name: Upload frontend dist
@@ -71,78 +93,106 @@ jobs:
         with:
           name: frontend-dist
           path: frontend/dist/
-          retention-days: 7
+          retention-days: 1
 
       - name: Upload backend dist
         uses: actions/upload-artifact@v4
         with:
           name: backend-dist
           path: backend/dist/
-          retention-days: 7
+          retention-days: 1
 
       - name: Upload scripts
         uses: actions/upload-artifact@v4
         with:
           name: deploy-scripts
           path: scripts/
-          retention-days: 7
+          retention-days: 1
 
-  # ─── 2. Deploy (self-hosted runner on VPS) ──────────────────────────────────
+  # ─── 3. Deploy over SSH (matches deploy.sh) ───────────────────────────────────
   deploy:
     name: Deploy to VPS
     needs: build
-    runs-on: [self-hosted, linux, x64, production]
+    runs-on: ubuntu-latest
+    environment: production
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download frontend dist
         uses: actions/download-artifact@v4
         with:
           name: frontend-dist
-          path: /tmp/frontend-dist/
+          path: frontend-dist/
 
       - name: Download backend dist
         uses: actions/download-artifact@v4
         with:
           name: backend-dist
-          path: /tmp/backend-dist/
+          path: backend-dist/
 
       - name: Download scripts
         uses: actions/download-artifact@v4
         with:
           name: deploy-scripts
-          path: /root/project/scripts/
+          path: scripts/
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Make scripts executable
-        run: chmod +x /root/project/scripts/*.sh
+        run: chmod +x scripts/*.sh
 
-      - name: Backup current deployment
+      - name: Sync scripts to VPS
         run: |
-          bash /root/project/scripts/backup.sh
-          EXIT_CODE=$?
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "⚠️ Backup exited with code ${EXIT_CODE} — continuing deploy without backup."
-          fi
-          exit 0
+          rsync -avz scripts/ "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${REMOTE_BASE}/scripts/"
 
-      - name: Deploy frontend → /var/www/multivohub
+      # Rollback-style copy next to dist/ (rollback.sh) + dated copies under /var/backups (backup.sh layout).
+      # Logic lives in scripts/vps-predeploy-backup.sh so the runner does not interpret $(…) / < <( … ).
+      - name: Backup current frontend + backend dist on VPS
         run: |
-          rsync -az --delete /tmp/frontend-dist/ /var/www/multivohub/
+          ssh "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "export REMOTE_BASE='${{ env.REMOTE_BASE }}' && bash \"\$REMOTE_BASE/scripts/vps-predeploy-backup.sh\"" \
+            || { echo "⚠️ Backup step exited non-zero — continuing deploy."; exit 0; }
 
-      - name: Deploy backend → /root/project/backend/dist
+      - name: Sync frontend dist
         run: |
-          rsync -az --delete /tmp/backend-dist/ /root/project/backend/dist/
+          rsync -avz --delete frontend-dist/ \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${REMOTE_BASE}/frontend/dist/"
 
-      - name: Restart backend (PM2)
-        env:
-          HOME: /root
+      - name: Sync backend dist
         run: |
-          pm2 restart jobapp-server && pm2 save
+          rsync -avz --delete \
+            --exclude='node_modules' \
+            backend-dist/ \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${REMOTE_BASE}/dist/backend/"
 
-      - name: Smoke test
-        env:
-          HOME: /root
+      - name: Sync backend package manifests
         run: |
-          bash /root/project/scripts/smoke-test.sh
+          rsync -avz \
+            backend/package.json \
+            backend/package-lock.json \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${REMOTE_BASE}/backend/"
+
+      - name: Sync PM2 ecosystem and env schema
+        run: |
+          rsync -avz \
+            infra/ecosystem.config.cjs \
+            lib/envSchema.mjs \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${REMOTE_BASE}/"
+
+      - name: Install production deps on VPS and reload PM2
+        run: |
+          ssh "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" "bash -lc 'set -e; cd \"${REMOTE_BASE}\"; npm ci --omit=dev --prefix backend; pm2 reload infra/ecosystem.config.cjs --update-env || pm2 start infra/ecosystem.config.cjs; pm2 save'"
+
+      - name: Smoke test (on VPS)
+        run: |
+          ssh "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "bash ${REMOTE_BASE}/scripts/smoke-test.sh"
 
       - name: Notify success
         if: success()
-        run: echo "✅ Deploy complete (${{ github.ref_name }}) — $(date -u '+%Y-%m-%d %H:%M UTC')"
+        run: echo "✅ Deploy complete (${{ github.ref_name }}) — $(date -u '+%Y-%m-%d %H:%M UTC') — ${REMOTE_BASE}"
