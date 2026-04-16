@@ -6,6 +6,7 @@ import {
   CheckCircle, Star, Zap, BookOpen, Loader2, Coins,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
 
 // ─── Question bank by category ────────────────────────────────────────────────
 
@@ -272,7 +273,7 @@ export default function CoachPage() {
           </div>
         </div>
         {session.length > 0 && avgScore !== null && (
-          <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+            <div className="mvh-card-glow flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
             <Star className="h-3.5 w-3.5 text-amber-400" />
             <span className="text-sm font-bold" style={{ color: scoreColor(avgScore) }}>{avgScore}</span>
             <span className="text-xs text-slate-500">avg · {session.length} answered</span>
@@ -280,11 +281,13 @@ export default function CoachPage() {
         )}
       </div>
 
+      <SupportingMaterialsDisclaimer compact />
+
       {/* ── Phase: select category ─────────────────────────────────────────────── */}
       {phase === 'select' && (
         <div className="space-y-4">
           {session.length > 0 && (
-            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 flex items-center gap-3">
+            <div className="mvh-card-glow rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 flex items-center gap-3">
               <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0" />
               <p className="text-sm text-emerald-300">Session complete — {session.length} question{session.length !== 1 ? 's' : ''} answered · avg score {avgScore}</p>
             </div>
@@ -352,7 +355,7 @@ export default function CoachPage() {
       {phase === 'question' && currentQ && (
         <div className="space-y-4">
           {/* Question card */}
-          <div className="rounded-2xl px-6 py-5 space-y-3" style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid #1e293b' }}>
+          <div className="mvh-card-glow rounded-2xl px-6 py-5 space-y-3" style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid #1e293b' }}>
             <p className="text-base font-semibold text-white leading-relaxed">{currentQ.q}</p>
             <button
               onClick={() => setShowHint(!showHint)}
@@ -477,7 +480,7 @@ export default function CoachPage() {
         return (
           <div className="space-y-4">
             {/* Score */}
-            <div className="flex items-center gap-4 px-6 py-5 rounded-2xl" style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid #1e293b' }}>
+            <div className="mvh-card-glow flex items-center gap-4 px-6 py-5 rounded-2xl" style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid #1e293b' }}>
               <div className="shrink-0 flex flex-col items-center justify-center w-20 h-20 rounded-2xl" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)' }}>
                 <span className="text-3xl font-black" style={{ color: scoreColor(fb.score) }}>{fb.score}</span>
                 <span className="text-xs text-slate-500 mt-0.5">/ 100</span>

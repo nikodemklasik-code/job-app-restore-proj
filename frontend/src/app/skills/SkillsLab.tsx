@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { useProfileStore } from '@/stores/profileStore';
 import { useBillingStore } from '@/stores/billingStore';
 import type { ProfileSnapshot, ProfileExperience, ProfileEducation } from '../../../../shared/profile';
+import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
 
 // ── Live profile context (no fabricated salaries or market %) ─────────────
 
@@ -14,7 +15,7 @@ function LiveProfileSnapshot({ profile }: { profile: ProfileSnapshot }) {
   const summary = personalInfo.summary?.trim();
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-5">
+    <div className="mvh-card-glow rounded-2xl border border-white/10 bg-white/5 p-6 space-y-5">
       <h2 className="font-semibold text-white text-sm uppercase tracking-wider">From your profile</h2>
       {summary ? (
         <div>
@@ -132,7 +133,7 @@ function SkillBar({ name }: SkillBarProps) {
   }
 
   return (
-    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+    <div className="mvh-card-glow rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden">
       <div className="group flex items-center gap-3 px-3 py-2">
         <span className="min-w-0 flex-1 truncate text-sm text-slate-300 group-hover:text-white transition-colors">
           {name}
@@ -311,7 +312,7 @@ function GapAnalysisPanel({ result, targetInput }: { result: AnalysisResult; tar
                 href={res.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm transition hover:border-indigo-500/40 hover:bg-white/[0.08]"
+                className="mvh-card-glow flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm transition hover:border-indigo-500/40 hover:bg-white/[0.08]"
               >
                 <span className="text-slate-200">{res.label}</span>
                 <ChevronRight className="h-3.5 w-3.5 text-slate-500" />
@@ -362,7 +363,8 @@ export default function SkillsLab() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+      <SupportingMaterialsDisclaimer />
+      <div className="mvh-card-glow rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
         <strong className="text-emerald-200">Live data:</strong> skills, summary, experience, and education load from your saved profile.
         Course suggestions load from <code className="rounded bg-white/10 px-1 text-xs">style.suggestCoursesForSkill</code> when you expand a skill.
         Gap analysis uses <code className="rounded bg-white/10 px-1 text-xs">style.analyzeDocument</code> on the job text you paste — we do not show fabricated salary or &quot;market %&quot; bars.
@@ -382,7 +384,7 @@ export default function SkillsLab() {
 
       {/* Credits bar */}
       {currentPlan && (
-        <div className="flex items-center justify-between rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-2.5">
+        <div className="mvh-card-glow flex items-center justify-between rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-2.5">
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-indigo-400" />
             <span className="text-sm text-slate-400">Credits remaining (coach / style features):</span>
@@ -397,41 +399,41 @@ export default function SkillsLab() {
         </div>
       )}
 
-      <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-5">
+      <div className="mvh-card-glow rounded-2xl border border-amber-500/25 bg-amber-500/5 p-5">
         <h2 className="font-semibold text-white">CV Value Signals &amp; Market Value Signals</h2>
         <p className="mt-1 text-sm text-slate-400">
           Skill Lab now highlights salary relevance: what increases your market position and what still needs proof.
         </p>
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="mvh-card-glow rounded-xl border border-white/10 bg-white/5 p-4">
             <p className="text-xs uppercase tracking-wider text-slate-500">Salary Potential</p>
             <p className="mt-1 text-sm font-medium text-white">
               {rawSkills.length >= 8 ? 'Higher potential (strong skill breadth)' : 'Medium potential (build 3-5 core skills)'}
             </p>
           </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="mvh-card-glow rounded-xl border border-white/10 bg-white/5 p-4">
             <p className="text-xs uppercase tracking-wider text-slate-500">High-Value Skills</p>
             <p className="mt-1 text-sm text-slate-300">{rawSkills.slice(0, 4).join(', ') || 'Add skills in Profile first.'}</p>
           </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="mvh-card-glow rounded-xl border border-white/10 bg-white/5 p-4">
             <p className="text-xs uppercase tracking-wider text-slate-500">Underused Skills</p>
             <p className="mt-1 text-sm text-slate-300">
               Skills without quantified outcomes in your profile descriptions should be treated as underused.
             </p>
           </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="mvh-card-glow rounded-xl border border-white/10 bg-white/5 p-4">
             <p className="text-xs uppercase tracking-wider text-slate-500">Proof And Evidence</p>
             <p className="mt-1 text-sm text-slate-300">
               Link each key skill to project outcomes, certificate URLs, or interview examples.
             </p>
           </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="mvh-card-glow rounded-xl border border-white/10 bg-white/5 p-4">
             <p className="text-xs uppercase tracking-wider text-slate-500">Skills That Increase Your Position</p>
             <p className="mt-1 text-sm text-slate-300">
               Skills aligned with target role keywords and repeated demand in job descriptions.
             </p>
           </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="mvh-card-glow rounded-xl border border-white/10 bg-white/5 p-4">
             <p className="text-xs uppercase tracking-wider text-slate-500">Skills That Need Stronger Proof</p>
             <p className="mt-1 text-sm text-slate-300">
               Any skill with no portfolio evidence, no metrics, and no verified course/certificate support.
@@ -440,7 +442,7 @@ export default function SkillsLab() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-slate-900/40 p-5">
+      <div className="mvh-card-glow rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-slate-900/40 p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20">
@@ -455,7 +457,7 @@ export default function SkillsLab() {
           </div>
           <Link
             to="/documents?tab=upload"
-            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
+            className="mvh-card-glow inline-flex shrink-0 items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
           >
             Open Document Lab
           </Link>
@@ -464,20 +466,20 @@ export default function SkillsLab() {
 
       {profile && !isLoadingProfile ? <LiveProfileSnapshot profile={profile} /> : null}
 
-      <div className="rounded-2xl border border-blue-500/25 bg-blue-500/5 p-5">
+      <div className="mvh-card-glow rounded-2xl border border-blue-500/25 bg-blue-500/5 p-5">
         <h2 className="font-semibold text-white">Skills And Courses</h2>
         <p className="mt-1 text-sm text-slate-400">
           Courses act as learning evidence for each skill. This view links your declared skills with available course and certification proof.
         </p>
 
         {skillCourseLinks.length === 0 ? (
-          <div className="mt-4 rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-4 text-sm text-slate-500">
+          <div className="mvh-card-glow mt-4 rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-4 text-sm text-slate-500">
             Add skills and trainings in Profile to generate skill-course links.
           </div>
         ) : (
           <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
             {skillCourseLinks.map((entry) => (
-              <article key={entry.skill} className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+              <article key={entry.skill} className="mvh-card-glow rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
                 <p className="text-sm font-semibold text-white">{entry.skill}</p>
 
                 <div>
@@ -538,7 +540,7 @@ export default function SkillsLab() {
       {/* 2-column layout */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* LEFT — My Skills */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-5">
+        <div className="mvh-card-glow rounded-2xl border border-white/10 bg-white/5 p-6 space-y-5">
           <p className="text-xs text-slate-500">
             Proficiency is not stored on your profile yet — expand a skill for live course suggestions from the API.
           </p>
@@ -556,7 +558,7 @@ export default function SkillsLab() {
               <Loader2 className="h-5 w-5 animate-spin text-indigo-400" />
             </div>
           ) : rawSkills.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-10 text-center">
+            <div className="mvh-card-glow flex flex-col items-center gap-2 rounded-xl border border-dashed border-white/10 bg-white/[0.02] py-10 text-center">
               <AlertCircle className="h-8 w-8 text-slate-600" />
               <p className="text-sm text-slate-400">No skills in your profile yet.</p>
               <a href="/profile" className="text-xs text-indigo-400 hover:underline">
@@ -573,7 +575,7 @@ export default function SkillsLab() {
         </div>
 
         {/* RIGHT — Target Position */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-5">
+        <div className="mvh-card-glow rounded-2xl border border-white/10 bg-white/5 p-6 space-y-5">
           <h2 className="font-semibold text-white">Target Position</h2>
 
           <div className="space-y-3">
@@ -614,7 +616,7 @@ export default function SkillsLab() {
           {analysisResult ? (
             <GapAnalysisPanel result={analysisResult} targetInput={targetInput} />
           ) : (
-            <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-white/10 py-12 text-center">
+            <div className="mvh-card-glow flex flex-col items-center gap-3 rounded-xl border border-dashed border-white/10 py-12 text-center">
               <FlaskConical className="h-10 w-10 text-slate-700" />
               <p className="text-sm font-medium text-slate-500">No analysis yet</p>
               <p className="max-w-xs text-xs text-slate-600">

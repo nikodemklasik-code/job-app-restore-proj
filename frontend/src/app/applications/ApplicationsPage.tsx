@@ -130,7 +130,7 @@ export default function ApplicationsPage() {
         </div>
         <Link
           to="/applications/board"
-          className="shrink-0 self-start rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+          className="mvh-card-glow shrink-0 self-start rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
         >
           Kanban Board View
         </Link>
@@ -139,29 +139,50 @@ export default function ApplicationsPage() {
       <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-4">
           {applicationsQuery.isLoading ? (
-            <Card>
+            <Card className="mvh-card-glow">
               <CardContent className="flex h-28 items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading Applications...
               </CardContent>
             </Card>
           ) : hasApplicationsError ? (
-            <Card>
+            <Card className="mvh-card-glow">
               <CardContent className="py-6 text-sm text-rose-600 dark:text-rose-400">
                 Failed To Load Applications. Please Refresh And Try Again.
               </CardContent>
             </Card>
           ) : applications.length === 0 ? (
-            <Card>
-              <CardContent className="py-6 text-sm text-slate-500 dark:text-slate-400">
-                No Applications Yet.
+            <Card className="mvh-card-glow">
+              <CardContent className="flex flex-col items-center gap-4 py-8 text-center">
+                <Briefcase className="h-12 w-12 text-slate-300 dark:text-slate-600" aria-hidden />
+                <div>
+                  <p className="text-base font-semibold text-slate-800 dark:text-slate-100">No Applications Yet</p>
+                  <p className="mt-2 max-w-md text-sm text-slate-500 dark:text-slate-400">
+                    Save roles from Jobs or start a draft here once you are ready to prepare documents and track lifecycle.
+                  </p>
+                </div>
+                <div className="flex flex-wrap justify-center gap-3">
+                  <Link
+                    to="/jobs"
+                    className="mvh-card-glow inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700"
+                  >
+                    Browse Jobs
+                    <Sparkles className="h-4 w-4" />
+                  </Link>
+                  <Link
+                    to="/documents?tab=upload"
+                    className="mvh-card-glow inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+                  >
+                    Open Document Lab
+                  </Link>
+                </div>
               </CardContent>
             </Card>
           ) : (
             applications.map((application: any) => (
               <Card
                 key={application.id}
-                className="p-5"
+                className="mvh-card-glow p-5"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -281,7 +302,7 @@ export default function ApplicationsPage() {
         </div>
 
         <div className="space-y-6">
-          <Card className="p-5">
+          <Card className="mvh-card-glow p-5">
             <CardHeader className="p-0">
               <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-100">Email Send Panel</CardTitle>
             </CardHeader>
@@ -333,13 +354,17 @@ export default function ApplicationsPage() {
                 </button>
               </div>
             ) : (
-              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-                Select An Application Card To Prepare And Send Email Content.
-              </p>
+              <div className="mvh-card-glow mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-8 text-center dark:border-slate-600 dark:bg-slate-800/40">
+                <Mail className="mx-auto h-8 w-8 text-slate-400 dark:text-slate-500" aria-hidden />
+                <p className="mt-3 text-sm font-medium text-slate-600 dark:text-slate-300">Select An Application</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  Choose a card on the left to prepare documents and send employer email.
+                </p>
+              </div>
             )}
           </Card>
 
-          <Card className="p-5">
+          <Card className="mvh-card-glow p-5">
             <CardHeader className="p-0">
               <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-100">Lifecycle History</CardTitle>
             </CardHeader>

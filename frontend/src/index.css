@@ -612,3 +612,61 @@ html.dark:not(.theme-noir):not(.theme-visually-impaired):not(.theme-overstimulat
     inset -1px 0 0 hsl(214 100% 68% / 0.16),
     14px 0 48px -18px hsl(250 50% 4% / 0.55);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Subtle card lift + indigo glow on hover (workspace polish). Respect reduced
+   motion — transform only when animations are allowed.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.mvh-card-glow {
+  transition:
+    box-shadow 0.35s ease,
+    border-color 0.35s ease,
+    transform 0.35s ease;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mvh-card-glow:hover {
+    border-color: hsl(214 100% 68% / 0.35);
+    box-shadow:
+      0 0 0 1px hsl(258 90% 66% / 0.22),
+      0 20px 50px -24px hsl(258 65% 50% / 0.45);
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mvh-card-glow:hover {
+    border-color: hsl(214 100% 68% / 0.28);
+    box-shadow: 0 0 0 1px hsl(258 90% 66% / 0.18);
+  }
+}
+
+/* High-contrast / calm themes: hover must stay readable (QC 19-screen parity). */
+.theme-visually-impaired .mvh-card-glow:hover {
+  transform: none;
+  border-color: hsl(48 100% 50% / 0.95);
+  box-shadow: 0 0 0 3px hsl(48 100% 50% / 0.55);
+}
+
+.theme-overstimulated .mvh-card-glow:hover {
+  transform: none;
+  border-color: hsl(215 14% 48% / 0.55);
+  box-shadow: 0 0 0 1px hsl(215 12% 36% / 0.35);
+}
+
+.theme-gray-safe .mvh-card-glow:hover {
+  transform: none;
+  border-color: hsl(220 12% 32% / 0.55);
+  box-shadow: 0 0 0 2px hsl(220 10% 45% / 0.3);
+}
+
+.theme-noir .mvh-card-glow:hover {
+  border-color: hsl(0 0% 88% / 0.35);
+  box-shadow: 0 0 0 1px hsl(0 0% 100% / 0.12), 0 12px 40px -20px hsl(0 0% 0% / 0.65);
+}
+
+.theme-elegant .mvh-card-glow:hover {
+  border-color: hsl(38 35% 58% / 0.45);
+  box-shadow: 0 0 0 1px hsl(38 40% 45% / 0.2), 0 18px 48px -22px hsl(28 30% 20% / 0.25);
+}
