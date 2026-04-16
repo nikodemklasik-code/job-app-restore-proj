@@ -16,8 +16,10 @@ import {
   userEmailSettings,
   applicationLogs,
   applications,
+  jobs,
 } from '../db/schema.js';
 import { generateCoverLetter, generateCvSummary, scoreJobFit } from './aiPersonalizer.js';
+import { assessJobScamRisk } from './jobProtection.js';
 import { generateCvPdf, generateCoverLetterPdf } from './pdfGenerator.js';
 import { getLearnedSignals } from './learningService.js';
 import { sendViaSmtp as _sendViaSmtp, deobfuscate } from './emailSettings.js';
@@ -37,6 +39,37 @@ export async function processEmailApply(job: QueueRow): Promise<'sent' | 'skippe
 
   if (!applyEmail) {
     return 'skipped'; // no employer email — handled by browser-automation branch
+  }
+
+
+  const linkedJob = job.jobId
+    ? await db.select({
+        id: jobs.id,
+        title: jobs.title,
+        company: jobs.company,
+        description: jobs.description,
+        applyUrl: jobs.applyUrl,
+        salaryMin: jobs.salaryMin,
+        salaryMax: jobs.salaryMax,
+      }).from(jobs).where(eq(jobs.id, job.jobId)).limit(1)
+    : [];
+
+  const scamAssessment = assessJobScamRisk({
+    title: linkedJob[0]?.title ?? jobTitle,
+    company: linkedJob[0]?.company ?? company,
+    description: linkedJob[0]?.description ?? '',
+    applyUrl: linkedJob[0]?.applyUrl ?? job.applyUrl,
+    salaryMin: linkedJob[0]?.salaryMin ? Number(linkedJob[0].salaryMin) : null,
+    salaryMax: linkedJob[0]?.salaryMax ? Number(linkedJob[0].salaryMax) : null,
+  });
+
+  if (!scamAssessment.safeForAutomation) {
+    await db.update(autoApplyQueue).set({
+      status: 'skipped',
+      errorMessage: `Blocked by scam protection: ${scamAssessment.reasons.join('; ')}`,
+      updatedAt: new Date(),
+    }).where(eq(autoApplyQueue.id, job.id));
+    return 'skipped';
   }
 
   // ── 1. Load user ──────────────────────────────────────────────────────────

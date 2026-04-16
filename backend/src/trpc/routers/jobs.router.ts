@@ -5,7 +5,8 @@ import { publicProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
 import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions } from '../../db/schema.js';
 import { searchAllProviders } from '../../services/jobProviders.js';
-import { scoreJobFit, explainJobFit, isScamJob, getCompanyProfile } from '../../services/aiPersonalizer.js';
+import { scoreJobFit, explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.js';
+import { assessJobScamRisk } from '../../services/jobProtection.js';
 import { buildCandidateInsights } from '../../services/adaptiveInterviewer.js';
 
 export const jobsRouter = router({
@@ -59,6 +60,15 @@ export const jobsRouter = router({
             fitScore = scored.score;
           }
 
+          const scamAnalysis = assessJobScamRisk({
+            title: job.title,
+            company: job.company,
+            description: job.description,
+            applyUrl: job.applyUrl,
+            salaryMin: job.salaryMin,
+            salaryMax: job.salaryMax,
+          });
+
           const existing = await db.select({ id: jobs.id }).from(jobs)
             .where(and(eq(jobs.externalId, job.externalId), eq(jobs.source, job.source))).limit(1);
 
@@ -74,7 +84,7 @@ export const jobsRouter = router({
             });
           }
 
-          return { ...job, fitScore, id: jobId };
+          return { ...job, fitScore, id: jobId, scamAnalysis };
         }));
 
         return result.sort((a, b) => b.fitScore - a.fitScore);
@@ -89,6 +99,14 @@ export const jobsRouter = router({
           salaryMax: j.salaryMax ? Number(j.salaryMax) : null,
           workMode: j.workMode, requirements: (j.requirements as string[]) ?? [],
           postedAt: j.createdAt.toISOString(), fitScore: j.fitScore ?? 60,
+          scamAnalysis: assessJobScamRisk({
+            title: j.title,
+            company: j.company,
+            description: j.description ?? '',
+            applyUrl: j.applyUrl ?? '',
+            salaryMin: j.salaryMin ? Number(j.salaryMin) : null,
+            salaryMax: j.salaryMax ? Number(j.salaryMax) : null,
+          }),
         }));
       }
     }),
@@ -185,7 +203,14 @@ export const jobsRouter = router({
 
       const [fit, scam] = await Promise.all([
         explainJobFit(profileData, jobForAnalysis, interviewInsights),
-        Promise.resolve(isScamJob(job.title, job.description ?? '')),
+        Promise.resolve(assessJobScamRisk({
+          title: job.title,
+          company: job.company,
+          description: job.description ?? '',
+          applyUrl: job.applyUrl ?? '',
+          salaryMin: job.salaryMin ? Number(job.salaryMin) : null,
+          salaryMax: job.salaryMax ? Number(job.salaryMax) : null,
+        })),
       ]);
 
       // Save extracted requirements back to DB if the job has none yet
@@ -196,7 +221,7 @@ export const jobsRouter = router({
           .where(eq(jobs.id, job.id));
       }
 
-      return { fit, scam };
+      return { fit, scam: { ...scam, isScam: scam.level === 'high' || scam.level === 'medium' } };
     }),
 
   getUserJobStatuses: publicProcedure

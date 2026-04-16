@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import { trpcClient } from '@/lib/api';
-import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, TrendingUp, FileDown, StickyNote, Star, Lock, Zap } from 'lucide-react';
+import { api, trpcClient } from '@/lib/api';
+import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, BookOpen, Clock, TrendingUp, FileDown, StickyNote, Star, Lock, Zap } from 'lucide-react';
 import { interviewModeLabels } from '../../../../shared/interview';
 import type { InterviewMode } from '../../../../shared/interview';
 import { useBillingStore } from '@/stores/billingStore';
@@ -61,9 +61,8 @@ const AVATAR_STYLES = `
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Phase =
-  | 'lobby'        // pre-call: job select + settings
-  | 'setup-check'  // mic/camera verification before starting
-  | 'connecting'   // brief "Connecting…" animation
+  | 'lobby'       // pre-call: job select + camera preview
+  | 'connecting'  // brief "Connecting…" animation
   | 'ai-speaking'
   | 'user-turn'
   | 'processing'
@@ -192,10 +191,44 @@ function generateCoachingPlan(userMessages: string[]): { area: string; action: s
   return plan.slice(0, 5);
 }
 
+// ─── Markdown report generator ────────────────────────────────────────────────
 
-// ─── Question Bank data (used by Trener/Warmup module) ────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const QUESTION_BANK: Record<InterviewMode, string[]> = {
+function generateMarkdownReport(params: {
+  job: JobOption;
+  mode: InterviewMode;
+  messages: Message[];
+  callSeconds: number;
+  exchangeCount: number;
+  notes: string;
+  modeLabel: string;
+}): string {
+  const { job, messages, callSeconds, exchangeCount, notes, modeLabel } = params;
+  const date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  const duration = `${Math.floor(callSeconds / 60)}m ${callSeconds % 60}s`;
+  const userMsgs = messages.filter((m) => m.role === 'user').map((m) => m.content);
+  const coachingPlan = generateCoachingPlan(userMsgs);
+
+  let md = `# Interview Practice Report\n\n`;
+  md += `**Role:** ${job.title} at ${job.company}\n`;
+  md += `**Mode:** ${modeLabel}\n`;
+  md += `**Date:** ${date}\n`;
+  md += `**Duration:** ${duration} · ${exchangeCount} exchanges\n\n`;
+  md += `---\n\n## Transcript\n\n`;
+  messages.forEach((m) => {
+    const speaker = m.role === 'assistant' ? `**AI Interviewer**` : `**You**`;
+    md += `${speaker}: ${m.content}\n\n`;
+  });
+  md += `---\n\n## Coaching Plan\n\n`;
+  coachingPlan.forEach((item, i) => {
+    md += `### ${i + 1}. ${item.area} _(${item.priority} priority)_\n${item.action}\n\n`;
+  });
+  if (notes.trim()) { md += `---\n\n## Your Notes\n\n${notes}\n`; }
+  return md;
+}
+
+// ─── Question Bank data ────────────────────────────────────────────────────────
+
+const QUESTION_BANK: Record<InterviewMode, string[]> = {
   behavioral: [
     'Tell me about yourself and the experience most relevant to this role.',
     'Describe a time you handled conflicting priorities under pressure.',
@@ -602,13 +635,7 @@ export default function InterviewPractice() {
   const [selectedJob, setSelectedJob] = useState<JobOption | null>(null);
   const [customCompany, setCustomCompany] = useState('');
   const [customRole, setCustomRole] = useState('');
-  const [selectedMode] = useState<InterviewMode>('general');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_recruiterPersona, _setRecruiterPersona] = useState<RecruiterPersona>('hr');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_difficulty, _setDifficulty] = useState<'standard' | 'stretch' | 'senior'>('standard');
-  // Session memory PDF
-  const [sessionFile, setSessionFile] = useState<File | null>(null);
+  const [selectedMode, setSelectedMode] = useState<InterviewMode>('behavioral');
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [avatarState, setAvatarState] = useState<AvatarState>('idle');
@@ -622,8 +649,9 @@ export default function InterviewPractice() {
   // Post-session
   const [sessionNotes, setSessionNotes] = useState('');
   const [showNotesSaved, setShowNotesSaved] = useState(false);
-  const [_showQuestionBank, _setShowQuestionBank] = useState(false);
-  const [_qbMode, _setQbMode] = useState<InterviewMode>('behavioral');
+  const [showHistory, setShowHistory] = useState(false);
+  const [showQuestionBank, setShowQuestionBank] = useState(false);
+  const [qbMode, setQbMode] = useState<InterviewMode>('behavioral');
 
   // Recording
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -657,11 +685,13 @@ export default function InterviewPractice() {
   const [showTranscript, setShowTranscript] = useState(false);
 
   // Live Interview engine state
-  const useLiveMode = true; // always live mode — coaching toggle removed
+  const [useLiveMode, setUseLiveMode] = useState(true);
   const liveSessionIdRef = useRef<string | null>(null);
   const [liveInterviewSummary, setLiveInterviewSummary] = useState<LiveInterviewSummary | null>(null);
 
-  // History query
+  // Jobs feed & history
+  const feedQuery = api.jobs.getFeed.useQuery({ limit: 20 }, { enabled: phase === 'lobby' });
+  const historyQuery = api.interview.getHistory.useQuery(undefined, { enabled: showHistory });
 
   // Feedback auto-dismiss timer
   useEffect(() => {
@@ -695,10 +725,13 @@ export default function InterviewPractice() {
     setCameraActive(false);
   }, []);
 
-  // Camera only starts when interview begins — NOT on lobby load
+  // Lobby: start camera for preview
   useEffect(() => {
+    if (phase === 'lobby') {
+      void startCamera(lobbyVideoRef);
+    }
     return () => {
-      if (phase === 'complete') stopCamera();
+      if (phase !== 'lobby') stopCamera();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
@@ -710,11 +743,7 @@ export default function InterviewPractice() {
         void startCamera(videoRef);
       } else if (videoRef.current) {
         videoRef.current.srcObject = cameraStreamRef.current;
-        void videoRef.current.play().then(() => {
-          setCameraActive(true); // stream reused from lobby — mark as active
-        }).catch(() => {
-          setCameraActive(true); // still mark active even if autoplay needs gesture
-        });
+        void videoRef.current.play();
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1074,6 +1103,7 @@ export default function InterviewPractice() {
     setTurnFeedback(null);
     setSessionNotes('');
     setShowNotesSaved(false);
+    setShowHistory(false);
     setLiveInterviewSummary(null);
     liveSessionIdRef.current = null;
   }, []);
@@ -1081,6 +1111,9 @@ export default function InterviewPractice() {
   // ── LOBBY SCREEN ───────────────────────────────────────────────────────────
 
   if (phase === 'lobby') {
+    const job = getJob();
+    const canJoin = (selectedJob !== null) || (customCompany.trim() !== '' && customRole.trim() !== '');
+
     return (
       <div style={{ minHeight: '100vh', background: '#050a14', color: '#f9fafb', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <style>{AVATAR_STYLES}</style>
@@ -1093,7 +1126,10 @@ export default function InterviewPractice() {
               <span style={{ fontSize: 13, color: '#94a3b8' }}>AI credits remaining:</span>
               <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{currentPlan.credits.toLocaleString()}</span>
             </div>
-            <a href="/billing" style={{ fontSize: 12, fontWeight: 600, color: '#a5b4fc', textDecoration: 'none', padding: '5px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: 8 }}>
+            <a
+              href="/billing"
+              style={{ fontSize: 12, fontWeight: 600, color: '#a5b4fc', textDecoration: 'none', padding: '5px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: 8, transition: 'opacity 0.15s' }}
+            >
               Buy Credits →
             </a>
           </div>
@@ -1101,87 +1137,310 @@ export default function InterviewPractice() {
 
         <div style={{ width: '100%', maxWidth: 880, display: 'flex', gap: 24, flexWrap: 'wrap', justifyContent: 'center' }}>
 
-          {/* Left: camera placeholder — camera starts only after clicking Start */}
+          {/* Left: camera preview tile */}
           <div style={{ flex: '1 1 340px', minHeight: 320, background: '#0f172a', borderRadius: 20, border: '1px solid #1e293b', overflow: 'hidden', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <video ref={lobbyVideoRef} muted playsInline style={{ display: 'none' }} />
-            <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>👤</div>
-              <span style={{ fontSize: 13, color: '#64748b' }}>Camera starts when you begin</span>
+            {/* actual video */}
+            <video
+              ref={lobbyVideoRef}
+              muted
+              playsInline
+              style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', position: 'absolute', inset: 0 }}
+            />
+            {!cameraActive && (
+              <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>👤</div>
+                <span style={{ fontSize: 13, color: '#64748b' }}>Camera unavailable</span>
+              </div>
+            )}
+            {/* "You" label */}
+            <div style={{ position: 'absolute', bottom: 14, left: 14, background: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600, color: '#e2e8f0', zIndex: 2 }}>
+              You
             </div>
-            <div style={{ position: 'absolute', bottom: 14, left: 14, background: 'rgba(0,0,0,0.6)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600, color: '#e2e8f0', zIndex: 2 }}>You</div>
+            {/* Camera indicator */}
+            <div style={{ position: 'absolute', top: 14, right: 14, zIndex: 2, width: 10, height: 10, borderRadius: '50%', background: cameraActive ? '#22c55e' : '#64748b', boxShadow: cameraActive ? '0 0 8px #22c55e' : 'none' }} />
           </div>
 
-          {/* Right: simplified join panel */}
+          {/* Right: job selector + join */}
           <div style={{ flex: '1 1 340px', display: 'flex', flexDirection: 'column', gap: 16, justifyContent: 'center' }}>
-
-            {/* Title */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#6366f1,#3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#6366f1,#3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Briefcase style={{ width: 22, height: 22, color: '#fff' }} />
               </div>
               <div>
-                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Interview Practice</h1>
-                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>AI-powered mock interview simulation</p>
+                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>AI Interview Coach</h1>
+                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Share your answers — get structured coaching reports</p>
               </div>
             </div>
 
-            {/* Session memory PDF banner */}
-            <div style={{ borderRadius: 16, border: '1px solid rgba(251,191,36,0.4)', background: 'rgba(251,191,36,0.06)', padding: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 16 }}>🔐</span>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: '#fbbf24' }}>Session memory (optional)</span>
-                </div>
-                {sessionFile && <span style={{ fontSize: 11, color: '#34d399', fontWeight: 600 }}>✓ {sessionFile.name}</span>}
-              </div>
-              <p style={{ margin: '0 0 8px', fontSize: 12, color: 'rgba(251,191,36,0.7)' }}>
-                Upload an encrypted PDF from a previous session so AI can continue your coaching
-              </p>
-              <input type="file" accept=".pdf" style={{ fontSize: 12, color: '#94a3b8' }} onChange={(e) => setSessionFile(e.target.files?.[0] ?? null)} />
-            </div>
-
-            {/* Optional position field */}
+            {/* Custom role */}
             <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>ROLE / COMPANY (OPTIONAL)</p>
-              <input
-                type="text"
-                placeholder="e.g. Senior React Developer at Google (optional)"
-                value={customRole ? `${customRole}${customCompany ? ` at ${customCompany}` : ''}` : ''}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const wMatch = val.match(/^(.+?)\s+at\s+(.+)$/i);
-                  if (wMatch) { setCustomRole(wMatch[1].trim()); setCustomCompany(wMatch[2].trim()); }
-                  else { setCustomRole(val); setCustomCompany(''); }
-                  setSelectedJob(null);
-                }}
-                style={{ width: '100%', background: '#050a14', border: '1px solid #1e293b', borderRadius: 8, padding: '10px 14px', color: '#f1f5f9', fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
-              />
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>CUSTOM ROLE</p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  type="text"
+                  placeholder="Company name"
+                  value={customCompany}
+                  onChange={(e) => { setCustomCompany(e.target.value); setSelectedJob(null); }}
+                  style={{ flex: 1, background: '#050a14', border: '1px solid #1e293b', borderRadius: 8, padding: '8px 12px', color: '#f1f5f9', fontSize: 14, outline: 'none' }}
+                />
+                <input
+                  type="text"
+                  placeholder="Job title"
+                  value={customRole}
+                  onChange={(e) => { setCustomRole(e.target.value); setSelectedJob(null); }}
+                  style={{ flex: 1, background: '#050a14', border: '1px solid #1e293b', borderRadius: 8, padding: '8px 12px', color: '#f1f5f9', fontSize: 14, outline: 'none' }}
+                />
+              </div>
             </div>
 
-            {/* Premium gate */}
+            {/* Interview mode selector */}
+            <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>INTERVIEW MODE</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                {(Object.entries(interviewModeLabels) as [InterviewMode, typeof interviewModeLabels[InterviewMode]][]).map(([modeKey, meta]) => (
+                  <button
+                    key={modeKey}
+                    onClick={() => setSelectedMode(modeKey)}
+                    title={meta.description}
+                    style={{
+                      background: selectedMode === modeKey ? 'rgba(99,102,241,0.22)' : '#050a14',
+                      border: `1px solid ${selectedMode === modeKey ? '#6366f1' : '#1e293b'}`,
+                      borderRadius: 8,
+                      padding: '8px 6px',
+                      cursor: 'pointer',
+                      color: selectedMode === modeKey ? '#a5b4fc' : '#94a3b8',
+                      textAlign: 'center',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{ fontSize: 18 }}>{meta.emoji}</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, marginTop: 2 }}>{meta.label}</div>
+                  </button>
+                ))}
+              </div>
+              <p style={{ fontSize: 11, color: '#475569', marginTop: 8, marginBottom: 0 }}>{interviewModeLabels[selectedMode].description}</p>
+            </div>
+
+            {/* Jobs list */}
+            {feedQuery.isLoading ? (
+              <div style={{ textAlign: 'center', color: '#64748b', fontSize: 13, padding: '12px 0' }}>
+                <div style={{ width: 18, height: 18, border: '2px solid #6366f1', borderTop: '2px solid transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 6px' }} />
+                Loading jobs…
+              </div>
+            ) : feedQuery.data && feedQuery.data.length > 0 ? (
+              <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>OR PICK A JOB</p>
+                <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {feedQuery.data.map((j: { id: string; title: string; company: string; description?: string | null; location?: string | null }) => (
+                    <button
+                      key={j.id}
+                      onClick={() => { setSelectedJob({ id: j.id, title: j.title, company: j.company, description: j.description }); setCustomCompany(''); setCustomRole(''); }}
+                      style={{ background: selectedJob?.id === j.id ? 'rgba(99,102,241,0.2)' : '#050a14', border: `1px solid ${selectedJob?.id === j.id ? '#6366f1' : '#1e293b'}`, borderRadius: 8, padding: '9px 14px', textAlign: 'left', cursor: 'pointer', color: '#f1f5f9', transition: 'all 0.15s' }}
+                    >
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{j.title}</div>
+                      <div style={{ fontSize: 12, color: '#64748b' }}>{j.company}{j.location ? ` · ${j.location}` : ''}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Premium gate — show upgrade prompt for free users */}
             {isPremium === false ? (
-              <div style={{ background: 'linear-gradient(135deg,rgba(99,102,241,0.18),rgba(59,130,246,0.12))', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 14, padding: '20px', textAlign: 'center' }}>
+              <div style={{ background: 'linear-gradient(135deg,rgba(99,102,241,0.18),rgba(59,130,246,0.12))', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 14, padding: '20px 20px', textAlign: 'center' }}>
                 <Lock style={{ width: 28, height: 28, color: '#a5b4fc', margin: '0 auto 10px' }} />
                 <p style={{ fontWeight: 700, fontSize: 15, color: '#e2e8f0', marginBottom: 6 }}>AI Interview Practice is a Pro feature</p>
-                <p style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>Upgrade to Pro or Autopilot to unlock unlimited mock interviews.</p>
-                <a href="/billing" style={{ display: 'inline-block', padding: '10px 28px', background: 'linear-gradient(135deg,#6366f1,#3b82f6)', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
+                <p style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>Upgrade to Pro or Autopilot to unlock unlimited mock interviews, coaching plans, and session history.</p>
+                <a
+                  href="/billing"
+                  style={{ display: 'inline-block', padding: '10px 28px', background: 'linear-gradient(135deg,#6366f1,#3b82f6)', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}
+                >
                   Upgrade to Pro →
                 </a>
               </div>
             ) : (
-              <>
-                <button
-                  onClick={() => void joinCall()}
-                  style={{ padding: '15px 0', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 700, fontSize: 17, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}
-                >
-                  🎙️ Start Interview
-                </button>
-              </>
+            <>
+            {/* Mode toggle: Live Interview vs Coaching */}
+            <div style={{ background: '#0f172a', borderRadius: 10, border: '1px solid #1e293b', padding: '8px', display: 'flex', gap: 4 }}>
+              <button
+                onClick={() => setUseLiveMode(true)}
+                style={{
+                  flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13,
+                  background: useLiveMode ? 'linear-gradient(135deg,#6366f1,#3b82f6)' : 'transparent',
+                  color: useLiveMode ? '#fff' : '#64748b',
+                  transition: 'all 0.15s',
+                }}
+              >
+                🎙️ Live Interview
+              </button>
+              <button
+                onClick={() => setUseLiveMode(false)}
+                style={{
+                  flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: 13,
+                  background: !useLiveMode ? 'rgba(99,102,241,0.18)' : 'transparent',
+                  color: !useLiveMode ? '#a5b4fc' : '#64748b',
+                  transition: 'all 0.15s',
+                }}
+              >
+                🧑‍🏫 Coaching Mode
+              </button>
+            </div>
+            {useLiveMode && (
+              <p style={{ margin: 0, fontSize: 12, color: '#64748b', textAlign: 'center' }}>
+                Real interview flow — structured questions, follow-ups, session memory, and summary
+              </p>
             )}
+
+            {/* Join button */}
+            <button
+              disabled={!canJoin}
+              onClick={() => void joinCall()}
+              style={{
+                padding: '14px 0',
+                background: canJoin ? 'linear-gradient(135deg, #22c55e, #16a34a)' : '#1e293b',
+                border: 'none',
+                borderRadius: 12,
+                color: canJoin ? '#fff' : '#475569',
+                fontWeight: 700,
+                fontSize: 16,
+                cursor: canJoin ? 'pointer' : 'not-allowed',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+              }}
+            >
+              {canJoin ? `📞 Join Interview — ${job.title} at ${job.company}` : 'Select a job or enter a custom role'}
+            </button>
+            </>
+            )}
+
+            {/* Bottom action links */}
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setShowQuestionBank(true)}
+                style={{ flex: 1, padding: '10px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, color: '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              >
+                <BookOpen style={{ width: 14, height: 14 }} /> Question Bank
+              </button>
+              <button
+                onClick={() => setShowHistory(true)}
+                style={{ flex: 1, padding: '10px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 10, color: '#94a3b8', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              >
+                <Clock style={{ width: 14, height: 14 }} /> History
+              </button>
+            </div>
           </div>
         </div>
 
+        {/* Question Bank modal */}
+        {showQuestionBank && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ width: '100%', maxWidth: 600, background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 28, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>📚 Question Bank</h2>
+                <button onClick={() => setShowQuestionBank(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>✕</button>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+                {(Object.keys(QUESTION_BANK) as InterviewMode[]).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setQbMode(m)}
+                    style={{ padding: '5px 12px', borderRadius: 20, border: `1px solid ${qbMode === m ? '#6366f1' : '#1e293b'}`, background: qbMode === m ? 'rgba(99,102,241,0.2)' : '#050a14', color: qbMode === m ? '#a5b4fc' : '#94a3b8', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    {interviewModeLabels[m].emoji} {interviewModeLabels[m].label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {QUESTION_BANK[qbMode].map((q, i) => (
+                  <div key={i} style={{ background: '#050a14', border: '1px solid #1e293b', borderRadius: 10, padding: '12px 16px', fontSize: 14, color: '#e2e8f0', lineHeight: 1.5 }}>
+                    <span style={{ color: '#475569', fontSize: 12, fontWeight: 700, marginRight: 8 }}>Q{i + 1}</span>{q}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
+        {/* History modal */}
+        {showHistory && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ width: '100%', maxWidth: 600, background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 28, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>🕐 Interview History</h2>
+                <button onClick={() => setShowHistory(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 20 }}>✕</button>
+              </div>
+              {historyQuery.isLoading ? (
+                <div style={{ textAlign: 'center', color: '#64748b', padding: 40 }}>Loading…</div>
+              ) : !historyQuery.data || historyQuery.data.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#475569', padding: 40 }}>No sessions yet. Complete your first interview to see history here.</div>
+              ) : (
+                <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(historyQuery.data as Array<{ id: string; mode: string; difficulty: string; score: number | null; createdAt: string; answers: unknown[] }>).map((s) => {
+                    const modeLabel = interviewModeLabels[s.mode as InterviewMode] ?? { emoji: '💼', label: s.mode };
+                    const score = s.score;
+                    const scoreColor = score === null ? '#64748b' : score >= 80 ? '#34d399' : score >= 60 ? '#fbbf24' : '#f87171';
+                    return (
+                      <div key={s.id} style={{ background: '#050a14', border: '1px solid #1e293b', borderRadius: 10, padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>{modeLabel.emoji} {modeLabel.label}</span>
+                            <span style={{ fontSize: 11, color: '#475569', marginLeft: 10 }}>{new Date(s.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                          </div>
+                          {score !== null && (
+                            <span style={{ fontSize: 16, fontWeight: 800, color: scoreColor }}>{score}/100</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#475569', marginTop: 4 }}>
+                          {s.answers.length} answer{s.answers.length !== 1 ? 's' : ''} · {s.difficulty}
+                        </div>
+                        {score !== null && (
+                          <button
+                            onClick={() => {
+                              const growthAreas = [
+                                'Structure answers with clear STAR format',
+                                'Add quantified outcomes to each response',
+                                'Reduce filler words and pause instead',
+                              ];
+                              void trpcClient.interview.downloadCredential.mutate({ sessionId: s.id, growthAreas }).then((res: { base64: string; filename: string }) => {
+                                const bytes = Uint8Array.from(atob(res.base64), (c) => c.charCodeAt(0));
+                                const blob = new Blob([bytes], { type: 'application/pdf' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url; a.download = res.filename; a.click();
+                                URL.revokeObjectURL(url);
+                              });
+                            }}
+                            style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 7, padding: '5px 10px', color: '#818cf8', fontSize: 11, cursor: 'pointer' }}
+                          >
+                            <FileDown style={{ width: 12, height: 12 }} /> Download Credential PDF
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {/* Progress trend */}
+                  {(historyQuery.data as Array<{ score: number | null }>).filter((s) => s.score !== null).length >= 2 && (
+                    <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 10, padding: 16, marginTop: 8 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#a5b4fc', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><TrendingUp style={{ width: 14, height: 14 }} /> Score Trend</div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end', height: 48 }}>
+                        {(historyQuery.data as Array<{ id: string; score: number | null }>).filter((s) => s.score !== null).slice(0, 10).reverse().map((s, i) => {
+                          const pct = ((s.score ?? 0) / 100) * 48;
+                          const c = (s.score ?? 0) >= 80 ? '#34d399' : (s.score ?? 0) >= 60 ? '#fbbf24' : '#f87171';
+                          return (
+                            <div key={i} title={`${s.score}/100`} style={{ flex: 1, height: `${pct}px`, background: c, borderRadius: 3, minHeight: 4 }} />
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1220,101 +1479,15 @@ export default function InterviewPractice() {
     const scoreColor = avgScore === null ? '#64748b' : avgScore >= 80 ? '#34d399' : avgScore >= 60 ? '#fbbf24' : '#f87171';
 
     const handleExport = () => {
-      const date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-      const duration = `${Math.floor(callSeconds / 60)}m ${callSeconds % 60}s`;
-      const userMsgs = messages.filter(m => m.role === 'user').map(m => m.content);
-      const coachingPlan = generateCoachingPlan(userMsgs);
-
-      const escape = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
-
-      const transcriptHtml = messages.map(m => {
-        const isAI = m.role === 'assistant';
-        return `<div class="msg ${isAI ? 'ai' : 'user'}">
-          <span class="speaker">${isAI ? '🤖 AI Interviewer' : '👤 You'}</span>
-          <p>${escape(m.content)}</p>
-        </div>`;
-      }).join('');
-
-      const coachHtml = coachingPlan.map((item, i) =>
-        `<div class="coach-item">
-          <h3>${i + 1}. ${escape(item.area)} <span class="priority ${item.priority}">${item.priority} priority</span></h3>
-          <p>${escape(item.action)}</p>
-        </div>`
-      ).join('');
-
-      const notesHtml = sessionNotes.trim()
-        ? `<section><h2>Your Notes</h2><p>${escape(sessionNotes)}</p></section>`
-        : '';
-
-      const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Interview Report — ${job.title} at ${job.company}</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #1e293b; background: #fff; padding: 32px 40px; max-width: 820px; margin: 0 auto; }
-    h1 { font-size: 22px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
-    .meta { font-size: 12px; color: #64748b; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 12px; }
-    .meta span { display: flex; align-items: center; gap: 4px; }
-    hr { border: none; border-top: 1px solid #e2e8f0; margin: 20px 0; }
-    h2 { font-size: 15px; font-weight: 700; color: #1e293b; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #6366f1; display: inline-block; }
-    section { margin-bottom: 28px; }
-    .msg { margin-bottom: 14px; padding: 10px 14px; border-radius: 10px; }
-    .msg.ai { background: #f8fafc; border-left: 3px solid #6366f1; }
-    .msg.user { background: #f0fdf4; border-left: 3px solid #22c55e; }
-    .speaker { font-size: 11px; font-weight: 700; color: #64748b; display: block; margin-bottom: 4px; }
-    .msg p { font-size: 13px; line-height: 1.6; color: #334155; }
-    .coach-item { margin-bottom: 16px; padding: 12px 14px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; }
-    .coach-item h3 { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 6px; }
-    .coach-item p { font-size: 12px; color: #475569; line-height: 1.5; }
-    .priority { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
-    .priority.high { background: #fee2e2; color: #b91c1c; }
-    .priority.medium { background: #fef9c3; color: #92400e; }
-    .priority.low { background: #dcfce7; color: #166534; }
-    footer { margin-top: 32px; font-size: 11px; color: #94a3b8; text-align: center; }
-    @media print {
-      body { padding: 20px; }
-      @page { margin: 20mm; }
-    }
-  </style>
-</head>
-<body>
-  <h1>Interview Practice Report</h1>
-  <div class="meta">
-    <span>📋 ${escape(job.title)} at ${escape(job.company)}</span>
-    <span>🎯 ${escape(modeInfo.label)}</span>
-    <span>📅 ${date}</span>
-    <span>⏱ ${duration} · ${exchangeCount} exchanges</span>
-  </div>
-  <hr>
-  <section>
-    <h2>Transcript</h2>
-    ${transcriptHtml}
-  </section>
-  <hr>
-  <section>
-    <h2>Coaching Plan</h2>
-    ${coachHtml}
-  </section>
-  ${notesHtml}
-  <footer>Generated by MultivoHub · Interview Practice · ${date}</footer>
-  <script>window.onload = () => { window.print(); }<\/script>
-</body>
-</html>`;
-
-      const blob = new Blob([html], { type: 'text/html' });
+      const md = generateMarkdownReport({ job, mode: selectedMode, messages, callSeconds, exchangeCount, notes: sessionNotes, modeLabel: modeInfo.label });
+      const blob = new Blob([md], { type: 'text/markdown' });
       const url = URL.createObjectURL(blob);
-      const w = window.open(url, '_blank');
-      if (!w) {
-        // Fallback if popup blocked — direct download
-        const a = document.createElement('a');
-        const safeName = job.company.replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').toLowerCase() || 'company';
-        a.href = url;
-        a.download = `interview-report-${safeName}-${new Date().toISOString().slice(0, 10)}.html`;
-        a.click();
-      }
-      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeName = job.company.replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').toLowerCase() || 'company';
+      a.download = `interview-report-${safeName}-${new Date().toISOString().slice(0, 10)}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
     };
 
     const handleSaveNotes = () => {
@@ -1487,7 +1660,7 @@ export default function InterviewPractice() {
               onClick={handleExport}
               style={{ flex: '1 1 160px', padding: '13px 0', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 12, color: '#94a3b8', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
             >
-              <FileDown style={{ width: 16, height: 16 }} /> Export PDF Report
+              <FileDown style={{ width: 16, height: 16 }} /> Export Report
             </button>
             <button
               onClick={resetAll}
@@ -1507,12 +1680,10 @@ export default function InterviewPractice() {
   const job = getJob();
   const userTurnActive = phase === 'user-turn';
   const statusLabel =
-    isRecording ? '● REC' :
     phase === 'ai-speaking' ? 'Speaking' :
     phase === 'processing' ? 'Thinking…' :
-    phase === 'user-turn' ? 'Your turn…' : 'Ready';
+    phase === 'user-turn' ? 'Listening' : 'Ready';
   const statusColor =
-    isRecording ? '#f87171' :
     phase === 'ai-speaking' ? '#818cf8' :
     phase === 'processing' ? '#fbbf24' :
     phase === 'user-turn' ? '#4ade80' : '#94a3b8';
@@ -1731,20 +1902,17 @@ export default function InterviewPractice() {
           boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
         }}
       >
-        {/* Always keep video in DOM so ref is always available for startCamera */}
-        <video
-          ref={videoRef}
-          muted
-          playsInline
-          style={{
-            width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)',
-            display: cameraActive && cameraOn ? 'block' : 'none',
-          }}
-        />
-        {(!cameraActive || !cameraOn) && (
-          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, position: 'absolute', inset: 0 }}>
+        {cameraActive && cameraOn ? (
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+          />
+        ) : (
+          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
             <div style={{ fontSize: 32 }}>👤</div>
-            <span style={{ fontSize: 11, color: '#475569' }}>{!cameraOn ? 'Camera off' : 'Starting camera…'}</span>
+            <span style={{ fontSize: 11, color: '#475569' }}>{!cameraOn ? 'Camera off' : 'No camera'}</span>
           </div>
         )}
 

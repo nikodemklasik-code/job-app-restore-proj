@@ -7,6 +7,10 @@ import { useUser } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 
+/** Runtime may expose `documents` router before it is merged into shared `AppRouter` types. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const apiExt = api as any;
+
 const ACCEPT = '.pdf,.docx,.doc,.txt,.jpg,.jpeg,.png';
 
 function guessMime(file: File): string {
@@ -251,7 +255,7 @@ export default function DocumentLab() {
   const [referenceText, setReferenceText] = useState('');
   const [referenceSaveState, setReferenceSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
-  const listQuery = api.documents.list.useQuery(undefined, { staleTime: 30_000 });
+  const listQuery = apiExt.documents.list.useQuery(undefined, { staleTime: 30_000 });
   const docs: UploadedDoc[] = (listQuery.data as UploadedDoc[] | undefined) ?? [];
 
   const latestCvQuery = api.cv.getLatest.useQuery({ userId }, { enabled: !!userId });
@@ -265,8 +269,10 @@ export default function DocumentLab() {
 
   const utils = api.useUtils();
 
-  const deleteMutation = api.documents.delete.useMutation({
-    onSuccess: () => { void utils.documents.list.invalidate(); },
+  const deleteMutation = apiExt.documents.delete.useMutation({
+    onSuccess: () => {
+      void (utils as { documents?: { list: { invalidate: () => Promise<void> } } }).documents?.list.invalidate();
+    },
   });
 
   const cvUploadMutation = api.cv.upload.useMutation();

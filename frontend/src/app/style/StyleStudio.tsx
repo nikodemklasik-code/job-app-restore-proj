@@ -380,7 +380,7 @@ export default function StyleStudio() {
       profileSummary: (profileData as any)?.summary ?? undefined,
       skills: skillNames,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      senderName: (profileData as any)?.fullName ?? user?.fullName ?? undefined,
+      senderName: (profileData as any)?.fullName ?? undefined,
     });
   }
 
@@ -420,7 +420,7 @@ export default function StyleStudio() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = makeFilename('CL');
+        a.download = 'CoverLetter-generated.pdf';
         a.click();
         URL.revokeObjectURL(url);
       }

@@ -5,8 +5,28 @@ import { setAuthTokenGetter } from './auth-token';
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-if (!clerkPubKey) {
-  throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY environment variable');
+function MissingClerkKeyScreen() {
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#0f172a',
+        color: '#fff',
+        padding: '24px',
+        textAlign: 'center',
+      }}
+    >
+      <div>
+        <h1 style={{ marginBottom: '12px' }}>Logowanie nie jest skonfigurowane</h1>
+        <p style={{ opacity: 0.85 }}>
+          Nie ustawiono VITE_CLERK_PUBLISHABLE_KEY.
+        </p>
+      </div>
+    </div>
+  );
 }
 
 interface ClerkRootProviderProps {
@@ -25,6 +45,10 @@ function ClerkTokenBridge() {
 }
 
 export function ClerkRootProvider({ children }: ClerkRootProviderProps) {
+  if (!clerkPubKey) {
+    return <MissingClerkKeyScreen />;
+  }
+
   return (
     <ClerkProvider
       publishableKey={clerkPubKey}

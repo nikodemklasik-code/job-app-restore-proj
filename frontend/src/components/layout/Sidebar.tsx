@@ -2,9 +2,9 @@ import { NavLink } from 'react-router-dom';
 import { useClerk } from '@clerk/clerk-react';
 import {
   LayoutDashboard, Briefcase, ClipboardList, FileText,
-  MessageSquare, Mic, CreditCard, Settings,
-  Shield, Palette, LogOut, Sparkles, Calculator, Scale, BarChart2, Zap,
-  FlaskConical, Handshake, Radar, HelpCircle, FolderOpen, GraduationCap, Flame,
+  MessageSquare, Mic, User, CreditCard, Settings,
+  Shield, Palette, LogOut, Sparkles, Calculator, Scale, BarChart2, Zap, FlaskConical, Handshake, Radar, Flame, HelpCircle,
+  GraduationCap, FolderOpen,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -15,34 +15,26 @@ interface NavItem {
   badge?: number;
 }
 
-const PROFILE: NavItem[] = [
-  { path: '/dashboard', label: 'Profile & Goals', icon: LayoutDashboard },
-];
-
-const JOB_SEARCH: NavItem[] = [
-  { path: '/jobs', label: 'Job Listings', icon: Briefcase },
+const MAIN_FLOW: NavItem[] = [
+  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/jobs', label: 'Jobs', icon: Briefcase },
   { path: '/applications', label: 'Applications', icon: ClipboardList },
   { path: '/review', label: 'Applications Review', icon: FileText },
 ];
 
-const SKILLS: NavItem[] = [
-  { path: '/skills', label: 'Skills Lab', icon: FlaskConical },
-];
-
-const AI_TOOLS: NavItem[] = [
-  { path: '/assistant', label: 'AI Assistant', icon: MessageSquare },
-  { path: '/radar', label: 'Job Radar', icon: Radar },
-];
-
-const COACHING: NavItem[] = [
+const AI_GROWTH: NavItem[] = [
+  { path: '/assistant', label: 'Assistant', icon: MessageSquare },
   { path: '/interview', label: 'Interview', icon: Mic },
-  { path: '/warmup', label: 'Daily Warmup', icon: Flame },
   { path: '/coach', label: 'Coach', icon: GraduationCap },
+  { path: '/warmup', label: 'Daily Warmup', icon: Flame },
   { path: '/negotiation', label: 'Negotiation', icon: Handshake },
+  { path: '/skills', label: 'Skill Lab', icon: FlaskConical },
+  { path: '/job-radar', label: 'Job Radar', icon: Radar },
 ];
 
-const DOCUMENTS: NavItem[] = [
-  { path: '/documents', label: 'Document Lab', icon: FolderOpen },
+const PROFILE_DOCS: NavItem[] = [
+  { path: '/profile', label: 'Profile', icon: User },
+  { path: '/documents', label: 'Documents Upload', icon: FolderOpen },
   { path: '/style-studio', label: 'Style Studio', icon: Palette },
 ];
 
@@ -50,13 +42,16 @@ const TOOLS: NavItem[] = [
   { path: '/salary', label: 'Salary Calculator', icon: Calculator },
   { path: '/legal', label: 'Legal Hub', icon: Scale },
   { path: '/reports', label: 'Reports', icon: BarChart2 },
+];
+
+const AUTOMATION: NavItem[] = [
   { path: '/auto-apply', label: 'Auto Apply', icon: Zap },
 ];
 
-const ACCOUNT: NavItem[] = [
+const TECHNICAL: NavItem[] = [
   { path: '/settings', label: 'Settings', icon: Settings },
+  { path: '/security', label: 'Security & Passkeys', icon: Shield },
   { path: '/billing', label: 'Billing', icon: CreditCard },
-  { path: '/security', label: 'Security', icon: Shield },
   { path: '/faq', label: 'FAQ', icon: HelpCircle },
 ];
 
@@ -113,14 +108,12 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto p-3">
-        <NavSection label="Profile" items={PROFILE} />
-        <NavSection label="Job Search" items={JOB_SEARCH} />
-        <NavSection label="Skills" items={SKILLS} />
-        <NavSection label="AI Tools" items={AI_TOOLS} />
-        <NavSection label="Interviews & Coaching" items={COACHING} />
-        <NavSection label="Documents" items={DOCUMENTS} />
-        <NavSection label="Tools" items={TOOLS} />
-        <NavSection label="Account" items={ACCOUNT} />
+        <NavSection label="Main Flow" items={MAIN_FLOW} />
+        <NavSection label="AI & Growth" items={AI_GROWTH} />
+        <NavSection label="Profile & Documents" items={PROFILE_DOCS} />
+        <NavSection label="Tools & Insights" items={TOOLS} />
+        <NavSection label="Automation" items={AUTOMATION} />
+        <NavSection label="Technical & Account" items={TECHNICAL} />
       </nav>
 
       {/* Sign out */}

@@ -189,7 +189,6 @@ function QueueCard({
   return (
     <div className={`rounded-2xl border ${cfg.border} ${cfg.bg} p-5 transition-all`}>
       <div className="flex items-start gap-4">
-
         {/* icon */}
         <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${cfg.border} bg-black/20`}>
           <Icon className={`h-5 w-5 ${cfg.iconColor}`} />

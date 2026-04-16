@@ -21,7 +21,7 @@ export const THEME_CHOICES: { id: ThemeId; label: string; hint: string }[] = [
   { id: 'light', label: 'Light', hint: 'Light surfaces for daytime use.' },
   {
     id: 'visually-impaired',
-    label: 'High contrast',
+    label: 'High Contrast',
     hint: 'Yellow on black, larger controls — maximum contrast.',
   },
   {
@@ -31,7 +31,7 @@ export const THEME_CHOICES: { id: ThemeId; label: string; hint: string }[] = [
   },
   {
     id: 'gray-safe',
-    label: 'Gray safe',
+    label: 'Gray Safe',
     hint: 'Cool neutrals, low saturation, strong borders — gentle on eyes and colour perception.',
   },
   { id: 'noir', label: 'Noir', hint: 'Cinematic black & white, sharp geometry.' },

@@ -16,6 +16,7 @@ import { clsx } from 'clsx';
 import { useThemeStore, THEME_CHOICES, type ThemeId } from '@/stores/themeStore';
 import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/select';
 import { api } from '@/lib/api';
+import { pageTitleForPath } from '@/lib/navigationCopy';
 
 const THEME_ICONS: Record<ThemeId, typeof Moon> = {
   dark: Moon,
@@ -30,31 +31,6 @@ const THEME_ICONS: Record<ThemeId, typeof Moon> = {
 /** Light / low-chroma themes — header chrome uses slate instead of indigo accents. */
 const NEUTRAL_HEADER_THEMES: ThemeId[] = ['gray-safe', 'light', 'overstimulated', 'elegant'];
 
-const PAGE_TITLES: Record<string, string> = {
-  '/dashboard':   'Profile & Goals',
-  '/jobs':        'Job Listings',
-  '/applications':'Applications',
-  '/review':      'Applications Review',
-  '/assistant':   'AI Assistant',
-  '/interview':   'Interview',
-  '/warmup':      'Daily Warmup',
-  '/coach':       'Coach',
-  '/negotiation': 'Negotiation',
-  '/profile':     'Profile & CV',
-  '/style-studio':'Style Studio',
-  '/settings':    'Settings',
-  '/security':    'Security',
-  '/billing':     'Billing',
-  '/skills':      'Skills Lab',
-  '/radar':       'Job Radar',
-  '/salary':      'Salary Calculator',
-  '/legal':       'Legal Hub',
-  '/reports':     'Reports',
-  '/auto-apply':  'Auto Apply',
-  '/documents':   'Document Lab',
-  '/faq':         'FAQ',
-};
-
 export default function Header() {
   const { pathname } = useLocation();
   const { user } = useUser();
@@ -65,7 +41,7 @@ export default function Header() {
   );
   const credits = creditsQuery.data?.credits ?? null;
 
-  const title = PAGE_TITLES[pathname] ?? 'Career Workspace';
+  const title = pageTitleForPath(pathname);
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   const displayName =
     user?.fullName?.trim() ||

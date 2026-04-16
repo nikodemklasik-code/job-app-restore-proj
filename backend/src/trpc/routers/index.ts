@@ -1,5 +1,4 @@
 import { router } from '../trpc.js';
-import { coachRouter } from './coach.router.js';
 import { assistantRouter } from './assistant.router.js';
 import { liveInterviewRouter } from './liveInterview.router.js';
 import { interviewRouter } from './interview.router.js';
@@ -19,12 +18,13 @@ import { jobSourcesRouter } from './jobSources.router.js';
 import { pushRouter } from './push.router.js';
 import { emailMonitoringRouter } from './emailMonitoring.router.js';
 import { radarRouter } from './radar.router.js';
+import { coachRouter } from './coach.router.js';
 import { jobRadarRouter } from './jobRadar.router.js';
 import { documentsRouter } from './documents.router.js';
 
 export const appRouter = router({
-  coach: coachRouter,
   assistant: assistantRouter,
+  coach: coachRouter,
   interview: interviewRouter,
   liveInterview: liveInterviewRouter,
   profile: profileRouter,
