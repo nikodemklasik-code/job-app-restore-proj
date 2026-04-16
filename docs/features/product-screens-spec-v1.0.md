@@ -4,6 +4,10 @@
 
 **AI Analysis (screen 9) — UI shell w aplikacji:** trasa `/ai-analysis` (`frontend/src/app/analysis/AiAnalysisPage.tsx`). Wykresy i copy są demonstracyjne do czasu podłączenia analizy pod profil / backend.
 
+**Norma spójnego layoutu + motywów + lewej nawigacji:** [`../policies/unified-app-layout-and-theme-standard-v1.0.md`](../policies/unified-app-layout-and-theme-standard-v1.0.md).
+
+**Plan AI Analysis (koncepcja, motywy, lista, agenda PO):** [`ai-analysis-page-concept-po-plan-2026-04-16.md`](./ai-analysis-page-concept-po-plan-2026-04-16.md).
+
 ## Product Intent
 
 This is one product, not unrelated modules in one shell.

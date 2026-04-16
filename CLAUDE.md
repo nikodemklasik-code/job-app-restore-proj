@@ -98,6 +98,7 @@ Zdefiniowane w `frontend/src/index.css` i `frontend/src/stores/themeStore.ts`:
 - Żaden task nie ma statusu "done" bez jawnej decyzji: **Approved For Integration** albo **Not Approved**.
 - Pełna specyfikacja roli, checklista i formaty decyzji: [`docs/policies/quality-control-developer-role-spec.md`](docs/policies/quality-control-developer-role-spec.md)
 - Obowiązkowy standard meldowania wykonania i wejścia do QC: [`docs/policies/execution-reporting-standard.md`](docs/policies/execution-reporting-standard.md)
+- **Spójny layout + motyw + lewa nawigacja (norma FE):** [`docs/policies/unified-app-layout-and-theme-standard-v1.0.md`](docs/policies/unified-app-layout-and-theme-standard-v1.0.md)
 - Łańcuch komunikacji Agent -> QC -> Product Owner -> Agent jest obowiązkowy i opisany w politykach repo.
 - QC musi egzekwować folder-aware commands (komendy build/deploy/setup/recovery zawsze z pełnym folderem).
 - QC porównuje równolegle dostarczone implementacje (A/B) i decyduje: użyj A, użyj B, połącz A+B, albo odrzuć obie.
