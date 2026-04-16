@@ -317,6 +317,8 @@ The user should feel: “I can get help quickly without entering chaos.”
 
 ## 9. AI Analysis
 
+**Implementation note (repo):** UI shell with demo charts lives at **`/ai-analysis`** (`frontend/src/app/analysis/AiAnalysisPage.tsx`). Real data and evaluator logic require backend + profile contracts.
+
 **Purpose**  
 The interpretation layer for strengths, gaps, recommendations, and rewrite opportunities.
 
