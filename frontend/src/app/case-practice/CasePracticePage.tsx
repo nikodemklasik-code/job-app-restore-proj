@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-react';
+import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
 
 type ViewState = 'loading' | 'empty' | 'error' | 'populated';
 type PracticeMode = 'solo' | 'joint-call' | 'private-session' | 'tomorrow';
@@ -102,6 +103,8 @@ export default function CasePracticePage() {
           </div>
         </div>
       </header>
+
+      <SupportingMaterialsDisclaimer compact collapsible defaultExpanded={false} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">

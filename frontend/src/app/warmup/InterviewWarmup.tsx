@@ -15,6 +15,7 @@ import {
   Crown,
 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
 
 // ─── Question bank ────────────────────────────────────────────────────────────
 
@@ -466,12 +467,12 @@ export default function InterviewWarmup() {
               <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">Interview Warmup</h1>
               <p className="text-sm leading-relaxed text-slate-400">
                 Pick a length that fits your day: a free 15-second spark, or longer runs that use AI credits for more
-                room to practise. Build a streak with any session you finish.
+                room to practice. Build a streak with any session you finish.
               </p>
             </div>
             <div className="flex shrink-0 flex-col items-stretch gap-3 sm:items-end">
               <div
-                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
+                className="mvh-card-glow flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3"
                 style={{
                   background: streak > 0 ? 'rgba(249,115,22,0.12)' : 'rgba(100,116,139,0.1)',
                   borderColor: streak > 0 ? 'rgba(249,115,22,0.35)' : 'rgba(100,116,139,0.25)',
@@ -486,7 +487,7 @@ export default function InterviewWarmup() {
                 </div>
               </div>
               {userId && credits !== null && (
-                <div className="flex items-center justify-between gap-4 rounded-2xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-3">
+                <div className="mvh-card-glow flex items-center justify-between gap-4 rounded-2xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-3">
                   <div className="flex items-center gap-2">
                     <Zap className="h-4 w-4 text-indigo-300" />
                     <span className="text-sm text-slate-300">AI credits</span>
@@ -502,6 +503,8 @@ export default function InterviewWarmup() {
               </Link>
             </div>
           </div>
+
+          <SupportingMaterialsDisclaimer compact collapsible defaultExpanded={false} className="relative max-w-2xl" />
 
           <div className="relative mt-10 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {WARMUP_TIERS.map((t) => {
@@ -565,7 +568,7 @@ export default function InterviewWarmup() {
             })}
           </div>
 
-          <div className="relative mt-10 rounded-2xl border border-white/10 bg-black/20 p-5 sm:p-6">
+          <div className="mvh-card-glow relative mt-10 rounded-2xl border border-white/10 bg-black/20 p-5 sm:p-6">
             <div className="mb-4 flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-300">Training tracks</h2>
               <span className="text-xs text-slate-500">10 topics · 7 active · 3 soon</span>
@@ -575,7 +578,7 @@ export default function InterviewWarmup() {
                 <div
                   key={topic.id}
                   className={[
-                    'rounded-xl border p-3 transition-all',
+                    'mvh-card-glow rounded-xl border p-3 transition-all',
                     topic.active
                       ? 'border-white/10 bg-slate-900/60 hover:border-white/20'
                       : 'border-white/5 bg-slate-900/40 opacity-55 blur-[0.4px]',
@@ -604,6 +607,7 @@ export default function InterviewWarmup() {
   // ── Session UI ─────────────────────────────────────────────────────────────
   return (
     <div className="mx-auto max-w-xl px-4 py-8 flex flex-col gap-6">
+      <SupportingMaterialsDisclaimer compact collapsible defaultExpanded={false} />
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
@@ -670,7 +674,7 @@ export default function InterviewWarmup() {
         </div>
       )}
 
-      <div className="rounded-2xl px-6 py-5" style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid #1e293b' }}>
+      <div className="mvh-card-glow rounded-2xl px-6 py-5" style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid #1e293b' }}>
         <div className="flex flex-wrap items-center gap-2 mb-3">
           <Star className="h-3.5 w-3.5 text-indigo-400" />
           <span className="text-xs font-semibold text-indigo-300 uppercase tracking-wide">Question</span>
@@ -684,7 +688,7 @@ export default function InterviewWarmup() {
       </div>
 
       {canPickCategory && phase === 'ready' && (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <div className="mvh-card-glow rounded-2xl border border-white/10 bg-white/[0.03] p-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Category</p>
           <div className="flex flex-wrap gap-2">
             {(Object.keys(CATEGORY_LABEL) as WarmupCategory[]).map((c) => (
@@ -706,7 +710,7 @@ export default function InterviewWarmup() {
       )}
 
       {creditError && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <div className="mvh-card-glow rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
           {creditError}{' '}
           <Link to="/billing" className="font-semibold text-red-200 underline">
             Billing
@@ -770,7 +774,7 @@ export default function InterviewWarmup() {
       {phase === 'recording' && (
         <div className="flex flex-col gap-4">
           <div
-            className="flex items-center justify-between px-5 py-4 rounded-xl"
+            className="mvh-card-glow flex items-center justify-between px-5 py-4 rounded-xl"
             style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}
           >
             <div className="flex items-center gap-2">
@@ -830,7 +834,7 @@ export default function InterviewWarmup() {
       {phase === 'done' && result && (
         <div className="flex flex-col gap-4">
           <div
-            className="flex items-center gap-4 px-6 py-5 rounded-2xl"
+            className="mvh-card-glow flex items-center gap-4 px-6 py-5 rounded-2xl"
             style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid #1e293b' }}
           >
             <div
@@ -850,7 +854,7 @@ export default function InterviewWarmup() {
 
           {streak > 0 && (
             <div
-              className="flex items-center gap-3 px-4 py-3 rounded-xl"
+              className="mvh-card-glow flex items-center gap-3 px-4 py-3 rounded-xl"
               style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)' }}
             >
               <Flame className="h-5 w-5 text-orange-400 shrink-0" />

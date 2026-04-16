@@ -27,6 +27,8 @@ export const SHELL_PAGE_TITLE: Record<string, string> = {
   '/auto-apply': 'Auto Apply',
   '/documents': 'Documents Upload',
   '/faq': 'FAQ',
+  '/ai-analysis': 'AI Analysis',
+  '/case-practice': 'Case Practice',
 };
 
 export function pageTitleForPath(pathname: string): string {

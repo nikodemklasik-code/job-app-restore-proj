@@ -333,7 +333,7 @@ export default function ApplicationsPipeline() {
             { label: 'Interviews', value: analytics.interviews, icon: MessageSquare, color: 'text-amber-400', bg: 'bg-amber-500/10' },
             { label: 'Accepted', value: analytics.offers, icon: Award, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
           ].map((stat) => (
-            <div key={stat.label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div key={stat.label} className="mvh-card-glow rounded-2xl border border-white/10 bg-white/5 p-4">
               <div className={`mb-2 inline-flex rounded-xl p-2 ${stat.bg}`}>
                 <stat.icon className={`h-4 w-4 ${stat.color}`} />
               </div>
@@ -412,7 +412,7 @@ export default function ApplicationsPipeline() {
       {/* ── Drill-down Panel ─────────────────────────────────────────────── */}
       {activeStage && activeStageConfig && (
         <div
-          className="overflow-hidden rounded-2xl border border-white/10 bg-white/5"
+          className="mvh-card-glow overflow-hidden rounded-2xl border border-white/10 bg-white/5"
           style={{
             borderColor: activeStageConfig.ringColor + '40',
           }}
@@ -448,7 +448,7 @@ export default function ApplicationsPipeline() {
           <div className="p-4">
             {activeStageApps.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-10 text-center">
-                <div className="rounded-2xl border-2 border-dashed border-white/10 px-8 py-6">
+                <div className="mvh-card-glow rounded-2xl border-2 border-dashed border-white/10 px-8 py-6">
                   <p className="text-sm text-slate-500">No applications in this stage.</p>
                   <button
                     onClick={() => setShowNewModal(true)}
@@ -502,7 +502,7 @@ export default function ApplicationsPipeline() {
       {/* ── New Application Modal ─────────────────────────────────────────── */}
       {showNewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#020617] p-6 space-y-4">
+          <div className="mvh-card-glow w-full max-w-md rounded-2xl border border-white/10 bg-[#020617] p-6 space-y-4">
             <h2 className="text-lg font-semibold text-white">New Application</h2>
             <div className="space-y-3">
               <div>
@@ -564,7 +564,7 @@ export default function ApplicationsPipeline() {
       {/* ── Cover Letter Preview Modal ────────────────────────────────────── */}
       {showCoverLetter && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="flex max-h-[80vh] w-full max-w-2xl flex-col space-y-4 rounded-2xl border border-white/10 bg-[#020617] p-6">
+          <div className="mvh-card-glow flex max-h-[80vh] w-full max-w-2xl flex-col space-y-4 rounded-2xl border border-white/10 bg-[#020617] p-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">Cover Letter Preview</h2>
               <button onClick={() => setShowCoverLetter(null)} aria-label="Close cover letter preview" title="Close" className="text-slate-400 hover:text-white">
@@ -583,7 +583,7 @@ export default function ApplicationsPipeline() {
       {/* ── Follow-up Copilot Modal ───────────────────────────────────────── */}
       {followUpAppId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="flex max-h-[80vh] w-full max-w-2xl flex-col space-y-4 rounded-2xl border border-white/10 bg-[#020617] p-6">
+          <div className="mvh-card-glow flex max-h-[80vh] w-full max-w-2xl flex-col space-y-4 rounded-2xl border border-white/10 bg-[#020617] p-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">Follow-up Email</h2>
               <button
@@ -641,7 +641,7 @@ export default function ApplicationsPipeline() {
       {/* ── Send by Email Modal ───────────────────────────────────────────── */}
       {showEmailModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md space-y-4 rounded-2xl border border-white/10 bg-[#020617] p-6">
+          <div className="mvh-card-glow w-full max-w-md space-y-4 rounded-2xl border border-white/10 bg-[#020617] p-6">
             <h2 className="text-lg font-semibold text-white">Send Application by Email</h2>
             <p className="text-sm text-slate-400">
               Sending CV + cover letter for{' '}
@@ -727,7 +727,7 @@ function AppCard({
   monitoringActive: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-white/20 hover:bg-white/8">
+    <div className="mvh-card-glow flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-white/20 hover:bg-white/8">
       {/* Title + company */}
       <div>
         <p className="text-sm font-semibold leading-tight text-white">{app.jobTitle}</p>

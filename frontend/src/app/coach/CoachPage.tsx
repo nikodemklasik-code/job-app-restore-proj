@@ -281,7 +281,7 @@ export default function CoachPage() {
         )}
       </div>
 
-      <SupportingMaterialsDisclaimer compact />
+      <SupportingMaterialsDisclaimer compact collapsible defaultExpanded={false} />
 
       {/* ── Phase: select category ─────────────────────────────────────────────── */}
       {phase === 'select' && (

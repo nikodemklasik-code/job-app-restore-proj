@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { useBillingStore } from '@/stores/billingStore';
+import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 const API_VOICE_BASE = API_BASE;
@@ -421,12 +422,16 @@ export default function NegotiationCoach() {
 
   if (isPremium === false) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] gap-6 px-4">
-        <div style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 20, padding: '40px 36px', maxWidth: 480, textAlign: 'center' }}>
-          <Lock style={{ width: 40, height: 40, color: '#818cf8', margin: '0 auto 16px' }} />
-          <p style={{ fontWeight: 700, fontSize: 17, color: '#e2e8f0', marginBottom: 8 }}>Negotiation Coach is a Pro feature</p>
-          <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>Upgrade to Pro or Autopilot to unlock AI-powered negotiation strategy analysis and the interactive Negotiation Simulator.</p>
-          <a href="/billing" style={{ display: 'inline-block', background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff', fontWeight: 700, fontSize: 14, padding: '10px 28px', borderRadius: 10, textDecoration: 'none' }}>Upgrade to Pro</a>
+      <div className="mx-auto flex h-[calc(100vh-10rem)] w-full max-w-6xl flex-col items-center justify-center gap-6 px-4 py-8">
+        <div className="mvh-card-glow max-w-md rounded-2xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/10 via-violet-500/5 to-transparent p-10 text-center shadow-sm">
+          <Lock className="mx-auto mb-4 h-10 w-10 text-indigo-400" aria-hidden />
+          <p className="mb-2 text-lg font-bold text-slate-100">Negotiation Coach is a Pro feature</p>
+          <p className="mb-3 text-sm text-slate-400">
+            Pro access for negotiation is not enabled on this account. We are not redirecting to billing from here — your administrator or a future release will control upgrades.
+          </p>
+          <p className="text-xs text-slate-500">
+            You can still use Salary tools and Legal Hub from the sidebar where those are available.
+          </p>
         </div>
       </div>
     );
@@ -435,10 +440,10 @@ export default function NegotiationCoach() {
   // ── Simulator setup screen ────────────────────────────────────────────────
 
   const SimulatorSetup = () => (
-    <div className="flex flex-col items-center justify-center flex-1 px-6 py-8 gap-6">
-      <div style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 16, padding: '32px', maxWidth: 520, width: '100%' }}>
-        <div className="flex items-center gap-3 mb-5">
-          <Swords style={{ width: 22, height: 22, color: '#818cf8' }} />
+    <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-8">
+      <div className="mvh-card-glow w-full max-w-lg rounded-2xl border border-indigo-500/25 bg-indigo-500/10 p-8">
+        <div className="mb-5 flex items-center gap-3">
+          <Swords className="h-5 w-5 shrink-0 text-indigo-400" aria-hidden />
           <h2 className="text-lg font-bold text-white">Set Up Your Simulation</h2>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-3">
@@ -482,12 +487,19 @@ export default function NegotiationCoach() {
               placeholder="e.g. pension, 25 days holiday, bonus" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500" />
           </div>
         </div>
-        <div className="mt-2 p-3 rounded-lg" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)' }}>
+        <div className="mt-2 rounded-lg border border-indigo-500/15 bg-indigo-500/[0.08] p-3">
           <p className="text-xs text-slate-400">AI will play HR at <strong className="text-slate-200">{offer.company || 'the company'}</strong>, offering {fmt(offer.offeredSalary, offer.currency)}. Your goal: reach {fmt(offer.targetSalary, offer.currency)}. At the end you'll see how much you left on the table.</p>
         </div>
-        <button onClick={() => void handleStartSimulation()} disabled={!offer.role || !offer.company || isStreaming}
-          className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-sm transition-all"
-          style={{ background: offer.role && offer.company ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'rgba(99,102,241,0.2)', color: '#fff', cursor: offer.role && offer.company ? 'pointer' : 'not-allowed' }}>
+        <button
+          type="button"
+          onClick={() => void handleStartSimulation()}
+          disabled={!offer.role || !offer.company || isStreaming}
+          className={`mt-4 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-all ${
+            offer.role && offer.company && !isStreaming
+              ? 'cursor-pointer bg-gradient-to-br from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500'
+              : 'cursor-not-allowed bg-indigo-500/20 text-slate-400'
+          }`}
+        >
           <Play className="h-4 w-4" /> Start Simulation
         </button>
       </div>
@@ -497,12 +509,12 @@ export default function NegotiationCoach() {
   // ── Main UI ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-[calc(100vh-5rem)]">
+    <div className="mx-auto flex h-[calc(100vh-5rem)] w-full max-w-6xl flex-col px-4">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 shrink-0">
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-800 px-2 py-4 sm:px-0">
         <div className="flex items-center gap-3">
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Scale style={{ width: 18, height: 18, color: '#fff' }} />
+          <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-gradient-to-br from-indigo-500 to-violet-600 shadow-sm">
+            <Scale className="h-[18px] w-[18px] text-white" aria-hidden />
           </div>
           <div>
             <h1 className="text-lg font-bold text-white">Negotiation Coach</h1>
@@ -512,26 +524,34 @@ export default function NegotiationCoach() {
         <div className="flex items-center gap-2">
           {/* Mode toggle */}
           <div className="flex rounded-lg overflow-hidden border border-slate-700">
-            <button onClick={() => handleModeSwitch('coach')}
-              className="px-3 py-1.5 text-xs font-medium transition-colors"
-              style={{ background: appMode === 'coach' ? 'rgba(99,102,241,0.3)' : 'transparent', color: appMode === 'coach' ? '#a5b4fc' : '#64748b' }}>
+            <button
+              type="button"
+              onClick={() => handleModeSwitch('coach')}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                appMode === 'coach' ? 'bg-indigo-500/30 text-indigo-200' : 'bg-transparent text-slate-500'
+              }`}
+            >
               Coach
             </button>
-            <button onClick={() => handleModeSwitch('simulator')}
-              className="px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1"
-              style={{ background: appMode === 'simulator' ? 'rgba(99,102,241,0.3)' : 'transparent', color: appMode === 'simulator' ? '#a5b4fc' : '#64748b' }}>
-              <Swords className="h-3 w-3" /> Simulator
+            <button
+              type="button"
+              onClick={() => handleModeSwitch('simulator')}
+              className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium transition-colors ${
+                appMode === 'simulator' ? 'bg-indigo-500/30 text-indigo-200' : 'bg-transparent text-slate-500'
+              }`}
+            >
+              <Swords className="h-3 w-3" aria-hidden /> Simulator
             </button>
           </div>
           {/* Voice / Text mode toggle */}
           <button
+            type="button"
             onClick={() => setVoiceMode((v) => !v)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
-            style={{
-              borderColor: voiceMode ? 'rgba(99,102,241,0.5)' : 'rgb(51,65,85)',
-              background: voiceMode ? 'rgba(99,102,241,0.15)' : 'transparent',
-              color: voiceMode ? '#a5b4fc' : '#64748b',
-            }}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+              voiceMode
+                ? 'border-indigo-500/50 bg-indigo-500/15 text-indigo-200'
+                : 'border-slate-700 bg-transparent text-slate-500'
+            }`}
             title={voiceMode ? 'Switch to text mode' : 'Switch to voice mode'}
           >
             {voiceMode ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
@@ -553,10 +573,14 @@ export default function NegotiationCoach() {
         </div>
       </div>
 
+      <div className="px-6 py-2 shrink-0">
+        <SupportingMaterialsDisclaimer compact collapsible />
+      </div>
+
       {/* Practice scenarios (coach mode only) */}
       {showScenarios && appMode === 'coach' && (
-        <div className="px-6 py-3 border-b border-slate-800 bg-slate-900/60 shrink-0">
-          <p className="text-xs text-slate-400 mb-2 font-medium">Select a scenario to practise:</p>
+        <div className="mvh-card-glow px-6 py-3 border-b border-slate-800 bg-slate-900/60 shrink-0">
+          <p className="mb-2 text-xs font-medium text-slate-400">Select a scenario to practice:</p>
           <div className="flex flex-wrap gap-2">
             {PRACTICE_SCENARIOS.map((s) => (
               <button key={s.label} onClick={() => { setShowScenarios(false); void handleSend(s.text); }}
@@ -606,7 +630,7 @@ export default function NegotiationCoach() {
                     style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(99,102,241,0.2)', color: '#cbd5e1' }}
                     dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
                 ) : (
-                  <div className="max-w-2xl rounded-2xl px-4 py-3 text-sm leading-relaxed"
+                  <div className="mvh-card-glow max-w-2xl rounded-2xl px-4 py-3 text-sm leading-relaxed"
                     style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.25), rgba(139,92,246,0.2))', border: '1px solid rgba(99,102,241,0.3)', color: '#e2e8f0', whiteSpace: 'pre-wrap' }}>
                     {msg.content}
                   </div>
@@ -616,7 +640,7 @@ export default function NegotiationCoach() {
 
             {isStreaming && streamingContent && (
               <div className="flex justify-start">
-                <div className="max-w-3xl rounded-2xl px-5 py-4 text-sm leading-relaxed"
+                <div className="mvh-card-glow max-w-3xl rounded-2xl px-5 py-4 text-sm leading-relaxed"
                   style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(99,102,241,0.2)', color: '#cbd5e1' }}
                   dangerouslySetInnerHTML={{ __html: renderMarkdown(streamingContent) }} />
               </div>
@@ -624,7 +648,7 @@ export default function NegotiationCoach() {
 
             {isStreaming && !streamingContent && (
               <div className="flex justify-start">
-                <div className="rounded-2xl px-5 py-3 text-sm" style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(99,102,241,0.2)', color: '#94a3b8' }}>
+                <div className="mvh-card-glow rounded-2xl px-5 py-3 text-sm" style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(99,102,241,0.2)', color: '#94a3b8' }}>
                   <span className="inline-flex gap-1 items-center">
                     <span className="animate-bounce" style={{ animationDelay: '0ms' }}>●</span>
                     <span className="animate-bounce" style={{ animationDelay: '150ms' }}>●</span>
@@ -646,7 +670,7 @@ export default function NegotiationCoach() {
           {/* Input area */}
           {!simComplete && (
             <div className="shrink-0 px-6 py-4 border-t border-slate-800 bg-slate-950/60">
-              <div className="flex items-end gap-3 rounded-2xl px-4 py-3" style={{ background: 'rgba(30,41,59,0.9)', border: '1px solid rgba(99,102,241,0.25)' }}>
+              <div className="mvh-card-glow flex items-end gap-3 rounded-2xl px-4 py-3" style={{ background: 'rgba(30,41,59,0.9)', border: '1px solid rgba(99,102,241,0.25)' }}>
                 <textarea ref={textareaRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}
                   placeholder={appMode === 'simulator' ? 'Type your response to the HR offer… (Shift+Enter for new line)' : 'Paste your negotiation message, proposal, or transcript… (Shift+Enter for new line)'}
                   disabled={isStreaming} rows={1}

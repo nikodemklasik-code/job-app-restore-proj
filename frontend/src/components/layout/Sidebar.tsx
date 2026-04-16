@@ -17,6 +17,7 @@ interface NavItem {
 
 const MAIN_FLOW: NavItem[] = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/profile', label: 'Profile', icon: User },
   { path: '/jobs', label: 'Jobs', icon: Briefcase },
   { path: '/applications', label: 'Applications', icon: ClipboardList },
   { path: '/review', label: 'Applications Review', icon: FileText },
@@ -29,20 +30,17 @@ const AI_GROWTH: NavItem[] = [
   { path: '/warmup', label: 'Daily Warmup', icon: Flame },
   { path: '/negotiation', label: 'Negotiation', icon: Handshake },
   { path: '/skills', label: 'Skill Lab', icon: FlaskConical },
+  { path: '/ai-analysis', label: 'AI Analysis', icon: LineChart },
   { path: '/case-practice', label: 'Case Practice', icon: FolderKanban },
   { path: '/job-radar', label: 'Job Radar', icon: Radar },
 ];
 
-const PROFILE_DOCS: NavItem[] = [
-  { path: '/profile', label: 'Profile', icon: User },
-  { path: '/documents', label: 'Document Lab', icon: FolderOpen },
-];
+const DOCUMENTS_ONLY: NavItem[] = [{ path: '/documents', label: 'Document Lab', icon: FolderOpen }];
 
 const TOOLS: NavItem[] = [
   { path: '/salary', label: 'Salary Calculator', icon: Calculator },
   { path: '/legal', label: 'Legal Hub', icon: Scale },
   { path: '/reports', label: 'Reports', icon: BarChart2 },
-  { path: '/ai-analysis', label: 'AI Analysis', icon: LineChart },
 ];
 
 const AUTOMATION: NavItem[] = [
@@ -111,7 +109,7 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto p-3">
         <NavSection label="Main Flow" items={MAIN_FLOW} />
         <NavSection label="AI & Growth" items={AI_GROWTH} />
-        <NavSection label="Profile & Documents" items={PROFILE_DOCS} />
+        <NavSection label="Documents" items={DOCUMENTS_ONLY} />
         <NavSection label="Tools & Insights" items={TOOLS} />
         <NavSection label="Automation" items={AUTOMATION} />
         <NavSection label="Technical & Account" items={TECHNICAL} />

@@ -5,6 +5,7 @@ import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDo
 import { interviewModeLabels } from '../../../../shared/interview';
 import type { InterviewMode } from '../../../../shared/interview';
 import { useBillingStore } from '@/stores/billingStore';
+import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
 
 // ─── Wave/avatar keyframes injected once ─────────────────────────────────────
 const AVATAR_STYLES = `
@@ -1089,6 +1090,8 @@ export default function InterviewPractice() {
                 <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Share your answers — get structured coaching reports</p>
               </div>
             </div>
+
+            <SupportingMaterialsDisclaimer compact collapsible defaultExpanded={false} className="mt-2" />
 
             {/* Custom role */}
             <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
