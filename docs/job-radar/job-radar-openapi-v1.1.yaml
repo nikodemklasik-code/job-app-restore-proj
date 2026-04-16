@@ -7,6 +7,15 @@ info:
     **Scan status** (`processing` | `partial_report` | `ready` | `sources_blocked` | `scan_failed`) is pipeline state only.
     **Data staleness** lives on `report.freshness.freshness_status` (`fresh` | `acceptable` | `stale`), not on scan status.
 
+    **Repository source of truth:** this document in git at `docs/job-radar/job-radar-openapi-v1.1.yaml`.
+
+    **Keep three different things separate (do not conflate):**
+    1. **`OPENAI_API_KEY`** — real OpenAI credential; env-only; used for live model calls / AI smoke; **must never** be committed to the repo.
+    2. **Internal canonical repo / deploy key** — non-secret integrity marker (correct local folder, remote path, deploy target, host/domain); may appear in scripts or QC logic; **must never** hold passwords, API keys, or SSH secrets.
+    3. **This OpenAPI file (+ uploaded copy)** — Job Radar **API contract** only. **OpenAI Files API** uploaded copy: `file_id` = `file-PRcqRdUMTqfnaP8LKsh99k` — a platform file handle for tooling/traceability; **not** a credential and **not** the deploy marker from (2).
+  x-openaiUploadedContractFileId: file-PRcqRdUMTqfnaP8LKsh99k
+  x-repoContractRelativePath: docs/job-radar/job-radar-openapi-v1.1.yaml
+
 servers:
   - url: https://api.example.com
   - url: http://localhost:3001
