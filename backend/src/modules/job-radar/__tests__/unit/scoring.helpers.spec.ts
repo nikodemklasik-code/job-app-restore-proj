@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { capLowConfidenceDrivers } from '../../application/services/scoring.helpers.js';
+import {
+  capLowConfidenceDrivers,
+  deriveRecommendation,
+} from '../../application/services/scoring.helpers.js';
 import type { Driver } from '../../application/services/scoring.types.js';
 
 describe('capLowConfidenceDrivers', () => {
@@ -24,5 +27,52 @@ describe('capLowConfidenceDrivers', () => {
       },
     ];
     expect(capLowConfidenceDrivers(30, drivers)).toBe(52);
+  });
+});
+
+describe('deriveRecommendation', () => {
+  const base = {
+    employerScore: 50,
+    offerScore: 50,
+    marketPayScore: 40,
+    benefitsScore: 40,
+    cultureFitScore: 50,
+    riskScore: 20,
+  };
+
+  it('returns High Risk when risk reaches salary-missing tier (28+)', () => {
+    expect(deriveRecommendation({ ...base, riskScore: 28 })).toBe('High Risk');
+    expect(deriveRecommendation({ ...base, riskScore: 34 })).toBe('High Risk');
+  });
+
+  it('returns Strong Match at achievable culture/offer ceilings with low risk', () => {
+    expect(
+      deriveRecommendation({
+        ...base,
+        cultureFitScore: 56,
+        offerScore: 68,
+        riskScore: 20,
+      }),
+    ).toBe('Strong Match');
+  });
+
+  it('returns Good Option in the middle band (not Strong)', () => {
+    expect(
+      deriveRecommendation({
+        ...base,
+        cultureFitScore: 56,
+        offerScore: 58,
+        riskScore: 20,
+      }),
+    ).toBe('Good Option');
+  });
+
+  it('returns Mixed Signals when culture or offer sit below Good thresholds', () => {
+    expect(deriveRecommendation({ ...base, cultureFitScore: 45, offerScore: 60 })).toBe(
+      'Mixed Signals',
+    );
+    expect(deriveRecommendation({ ...base, cultureFitScore: 50, offerScore: 55 })).toBe(
+      'Mixed Signals',
+    );
   });
 });
