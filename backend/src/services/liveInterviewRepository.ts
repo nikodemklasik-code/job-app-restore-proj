@@ -34,12 +34,14 @@ function rowToSession(
     memory: row.memory as InterviewMemory,
     transcript: turns.map((t) => ({
       id: t.id,
+      sessionId: t.sessionId,
       speaker: t.speaker as InterviewTurn['speaker'],
       message: t.message,
+      timestamp: t.timestamp,
+      stage: t.stage as InterviewTurn['stage'],
       intent: t.intent as InterviewTurn['intent'],
       nextAction: t.nextAction as InterviewTurn['nextAction'],
-      stage: t.stage as InterviewTurn['stage'],
-      timestamp: t.timestamp,
+      metadata: undefined,
     })),
     summary: row.summary ? (row.summary as InterviewSummary) : undefined,
     createdAt: row.createdAt,
@@ -111,7 +113,7 @@ export async function dbUpdateSession(session: LiveInterviewSession): Promise<vo
 export async function dbAppendTurn(turn: InterviewTurn, sessionId: string): Promise<void> {
   await db.insert(liveInterviewTurns).values({
     id: turn.id,
-    sessionId,
+    sessionId: turn.sessionId || sessionId,
     speaker: turn.speaker,
     message: turn.message,
     intent: turn.intent ?? null,

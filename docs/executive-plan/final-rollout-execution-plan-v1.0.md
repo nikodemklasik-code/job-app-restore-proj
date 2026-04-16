@@ -234,6 +234,30 @@ Jeśli frontend i API są rozdzielone — jawnie ustawić: public app URL, API b
 4. **Skill Gaps** — severity, importance, role target, recommended action  
 5. **Growth Roadmap** — milestones, duration, impact, status  
 
+**Wymagania obowiązkowe (bez nich brak akceptacji):**
+
+- Skill Lab musi wyraźnie pokazywać finansową wartość skilli:
+  - CV Value Signals
+  - Market Value Signals
+  - Salary Potential
+  - High-Value Skills
+  - Underused Skills
+  - Proof and Evidence
+  - Skills That Increase Your Position
+  - Skills That Need Stronger Proof
+- Salary relevance ma być widoczne w głównym widoku (nie ukryte w tooltipach).
+- Skills i Courses/Certificates muszą być połączone jako jeden system wzrostu:
+  - Related Skills
+  - Courses Supporting This Skill
+  - This Course Strengthens
+  - Learning Evidence
+  - Still Needs Practice
+  - Still Needs Verification
+- Profile musi dostać sekcje:
+  - Growth Plan
+  - Roadmap
+- Profile ma pokazywać kierunek rozwoju (target role/seniority/salary + milestone path), nie tylko dane statyczne.
+
 **Nie w MVP:** pełna gamifikacja, skomplikowany portfolio graph, rozbudowane wizualizacje trendów, „certification badges”.
 
 **Definition of done**
@@ -403,6 +427,8 @@ Nie odwrotnie. Nie „najpierw super Assistant, potem może backend”.
 ## Powiązane dokumenty
 
 - Skill Lab: `docs/skill-lab/skill-lab-final-spec-v1.0.md`  
+- Profile growth and roadmap: `docs/features/profile-growth-and-roadmap-spec-v1.0.md`  
+- Product screens (1-20): `docs/features/product-screens-spec-v1.0.md`  
 - AI Assistant (final spec): `docs/assistant/ai-assistant-final-spec-v1.0.md`  
 - AI Assistant (configuration sheet): `docs/ai/assistant/ai-assistant-configuration-sheet-v1.0.md`  
 - Indeks AI docs: `docs/ai/README.md`  

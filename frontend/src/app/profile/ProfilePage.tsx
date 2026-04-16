@@ -587,6 +587,88 @@ export default function ProfilePage() {
         )}
         {(profile?.trainings ?? []).length === 0 && !trainIsAdding && <p className="text-sm text-slate-500">No trainings added yet. Click "Add Training" to get started.</p>}
       </div>
+
+      {/* Growth Plan */}
+      <div className="rounded-2xl border border-indigo-500/25 bg-indigo-500/5 p-6 space-y-4">
+        <h2 className="font-semibold text-white">Growth Plan</h2>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Target Role</p>
+            <p className="mt-1 text-sm font-medium text-white">
+              {profile?.experiences?.[0]?.jobTitle ? `Senior ${profile.experiences[0].jobTitle}` : 'Define target role'}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Target Seniority</p>
+            <p className="mt-1 text-sm font-medium text-white">
+              {(profile?.experiences?.length ?? 0) >= 4 ? 'Senior / Lead' : 'Mid → Senior'}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Target Salary Range</p>
+            <p className="mt-1 text-sm font-medium text-white">
+              {(profile?.experiences?.length ?? 0) >= 4 ? '£65k–£90k' : '£45k–£70k'}
+            </p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Priority Skills To Build</p>
+            <p className="mt-1 text-sm text-slate-300">
+              {(profile?.skills ?? []).slice(0, 5).join(', ') || 'Add core skills in Profile and verify in Skill Lab.'}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Skills To Verify</p>
+            <p className="mt-1 text-sm text-slate-300">
+              {((profile?.skills?.length ?? 0) > 0)
+                ? `${Math.min(3, profile!.skills.length)} high-value skills still need stronger evidence (projects, outcomes, certificate links).`
+                : 'No skills added yet — start with 3 skills you use in target roles.'}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Documents To Improve</p>
+            <p className="mt-1 text-sm text-slate-300">CV summary, role-specific cover letter, and follow-up email templates.</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Next Strategic Step</p>
+            <p className="mt-1 text-sm text-slate-300">
+              Update top 3 experience entries with quantified outcomes, then run Document Lab Build to regenerate CV positioning.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Roadmap */}
+      <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-6 space-y-4">
+        <h2 className="font-semibold text-white">Roadmap</h2>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Current Position</p>
+            <p className="mt-1 text-sm text-white">{profile?.experiences?.[0]?.jobTitle || 'Profile baseline setup'}</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Next Milestone</p>
+            <p className="mt-1 text-sm text-white">Strengthen Core CV</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Medium-Term Goal</p>
+            <p className="mt-1 text-sm text-white">Raise Salary Positioning</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Long-Term Direction</p>
+            <p className="mt-1 text-sm text-white">Move Toward Senior / Leadership</p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <p className="text-xs uppercase tracking-wider text-slate-500">Suggested Actions</p>
+          <ul className="mt-2 space-y-1 text-sm text-slate-300">
+            <li>1) Add missing metrics to experience entries.</li>
+            <li>2) Verify one high-impact skill with evidence/certificate.</li>
+            <li>3) Practice interview answers for your target role weekly.</li>
+          </ul>
+        </div>
+      </div>
     </div>
   );
 }

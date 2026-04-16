@@ -418,3 +418,88 @@ It helps users become:
 - more credible
 - more ready
 - more valuable
+
+## 19. Required Product Updates (Mandatory)
+
+### 19.1 Skill Lab: CV Value Signals and salary visibility
+
+CV Value Signals must not only show that a skill exists. They must show what that skill may be worth in the market.
+
+Core rule:
+- which skills strengthen the CV
+- which skills increase employability
+- which skills may justify higher salary range
+- which skills are underexposed
+- which skills need stronger proof
+
+Required new sections in Skill Lab:
+- CV Value Signals
+- Market Value Signals
+- Salary Potential
+- High-Value Skills
+- Underused Skills
+- Proof and Evidence
+- Skills That Increase Your Position
+- Skills That Need Stronger Proof
+
+Required insight types:
+- This Skill Can Increase Your Salary Range
+- This Skill Is Strong In The Market Right Now
+- This Skill Strengthens Seniority Positioning
+- This Skill Is Valuable But Underused In Your CV
+- This Skill Needs Better Evidence To Carry Salary Weight
+- This Combination Of Skills Increases Market Value
+
+Required salary-linked outputs (per skill or cluster):
+- Estimated Salary Impact
+- Market Demand Strength
+- Role Relevance
+- CV Strength Contribution
+
+Example user-facing labels:
+- High Salary Impact
+- Strong Market Value
+- Good Salary Leverage
+- Low Proof, High Potential
+- Well-Paid Skill Cluster
+- Strong CV Value Signal
+
+UX rule:
+- salary relevance must be visible in the main Skill Lab experience
+- do not hide salary impact in secondary tooltips only
+- user should clearly feel: "These skills are worth money."
+
+### 19.2 Skills and Courses: one connected growth system
+
+Courses and certificates must be explicitly connected to skills. They cannot remain isolated as static records.
+
+Required behavior:
+- map each course/certificate to one or more skills
+- mark whether it supports, strengthens, partially verifies, or lightly signals a skill
+- surface whether additional practical proof is still needed
+
+Required UI relationships:
+- Related Skills
+- Courses Supporting This Skill
+- This Course Strengthens
+- Learning Evidence
+- Still Needs Practice
+- Still Needs Verification
+
+Example user-facing messages:
+- This Course Strengthens Your Data Analysis Positioning
+- This Certificate Supports Your Project Management Skill
+- This Skill Has Learning Evidence But Still Needs Practical Proof
+- This Course Adds Credibility To Your CV
+- This Skill Cluster Gains Value From These Courses
+
+UX rule:
+- skills and courses must feel like one growth system, not two unrelated lists
+
+### 19.3 Non-negotiable acceptance rule
+
+Skill Lab is not approved if:
+- salary/value relevance is missing from main views
+- high-value vs underused skills are not surfaced explicitly
+- proof quality is not tied to salary leverage
+- skills and courses remain visually or logically disconnected

@@ -91,6 +91,7 @@ Zdefiniowane w `frontend/src/index.css` i `frontend/src/stores/themeStore.ts`:
 
 ## Plan wykonawczy (rollout)
 - **Kanoniczny plan kolejności, MVP, DoD, ryzyka:** [`docs/executive-plan/final-rollout-execution-plan-v1.0.md`](docs/executive-plan/final-rollout-execution-plan-v1.0.md)
+- **Profile growth direction (Growth Plan + Roadmap):** [`docs/features/profile-growth-and-roadmap-spec-v1.0.md`](docs/features/profile-growth-and-roadmap-spec-v1.0.md)
 
 ## Quality Control Developer (bramka jakości)
 - Obowiązuje rola finalnego recenzenta techniczno-produktowego przed integracją.
@@ -98,6 +99,7 @@ Zdefiniowane w `frontend/src/index.css` i `frontend/src/stores/themeStore.ts`:
 - Pełna specyfikacja roli, checklista i formaty decyzji: [`docs/policies/quality-control-developer-role-spec.md`](docs/policies/quality-control-developer-role-spec.md)
 - QC musi egzekwować folder-aware commands (komendy build/deploy/setup/recovery zawsze z pełnym folderem).
 - QC porównuje równolegle dostarczone implementacje (A/B) i decyduje: użyj A, użyj B, połącz A+B, albo odrzuć obie.
+- Podział pracy między agentów (A/B/QC): [`docs/policies/agent-work-split.md`](docs/policies/agent-work-split.md)
 
 ## TODO / otwarte zadania
 - [x] CI/CD: push na `claude/improvements` → GitHub Actions (build) + self-hosted runner → deploy na VPS

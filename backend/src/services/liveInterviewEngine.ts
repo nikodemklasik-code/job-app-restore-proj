@@ -79,12 +79,14 @@ export interface InterviewMemory {
 
 export interface InterviewTurn {
   id: string;
+  sessionId: string;
   speaker: 'assistant' | 'candidate';
   message: string;
+  timestamp: Date;
+  stage: InterviewStage;
   intent?: CandidateIntent;
   nextAction?: NextAction;
-  stage: InterviewStage;
-  timestamp: Date;
+  metadata?: Record<string, unknown>;
 }
 
 export interface InterviewSummary {
@@ -596,11 +598,13 @@ export async function startSession(sessionId: string): Promise<{
 
   const turn: InterviewTurn = {
     id: randomUUID(),
+    sessionId: session.id,
     speaker: 'assistant',
     message: openingMessage,
-    nextAction: NextAction.ASK_MAIN_QUESTION,
-    stage: session.stage,
     timestamp: new Date(),
+    stage: session.stage,
+    nextAction: NextAction.ASK_MAIN_QUESTION,
+    metadata: { source: 'startSession' },
   };
   session.transcript.push(turn);
   session.turnCount += 1;
@@ -623,10 +627,12 @@ export async function processTurn(
   // Append candidate turn
   const candidateTurn: InterviewTurn = {
     id: randomUUID(),
+    sessionId: session.id,
     speaker: 'candidate',
     message: userMessage,
-    stage: session.stage,
     timestamp: new Date(),
+    stage: session.stage,
+    metadata: { source: 'processTurn' },
   };
 
   // Classify intent
@@ -660,11 +666,13 @@ export async function processTurn(
   // Append assistant turn
   const assistantTurn: InterviewTurn = {
     id: randomUUID(),
+    sessionId: session.id,
     speaker: 'assistant',
     message: assistantMessage,
+    timestamp: new Date(),
     nextAction,
     stage: session.stage,
-    timestamp: new Date(),
+    metadata: { source: 'processTurn' },
   };
   session.transcript.push(assistantTurn);
   session.turnCount += 1;

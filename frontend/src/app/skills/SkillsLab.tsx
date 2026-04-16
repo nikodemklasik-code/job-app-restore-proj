@@ -357,6 +357,49 @@ export default function SkillsLab() {
         </div>
       )}
 
+      <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-5">
+        <h2 className="font-semibold text-white">CV Value Signals &amp; Market Value Signals</h2>
+        <p className="mt-1 text-sm text-slate-400">
+          Skill Lab now highlights salary relevance: what increases your market position and what still needs proof.
+        </p>
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Salary Potential</p>
+            <p className="mt-1 text-sm font-medium text-white">
+              {rawSkills.length >= 8 ? 'Higher potential (strong skill breadth)' : 'Medium potential (build 3-5 core skills)'}
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-500">High-Value Skills</p>
+            <p className="mt-1 text-sm text-slate-300">{rawSkills.slice(0, 4).join(', ') || 'Add skills in Profile first.'}</p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Underused Skills</p>
+            <p className="mt-1 text-sm text-slate-300">
+              Skills without quantified outcomes in your profile descriptions should be treated as underused.
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Proof And Evidence</p>
+            <p className="mt-1 text-sm text-slate-300">
+              Link each key skill to project outcomes, certificate URLs, or interview examples.
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Skills That Increase Your Position</p>
+            <p className="mt-1 text-sm text-slate-300">
+              Skills aligned with target role keywords and repeated demand in job descriptions.
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Skills That Need Stronger Proof</p>
+            <p className="mt-1 text-sm text-slate-300">
+              Any skill with no portfolio evidence, no metrics, and no verified course/certificate support.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-slate-900/40 p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
