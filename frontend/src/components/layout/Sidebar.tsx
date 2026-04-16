@@ -3,7 +3,7 @@ import { useClerk } from '@clerk/clerk-react';
 import {
   LayoutDashboard, Briefcase, ClipboardList, FileText,
   MessageSquare, Mic, User, CreditCard, Settings,
-  Shield, LogOut, Sparkles, Calculator, Scale, BarChart2, Zap, FlaskConical, Handshake, Radar, Flame, HelpCircle, FolderKanban,
+  Shield, LogOut, Sparkles, Calculator, Scale, BarChart2, LineChart, Zap, FlaskConical, Handshake, Radar, Flame, HelpCircle, FolderKanban,
   GraduationCap, FolderOpen,
 } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -42,6 +42,7 @@ const TOOLS: NavItem[] = [
   { path: '/salary', label: 'Salary Calculator', icon: Calculator },
   { path: '/legal', label: 'Legal Hub', icon: Scale },
   { path: '/reports', label: 'Reports', icon: BarChart2 },
+  { path: '/ai-analysis', label: 'AI Analysis', icon: LineChart },
 ];
 
 const AUTOMATION: NavItem[] = [

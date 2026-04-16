@@ -35,6 +35,7 @@ const CoachPage = lazy(() => import('./app/coach/CoachPage'));
 const FAQPage = lazy(() => import('./app/faq/FAQPage'));
 const DocumentLab = lazy(() => import('./app/documents/DocumentLab'));
 const CasePracticePage = lazy(() => import('./app/case-practice/CasePracticePage'));
+const AiAnalysisPage = lazy(() => import('./app/analysis/AiAnalysisPage'));
 
 const PageLoader = () => (
   <div className="flex h-full items-center justify-center py-24">
@@ -105,6 +106,7 @@ export const router = createBrowserRouter([
       { path: 'salary', element: withSuspense(UKSalaryCalculator) },
       { path: 'legal', element: withSuspense(LegalHub) },
       { path: 'reports', element: withSuspense(ReportsHub) },
+      { path: 'ai-analysis', element: withSuspense(AiAnalysisPage) },
       { path: 'auto-apply', element: withSuspense(AutoApplyPage) },
       { path: 'skills', element: withSuspense(SkillsLab) },
       { path: 'negotiation', element: withSuspense(NegotiationCoach) },
