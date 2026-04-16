@@ -1009,7 +1009,10 @@ export default function JobsDiscovery() {
                 />
               ))
             : Array.from({ length: JOB_CARD_PLACEHOLDER_COUNT }, (_, i) => (
-                <JobCardPlaceholder key={`job-placeholder-${i}`} pulsing={searchQuery.isFetching} />
+                <JobCardPlaceholder
+                  key={`job-placeholder-${i}`}
+                  pulsing={searchQuery.isFetching || (pendingJobsSearchAfterCv && profileQuery.isFetching)}
+                />
               ))}
         </div>
       </div>
