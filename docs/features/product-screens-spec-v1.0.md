@@ -1,5 +1,7 @@
 # Product Screens Spec v1.0 (Overwritten)
 
+**Related (agent-ready digest, same 19 screens, Title Case):** [`19-screens-for-users-and-agents.md`](./19-screens-for-users-and-agents.md) — import z `~/Downloads/19_Screens_For_Users_And_Agents.md` (2026-04-16). Ten plik (`product-screens-spec-v1.0.md`) zostaje kanonicznym, bogatszym opisem produktu; tamten format jest wygodny pod review agentów i checklisty implementacji.
+
 ## Product Intent
 
 This is one product, not unrelated modules in one shell.
