@@ -460,7 +460,7 @@ export default function SkillsLab() {
               <TrendingUp className="h-5 w-5 text-indigo-300" />
             </div>
             <div>
-              <h2 className="font-semibold text-white">CV score &amp; valuation</h2>
+              <h2 className="font-semibold text-white">CV Score &amp; Valuation</h2>
               <p className="text-sm text-slate-400">
                 Run an AI-backed CV score on uploaded documents in Document Lab; use Build for style analysis. Skill Lab focuses on skills and gap analysis from job text.
               </p>
