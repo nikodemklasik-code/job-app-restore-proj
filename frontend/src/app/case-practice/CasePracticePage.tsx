@@ -1,16 +1,19 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   CalendarClock,
   CheckCircle2,
   ChevronRight,
   Clock3,
+  Headphones,
   Loader2,
   Lock,
   MessageSquareWarning,
   PlayCircle,
   ShieldCheck,
+  Square,
   Users,
+  Volume2,
 } from 'lucide-react';
 import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
 
@@ -68,11 +71,68 @@ const CASES = [
   },
 ];
 
+function useWarmListenAlong() {
+  const [speaking, setSpeaking] = useState(false);
+  const prefersReducedMotion = useMemo(
+    () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    [],
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    const synth = window.speechSynthesis;
+    return () => {
+      synth.cancel();
+    };
+  }, []);
+
+  const pickVoice = useCallback((): SpeechSynthesisVoice | null => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return null;
+    const voices = window.speechSynthesis.getVoices();
+    const prefer =
+      voices.find((v) => /Samantha|Victoria|Karen|Martha|Fiona|Google UK English Female/i.test(v.name)) ??
+      voices.find((v) => v.lang.startsWith('en') && /female/i.test(v.name)) ??
+      voices.find((v) => v.lang.startsWith('en-GB')) ??
+      voices.find((v) => v.lang.startsWith('en'));
+    return prefer ?? null;
+  }, []);
+
+  const speak = useCallback(
+    (text: string) => {
+      if (prefersReducedMotion || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+      const synth = window.speechSynthesis;
+      synth.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.rate = 0.9;
+      utter.pitch = 1;
+      const voice = pickVoice();
+      if (voice) utter.voice = voice;
+      utter.onend = () => setSpeaking(false);
+      utter.onerror = () => setSpeaking(false);
+      setSpeaking(true);
+      synth.speak(utter);
+    },
+    [pickVoice, prefersReducedMotion],
+  );
+
+  const stop = useCallback(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setSpeaking(false);
+  }, []);
+
+  const canSpeak = typeof window !== 'undefined' && 'speechSynthesis' in window && !prefersReducedMotion;
+
+  return { speak, stop, speaking, prefersReducedMotion, canSpeak };
+}
+
 export default function CasePracticePage() {
   const [state, setState] = useState<ViewState>('populated');
   const [mode, setMode] = useState<PracticeMode>('solo');
   const [selectedCaseId, setSelectedCaseId] = useState(CASES[0]?.id ?? '');
   const [showPushbackRound, setShowPushbackRound] = useState(false);
+  const { speak, stop, speaking, prefersReducedMotion, canSpeak } = useWarmListenAlong();
 
   const selectedCase = useMemo(
     () => CASES.find((item) => item.id === selectedCaseId) ?? CASES[0],
@@ -88,81 +148,189 @@ export default function CasePracticePage() {
           ? 'Prepare For Tomorrow'
           : 'Play Solo';
 
+  const introForVoice = useMemo(
+    () =>
+      'Case Practice is a calm rehearsal space for difficult workplace conversations. You read a scenario, prepare your lines, and practise responses under pressure. Nothing here is legal advice — it is practice for clarity and steadiness.',
+    [],
+  );
+
+  const buildCaseNarration = useCallback(() => {
+    if (!selectedCase) return '';
+    const prepLines = selectedCase.prep.join(' ');
+    return `${selectedCase.title}. ${selectedCase.summary} Your role: ${selectedCase.roleBrief} Preparation ideas: ${prepLines}`;
+  }, [selectedCase]);
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <header className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-        <div className="flex items-start gap-3">
-          <div className="rounded-xl bg-indigo-500/15 p-2.5">
-            <ShieldCheck className="h-5 w-5 text-indigo-300" />
+      <header className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 md:p-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+          <div className="rounded-xl bg-indigo-500/15 p-2.5 shrink-0">
+            <ShieldCheck className="h-6 w-6 text-indigo-300" />
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-white">Case Practice</h1>
-            <p className="mt-1 text-sm text-slate-400">
-              High-pressure professional reality practice: explain, defend, mediate, and set boundaries with control.
-            </p>
+          <div className="min-w-0 space-y-3">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">Case Practice</h1>
+              <p className="mt-2 text-sm leading-relaxed text-slate-300 md:text-base">
+                A <span className="font-medium text-white">warm-up studio</span> for high-stakes work moments: you pick a
+                case, absorb the brief, then rehearse how you would explain, defend, or de-escalate — without rushing into
+                a real chat thread. Use the modes below when you want to simulate solo practice, a joint call mindset, a
+                private run-through, or a slower &quot;prepare for tomorrow&quot; pass.
+              </p>
+            </div>
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-4 text-sm leading-relaxed text-amber-50/95">
+              <p className="flex items-start gap-2 font-medium text-amber-100">
+                <Headphones className="mt-0.5 h-4 w-4 shrink-0 text-amber-200" aria-hidden />
+                <span>
+                  <span className="text-white">Listen along (optional):</span> your browser can read introductions,
+                  case summaries, and prep bullets aloud in a steady English voice — helpful if you absorb information
+                  better by ear, or want a calmer pace. Use the buttons in the panel below; you can stop playback anytime.
+                  If your system hides extended motion, we keep listen controls off so the page stays comfortable.
+                </span>
+              </p>
+            </div>
           </div>
         </div>
       </header>
 
       <SupportingMaterialsDisclaimer compact collapsible defaultExpanded={false} />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
+      {/* Listen along — browser TTS, warm pacing */}
+      <section
+        className="rounded-2xl border border-violet-500/25 bg-violet-500/[0.06] p-5 md:p-6"
+        aria-labelledby="case-practice-listen-heading"
+      >
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 id="case-practice-listen-heading" className="text-base font-semibold text-white">
+              Listen with a calm voice
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm text-slate-300">
+              Uses your device&apos;s built-in speech (no account needed). Voice quality depends on your browser and OS.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {prefersReducedMotion ? (
+              <p className="text-xs text-slate-400">
+                Listen-along is not shown when reduced motion is preferred. You can still read everything on screen.
+              </p>
+            ) : !canSpeak ? (
+              <p className="text-xs text-slate-400">Speech is not available in this browser.</p>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => speak(introForVoice)}
+                  disabled={speaking}
+                  className="inline-flex items-center gap-2 rounded-xl border border-violet-400/35 bg-violet-600/25 px-4 py-2.5 text-sm font-semibold text-violet-100 transition hover:bg-violet-600/35 disabled:opacity-50"
+                >
+                  <Volume2 className="h-4 w-4 shrink-0" aria-hidden />
+                  Hear introduction
+                </button>
+                <button
+                  type="button"
+                  onClick={() => speak(buildCaseNarration())}
+                  disabled={speaking}
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15 disabled:opacity-50"
+                >
+                  <Volume2 className="h-4 w-4 shrink-0" aria-hidden />
+                  Hear this case
+                </button>
+                <button
+                  type="button"
+                  onClick={() => stop()}
+                  disabled={!speaking}
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-white/10 disabled:opacity-40"
+                >
+                  <Square className="h-4 w-4 shrink-0" aria-hidden />
+                  Stop
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Practice modes — primary navigation */}
+      <section className="rounded-2xl border border-indigo-500/25 bg-indigo-500/[0.06] p-4 md:p-5">
+        <p className="text-[11px] font-bold uppercase tracking-widest text-indigo-200/90">Practice mode</p>
+        <p className="mt-1 text-xs text-slate-400">Choose how you want to frame this rehearsal (does not change demo data yet).</p>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           {[
-            { id: 'solo' as const, label: 'Play Solo', icon: PlayCircle },
-            { id: 'joint-call' as const, label: 'Join Joint Call', icon: Users },
-            { id: 'private-session' as const, label: 'Open Private Session', icon: Lock },
-            { id: 'tomorrow' as const, label: 'Prepare For Tomorrow', icon: CalendarClock },
+            { id: 'solo' as const, label: 'Play Solo', hint: 'You vs the scenario', icon: PlayCircle },
+            { id: 'joint-call' as const, label: 'Join Joint Call', hint: 'Others on the line', icon: Users },
+            { id: 'private-session' as const, label: 'Open Private Session', hint: 'Closed room', icon: Lock },
+            { id: 'tomorrow' as const, label: 'Prepare For Tomorrow', hint: 'Slower tempo', icon: CalendarClock },
           ].map((item) => {
             const Icon = item.icon;
+            const active = mode === item.id;
             return (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => setMode(item.id)}
-                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
-                  mode === item.id
-                    ? 'border-indigo-500/40 bg-indigo-600/20 text-indigo-200'
-                    : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'
+                className={`mvh-card-glow flex min-h-[3.25rem] flex-1 items-center gap-3 rounded-xl border px-4 py-3 text-left transition sm:min-w-[200px] sm:flex-none ${
+                  active
+                    ? 'border-indigo-400/60 bg-indigo-600/25 text-white ring-1 ring-indigo-400/30'
+                    : 'border-white/10 bg-white/5 text-slate-200 hover:border-white/20 hover:bg-white/10'
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" />
-                {item.label}
+                <span
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                    active ? 'bg-indigo-500/30 text-indigo-100' : 'bg-white/10 text-slate-300'
+                  }`}
+                >
+                  <Icon className="h-5 w-5" aria-hidden />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-bold tracking-tight">{item.label}</span>
+                  <span className="mt-0.5 block text-[11px] font-medium text-slate-400">{item.hint}</span>
+                </span>
               </button>
             );
           })}
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setState('loading')}
-            className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-300 hover:bg-white/10"
-          >
-            Loading
-          </button>
-          <button
-            type="button"
-            onClick={() => setState('empty')}
-            className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-300 hover:bg-white/10"
-          >
-            Empty
-          </button>
-          <button
-            type="button"
-            onClick={() => setState('error')}
-            className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-300 hover:bg-white/10"
-          >
-            Error
-          </button>
-          <button
-            type="button"
-            onClick={() => setState('populated')}
-            className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-slate-300 hover:bg-white/10"
-          >
-            Populated
-          </button>
+      </section>
+
+      {/* Shell preview states — clearly marked (development / QA) */}
+      <section className="rounded-2xl border-2 border-dashed border-amber-500/40 bg-amber-500/[0.05] p-4 md:p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-amber-200">Shell preview — UI states</p>
+            <p className="mt-1 text-xs text-amber-100/85">
+              For design and QA only: switches the placeholder layout. Not a user-facing menu in the final product.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                { id: 'loading' as const, label: 'Loading', desc: 'Spinner' },
+                { id: 'empty' as const, label: 'Empty', desc: 'No case' },
+                { id: 'error' as const, label: 'Error', desc: 'Failed load' },
+                { id: 'populated' as const, label: 'Populated', desc: 'Full shell' },
+              ] as const
+            ).map((item) => {
+              const active = state === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setState(item.id)}
+                  className={`mvh-card-glow flex min-h-[3rem] min-w-[7.5rem] flex-col items-center justify-center rounded-xl border px-4 py-2.5 text-center transition ${
+                    active
+                      ? 'border-amber-300/70 bg-amber-500/25 text-white ring-1 ring-amber-300/40'
+                      : 'border-amber-500/30 bg-amber-950/20 text-amber-50/90 hover:bg-amber-500/15'
+                  }`}
+                >
+                  <span className="text-sm font-bold">{item.label}</span>
+                  <span className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-200/80">
+                    {item.desc}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      </section>
 
       {state === 'loading' && (
         <section className="flex h-56 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03]">
@@ -355,4 +523,3 @@ export default function CasePracticePage() {
     </div>
   );
 }
-
