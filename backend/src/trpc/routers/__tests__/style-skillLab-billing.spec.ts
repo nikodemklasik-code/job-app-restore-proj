@@ -128,4 +128,20 @@ describe('style + skillLab spend (hermetic, no OpenAI)', () => {
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     expect(commitSpendMock).not.toHaveBeenCalled();
   });
+
+  it('does not commit when approveSpend fails with INSUFFICIENT_FUNDS (skill_lab_gap_analysis)', async () => {
+    approveSpendMock.mockRejectedValueOnce(new BillingErrorMock('INSUFFICIENT_FUNDS', 'Not enough credits'));
+    const caller = testApp.createCaller(ctxUser);
+    await expect(
+      caller.skillLab.analyzeJobGap({ text: 'Role text that would otherwise run gap analysis.' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect(commitSpendMock).not.toHaveBeenCalled();
+  });
+
+  it('does not commit when approveSpend fails with INSUFFICIENT_FUNDS (skill_lab_course_suggest)', async () => {
+    approveSpendMock.mockRejectedValueOnce(new BillingErrorMock('INSUFFICIENT_FUNDS', 'Not enough credits'));
+    const caller = testApp.createCaller(ctxUser);
+    await expect(caller.style.suggestCoursesForSkill({ skill: 'Python' })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect(commitSpendMock).not.toHaveBeenCalled();
+  });
 });
