@@ -9,7 +9,7 @@
 
 ## Scope Implemented
 
-**None (implementation).** This file records **STALLED** on a **new code slice** for wider Practice / Settings / Consent / Community until the blocker below is cleared. The corrected Interview/Negotiation §6 intake ([`agent-3-c-f1-interview-negotiation-server-billing-2026-04-21.md`](./agent-3-c-f1-interview-negotiation-server-billing-2026-04-21.md)) remains a **documentary resubmit** only — **not** AFI for legacy Interview or Negotiation billing, **not** a green light for broader C-F1 / C-F2.
+**None (implementation).** This file records **STALLED** on a **new code slice** for wider Practice / Settings / Consent / Community until the blocker below is cleared. The corrected Interview/Negotiation §6 intake ([`agent-3-c-f1-interview-negotiation-server-billing-2026-04-21.md`](./agent-3-c-f1-interview-negotiation-server-billing-2026-04-21.md)) is **closed** by narrow §8 as **documentation-only AFI** — [`qc-verdict-agent-3-interview-negotiation-intake-document-corrected-2026-04-22.md`](./qc-verdict-agent-3-interview-negotiation-intake-document-corrected-2026-04-22.md). That closure **does not** imply **Approved For Integration** for **legacy** `interview.router` **billing**, **Negotiation** **billing**, or **broader C-F1 / C-F2** (still **NAFI** per that §8 table and [`qc-decision-practice-modules-settings-community-2026-04-18.md`](./qc-decision-practice-modules-settings-community-2026-04-18.md)).
 
 ---
 
