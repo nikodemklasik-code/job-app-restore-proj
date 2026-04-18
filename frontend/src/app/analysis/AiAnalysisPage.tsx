@@ -27,7 +27,7 @@ import { useProfileStore } from '@/stores/profileStore';
 import { api } from '@/lib/api';
 import type { ProfileSnapshot, ProfileExperience } from '../../../../shared/profile';
 
-// ── Live analysis (same contract as Skill Lab `style.analyzeDocument`) ─────
+// ── Live analysis (same contract as Skill Lab `skillLab.analyzeJobGap`) ─────
 
 interface AnalysisResult {
   wordCount: number;
@@ -295,7 +295,7 @@ export default function AiAnalysisPage() {
   const [jdInput, setJdInput] = useState('');
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
 
-  const analyzeMutation = api.style.analyzeDocument.useMutation({
+  const analyzeMutation = api.skillLab.analyzeJobGap.useMutation({
     onSuccess: (data) => setAnalysisResult(data as AnalysisResult),
   });
 
@@ -308,7 +308,7 @@ export default function AiAnalysisPage() {
   const handleRunCompare = () => {
     const text = jdInput.trim() || profile?.personalInfo.summary?.trim() || '';
     if (!text || !userId) return;
-    analyzeMutation.mutate({ userId, text, documentType: 'skills' });
+    analyzeMutation.mutate({ text });
   };
 
   const rewriteSample =
@@ -519,7 +519,7 @@ export default function AiAnalysisPage() {
             <h2 className="text-xl font-semibold text-white">Compare To Role Text</h2>
             <p className="mt-2 text-base text-slate-300">
               Paste a job description (or leave empty to use your profile summary). We call the same analysis path as Skill Lab (
-              <code className="rounded bg-black/30 px-1.5 text-sm">style.analyzeDocument</code>
+              <code className="rounded bg-black/30 px-1.5 text-sm">skillLab.analyzeJobGap</code>
               ) — results below are live, not static copy.
             </p>
             <textarea

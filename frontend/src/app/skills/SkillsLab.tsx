@@ -73,6 +73,8 @@ function LiveProfileSnapshot({ profile }: { profile: ProfileSnapshot }) {
 
 interface SkillBarProps {
   name: string;
+  claimedLevel?: string | null;
+  claimSource?: string | null;
 }
 
 interface Course {
@@ -117,7 +119,12 @@ function buildSkillCourseLinks(
   });
 }
 
-function SkillBar({ name }: SkillBarProps) {
+function formatClaimBadge(claimedLevel?: string | null): string {
+  if (!claimedLevel) return 'Declared';
+  return claimedLevel.charAt(0).toUpperCase() + claimedLevel.slice(1);
+}
+
+function SkillBar({ name, claimedLevel, claimSource }: SkillBarProps) {
   const [expanded, setExpanded] = useState(false);
   const [courses, setCourses] = useState<Course[] | null>(null);
 
@@ -139,7 +146,10 @@ function SkillBar({ name }: SkillBarProps) {
           {name}
         </span>
         <span className="shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
-          Declared
+          {formatClaimBadge(claimedLevel)}
+          {claimSource ? (
+            <span className="ml-1 normal-case text-slate-600">({claimSource})</span>
+          ) : null}
         </span>
         <button
           onClick={handleToggle}
@@ -337,9 +347,25 @@ export default function SkillsLab() {
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [liveDataOpen, setLiveDataOpen] = useState(false);
 
-  const analyzeMutation = api.style.analyzeDocument.useMutation({
+  const analyzeMutation = api.skillLab.analyzeJobGap.useMutation({
     onSuccess: (data) => setAnalysisResult(data as AnalysisResult),
   });
+
+  const claimsQuery = api.skillLab.listClaims.useQuery(undefined, { enabled: Boolean(userId) });
+  const coreSignalsQuery = api.skillLab.coreSignals.useQuery(undefined, { enabled: Boolean(userId), staleTime: 30_000 });
+  const syncClaimsMutation = api.skillLab.syncFromProfileSkills.useMutation({
+    onSuccess: async () => {
+      await claimsQuery.refetch();
+    },
+  });
+
+  const claimBySkillKey = useMemo(() => {
+    const m = new Map<string, { claimedLevel: string; claimSource: string }>();
+    for (const it of claimsQuery.data?.items ?? []) {
+      m.set(it.skillKey.toLowerCase(), { claimedLevel: it.claimedLevel, claimSource: it.claimSource });
+    }
+    return m;
+  }, [claimsQuery.data]);
 
   // Load profile if not yet loaded
   if (!profile && !isLoadingProfile) {
@@ -359,7 +385,7 @@ export default function SkillsLab() {
 
   function handleAnalyze() {
     if (!targetInput.trim() || !userId) return;
-    analyzeMutation.mutate({ userId, text: targetInput.trim(), documentType: 'skills' });
+    analyzeMutation.mutate({ text: targetInput.trim() });
   }
 
   return (
@@ -391,7 +417,9 @@ export default function SkillsLab() {
             <p className="m-0">
               <strong className="text-emerald-200">Live data:</strong> skills, summary, experience, and education load from your saved profile.
               Course suggestions load from <code className="rounded bg-white/10 px-1 text-xs">style.suggestCoursesForSkill</code> when you expand a skill.
-              Gap analysis uses <code className="rounded bg-white/10 px-1 text-xs">style.analyzeDocument</code> on the job text you paste — we do not show fabricated salary or &quot;market %&quot; bars.
+              Skill claims load from <code className="rounded bg-white/10 px-1 text-xs">skillLab.listClaims</code>; sync with{' '}
+              <code className="rounded bg-white/10 px-1 text-xs">skillLab.syncFromProfileSkills</code>.
+              Gap analysis uses <code className="rounded bg-white/10 px-1 text-xs">skillLab.analyzeJobGap</code> on the job text you paste — we do not show fabricated salary or &quot;market %&quot; bars.
             </p>
           </div>
         )}
@@ -477,6 +505,54 @@ export default function SkillsLab() {
 
       {profile && !isLoadingProfile ? <LiveProfileSnapshot profile={profile} /> : null}
 
+      {userId && coreSignalsQuery.data ? (
+        <div className="mvh-card-glow rounded-2xl border border-teal-500/25 bg-teal-500/[0.06] p-5 space-y-3">
+          <h2 className="font-semibold text-white">Capability signals (backend)</h2>
+          <p className="text-xs text-slate-400">
+            Qualitative tiers only — from <code className="rounded bg-white/10 px-1">skillLab.coreSignals</code>. Use Profile + claims to strengthen bands.
+          </p>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Salary positioning hint</p>
+              <p className="mt-1 text-sm text-slate-200">{coreSignalsQuery.data.salaryImpact.tier}</p>
+              <p className="mt-1 text-xs text-slate-400">{coreSignalsQuery.data.salaryImpact.rationale}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Growth hooks</p>
+              <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-slate-300">
+                {coreSignalsQuery.data.growthHooks.slice(0, 4).map((h) => (
+                  <li key={h}>{h}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          {coreSignalsQuery.data.cvValueSignals.length > 0 ? (
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">CV value signals</p>
+              <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-slate-300">
+                {coreSignalsQuery.data.cvValueSignals.map((s) => (
+                  <li key={s}>{s}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {coreSignalsQuery.data.courseToSkillMappings.length > 0 ? (
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Course → skill mapping</p>
+              <ul className="mt-1 space-y-1 text-xs text-slate-300">
+                {coreSignalsQuery.data.courseToSkillMappings.slice(0, 6).map((m) => (
+                  <li key={m.courseTitle} className="rounded border border-white/[0.06] bg-white/[0.02] px-2 py-1">
+                    <span className="font-medium text-slate-200">{m.courseTitle}</span>
+                    <span className="text-slate-500"> · {m.confidence} · </span>
+                    {m.matchedSkills.length ? m.matchedSkills.join(', ') : '— no name overlap with profile skills'}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="mvh-card-glow rounded-2xl border border-blue-500/25 bg-blue-500/5 p-5">
         <h2 className="font-semibold text-white">Skills And Courses</h2>
         <p className="mt-1 text-sm text-slate-400">
@@ -555,13 +631,25 @@ export default function SkillsLab() {
           <p className="text-xs text-slate-500">
             Proficiency is not stored on your profile yet — expand a skill for live course suggestions from the API.
           </p>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-semibold text-white">My Skills</h2>
-            {rawSkills.length > 0 && (
-              <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-400">
-                {rawSkills.length} skills
-              </span>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {userId ? (
+                <button
+                  type="button"
+                  disabled={syncClaimsMutation.isPending || !rawSkills.length}
+                  onClick={() => syncClaimsMutation.mutate()}
+                  className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1 text-[11px] font-medium text-slate-200 hover:border-indigo-500/40 hover:bg-indigo-500/10 disabled:opacity-50"
+                >
+                  {syncClaimsMutation.isPending ? 'Syncing…' : 'Sync claims from profile'}
+                </button>
+              ) : null}
+              {rawSkills.length > 0 && (
+                <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-400">
+                  {rawSkills.length} skills
+                </span>
+              )}
+            </div>
           </div>
 
           {isLoadingProfile ? (
@@ -578,9 +666,17 @@ export default function SkillsLab() {
             </div>
           ) : (
             <div className="space-y-3">
-              {rawSkills.map((name) => (
-                <SkillBar key={name} name={name} />
-              ))}
+              {rawSkills.map((name) => {
+                const meta = claimBySkillKey.get(name.trim().toLowerCase());
+                return (
+                  <SkillBar
+                    key={name}
+                    name={name}
+                    claimedLevel={meta?.claimedLevel}
+                    claimSource={meta?.claimSource}
+                  />
+                );
+              })}
             </div>
           )}
         </div>

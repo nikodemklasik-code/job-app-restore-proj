@@ -88,7 +88,7 @@ interface AiAnalysisResult {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const styleApi = (api as any).style as {
-  analyzeDocument: { useMutation: () => { mutateAsync: (input: { userId: string; text: string; documentType: string }) => Promise<AiAnalysisResult>; isPending: boolean } };
+    analyzeDocument: { useMutation: () => { mutateAsync: (input: { text: string; documentType: string }) => Promise<AiAnalysisResult>; isPending: boolean } };
   rewriteSection: { useMutation: () => { mutateAsync: (input: { userId: string; text: string; instruction: string; tone: string }) => Promise<{ rewritten: string }>; isPending: boolean } };
 } | undefined;
 
@@ -290,7 +290,6 @@ export default function StyleStudio({ variant = 'page' }: { variant?: StyleStudi
     setAiAnalysis(null);
     try {
       const result = await analyzeDocMutation.mutateAsync({
-        userId,
         text: rawText.slice(0, 5000),
         documentType: 'cv',
       });

@@ -1,76 +1,84 @@
 import { z } from 'zod';
-import { publicProcedure, router } from '../trpc.js';
-import OpenAI from 'openai';
+import { TRPCError } from '@trpc/server';
+import { publicProcedure, protectedProcedure, router } from '../trpc.js';
 import { buildUniversalBehaviorLayer } from '../../prompts/shared/universal-behavior-layer.js';
 import { getUserPlan, planToPromptBehaviorTier } from '../../services/billingGuard.js';
-
-function getOpenAI(): OpenAI | null {
-  if (!process.env.OPENAI_API_KEY) return null;
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-}
+import { tryGetOpenAiClient } from '../../lib/openai/openai.client.js';
+import { getDefaultTextModel } from '../../lib/openai/model-registry.js';
+import { BillingError } from '../../services/creditsBilling.js';
+import { FEATURE_COSTS } from '../../services/creditsConfig.js';
+import {
+  analyzeCareerDocumentText,
+  suggestCoursesForSkillText,
+  type AnalyzeDocumentResult,
+} from '../../services/styleDocumentAnalysis.service.js';
+import {
+  billingToTrpc,
+  requireSpendApproval,
+  settleSpendFailure,
+  settleSpendSuccess,
+} from './_shared.js';
 
 async function universalLayerForClerk(clerkId: string): Promise<string> {
   const plan = await getUserPlan(clerkId);
   return buildUniversalBehaviorLayer(planToPromptBehaviorTier(plan));
 }
 
+const STYLE_ANALYZE_DEBIT =
+  FEATURE_COSTS.style_analyze_document.kind === 'estimated'
+    ? FEATURE_COSTS.style_analyze_document.maxCost
+    : FEATURE_COSTS.style_analyze_document.cost;
+
+const SKILL_LAB_COURSE_DEBIT =
+  FEATURE_COSTS.skill_lab_course_suggest.kind === 'estimated'
+    ? FEATURE_COSTS.skill_lab_course_suggest.maxCost
+    : FEATURE_COSTS.skill_lab_course_suggest.cost;
+
 export const styleRouter = router({
-  analyzeDocument: publicProcedure
-    .input(z.object({
-      userId: z.string(),
-      text: z.string().max(5000),
-      documentType: z.enum(['cv', 'cover_letter', 'skills', 'references']),
-    }))
-    .mutation(async ({ input }) => {
-      const openai = getOpenAI();
-      if (!openai) {
-        // Heuristic fallback
-        const words = input.text.split(/\s+/).length;
-        const sentences = input.text.split(/[.!?]+/).filter(Boolean).length;
-        return {
-          wordCount: words,
-          sentenceCount: sentences,
-          avgSentenceLength: sentences > 0 ? Math.round(words / sentences) : 0,
-          tone: { professional: 60, confident: 30, formal: 10 },
-          topVerbs: ['managed', 'developed', 'led', 'created', 'improved'],
-          suggestions: ['Add more quantified achievements', 'Use stronger action verbs', 'Tailor keywords to job descriptions'],
-          score: 65,
-        };
+  analyzeDocument: protectedProcedure
+    .use(requireSpendApproval('style_analyze_document'))
+    .input(
+      z.object({
+        text: z.string().max(5000),
+        documentType: z.enum(['cv', 'cover_letter', 'skills', 'references']),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const user = ctx.user;
+      if (!user) {
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required' });
       }
-
-      const prompt = `Analyse this ${input.documentType.replace('_', ' ')} and respond with JSON only:
-{
-  "wordCount": number,
-  "sentenceCount": number,
-  "avgSentenceLength": number,
-  "tone": { "professional": 0-100, "confident": 0-100, "formal": 0-100 },
-  "topVerbs": ["verb1", "verb2", "verb3", "verb4", "verb5"],
-  "suggestions": ["suggestion1", "suggestion2", "suggestion3"],
-  "score": 0-100
-}
-
-Document text:
-${input.text.slice(0, 3000)}`;
-
-      const universalLayer = await universalLayerForClerk(input.userId);
+      let spendFinalized = false;
+      const commitAndReturn = async (out: AnalyzeDocumentResult) => {
+        try {
+          await settleSpendSuccess(ctx, STYLE_ANALYZE_DEBIT, 'style.analyzeDocument');
+          spendFinalized = true;
+        } catch (e) {
+          await settleSpendFailure(ctx, e instanceof Error ? e.message : 'commit_failed');
+          spendFinalized = true;
+          if (e instanceof BillingError) billingToTrpc(e);
+          throw e;
+        }
+        return out;
+      };
 
       try {
-        const resp = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: `You analyse career documents (CV, cover letter, skills text, employer or character reference letters) and respond with JSON only.\n\n${universalLayer}`,
-            },
-            { role: 'user', content: prompt },
-          ],
-          response_format: { type: 'json_object' },
-          max_tokens: 400,
+        const result: AnalyzeDocumentResult = await analyzeCareerDocumentText({
+          clerkId: user.clerkId,
+          text: input.text,
+          documentType: input.documentType,
         });
-        const result = JSON.parse(resp.choices[0]?.message?.content ?? '{}');
-        return result;
-      } catch {
-        return { wordCount: 0, sentenceCount: 0, avgSentenceLength: 0, tone: {}, topVerbs: [], suggestions: ['Analysis unavailable'], score: 0 };
+        return commitAndReturn(result);
+      } catch (e) {
+        if (!spendFinalized) {
+          await settleSpendFailure(ctx, e instanceof Error ? e.message : 'style_analyze_failed');
+        }
+        if (e instanceof BillingError) billingToTrpc(e);
+        if (e instanceof TRPCError) throw e;
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: e instanceof Error ? e.message : 'Document analysis failed',
+        });
       }
     }),
 
@@ -82,14 +90,14 @@ ${input.text.slice(0, 3000)}`;
       tone: z.enum(['professional', 'confident', 'concise', 'creative']).default('professional'),
     }))
     .mutation(async ({ input }) => {
-      const openai = getOpenAI();
+      const openai = tryGetOpenAiClient();
       if (!openai) return { rewritten: input.text, changes: 'OpenAI not configured' };
 
       const universalLayer = await universalLayerForClerk(input.userId);
 
       try {
         const resp = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
+          model: getDefaultTextModel(),
           messages: [{
             role: 'system',
             content: `You are a UK career document specialist. Rewrite the given text to be more ${input.tone}. Keep it concise and impactful. Return only the rewritten text, no explanations.\n\n${universalLayer}`,
@@ -106,50 +114,41 @@ ${input.text.slice(0, 3000)}`;
       }
     }),
 
-  suggestCoursesForSkill: publicProcedure
-    .input(z.object({
-      skill: z.string().max(100),
-    }))
-    .mutation(async ({ input }) => {
-      const openai = getOpenAI();
-      if (!openai) {
-        // Static fallback
-        return {
-          courses: [
-            { title: `${input.skill} Fundamentals`, provider: 'LinkedIn Learning', url: 'https://www.linkedin.com/learning/', level: 'Beginner' },
-            { title: `${input.skill} in Practice`, provider: 'Coursera', url: 'https://www.coursera.org/', level: 'Intermediate' },
-            { title: `Advanced ${input.skill}`, provider: 'Udemy', url: 'https://www.udemy.com/', level: 'Advanced' },
-          ],
-        };
-      }
-
-      const universalLayer = buildUniversalBehaviorLayer('standard');
-
-      const prompt = `Suggest 3 online courses for someone wanting to improve their "${input.skill}" skill. Return JSON only:
-{
-  "courses": [
-    { "title": "Course name", "provider": "Provider name", "url": "https://...", "level": "Beginner|Intermediate|Advanced" }
-  ]
-}
-Use real, current courses from Coursera, Udemy, LinkedIn Learning, Pluralsight, freeCodeCamp, or official docs. Always include the actual course URL.`;
+  suggestCoursesForSkill: protectedProcedure
+    .use(requireSpendApproval('skill_lab_course_suggest'))
+    .input(
+      z.object({
+        skill: z.string().max(100),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      let spendFinalized = false;
+      const commitAndReturn = async (out: { courses: { title: string; provider: string; url: string; level: string }[] }) => {
+        try {
+          await settleSpendSuccess(ctx, SKILL_LAB_COURSE_DEBIT, 'style.suggestCoursesForSkill');
+          spendFinalized = true;
+        } catch (e) {
+          await settleSpendFailure(ctx, e instanceof Error ? e.message : 'commit_failed');
+          spendFinalized = true;
+          if (e instanceof BillingError) billingToTrpc(e);
+          throw e;
+        }
+        return out;
+      };
 
       try {
-        const resp = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: `You recommend real, current online courses. Return JSON only.\n\n${universalLayer}`,
-            },
-            { role: 'user', content: prompt },
-          ],
-          response_format: { type: 'json_object' },
-          max_tokens: 500,
+        const result = await suggestCoursesForSkillText(input.skill);
+        return commitAndReturn(result);
+      } catch (e) {
+        if (!spendFinalized) {
+          await settleSpendFailure(ctx, e instanceof Error ? e.message : 'skill_lab_course_suggest_failed');
+        }
+        if (e instanceof BillingError) billingToTrpc(e);
+        if (e instanceof TRPCError) throw e;
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: e instanceof Error ? e.message : 'Course suggestion failed',
         });
-        const result = JSON.parse(resp.choices[0]?.message?.content ?? '{}') as { courses?: { title: string; provider: string; url: string; level: string }[] };
-        return { courses: result.courses ?? [] };
-      } catch {
-        return { courses: [] };
       }
     }),
 
@@ -165,7 +164,7 @@ Use real, current courses from Coursera, Udemy, LinkedIn Learning, Pluralsight, 
       senderName: z.string().max(200).optional(),
     }))
     .mutation(async ({ input }) => {
-      const openai = getOpenAI();
+      const openai = tryGetOpenAiClient();
 
       const skillList = (input.skills ?? []).slice(0, 15).join(', ');
       const profileContext = [
@@ -199,7 +198,7 @@ Use real, current courses from Coursera, Udemy, LinkedIn Learning, Pluralsight, 
 
       try {
         const resp = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
+          model: getDefaultTextModel(),
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },

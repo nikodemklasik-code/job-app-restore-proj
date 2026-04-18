@@ -111,7 +111,6 @@ function CvScorePanel({
 
     if (selectedId === LATEST_CV_OPTION && latestCv?.parsedText) {
       analyzeMutation.mutate({
-        userId,
         text: latestCv.parsedText.slice(0, 50_000),
         documentType: 'cv',
       });
@@ -123,7 +122,7 @@ function CvScorePanel({
     if (!text) return;
     const selectedDoc = allDocs.find((d) => d.id === selectedId);
     const documentType = styleAnalyzeTypeForDoc(selectedDoc);
-    analyzeMutation.mutate({ userId, text, documentType });
+    analyzeMutation.mutate({ text, documentType });
   }
 
   if (docs.length === 0) {

@@ -122,10 +122,47 @@ export const subscriptions = mysqlTable('subscriptions', {
   stripeSubscriptionId: varchar('stripe_subscription_id', { length: 255 }),
   plan: varchar('plan', { length: 50 }).notNull().default('free'),
   status: varchar('status', { length: 50 }).notNull().default('active'),
+  /** Paid credit balance carried across months. */
   credits: int('credits').default(100),
+  /** Monthly free allowance — reset monthly from `allowancePeriodStart`. */
+  allowanceLimit: int('allowance_limit').default(0).notNull(),
+  allowanceRemaining: int('allowance_remaining').default(0).notNull(),
+  allowancePeriodStart: timestamp('allowance_period_start'),
   renewalDate: timestamp('renewal_date'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+/**
+ * Credit spend events — audit trail for approve/commit/reject/refund (credits engine).
+ */
+export const creditSpendEvents = mysqlTable('credit_spend_events', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  feature: varchar('feature', { length: 64 }).notNull(),
+  kind: varchar('kind', { length: 16 }).notNull(),
+  status: varchar('status', { length: 16 }).notNull().default('approved'),
+  estimatedCost: int('estimated_cost').default(0).notNull(),
+  approvedMaxCost: int('approved_max_cost').default(0).notNull(),
+  actualCost: int('actual_cost').default(0).notNull(),
+  allowanceDebited: int('allowance_debited').default(0).notNull(),
+  creditsDebited: int('credits_debited').default(0).notNull(),
+  referenceId: varchar('reference_id', { length: 64 }),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+export const creditPackPurchases = mysqlTable('credit_pack_purchases', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  packSize: int('pack_size').notNull(),
+  amountPaid: decimal('amount_paid', { precision: 10, scale: 2 }).notNull().default('0.00'),
+  currency: varchar('currency', { length: 8 }).notNull().default('GBP'),
+  provider: varchar('provider', { length: 32 }).notNull(),
+  providerRef: varchar('provider_ref', { length: 128 }),
+  status: varchar('status', { length: 16 }).notNull().default('completed'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
 export const passkeys = mysqlTable('passkeys', {

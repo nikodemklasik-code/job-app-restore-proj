@@ -7,12 +7,22 @@ import {
   type AuthenticatedAppUser,
   type BackendAuth,
 } from '../lib/clerk.js';
+import type { FeatureKey } from '../services/creditsConfig.js';
+
+/** Populated by `requireSpendApproval` after a successful `approveSpend`. */
+export interface SpendReservation {
+  spendEventId: string;
+  kind: 'fixed' | 'estimated';
+  feature: FeatureKey;
+  approvedMaxCost: number;
+}
 
 export interface TrpcContext {
   req: CreateExpressContextOptions['req'];
   res: CreateExpressContextOptions['res'];
   auth: BackendAuth | null;
   user: AuthenticatedAppUser | null;
+  spendReservation?: SpendReservation;
 }
 
 export async function createContext({

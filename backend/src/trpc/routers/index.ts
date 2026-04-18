@@ -21,6 +21,7 @@ import { radarRouter } from './radar.router.js';
 import { coachRouter } from './coach.router.js';
 import { jobRadarRouter } from './jobRadar.router.js';
 import { documentsRouter } from './documents.router.js';
+import { skillLabRouter } from './skillLab.router.js';
 
 export const appRouter = router({
   assistant: assistantRouter,
@@ -45,6 +46,7 @@ export const appRouter = router({
   radar: radarRouter,
   jobRadar: jobRadarRouter,
   documents: documentsRouter,
+  skillLab: skillLabRouter,
 });
 
 export type AppRouter = typeof appRouter;
