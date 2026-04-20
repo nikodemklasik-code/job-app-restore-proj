@@ -22,7 +22,7 @@ module.exports = {
     {
       name: 'jobapp-server',
       script: 'dist/backend/src/server.js',
-      cwd: '/var/www/multivohub-jobapp',
+      cwd: '/root/project',
       instances: 1,
       exec_mode: 'fork',
       node_args: '--experimental-vm-modules',
@@ -47,7 +47,7 @@ module.exports = {
     {
       name: 'jobapp-worker',
       script: 'dist/backend/src/worker.js',
-      cwd: '/var/www/multivohub-jobapp',
+      cwd: '/root/project',
       instances: 1,
       exec_mode: 'fork',
       env: {
@@ -68,7 +68,7 @@ module.exports = {
     {
       name: 'jobapp-webhook',
       script: 'scripts/webhook-server.js',
-      cwd: '/var/www/multivohub-jobapp',
+      cwd: '/root/project',
       instances: 1,
       exec_mode: 'fork',
       interpreter: 'node',
@@ -76,10 +76,10 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
         WEBHOOK_PORT: '9000',
-        APP_DIR: '/var/www/multivohub-jobapp',
+        APP_DIR: '/root/project',
         BRANCH: 'main',
         PM2_APP_NAME: 'jobapp-server',
-        // DEPLOY_TOKEN must be set in /var/www/multivohub-jobapp/.env.production
+        // DEPLOY_TOKEN must be set in /root/project/.env.production
         // Never hardcode the token here.
       },
       autorestart: true,

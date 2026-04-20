@@ -1,0 +1,20 @@
+SCREEN	FIRST_PRODUCTION_SLICE	SLICE_TYPE	RECOMMENDED_OWNER	RFQ_PATH	REPORT_PATH	PRIORITY	STATUS
+Dashboard	dashboard aggregate snapshot	SCREEN_SLICE	AGENT_1	docs/agent-work/dashboard-dashboard-aggregate-snapshot-rfq.md	docs/qc-reports/dashboard-dashboard-aggregate-snapshot-ready-for-qc.md	P0	IN_PROGRESS
+Profile	profile completeness + downstream sync	SCREEN_SLICE	AGENT_1	docs/agent-work/agent-1-profile-completeness-rfq.md	docs/qc-reports/agent-1-profile-completeness-ready-for-qc.md	P0	NOT_STARTED
+Jobs	jobs save/hide/add-to-applications	SCREEN_SLICE	AGENT_2	docs/agent-work/agent-2-jobs-actions-rfq.md	docs/qc-reports/agent-2-jobs-actions-ready-for-qc.md	P0	NOT_STARTED
+Applications	stage transitions + audit trail	SCREEN_SLICE	AGENT_1	docs/agent-work/agent-1-applications-audit-rfq.md	docs/qc-reports/agent-1-applications-audit-ready-for-qc.md	P0	NOT_STARTED
+Applications Review	follow-up queue + recommendation actions	SCREEN_SLICE	AGENT_3	docs/agent-work/agent-3-app-review-rfq.md	docs/qc-reports/agent-3-app-review-ready-for-qc.md	P1	NOT_STARTED
+Documents	version lineage + attach-to-application	SCREEN_SLICE	AGENT_1	docs/agent-work/agent-1-documents-versioning-rfq.md	docs/qc-reports/agent-1-documents-versioning-ready-for-qc.md	P0	NOT_STARTED
+Style Studio	style rewrite save-as-version	SCREEN_SLICE	AGENT_3	docs/agent-work/agent-3-style-studio-rfq.md	docs/qc-reports/agent-3-style-studio-ready-for-qc.md	P1	NOT_STARTED
+AI Assistant	context routing chips + stable thread state	SCREEN_SLICE	AGENT_3	docs/agent-work/agent-3-assistant-routing-rfq.md	docs/qc-reports/agent-3-assistant-routing-ready-for-qc.md	P1	NOT_STARTED
+AI Analysis	structured analysis save-to-reports	SCREEN_SLICE	AGENT_2	docs/agent-work/agent-2-ai-analysis-rfq.md	docs/qc-reports/agent-2-ai-analysis-ready-for-qc.md	P1	NOT_STARTED
+Interview	billing-safe session summary persistence	SCREEN_SLICE	AGENT_3	docs/agent-work/agent-3-interview-summary-rfq.md	docs/qc-reports/agent-3-interview-summary-ready-for-qc.md	P0	NOT_STARTED
+Coach	interview handoff + action-plan report	SCREEN_SLICE	AGENT_3	docs/agent-work/agent-3-coach-handoff-rfq.md	docs/qc-reports/agent-3-coach-handoff-ready-for-qc.md	P1	NOT_STARTED
+Daily Warmup	fixed-cost quick session + follow-up CTA	SCREEN_SLICE	AGENT_3	docs/agent-work/agent-3-warmup-rfq.md	docs/qc-reports/agent-3-warmup-ready-for-qc.md	P1	NOT_STARTED
+Negotiation	offer-context draft mode MVP	SCREEN_SLICE	AGENT_3	docs/agent-work/agent-3-negotiation-mvp-rfq.md	docs/qc-reports/agent-3-negotiation-mvp-ready-for-qc.md	P2	NOT_STARTED
+Job Radar	report action bridge to applications/documents	SCREEN_SLICE	AGENT_2	docs/agent-work/agent-2-job-radar-bridge-rfq.md	docs/qc-reports/agent-2-job-radar-bridge-ready-for-qc.md	P0	NOT_STARTED
+Skill Lab	evidence-based signals + route-outs	SCREEN_SLICE	AGENT_2	docs/agent-work/agent-2-skill-lab-signals-rfq.md	docs/qc-reports/agent-2-skill-lab-signals-ready-for-qc.md	P1	NOT_STARTED
+Community Centre	new route + one durable backend action	SCREEN_SLICE	AGENT_3	docs/agent-work/agent-3-community-mvp-rfq.md	docs/qc-reports/agent-3-community-mvp-ready-for-qc.md	P2	BLOCKED_RED
+Settings	server-backed toggle parity + URL tabs	SCREEN_SLICE	AGENT_1	docs/agent-work/agent-1-settings-parity-rfq.md	docs/qc-reports/agent-1-settings-parity-ready-for-qc.md	P1	NOT_STARTED
+Billing	ledger parity + pending spend visibility	SCREEN_SLICE	AGENT_1	docs/agent-work/agent-1-billing-parity-rfq.md	docs/qc-reports/agent-1-billing-parity-ready-for-qc.md	P0	NOT_STARTED
+Legal Hub Search	source pills + scope summary + PDF export path	SCREEN_SLICE	AGENT_2	docs/agent-work/agent-2-legal-hub-scope-rfq.md	docs/qc-reports/agent-2-legal-hub-scope-ready-for-qc.md	P1	NOT_STARTED

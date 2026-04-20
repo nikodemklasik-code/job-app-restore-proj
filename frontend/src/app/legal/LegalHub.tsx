@@ -1,4 +1,7 @@
-import { useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
+import { api } from '@/lib/api';
 import {
   Scale,
   ChevronDown,
@@ -10,6 +13,10 @@ import {
   Building2,
   AlertTriangle,
   Landmark,
+  Search,
+  Sparkles,
+  X,
+  FileDown,
 } from 'lucide-react';
 
 interface AccordionItem {
@@ -484,6 +491,69 @@ function SectionCard({ section }: { section: Section }) {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function LegalHub() {
+  const navigate = useNavigate();
+  const { isSignedIn } = useUser();
+  const [disclaimerOpen, setDisclaimerOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const trimmedQuery = searchQuery.trim();
+  const [includeGroundedSummary, setIncludeGroundedSummary] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
+  const exportPdfMutation = api.legalHub.exportSearchPdf.useMutation({
+    onSuccess: (data) => {
+      setPdfError(null);
+      const a = document.createElement('a');
+      a.href = `data:${data.mimeType};base64,${data.base64}`;
+      a.download = data.filename;
+      a.rel = 'noopener';
+      a.click();
+    },
+    onError: (err) => {
+      setPdfError(err.message ?? 'Export failed');
+    },
+  });
+
+  const legalSearch = api.legalHub.search.useQuery(
+    { query: trimmedQuery, limit: 8, includeGroundedSummary },
+    { enabled: trimmedQuery.length >= 2, staleTime: 60_000 },
+  );
+
+  // Local topic match — helps the user see which section is most relevant
+  // before they fire an AI question. This is pure filtering over our curated
+  // content; it does NOT pretend to give legal advice.
+  const matchedSections = useMemo(() => {
+    if (trimmedQuery.length < 2) return [] as Array<{ sectionId: string; sectionTitle: string; question: string }>;
+    const needle = trimmedQuery.toLowerCase();
+    const hits: Array<{ sectionId: string; sectionTitle: string; question: string }> = [];
+    for (const s of SECTIONS) {
+      for (const item of s.items) {
+        if (
+          item.question.toLowerCase().includes(needle)
+          || item.answer.toLowerCase().includes(needle)
+          || s.title.toLowerCase().includes(needle)
+          || s.summary.toLowerCase().includes(needle)
+        ) {
+          hits.push({ sectionId: s.id, sectionTitle: s.title, question: item.question });
+        }
+      }
+    }
+    return hits.slice(0, 6);
+  }, [trimmedQuery]);
+
+  const handleAskAi = (raw: string) => {
+    const text = raw.trim();
+    if (!text) return;
+    const prompt = [
+      `UK employment law question: ${text}.`,
+      'Answer as a career coach for UK job seekers. Be concise and practical.',
+      'Cite the relevant statute, ACAS code or GOV.UK page where possible.',
+      'Remind me to verify current figures on GOV.UK / ACAS / HMRC and that this is guidance, not legal advice.',
+    ].join(' ');
+    navigate('/assistant', {
+      state: { prefill: { text: prompt, mode: 'general' as const, autoSend: true } },
+    });
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -497,12 +567,237 @@ export default function LegalHub() {
         <p className="text-slate-400 ml-14">UK employment law reference for job seekers — verify current rates on GOV.UK</p>
       </div>
 
-      {/* Disclaimer */}
-      <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-5 py-4">
-        <p className="text-xs text-amber-300 leading-relaxed">
-          <span className="font-semibold">Legal Disclaimer:</span> This hub is educational and does not constitute legal advice. Statutory rates, thresholds, and guidance change — always confirm figures on GOV.UK, ACAS, or HMRC. For advice on your situation, consult a qualified employment solicitor or ACAS (0300 123 1100).
-        </p>
+      {/* Legal disclaimer — collapsible (same pattern as other AI modules) */}
+      <div className="mvh-card-glow rounded-xl border border-amber-500/25 bg-amber-500/[0.07] text-amber-100">
+        <button
+          type="button"
+          onClick={() => setDisclaimerOpen((v) => !v)}
+          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[11px] font-medium text-amber-100/95 transition hover:bg-white/[0.04]"
+          aria-expanded={disclaimerOpen}
+        >
+          <span className="flex items-center gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-hidden />
+            <span>Legal disclaimer (educational only — tap to {disclaimerOpen ? 'hide' : 'show'})</span>
+          </span>
+          <ChevronDown
+            className={`h-3.5 w-3.5 shrink-0 text-amber-200/80 transition-transform ${disclaimerOpen ? 'rotate-180' : ''}`}
+            aria-hidden
+          />
+        </button>
+        {disclaimerOpen && (
+          <div
+            className="border-t border-amber-500/20 px-3 py-2 text-xs leading-relaxed text-amber-200/95"
+            role="region"
+            aria-label="Legal disclaimer details"
+          >
+            <p className="m-0">
+              <span className="font-semibold">Legal Disclaimer:</span> This hub is educational and does not constitute legal advice.
+              Statutory rates, thresholds, and guidance change — always confirm figures on{' '}
+              <a href="https://www.gov.uk/" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-100">GOV.UK</a>,{' '}
+              <a href="https://www.acas.org.uk/" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-100">ACAS</a>, or{' '}
+              <a href="https://www.gov.uk/government/organisations/hm-revenue-customs" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-100">HMRC</a>.
+              For advice on your situation, consult a qualified employment solicitor or ACAS (0300 123 1100).
+            </p>
+          </div>
+        )}
       </div>
+
+      {/* AI topic search — AI-only Q&A, not local answer generation */}
+      <section
+        aria-labelledby="legal-hub-search-heading"
+        className="mvh-card-glow rounded-2xl border border-indigo-500/25 bg-indigo-500/[0.06] p-5 md:p-6"
+      >
+        <div className="flex items-start gap-3">
+          <div className="inline-flex rounded-xl bg-indigo-500/15 p-2 ring-1 ring-inset ring-indigo-400/30">
+            <Sparkles className="h-5 w-5 text-indigo-300" aria-hidden />
+          </div>
+          <div className="flex-1">
+            <h2 id="legal-hub-search-heading" className="text-base font-semibold text-white">
+              Ask the AI Coach about UK employment law
+            </h2>
+            <p className="mt-1 text-sm text-slate-300">
+              Type a topic or a full question — we&apos;ll send it to the <span className="text-indigo-300">AI Coach</span> for a plain-English
+              answer with pointers to the relevant ACAS / GOV.UK / HMRC pages. The sections below remain unchanged.
+            </p>
+          </div>
+        </div>
+
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleAskAi(searchQuery);
+          }}
+          className="mt-4 flex flex-col gap-2 sm:flex-row"
+          role="search"
+        >
+          <label htmlFor="legal-hub-search-input" className="sr-only">Legal topic or question</label>
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
+            <input
+              id="legal-hub-search-input"
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="e.g. notice period, holiday pay, redundancy, grievance, zero-hours…"
+              autoComplete="off"
+              className="w-full rounded-lg border border-white/15 bg-slate-950/60 py-2.5 pl-9 pr-9 text-sm text-white placeholder:text-slate-500 focus:border-indigo-400/60 focus:outline-none focus:ring-2 focus:ring-indigo-400/30"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setIncludeGroundedSummary(false);
+                }}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition hover:bg-white/10 hover:text-white"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden />
+              </button>
+            )}
+          </div>
+          <button
+            type="submit"
+            disabled={trimmedQuery.length < 2}
+            className="mvh-card-glow inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Sparkles className="h-4 w-4" aria-hidden />
+            Ask AI Coach
+          </button>
+        </form>
+
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          <span className="text-xs text-slate-400">Popular:</span>
+          {[
+            'Notice period during probation',
+            'Statutory holiday entitlement',
+            'Redundancy pay calculation',
+            'Raising a grievance',
+            'Zero-hours worker rights',
+            'Right to work checks',
+            'Unfair dismissal (ET limit)',
+          ].map((topic) => (
+            <button
+              key={topic}
+              type="button"
+              onClick={() => {
+                setSearchQuery(topic);
+                handleAskAi(topic);
+              }}
+              className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] text-slate-300 transition hover:border-indigo-400/40 hover:bg-indigo-500/15 hover:text-white"
+            >
+              {topic}
+            </button>
+          ))}
+        </div>
+
+        {legalSearch.data && legalSearch.data.hits.length > 0 && (
+          <div className="mt-4 rounded-xl border border-indigo-500/20 bg-indigo-950/20 p-3">
+            {legalSearch.data.scope?.scopeLabel ? (
+              <p className="mb-2 text-[10px] leading-snug text-slate-500">{legalSearch.data.scope.scopeLabel}</p>
+            ) : null}
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-indigo-300/90">
+              Official sources ({legalSearch.data.hits.length})
+            </p>
+            <ul className="space-y-2">
+              {legalSearch.data.hits.map((h) => (
+                <li key={h.url}>
+                  <a
+                    href={h.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-medium text-white hover:text-indigo-200"
+                  >
+                    {h.title}
+                  </a>
+                  <p className="text-xs text-slate-400 mt-0.5">{h.snippet}</p>
+                  <span className="text-[10px] uppercase tracking-wide text-slate-500">{h.tier} · GOV.UK/ACAS/HMRC index</span>
+                </li>
+              ))}
+            </ul>
+            {!includeGroundedSummary ? (
+              <button
+                type="button"
+                onClick={() => setIncludeGroundedSummary(true)}
+                disabled={legalSearch.isFetching}
+                className="mt-3 w-full rounded-lg border border-emerald-400/35 bg-emerald-500/10 px-3 py-2 text-left text-xs font-medium text-emerald-100 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Summarise these official links (AI — catalogue only, no open web)
+              </button>
+            ) : null}
+            {includeGroundedSummary && legalSearch.isFetching ? (
+              <p className="mt-3 text-xs text-slate-400">Generating catalogue-grounded summary…</p>
+            ) : null}
+            {legalSearch.data.groundedSummary ? (
+              <div className="mt-3 rounded-lg border border-emerald-500/25 bg-emerald-950/30 p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-300/90">
+                  {legalSearch.data.groundedSummary.synthesisLabel} · {legalSearch.data.groundedSummary.modelTier} tier ·{' '}
+                  {legalSearch.data.groundedSummary.sourceCount} sources
+                </p>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-100">{legalSearch.data.groundedSummary.text}</p>
+                <p className="mt-2 text-[10px] text-slate-500">
+                  Educational only — verify live guidance on GOV.UK / ACAS / HMRC. Not legal advice.
+                </p>
+              </div>
+            ) : includeGroundedSummary && !legalSearch.isFetching ? (
+              <p className="mt-3 text-xs text-slate-500">
+                Summary unavailable (configure backend AI or try again). Official links above remain authoritative.
+              </p>
+            ) : null}
+          </div>
+        )}
+
+        {trimmedQuery.length >= 2 && (
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-white/10 bg-white/[0.04] px-3 py-3">
+            <div>
+              <p className="text-xs font-medium text-slate-200">Export catalogue search</p>
+              <p className="text-[11px] text-slate-500">PDF includes disclaimer + current official links for your query. Fixed cost: 1 credit (allowance first).</p>
+            </div>
+            <button
+              type="button"
+              disabled={!isSignedIn || exportPdfMutation.isPending}
+              onClick={() => {
+                setPdfError(null);
+                exportPdfMutation.mutate({ query: trimmedQuery, limit: 12 });
+              }}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-indigo-400/40 bg-indigo-600/90 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <FileDown className="h-4 w-4" aria-hidden />
+              {exportPdfMutation.isPending ? 'Preparing…' : 'Save as PDF (1 credit)'}
+            </button>
+          </div>
+        )}
+        {!isSignedIn && trimmedQuery.length >= 2 ? (
+          <p className="mt-2 text-xs text-amber-200/90">Sign in to export PDF (billing).</p>
+        ) : null}
+        {pdfError ? <p className="mt-2 text-xs text-rose-300">{pdfError}</p> : null}
+
+        {matchedSections.length > 0 && (
+          <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+              Also in this hub ({matchedSections.length})
+            </p>
+            <ul className="space-y-1.5">
+              {matchedSections.map((m) => (
+                <li key={`${m.sectionId}-${m.question}`} className="flex items-start gap-2 text-sm text-slate-200">
+                  <ChevronDown className="mt-0.5 h-3.5 w-3.5 shrink-0 -rotate-90 text-slate-500" aria-hidden />
+                  <span>
+                    <span className="text-slate-400">{m.sectionTitle} · </span>
+                    <span>{m.question}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-[11px] text-slate-500">
+              Tip: AI Coach answers your exact question; the curated sections below are a fixed reference.
+            </p>
+          </div>
+        )}
+
+        <p className="mt-3 text-[11px] text-slate-500">
+          AI answers are educational guidance only — verify figures on GOV.UK / ACAS / HMRC. No legal advice.
+        </p>
+      </section>
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

@@ -1,0 +1,4 @@
+ROLE	TASK_ID	STATE	TASK_TITLE	REPORT_PATH	RFQ_PATH	SLICE_TYPE	SCREEN	PRIORITY	NOTES
+AGENT_1	SCREEN-A-001	ASSIGNED	Dashboard aggregate snapshot	docs/qc-reports/dashboard-dashboard-aggregate-snapshot-ready-for-qc.md	docs/agent-work/dashboard-dashboard-aggregate-snapshot-rfq.md	SCREEN_SLICE	Dashboard	P0	First screen slice; paths aligned with REMAINING-SCREENS_FIRST_PRODUCTION_SLICES.tsv
+AGENT_2	SCREEN-B-001	IDLE	Job Radar report action bridge	docs/qc-reports/agent-2-job-radar-bridge-ready-for-qc.md	docs/agent-work/agent-2-job-radar-bridge-rfq.md	SCREEN_SLICE	Job Radar	P0	Queue after current tranche
+AGENT_3	FLOW-C-001	IDLE	Interview to Reports handoff persistence	docs/qc-reports/agent-3-interview-to-reports-ready-for-qc.md	docs/agent-work/agent-3-interview-to-reports-rfq.md	CROSS_FLOW_SLICE	Interview	P0	First cross-flow slice

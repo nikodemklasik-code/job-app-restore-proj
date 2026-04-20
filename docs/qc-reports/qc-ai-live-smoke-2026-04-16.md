@@ -6,6 +6,8 @@
 2. **Internal canonical repo / deploy marker** — **Not** a secret. Non-sensitive string(s) or paths used to verify correct **local folder**, **remote deploy path**, **host**, or pipeline target. Must not hold passwords, API keys, or SSH secrets.
 3. **Job Radar REST contract** — Source of truth: [`docs/job-radar/job-radar-openapi-v1.1.yaml`](../job-radar/job-radar-openapi-v1.1.yaml). An OpenAI **uploaded file** copy may exist with `file_id` **`file-PRcqRdUMTqfnaP8LKsh99k`** (Files API handle for that YAML); that id is **not** `OPENAI_API_KEY` and is **not** a deploy secret.
 
+Canonical prose for all three: [`docs/job-radar/CONTRACT-KEYS-AND-SECRETS.md`](../job-radar/CONTRACT-KEYS-AND-SECRETS.md).
+
 ## Goal
 
 Verify whether runtime AI generation path is operational (real model call path, not only deterministic metadata tests).
@@ -79,3 +81,11 @@ Set `OPENAI_API_KEY` in the environment used for smoke (e.g. project root `.env`
 Status:
 Not Approved
 ```
+
+## Required Next Action
+
+- `Owning agent: required work is executed in the repository, not in chat instead of implementation — see docs/squad/IMPLEMENTATION_EXECUTION_RULES.md §5a and Hard Rule 8.`
+
+1. Ustawić `OPENAI_API_KEY` w środowisku smoke, powtórzyć **Session 2 — Executed Checks** aż do `OPENAI_KEY_PRESENT` i udanego wywołania modelu (reguła odblokowania w tym pliku).  
+2. Po spełnieniu warunku — QC może dopisać nową sesję z wynikiem **Approved For Integration** dla tej bramki smoke, zgodnie z [`quality-control-developer-role-spec.md`](../policies/quality-control-developer-role-spec.md).  
+3. Do czasu spełnienia pkt 1 — status smoke pozostaje **Not Approved**; prace produktowe w innych modułach **nie** zastępują dowodu live w tym dokumencie.

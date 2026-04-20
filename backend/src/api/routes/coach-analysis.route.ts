@@ -8,10 +8,7 @@ export async function coachAnalysisRoute(body: {
   question: string;
   answer: string;
 }) {
-  const llmClient = new OpenAiLlmClient({
-    apiKey: process.env.OPENAI_API_KEY,
-    model: process.env.OPENAI_MODEL || 'gpt-5.4-thinking',
-  });
+  const llmClient = new OpenAiLlmClient({});
 
   const system = buildCoachSystemPrompt({
     targetRole: body.targetRole,

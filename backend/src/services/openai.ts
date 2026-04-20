@@ -1,7 +1,8 @@
-import OpenAI from 'openai';
 import {
   allowedAssistantSourceTypes,
+  assistantIntents,
   assistantModes,
+  type AssistantContextRef,
   type AssistantIntent,
   type AssistantResponseMeta,
   type AllowedAssistantSourceType,
@@ -11,33 +12,12 @@ import {
   buildUniversalBehaviorLayer,
   type BehaviorLayerTier,
 } from '../prompts/shared/universal-behavior-layer.js';
+import { getOpenAiClient } from '../lib/openai/openai.client.js';
+import { getDefaultTextModel } from '../lib/openai/model-registry.js';
 
-const ASSISTANT_INTENT_SET = new Set<AssistantIntent>([
-  'ask_for_advice',
-  'review_answer',
-  'rewrite_answer',
-  'prepare_for_interview',
-  'salary_negotiation',
-  'improve_cv',
-  'improve_profile',
-  'explain_fit',
-  'job_search_help',
-  'followup_message',
-  'skill_verification_request',
-  'route_to_module',
-]);
+const ASSISTANT_INTENT_SET = new Set<AssistantIntent>(assistantIntents);
 
-const apiKey = process.env.OPENAI_API_KEY;
-
-let _client: OpenAI | null = null;
-
-export const getOpenAIClient = (): OpenAI => {
-  if (!_client) {
-    if (!apiKey) throw new Error('Missing OPENAI_API_KEY');
-    _client = new OpenAI({ apiKey });
-  }
-  return _client;
-};
+export const getOpenAIClient = getOpenAiClient;
 
 // ── Source-type policy ────────────────────────────────────────────────────────
 
@@ -141,7 +121,7 @@ export const generateCareerResponse = async (input: GenerateCareerInput): Promis
   }
 
   const completion = await client.chat.completions.create({
-    model: 'gpt-4o',
+    model: getDefaultTextModel(),
     messages: [
       { role: 'system', content: system },
       ...prior,
@@ -158,9 +138,9 @@ export const generateCareerResponse = async (input: GenerateCareerInput): Promis
 
 function detectIntent(userText: string): AssistantIntent {
   const t = userText.toLowerCase();
-  if (/(salary|offer|negotiat|compensation)/.test(t)) return 'salary_negotiation';
-  if (/(interview|mock|question|star)/.test(t)) return 'prepare_for_interview';
   if (/(cv|resume|cover letter)/.test(t)) return 'improve_cv';
+  if (/(salary|offer|negotiat|compensation)/.test(t)) return 'salary_negotiation';
+  if (/(interview|\bmock\b|question|star)/.test(t)) return 'prepare_for_interview';
   if (/(profile|headline|summary|experience section)/.test(t)) return 'improve_profile';
   if (/(rewrite|rephrase|improve this answer|better wording)/.test(t)) return 'rewrite_answer';
   if (/(review|rate this answer|feedback on answer)/.test(t)) return 'review_answer';
@@ -170,6 +150,22 @@ function detectIntent(userText: string): AssistantIntent {
   if (/(skill gap|verify skill|market value|missing skills)/.test(t)) return 'skill_verification_request';
   if (/(which module|where should i go|route me|what next module)/.test(t)) return 'route_to_module';
   return 'ask_for_advice';
+}
+
+/** When client sends explicit mode, it wins over text-only intent heuristics. */
+function resolveIntent(userText: string, explicitMode?: AssistantMode): AssistantIntent {
+  if (explicitMode === 'cv') return 'improve_cv';
+  if (explicitMode === 'salary') return 'salary_negotiation';
+  if (explicitMode === 'interview') return 'prepare_for_interview';
+  return detectIntent(userText);
+}
+
+function inferModeFromText(userText: string): AssistantMode {
+  const t = userText.toLowerCase();
+  if (/(cv|resume|cover letter|ats)/.test(t)) return 'cv';
+  if (/(interview|\bmock\b|question|star)/.test(t)) return 'interview';
+  if (/(salary|offer|negotiat|compensation)/.test(t)) return 'salary';
+  return 'general';
 }
 
 function buildRouteSuggestions(userText: string): AssistantResponseMeta['routeSuggestions'] {
@@ -272,35 +268,80 @@ function buildActionSuggestions(userText: string, intent: AssistantIntent): Assi
       { id: 'route-fastest', label: 'Fastest Next Step', prompt: 'What is the fastest useful next step in product modules?' },
     ],
   };
-  return map[intent].slice(0, 3);
+  const suggestions = map[intent].slice(0, 3).map((item) => ({ ...item }));
+  for (const suggestion of suggestions) {
+    const label = suggestion.label.toLowerCase();
+    if (label.includes('interview')) {
+      suggestion.route = '/interview';
+      suggestion.mode = 'interview';
+    } else if (label.includes('salary') || label.includes('negotiation') || label.includes('offer')) {
+      suggestion.route = '/negotiation';
+      suggestion.mode = 'salary';
+    } else if (label.includes('cv')) {
+      suggestion.route = '/applications';
+      suggestion.mode = 'cv';
+    } else if (label.includes('profile')) {
+      suggestion.route = '/profile';
+      suggestion.mode = 'cv';
+    } else if (label.includes('skill')) {
+      suggestion.route = '/skills';
+      suggestion.mode = 'general';
+    } else {
+      suggestion.route = '/assistant';
+      suggestion.mode = 'general';
+    }
+  }
+  return suggestions;
 }
 
-export function buildAssistantResponseMeta(userText: string): AssistantResponseMeta {
-  const detectedIntent = detectIntent(userText);
-  const safeIntent = ASSISTANT_INTENT_SET.has(detectedIntent) ? detectedIntent : 'ask_for_advice';
-  const routeSuggestions = buildRouteSuggestions(userText);
-  const suggestedActions = buildActionSuggestions(userText, safeIntent);
-  const safetyNotes = buildSafetyNotes(userText);
-  const mappedRouteRefs: AssistantResponseMeta['contextRefs'] = routeSuggestions.map((item): AssistantResponseMeta['contextRefs'][number] => {
-    const refType: AssistantResponseMeta['contextRefs'][number]['type'] = item.route === '/skills'
+interface BuildAssistantResponseMetaInput {
+  userText: string;
+  mode?: AssistantMode;
+  sourceType?: AllowedAssistantSourceType;
+}
+
+function buildContextRefs(
+  routeSuggestions: AssistantResponseMeta['routeSuggestions'],
+  mode: AssistantMode,
+  sourceType: AllowedAssistantSourceType,
+): AssistantContextRef[] {
+  const refs: AssistantContextRef[] = [
+    { type: 'assistant', label: 'Mode', value: mode.toUpperCase() },
+    { type: 'assistant', label: 'Source Type', value: sourceType.replace(/_/g, ' ') },
+  ];
+  if (sourceType === 'job_listing_table') {
+    refs.push({ type: 'applications', label: 'Active Job Context', value: 'Job Listing Context Available' });
+  }
+  if (mode === 'cv') refs.push({ type: 'documents', label: 'Document Context', value: 'CV Improvement Focus' });
+  if (mode === 'interview') refs.push({ type: 'skills', label: 'Practice Context', value: 'Interview Readiness Focus' });
+  const routeRefs: AssistantContextRef[] = routeSuggestions.map((item): AssistantContextRef => ({
+    type: item.route === '/skills'
       ? 'skills'
       : item.route === '/applications'
         ? 'applications'
         : item.route === '/job-radar'
           ? 'job_radar'
-          : item.route === '/documents'
-            ? 'documents'
-            : 'assistant';
-    return {
-      type: refType,
-      label: 'Suggested Route',
-      value: item.label,
-    };
-  });
-  const contextRefs: AssistantResponseMeta['contextRefs'] = [
-    { type: 'assistant', label: 'Reply Mode', value: 'Assistant' },
-    ...mappedRouteRefs,
-  ];
+          : item.route === '/profile'
+            ? 'profile'
+            : item.route === '/documents'
+              ? 'documents'
+              : 'assistant',
+    label: 'Suggested Route',
+    value: item.label,
+  }));
+  return [...refs, ...routeRefs].slice(0, 6);
+}
+
+export function buildAssistantResponseMeta(input: BuildAssistantResponseMetaInput): AssistantResponseMeta {
+  const { userText } = input;
+  const mode = input.mode ?? inferModeFromText(userText);
+  const sourceType = input.sourceType ?? 'manual_user_input';
+  const detectedIntent = resolveIntent(userText, input.mode);
+  const safeIntent = ASSISTANT_INTENT_SET.has(detectedIntent) ? detectedIntent : 'ask_for_advice';
+  const routeSuggestions = buildRouteSuggestions(userText);
+  const suggestedActions = buildActionSuggestions(userText, safeIntent);
+  const safetyNotes = buildSafetyNotes(userText);
+  const contextRefs = buildContextRefs(routeSuggestions, mode, sourceType);
 
   const complianceFlags = [
     /(tribunal|acas|et1|employment tribunal|legal claim)/.test(userText.toLowerCase()) ? 'Case Practice Legal Caution' : null,
@@ -313,7 +354,7 @@ export function buildAssistantResponseMeta(userText: string): AssistantResponseM
     detectedIntent: safeIntent,
     suggestedActions,
     routeSuggestions,
-    contextRefs: contextRefs.slice(0, 4),
+    contextRefs,
     safetyNotes,
     nextBestStep,
     complianceFlags,

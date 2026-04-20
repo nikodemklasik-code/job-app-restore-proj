@@ -1,11 +1,7 @@
-import OpenAI from 'openai';
 import type { CandidateInsights } from './adaptiveInterviewer.js';
 import { UNIVERSAL_BEHAVIOR_LAYER } from '../prompts/shared/universal-behavior-layer.js';
-
-function getOpenAI(): OpenAI {
-  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not configured');
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-}
+import { getOpenAiClient } from '../lib/openai/openai.client.js';
+import { getDefaultTextModel } from '../lib/openai/model-registry.js';
 
 export interface InterviewMessage {
   role: 'system' | 'user' | 'assistant';
@@ -245,7 +241,7 @@ export async function* streamInterviewResponse(
   job: JobContext,
   mode?: string,
 ): AsyncGenerator<string> {
-  const openai = getOpenAI();
+  const openai = getOpenAiClient();
 
   const systemMessage: InterviewMessage = {
     role: 'system',
@@ -253,7 +249,7 @@ export async function* streamInterviewResponse(
   };
 
   const stream = await openai.chat.completions.create({
-    model: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
+    model: getDefaultTextModel(),
     messages: [systemMessage, ...messages],
     stream: true,
     temperature: 0.7,

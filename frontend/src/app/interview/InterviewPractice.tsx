@@ -1,7 +1,8 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { api, trpcClient } from '@/lib/api';
-import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, TrendingUp, FileDown, StickyNote, Star, Lock, Zap } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, TrendingUp, FileDown, StickyNote, Star, Zap, Lock } from 'lucide-react';
 import { interviewModeLabels } from '../../../../shared/interview';
 import type { InterviewMode } from '../../../../shared/interview';
 import { useBillingStore } from '@/stores/billingStore';
@@ -547,12 +548,12 @@ export default function InterviewPractice() {
   const { user } = useUser();
   const userId = user?.id ?? undefined;
 
-  // Billing / plan gate
   const { currentPlan, loadBillingData } = useBillingStore();
   useEffect(() => {
     if (userId && !currentPlan) void loadBillingData(userId);
   }, [userId, currentPlan, loadBillingData]);
-  const isPremium = currentPlan ? currentPlan.plan !== 'free' : null; // null = loading
+
+  const isPremium = currentPlan ? currentPlan.plan !== 'free' : null;
 
   // Phase / conversation
   const [phase, setPhase] = useState<Phase>('lobby');
@@ -1034,26 +1035,10 @@ export default function InterviewPractice() {
     const canJoin = (selectedJob !== null) || (customCompany.trim() !== '' && customRole.trim() !== '');
 
     return (
-      <div style={{ minHeight: '100vh', background: '#050a14', color: '#f9fafb', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ minHeight: '100vh', background: '#050a14', color: '#f9fafb', display: 'flex', flexDirection: 'column' }}>
         <style>{AVATAR_STYLES}</style>
 
-        {/* Credits bar */}
-        {currentPlan && (
-          <div style={{ width: '100%', maxWidth: 880, marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 12, padding: '10px 18px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Zap style={{ width: 16, height: 16, color: '#818cf8' }} />
-              <span style={{ fontSize: 13, color: '#94a3b8' }}>AI credits remaining:</span>
-              <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{currentPlan.credits.toLocaleString()}</span>
-            </div>
-            <a
-              href="/billing"
-              style={{ fontSize: 12, fontWeight: 600, color: '#a5b4fc', textDecoration: 'none', padding: '5px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: 8, transition: 'opacity 0.15s' }}
-            >
-              Buy Credits →
-            </a>
-          </div>
-        )}
-
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, width: '100%' }}>
         <div style={{ width: '100%', maxWidth: 880, display: 'flex', gap: 24, flexWrap: 'wrap', justifyContent: 'center' }}>
 
           {/* Left: camera preview tile */}
@@ -1088,6 +1073,10 @@ export default function InterviewPractice() {
               <div>
                 <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>AI Interview Coach</h1>
                 <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Share your answers — get structured coaching reports</p>
+                <p style={{ fontSize: 12, color: '#94a3b8', margin: '6px 0 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', boxShadow: '0 0 6px #34d399' }} />
+                  GPT-4o · online
+                </p>
               </div>
             </div>
 
@@ -1115,10 +1104,20 @@ export default function InterviewPractice() {
             </div>
 
             <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 8 }}>INTERVIEW FLOW</p>
-              <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>
-                Interview mode selection is disabled here. This flow is part of AI Assistant interview coaching.
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 8 }}>WHERE TO PICK INTERVIEW STYLE</p>
+              <p style={{ fontSize: 12, color: '#94a3b8', margin: 0, lineHeight: 1.55 }}>
+                This page is the <strong style={{ color: '#e2e8f0' }}>voice mock interview</strong> (use <strong style={{ color: '#e2e8f0' }}>Live Interview</strong> vs <strong style={{ color: '#e2e8f0' }}>Coaching Mode</strong> below). There is no behavioural/technical mode menu here — the voice session uses a fixed behavioural-style interviewer prompt in code.
               </p>
+              <ul style={{ margin: '10px 0 0', paddingLeft: 18, fontSize: 12, color: '#94a3b8', lineHeight: 1.55 }}>
+                <li>
+                  <strong style={{ color: '#e2e8f0' }}>AI Career Assistant</strong> — set reply mode to <strong style={{ color: '#e2e8f0' }}>Interview</strong> (right column on large screens) or tap <strong style={{ color: '#e2e8f0' }}>Interview Prep</strong> in topics:{' '}
+                  <Link to="/assistant" style={{ color: '#a5b4fc', fontWeight: 600 }}>Open Assistant →</Link>
+                </li>
+                <li style={{ marginTop: 6 }}>
+                  <strong style={{ color: '#e2e8f0' }}>Daily Warmup</strong> — short timed drills with category choice:{' '}
+                  <Link to="/warmup" style={{ color: '#a5b4fc', fontWeight: 600 }}>Open Warmup →</Link>
+                </li>
+              </ul>
             </div>
 
             {/* Jobs list */}
@@ -1145,18 +1144,17 @@ export default function InterviewPractice() {
               </div>
             ) : null}
 
-            {/* Premium gate — show upgrade prompt for free users */}
             {isPremium === false ? (
               <div style={{ background: 'linear-gradient(135deg,rgba(99,102,241,0.18),rgba(59,130,246,0.12))', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 14, padding: '20px 20px', textAlign: 'center' }}>
                 <Lock style={{ width: 28, height: 28, color: '#a5b4fc', margin: '0 auto 10px' }} />
                 <p style={{ fontWeight: 700, fontSize: 15, color: '#e2e8f0', marginBottom: 6 }}>AI Interview Practice is a Pro feature</p>
                 <p style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>Upgrade to Pro or Autopilot to unlock unlimited mock interviews and coaching plans.</p>
-                <a
-                  href="/billing"
+                <Link
+                  to="/billing"
                   style={{ display: 'inline-block', padding: '10px 28px', background: 'linear-gradient(135deg,#6366f1,#3b82f6)', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}
                 >
                   Upgrade to Pro →
-                </a>
+                </Link>
               </div>
             ) : (
             <>
@@ -1221,6 +1219,25 @@ export default function InterviewPractice() {
             </p>
           </div>
         </div>
+        </div>
+
+        {currentPlan && (
+          <div style={{ flexShrink: 0, width: '100%', padding: '12px 24px 20px', borderTop: '1px solid rgba(30,41,59,0.9)', background: 'rgba(5,10,20,0.95)' }}>
+            <div style={{ maxWidth: 880, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.18)', borderRadius: 12, padding: '10px 18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <Zap style={{ width: 16, height: 16, color: '#818cf8', flexShrink: 0 }} />
+                <span style={{ fontSize: 13, color: '#94a3b8' }}>AI credits remaining:</span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{currentPlan.credits.toLocaleString()}</span>
+              </div>
+              <Link
+                to="/billing"
+                style={{ fontSize: 12, fontWeight: 600, color: '#a5b4fc', textDecoration: 'none', padding: '5px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: 8 }}
+              >
+                Buy credits / Billing →
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

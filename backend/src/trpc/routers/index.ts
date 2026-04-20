@@ -22,8 +22,15 @@ import { coachRouter } from './coach.router.js';
 import { jobRadarRouter } from './jobRadar.router.js';
 import { documentsRouter } from './documents.router.js';
 import { skillLabRouter } from './skillLab.router.js';
+import { dashboardRouter } from './dashboard.router.js';
+import { legalHubRouter } from './legalHub.router.js';
+import { settingsRouter } from './settings.router.js';
+import { reportsRouter } from './reports.router.js';
 
 export const appRouter = router({
+  dashboard: dashboardRouter,
+  legalHub: legalHubRouter,
+  settings: settingsRouter,
   assistant: assistantRouter,
   coach: coachRouter,
   interview: interviewRouter,
@@ -47,6 +54,7 @@ export const appRouter = router({
   jobRadar: jobRadarRouter,
   documents: documentsRouter,
   skillLab: skillLabRouter,
+  reports: reportsRouter,
 });
 
 export type AppRouter = typeof appRouter;

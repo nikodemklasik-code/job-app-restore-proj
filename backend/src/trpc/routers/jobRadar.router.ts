@@ -1,7 +1,9 @@
-import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
+import { and, eq } from 'drizzle-orm';
 import { router, protectedProcedure } from '../trpc.js';
+import { db } from '../../db/index.js';
+import { applications } from '../../db/schema.js';
 import { getJobRadarModule } from '../../modules/job-radar/job-radar.module.js';
 import { startScanDtoSchema } from '../../modules/job-radar/api/job-radar.dto.js';
 import {
@@ -46,6 +48,88 @@ function mapHandlerError(err: unknown): never {
 }
 
 export const jobRadarRouter = router({
+  /**
+   * OpenAPI `POST /job-radar/scan/from-saved-job` intent: start a scan from a user’s saved application row.
+   */
+  startScanFromSavedJob: protectedProcedure
+    .input(
+      z.object({
+        applicationId: z.string().min(1).max(36),
+        forceRescan: z.boolean().optional().default(false),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const {
+        handlers: { startScanHandler },
+      } = getJobRadarModule();
+
+      const appRows = await db
+        .select()
+        .from(applications)
+        .where(and(eq(applications.id, input.applicationId), eq(applications.userId, ctx.user.id)))
+        .limit(1);
+
+      const app = appRows[0];
+      if (!app) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'APPLICATION_NOT_FOUND' });
+      }
+
+      const employerName = app.company?.trim() || app.jobTitle?.trim() || 'Saved application';
+      const jobTitle = app.jobTitle?.trim() || undefined;
+
+      const payload = startScanDtoSchema.parse({
+        scanTrigger: 'saved_job',
+        savedJobId: app.id,
+        employerName,
+        jobTitle,
+        forceRescan: input.forceRescan,
+      });
+
+      const idempotencyKey = ctx.req.get('idempotency-key') ?? ctx.req.get('Idempotency-Key') ?? null;
+
+      try {
+        const result = await startScanHandler.execute({
+          userId: ctx.user.id,
+          idempotencyKey,
+          payload,
+        });
+        return JobRadarHttpMapper.toScanAcceptedResponse(result);
+      } catch (err) {
+        mapHandlerError(err);
+      }
+    }),
+
+  /**
+   * OpenAPI `GET /job-radar/employers/{employer_id}/history` intent: prior reports for the same stable employer id.
+   */
+  getEmployerHistory: protectedProcedure
+    .input(
+      z.object({
+        employerId: z.string().min(4).max(40),
+        limit: z.number().int().min(1).max(50).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const {
+        repositories: { reportRepository },
+      } = getJobRadarModule();
+      const history = await reportRepository.listEmployerHistoryForUser(
+        ctx.user.id,
+        input.employerId,
+        input.limit ?? 24,
+      );
+      return {
+        employerId: input.employerId,
+        history: history.map((h) => ({
+          report_id: h.reportId,
+          created_at: h.createdAt ? h.createdAt.toISOString() : null,
+          employer_score: h.employerScore,
+          offer_score: h.offerScore,
+          risk_score: h.riskScore,
+        })),
+      };
+    }),
+
   rescanReport: protectedProcedure.input(z.object({ reportId: z.string().min(1) })).mutation(async ({ ctx, input }) => {
     const {
       handlers: { startScanHandler },
@@ -61,13 +145,14 @@ export const jobRadarRouter = router({
 
       const base = scan.inputPayload as Record<string, unknown>;
       const payload = startScanDtoSchema.parse({ ...base, forceRescan: true });
+      const idempotencyKey = ctx.req.get('idempotency-key') ?? ctx.req.get('Idempotency-Key') ?? null;
 
       const result = await startScanHandler.execute({
         userId: ctx.user.id,
-        idempotencyKey: randomUUID(),
+        idempotencyKey,
         payload,
       });
-      return JobRadarHttpMapper.toStartScanResponse(result);
+      return JobRadarHttpMapper.toScanAcceptedResponse(result);
     } catch (err) {
       mapHandlerError(err);
     }
@@ -85,7 +170,7 @@ export const jobRadarRouter = router({
         idempotencyKey,
         payload: input,
       });
-      return JobRadarHttpMapper.toStartScanResponse(result);
+      return JobRadarHttpMapper.toScanAcceptedResponse(result);
     } catch (err) {
       mapHandlerError(err);
     }
@@ -102,7 +187,7 @@ export const jobRadarRouter = router({
           userId: ctx.user.id,
           scanId: input.scanId,
         });
-        return JobRadarHttpMapper.toScanStatusResponse(scan);
+        return JobRadarHttpMapper.toScanProgressResponseWire(scan);
       } catch (err) {
         mapHandlerError(err);
       }
@@ -122,6 +207,16 @@ export const jobRadarRouter = router({
       } catch (err) {
         mapHandlerError(err);
       }
+    }),
+
+  listMyReports: protectedProcedure
+    .input(z.object({ limit: z.number().int().min(1).max(50).optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const {
+        repositories: { reportRepository },
+      } = getJobRadarModule();
+      const limit = input?.limit ?? 12;
+      return reportRepository.listRecentForUser(ctx.user.id, limit);
     }),
 
   createComplaint: protectedProcedure.input(createComplaintDtoSchema).mutation(async ({ ctx, input }) => {

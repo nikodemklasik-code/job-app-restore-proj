@@ -3,9 +3,10 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import express from 'express';
 import Stripe from 'stripe';
-import OpenAI from 'openai';
 import multer from 'multer';
 import { streamInterviewResponse } from './services/interviewConversation.js';
+import { getOpenAiClient } from './lib/openai/openai.client.js';
+import { getDefaultTextModel } from './lib/openai/model-registry.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Try multiple levels up to find .env — handles both old (dist/server.js) and new (dist/backend/src/server.js) layouts
@@ -30,9 +31,12 @@ import rateLimit from 'express-rate-limit';
 import { createExpressMiddleware } from '@trpc/server/adapters/express';
 import { appRouter } from './trpc/routers/index.js';
 import { createContext } from './trpc/trpc.js';
+import { createJobRadarOpenApiRouter } from './modules/job-radar/api/job-radar.express.router.js';
 import { runRetentionJob } from './services/retentionJob.js';
+import { resolveExpressTrustProxy } from './runtime/express-trust-proxy.js';
 
 const app = express();
+app.set('trust proxy', resolveExpressTrustProxy());
 
 app.use(helmet({ contentSecurityPolicy: false })); // CSP disabled — frontend is separate
 
@@ -59,7 +63,7 @@ const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
 app.use(cors({
   origin: frontendUrl,
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
 }));
 
 // Stripe webhook — MUST be before express.json() and before global rate limit (Stripe retries / bursts).
@@ -115,6 +119,9 @@ app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (r
 app.use(express.json());
 app.use(generalLimiter);
 
+// Job Radar OpenAPI v1.1 literal REST paths (same handlers as `jobRadar` tRPC router)
+app.use('/job-radar', createJobRadarOpenApiRouter());
+
 // Strict rate limit for AI-heavy endpoints (streaming, TTS, STT, negotiation, assistant)
 app.use('/api/interview', aiLimiter);
 app.use('/api/negotiation', aiLimiter);
@@ -151,6 +158,15 @@ app.post('/api/interview/stream', async (req, res) => {
     return;
   }
 
+  if (!process.env.OPENAI_API_KEY?.trim()) {
+    res.status(503).json({
+      error: 'OPENAI_NOT_CONFIGURED',
+      message:
+        'OPENAI_API_KEY is missing or empty. Set it in the backend environment to use the interview AI stream (see deployment docs / qc-ai-live-smoke).',
+    });
+    return;
+  }
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -172,9 +188,9 @@ app.post('/api/interview/stream', async (req, res) => {
       // Send insights metadata as first SSE event
       res.write(`data: ${JSON.stringify({ type: 'insights', ...insights })}\n\n`);
 
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const openai = getOpenAiClient();
       const stream = await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
+        model: getDefaultTextModel(),
         messages: [{ role: 'system', content: systemPrompt }, ...validMessages],
         stream: true,
         temperature: 0.7,
@@ -199,29 +215,59 @@ app.post('/api/interview/stream', async (req, res) => {
   }
 });
 
-// TTS endpoint — converts AI text to speech
-app.post('/api/interview/tts', async (req, res) => {
-  const { text } = req.body as { text: string };
+// TTS — UK English product default via model + instructions (override with OPENAI_TTS_MODEL=tts-1 if needed)
+const TTS_LEGACY_VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'] as const;
+const TTS_MINI_EXTRA_VOICES = ['ash', 'ballad', 'coral', 'sage', 'verse', 'marin', 'cedar'] as const;
+const TTS_MINI_VOICE_SET = new Set<string>([...TTS_LEGACY_VOICES, ...TTS_MINI_EXTRA_VOICES]);
+const TTS_MAX_INPUT_CHARS = 4000;
+const UK_TTS_INSTRUCTIONS =
+  process.env.OPENAI_TTS_INSTRUCTIONS?.trim() ||
+  'Speak clearly in professional British English (neutral UK workplace accent). Natural intonation; do not use American pronunciation or vocabulary choices.';
 
-  if (!text || text.length > 500) {
+function resolveTtsVoice(requestedVoice: unknown, model: string): string {
+  const v = typeof requestedVoice === 'string' ? requestedVoice.trim() : '';
+  const defaultMini = (process.env.OPENAI_TTS_DEFAULT_VOICE ?? 'coral').trim() || 'coral';
+  if (model.startsWith('gpt-4o')) {
+    if (TTS_MINI_VOICE_SET.has(v)) return v;
+    return TTS_MINI_VOICE_SET.has(defaultMini) ? defaultMini : 'coral';
+  }
+  if (TTS_LEGACY_VOICES.includes(v as (typeof TTS_LEGACY_VOICES)[number])) return v;
+  return 'onyx';
+}
+
+app.post('/api/interview/tts', async (req, res) => {
+  const { text, voice: requestedVoice } = req.body as { text?: string; voice?: string };
+  const trimmed = typeof text === 'string' ? text.trim() : '';
+
+  if (!trimmed || trimmed.length > TTS_MAX_INPUT_CHARS) {
     res.status(400).json({ error: 'Invalid text' });
     return;
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    res.status(503).json({ error: 'TTS not configured' });
+  if (!apiKey?.trim()) {
+    res.status(503).json({
+      error: 'OPENAI_NOT_CONFIGURED',
+      message: 'OPENAI_API_KEY is missing or empty. TTS is unavailable until the key is set on the backend.',
+    });
     return;
   }
 
+  const ttsModel = (process.env.OPENAI_TTS_MODEL ?? 'gpt-4o-mini-tts').trim() || 'gpt-4o-mini-tts';
+  const voice = resolveTtsVoice(requestedVoice, ttsModel);
+
   try {
-    const openai = new OpenAI({ apiKey });
-    const mp3 = await openai.audio.speech.create({
-      model: 'tts-1',
-      voice: 'onyx', // Deep professional male voice
-      input: text,
+    const openai = getOpenAiClient();
+    const payload: Record<string, unknown> = {
+      model: ttsModel,
+      voice,
+      input: trimmed,
       speed: 0.95,
-    });
+    };
+    if (ttsModel.startsWith('gpt-4o')) {
+      payload.instructions = UK_TTS_INSTRUCTIONS;
+    }
+    const mp3 = await openai.audio.speech.create(payload as Parameters<typeof openai.audio.speech.create>[0]);
 
     const buffer = Buffer.from(await mp3.arrayBuffer());
     res.setHeader('Content-Type', 'audio/mpeg');
@@ -238,8 +284,11 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 // Whisper STT — transcribe audio from browser MediaRecorder
 app.post('/api/interview/transcribe', upload.single('audio'), async (req, res) => {
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    res.status(503).json({ error: 'STT not configured' });
+  if (!apiKey?.trim()) {
+    res.status(503).json({
+      error: 'OPENAI_NOT_CONFIGURED',
+      message: 'OPENAI_API_KEY is missing or empty. Speech-to-text is unavailable until the key is set on the backend.',
+    });
     return;
   }
 
@@ -249,12 +298,13 @@ app.post('/api/interview/transcribe', upload.single('audio'), async (req, res) =
   }
 
   try {
-    const openai = new OpenAI({ apiKey });
+    const openai = getOpenAiClient();
     const file = new File([req.file.buffer], 'audio.webm', { type: req.file.mimetype || 'audio/webm' });
     const transcription = await openai.audio.transcriptions.create({
       file,
       model: 'whisper-1',
       language: 'en',
+      prompt: 'British English. UK workplace and interview vocabulary.',
     });
     res.json({ transcript: transcription.text });
   } catch (err) {
@@ -271,6 +321,15 @@ app.post('/api/negotiation/stream', async (req, res) => {
 
   if (!messages || !Array.isArray(messages)) {
     res.status(400).json({ error: 'Missing messages' });
+    return;
+  }
+
+  if (!process.env.OPENAI_API_KEY?.trim()) {
+    res.status(503).json({
+      error: 'OPENAI_NOT_CONFIGURED',
+      message:
+        'OPENAI_API_KEY is missing or empty. Set it in the backend environment to use the negotiation AI stream.',
+    });
     return;
   }
 
@@ -307,6 +366,15 @@ app.post('/api/negotiation/simulate', async (req, res) => {
 
   if (!messages || !Array.isArray(messages) || !offer) {
     res.status(400).json({ error: 'Missing messages or offer' });
+    return;
+  }
+
+  if (!process.env.OPENAI_API_KEY?.trim()) {
+    res.status(503).json({
+      error: 'OPENAI_NOT_CONFIGURED',
+      message:
+        'OPENAI_API_KEY is missing or empty. Set it in the backend environment to use the negotiation simulation stream.',
+    });
     return;
   }
 

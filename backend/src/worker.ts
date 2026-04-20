@@ -228,7 +228,14 @@ async function processBatch(): Promise<void> {
             log(`✓ Email-applied to job ${job.id}`);
           } else {
             log(`– Email-apply skipped for job ${job.id} (${result})`);
-            await markStatus(job.id, result === 'skipped' ? 'skipped' : 'failed');
+            const [row] = await db
+              .select({ status: autoApplyQueue.status })
+              .from(autoApplyQueue)
+              .where(eq(autoApplyQueue.id, job.id))
+              .limit(1);
+            if (row?.status === 'processing') {
+              await markStatus(job.id, result === 'skipped' ? 'skipped' : 'failed');
+            }
           }
         } else {
           // ── Browser-automation apply ──────────────────────────────────────

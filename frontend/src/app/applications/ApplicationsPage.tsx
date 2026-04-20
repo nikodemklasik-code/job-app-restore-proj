@@ -142,13 +142,13 @@ export default function ApplicationsPage() {
             <Card className="mvh-card-glow">
               <CardContent className="flex h-28 items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Loading Applications...
+                Loading applications…
               </CardContent>
             </Card>
           ) : hasApplicationsError ? (
             <Card className="mvh-card-glow">
               <CardContent className="py-6 text-sm text-rose-600 dark:text-rose-400">
-                Failed To Load Applications. Please Refresh And Try Again.
+                Could not load applications. Refresh the page and try again.
               </CardContent>
             </Card>
           ) : applications.length === 0 ? (
@@ -304,7 +304,7 @@ export default function ApplicationsPage() {
         <div className="space-y-6">
           <Card className="mvh-card-glow p-5">
             <CardHeader className="p-0">
-              <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-100">Email Send Panel</CardTitle>
+              <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-100">Email send panel</CardTitle>
             </CardHeader>
 
             {selectedApplication ? (
@@ -356,7 +356,7 @@ export default function ApplicationsPage() {
             ) : (
               <div className="mvh-card-glow mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-8 text-center dark:border-slate-600 dark:bg-slate-800/40">
                 <Mail className="mx-auto h-8 w-8 text-slate-400 dark:text-slate-500" aria-hidden />
-                <p className="mt-3 text-sm font-medium text-slate-600 dark:text-slate-300">Select An Application</p>
+                <p className="mt-3 text-sm font-medium text-slate-600 dark:text-slate-300">Select an application</p>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   Choose a card on the left to prepare documents and send employer email.
                 </p>
@@ -366,7 +366,7 @@ export default function ApplicationsPage() {
 
           <Card className="mvh-card-glow p-5">
             <CardHeader className="p-0">
-              <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-100">Lifecycle History</CardTitle>
+              <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-100">Lifecycle history</CardTitle>
             </CardHeader>
 
             {logsQuery.isLoading ? (
@@ -376,7 +376,7 @@ export default function ApplicationsPage() {
               </div>
             ) : hasLogsError ? (
               <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">
-                Failed To Load Lifecycle History.
+                Could not load lifecycle history.
               </p>
             ) : logsQuery.data?.length ? (
               <div className="mt-4 space-y-2">
@@ -394,7 +394,7 @@ export default function ApplicationsPage() {
               </div>
             ) : (
               <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-                No Lifecycle Events Yet.
+                No lifecycle events yet.
               </p>
             )}
           </Card>

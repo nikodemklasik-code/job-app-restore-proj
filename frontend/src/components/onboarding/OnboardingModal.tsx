@@ -114,9 +114,9 @@ const STEPS: Step[] = [
     icon: Sparkles,
     title: 'Welcome to MultivoHub',
     description:
-      'Your AI-powered career workspace. We help you find great roles, prepare for interviews, and land the job — faster.',
+      'Your AI-powered career workspace. We help you find great roles, prepare for interviews, and land the job — faster. Stay signed in: if you ever see Authentication required, use Sign in again from the user menu or the auth page — you will return to where you left off. Sending applications from your own email is separate: configure Settings → Email and SMTP after you are signed in.',
     aiTip:
-      "Hey! I'm your AI guide. I'll walk you through the key features in under 2 minutes. You can revisit any section from the sidebar at any time.",
+      "Hey! I'm your AI guide. I'll walk you through the key features in under 2 minutes. You can revisit any section from the sidebar at any time. If something says Authentication required, that is your account session with the server — sign in again, then open Settings → System Readiness and use Check API session to confirm the server recognises you.",
   },
   {
     icon: User,

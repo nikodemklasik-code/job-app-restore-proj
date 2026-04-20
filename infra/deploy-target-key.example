@@ -1,0 +1,8 @@
+# Copy to the VPS as: ${CANONICAL_REMOTE_BASE}/.deploy-target-key
+# (app root on the server — see .canonical-repo-key)
+# NOT a secret — integrity marker only.
+
+PROJECT_KEY=MULTIVOHUB_JOBAPP_CANONICAL
+DEPLOY_TARGET=jobs.multivohub.com
+REMOTE_PATH=/root/project
+REMOTE_HOST=147.93.86.209

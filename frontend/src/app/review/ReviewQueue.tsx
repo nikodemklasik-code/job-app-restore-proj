@@ -164,6 +164,7 @@ type LogEntry = { id: string; action: string; createdAt: Date | string };
 function QueueCard({
   item,
   onStatusChange,
+  onFollowUp,
   onGoToInterview,
   onGoToNegotiation,
   isPending,
@@ -174,6 +175,7 @@ function QueueCard({
 }: {
   item: QueueItem;
   onStatusChange: (id: string, status: AppStatus) => void;
+  onFollowUp: (id: string) => void;
   onGoToInterview: () => void;
   onGoToNegotiation: () => void;
   isPending: boolean;
@@ -229,9 +231,17 @@ function QueueCard({
         {action === 'follow_up' && (
           <>
             <button
-              onClick={() => onStatusChange(app.id, 'interview')}
+              onClick={() => onFollowUp(app.id)}
               disabled={isPending}
               className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500/15 px-3 py-1.5 text-xs font-medium text-amber-300 hover:bg-amber-500/25 transition-colors disabled:opacity-50"
+            >
+              <Mail className="h-3.5 w-3.5" />
+              Mark followed up
+            </button>
+            <button
+              onClick={() => onStatusChange(app.id, 'interview')}
+              disabled={isPending}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-400 hover:bg-white/10 transition-colors disabled:opacity-50"
             >
               <CalendarClock className="h-3.5 w-3.5" />
               Got interview
@@ -347,8 +357,8 @@ function EmptyState({ hasApps }: { hasApps: boolean }) {
         </>
       ) : (
         <>
-          <p className="font-semibold text-white">No applications yet</p>
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="text-balance font-semibold text-white">No applications yet</p>
+          <p className="mx-auto mt-2 max-w-md text-pretty text-sm text-slate-500">
             Start tracking your job applications and this queue will surface what needs action.
           </p>
           <button
@@ -402,6 +412,10 @@ export default function ReviewQueue() {
     },
   });
 
+  const followUpMutation = api.review.followUp.useMutation({
+    onSuccess: () => void appsQuery.refetch(),
+  });
+
   if (!isLoaded) return null;
 
   if (!userId) {
@@ -453,7 +467,7 @@ export default function ReviewQueue() {
           </div>
           <div>
             <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl font-bold text-white">Applications Review</h1>
+              <h1 className="text-balance text-2xl font-bold text-white">Review queue</h1>
               {highCount > 0 && (
                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
                   {highCount}
@@ -522,9 +536,10 @@ export default function ReviewQueue() {
               key={item.app.id}
               item={item}
               onStatusChange={(id, status) => statusMutation.mutate({ id, status, userId })}
+              onFollowUp={(id) => followUpMutation.mutate({ applicationId: id, note: 'Follow-up sent' })}
               onGoToInterview={() => navigate('/interview')}
               onGoToNegotiation={() => navigate('/negotiation')}
-              isPending={statusMutation.isPending}
+              isPending={statusMutation.isPending || followUpMutation.isPending}
               logsExpanded={logForAppId === item.app.id}
               onToggleLogs={() => setLogForAppId((cur) => (cur === item.app.id ? null : item.app.id))}
               logEntries={(logsQuery.data ?? []) as LogEntry[]}

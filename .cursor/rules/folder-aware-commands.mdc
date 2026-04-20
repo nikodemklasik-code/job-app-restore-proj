@@ -26,7 +26,7 @@ This monorepo uses distinct packages:
 - **Frontend:** `/Users/nikodem/job-app-restore/proj/frontend` — `npm run build` → `dist/`
 - **Backend:** `/Users/nikodem/job-app-restore/proj/backend` — `npm run build` → `dist/`
 
-Deployment paths on VPS (see `scripts/deploy.sh`): app root `/var/www/multivohub-jobapp`, frontend static `${REMOTE_BASE}/frontend/dist/`, backend `${REMOTE_BASE}/dist/backend/`, PM2 `infra/ecosystem.config.cjs`.
+Deployment paths on VPS (see `scripts/deploy.sh` and `.canonical-repo-key`): app root `/root/project`, frontend static `${REMOTE_BASE}/frontend/dist/`, backend `${REMOTE_BASE}/dist/backend/`, PM2 `infra/ecosystem.config.cjs`.
 
 ## Verification
 

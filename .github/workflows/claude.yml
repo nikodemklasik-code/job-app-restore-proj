@@ -48,4 +48,4 @@ jobs:
             - Never commit directly to main or copilot/* branches
             - Work on the claude/improvements branch or create claude/<topic> branches
             - Backend deploy: rsync to /root/project/backend/dist/ then pm2 restart jobapp-server
-            - Frontend deploy: rsync to /var/www/multivohub/
+            - Frontend deploy: rsync to /root/project/frontend/dist/ (see .canonical-repo-key and scripts/deploy.sh)

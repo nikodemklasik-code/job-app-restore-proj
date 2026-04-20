@@ -3,11 +3,13 @@ import {
   Send, Bot, User, RefreshCw, X, Volume2, VolumeX,
   MessageSquarePlus, Mic, MicOff, Sparkles,
   FileText, TrendingUp, Briefcase, DollarSign, ChevronRight, Route, Link2,
+  AlertTriangle, ShieldAlert,
 } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useCareerAssistantStore } from '@/stores/careerAssistantStore';
 import type { AssistantResponseMeta } from '../../../../shared/assistant';
+import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -167,60 +169,61 @@ function MessageBubble({
 
 // ── Empty state ───────────────────────────────────────────────────────────────
 
-function EmptyState({ onAction, isSending }: {
-  onAction: (prompt: string, mode: 'general' | 'cv' | 'interview' | 'salary') => void;
+function EmptyState() {
+  return (
+    <div className="flex h-full min-h-[200px] flex-col items-center justify-center gap-4 px-4 py-8">
+      <div className="text-center">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-xl shadow-indigo-500/30">
+          <Sparkles className="h-7 w-7 text-white" />
+        </div>
+        <h2 className="text-lg font-bold text-white">Start This Session</h2>
+        <p className="mx-auto mt-2 max-w-md text-sm text-slate-400">
+          Pick a topic above (no scrolling) or type below. For grounded answers across sessions, upload a CV or career PDF in{' '}
+          <Link to="/documents" className="font-medium text-indigo-300 underline-offset-2 hover:underline">
+            Document Lab
+          </Link>
+          — that is the durable context this product is built around, not a long scrollback list.
+        </p>
+        <div className="mx-auto mt-4 flex w-fit items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-xs font-medium text-emerald-400">Assistant online</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Fixed topic row — stays outside the message scroll region. */
+function TopicPickerBar({
+  onPick,
+  isSending,
+}: {
+  onPick: (prompt: string, mode: 'general' | 'cv' | 'interview' | 'salary') => void;
   isSending: boolean;
 }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-8 px-4 py-8">
-      {/* Hero */}
-      <div className="text-center">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-xl shadow-indigo-500/30">
-          <Sparkles className="h-8 w-8 text-white" />
-        </div>
-        <h2 className="text-xl font-bold text-white">Career Assistant</h2>
-        <p className="mt-1.5 text-sm text-slate-400">
-          Chat uses GPT-4o with modes: general, CV, interview, salary — same as the backend assistant router.
-        </p>
-        <div className="mx-auto mt-3 flex w-fit items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-xs font-medium text-emerald-400">Online</span>
-        </div>
+    <div className="shrink-0 rounded-2xl border border-white/10 bg-gradient-to-r from-white/[0.04] to-indigo-500/[0.06] p-3 shadow-sm">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Topics</p>
+        <span className="hidden text-[10px] text-slate-600 sm:inline">Tap once — no menu scroll</span>
       </div>
-
-      {/* Quick actions */}
-      <div className="w-full max-w-lg">
-        <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">
-          Quick start
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          {QUICK_ACTIONS.map((action) => {
-            const Icon = action.icon;
-            return (
-              <button
-                key={action.label}
-                onClick={() => !isSending && onAction(action.prompt, action.mode)}
-                disabled={isSending}
-                className={`group flex flex-col items-start gap-2 rounded-2xl border p-4 text-left transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50 ${action.bg}`}
-              >
-                <div className={`rounded-xl p-2 ${action.bg}`}>
-                  <Icon className={`h-4 w-4 ${action.color}`} />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-white">{action.label}</p>
-                  <p className="mt-0.5 text-xs text-slate-500 leading-snug line-clamp-2">
-                    {action.prompt}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {QUICK_ACTIONS.map((action) => {
+          const Icon = action.icon;
+          return (
+            <button
+              key={action.label}
+              type="button"
+              onClick={() => !isSending && onPick(action.prompt, action.mode)}
+              disabled={isSending}
+              className={`flex min-h-[72px] flex-col items-start gap-1.5 rounded-xl border px-3 py-2.5 text-left transition hover:brightness-110 disabled:opacity-45 ${action.bg}`}
+            >
+              <Icon className={`h-4 w-4 shrink-0 ${action.color}`} />
+              <span className="text-xs font-semibold leading-tight text-white">{action.label}</span>
+            </button>
+          );
+        })}
       </div>
-
-      <p className="text-xs text-slate-600 text-center">
-        Follow-up messages keep full conversation context
-      </p>
     </div>
   );
 }
@@ -251,6 +254,29 @@ function ContextSidebar({
         <p className="text-xs text-slate-500">Conversation Depth</p>
         <p className="mt-0.5 text-sm font-semibold text-white">{messageCount} turns</p>
       </div>
+      {meta?.aiProductMeta ? (
+        <div className="rounded-xl border border-sky-500/25 bg-sky-500/10 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-sky-300/90">AI usage (product)</p>
+          <p className="mt-1 text-sm text-white">{meta.aiProductMeta.interactionModeLabel}</p>
+          <p className="mt-1 text-xs text-slate-300">
+            Typical credits this turn: {meta.aiProductMeta.estimatedCredits.min}–{meta.aiProductMeta.estimatedCredits.max}
+            <span className="text-slate-500"> · cap {meta.aiProductMeta.maxApprovedCredits}</span>
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-slate-400">
+            {meta.aiProductMeta.usesPremiumTier ? (
+              <span className="rounded border border-amber-400/30 bg-amber-500/15 px-1.5 py-0.5 text-amber-100">Premium depth</span>
+            ) : (
+              <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5">Standard model tier</span>
+            )}
+            {meta.aiProductMeta.usesRealtimeVoice ? (
+              <span className="rounded border border-violet-400/30 bg-violet-500/15 px-1.5 py-0.5 text-violet-100">Voice / realtime</span>
+            ) : null}
+            {meta.aiProductMeta.legalSourceRestricted ? (
+              <span className="rounded border border-emerald-400/30 bg-emerald-500/15 px-1.5 py-0.5 text-emerald-100">Legal sources locked</span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       <div className="rounded-xl border border-white/10 bg-white/5 p-3">
         <p className="text-xs text-slate-500">Detected Intent</p>
         <p className="mt-0.5 text-sm text-slate-300">
@@ -269,7 +295,29 @@ function ContextSidebar({
       </div>
       <div className="rounded-xl border border-white/10 bg-white/5 p-3">
         <p className="text-xs text-slate-500">Safety Layer</p>
-        <p className="mt-0.5 text-sm text-slate-300">{meta?.safetyNotes?.[0]?.text ?? 'General Career Guidance Only.'}</p>
+        {meta?.safetyNotes?.length ? (
+          <ul className="mt-2 space-y-2">
+            {meta.safetyNotes.map((note) => (
+              <li
+                key={note.text}
+                className={`rounded-lg border px-2.5 py-1.5 text-xs leading-snug ${
+                  note.level === 'block'
+                    ? 'border-rose-500/35 bg-rose-500/15 text-rose-100'
+                    : note.level === 'warning'
+                      ? 'border-amber-500/35 bg-amber-500/10 text-amber-100'
+                      : 'border-white/10 bg-white/[0.04] text-slate-300'
+                }`}
+              >
+                <span className="font-semibold text-white/90">
+                  {note.level === 'block' ? 'Block: ' : note.level === 'warning' ? 'Warning: ' : 'Info: '}
+                </span>
+                {note.text}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-0.5 text-sm text-slate-300">General Career Guidance Only.</p>
+        )}
       </div>
       {meta?.complianceFlags?.length ? (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
@@ -311,7 +359,7 @@ function ActionRail({
     { label: 'Open Interview', path: '/interview', prompt: 'Move me to mock interview practice.', mode: 'interview' as const },
     { label: 'Open Negotiation', path: '/negotiation', prompt: 'Help me prepare compensation and boundary language.', mode: 'salary' as const },
     { label: 'Open Job Radar', path: '/job-radar', prompt: 'Review this employer risk and fit signals.', mode: 'general' as const },
-    { label: 'Open Applications Review', path: '/review', prompt: 'What should I follow up and when?', mode: 'general' as const },
+    { label: 'Open review queue', path: '/review', prompt: 'What should I follow up and when?', mode: 'general' as const },
     { label: 'Open Case Practice', path: '/case-practice', prompt: 'I want pressure-based case rehearsal.', mode: 'general' as const },
   ];
   const actions = meta?.suggestedActions?.length
@@ -392,11 +440,98 @@ function RoutingBlocks({
   );
 }
 
+/** FU-1: distinct copy/UX for sensitive-case tiers from `AssistantResponseMeta.safetyNotes` (warning vs block). */
+function SensitiveCaseLayer({
+  meta,
+  onNewChat,
+  onOpenCasePractice,
+}: {
+  meta: AssistantResponseMeta | null;
+  onNewChat: () => void;
+  onOpenCasePractice: () => void;
+}) {
+  const notes = meta?.safetyNotes ?? [];
+  const blockNotes = notes.filter((n) => n.level === 'block');
+  const warningNotes = notes.filter((n) => n.level === 'warning');
+  const hasBlock = blockNotes.length > 0;
+  const hasWarning = warningNotes.length > 0;
+
+  if (!hasBlock && !hasWarning) return null;
+
+  if (hasBlock) {
+    return (
+      <div
+        role="alert"
+        className="rounded-2xl border border-rose-500/40 bg-rose-950/50 px-4 py-3 text-sm text-rose-100 shadow-lg shadow-rose-900/20"
+      >
+        <div className="flex items-start gap-3">
+          <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-rose-300" aria-hidden />
+          <div className="min-w-0 flex-1 space-y-2">
+            <p className="font-semibold text-white">We Cannot Continue This Thread Here</p>
+            <ul className="list-inside list-disc space-y-1 text-xs text-rose-100/95">
+              {blockNotes.map((n) => (
+                <li key={n.text}>{n.text}</li>
+              ))}
+            </ul>
+            <p className="text-xs text-rose-200/80">
+              Start a new chat for general career topics, or use Case Practice for structured workplace rehearsal (not legal advice).
+            </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button
+                type="button"
+                onClick={onNewChat}
+                className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20"
+              >
+                New Chat
+              </button>
+              <button
+                type="button"
+                onClick={onOpenCasePractice}
+                className="rounded-lg border border-rose-400/40 bg-rose-500/20 px-3 py-1.5 text-xs font-semibold text-rose-50 transition hover:bg-rose-500/30"
+              >
+                Open Case Practice
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      role="status"
+      className="rounded-2xl border border-amber-500/35 bg-amber-950/40 px-4 py-3 text-sm text-amber-50 shadow-md shadow-amber-900/10"
+    >
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" aria-hidden />
+        <div className="min-w-0 flex-1 space-y-2">
+          <p className="font-semibold text-white">Sensitive Topic Notice</p>
+          <ul className="list-inside list-disc space-y-1 text-xs text-amber-100/90">
+            {warningNotes.map((n) => (
+              <li key={n.text}>{n.text}</li>
+            ))}
+          </ul>
+          <p className="text-xs text-amber-200/85">
+            You can keep chatting here for preparation and wording. For formal processes or urgent risk, use qualified support or the right module.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
+
+type AssistantPrefillState = {
+  prefill?: { text: string; mode?: 'general' | 'cv' | 'interview' | 'salary'; autoSend?: boolean };
+};
 
 export default function AssistantPage() {
   const { isSignedIn } = useUser();
   const navigate = useNavigate();
+  const location = useLocation();
+  const prefillConsumedRef = useRef(false);
 
   const [input, setInput] = useState('');
   const [replyMode, setReplyMode] = useState<'general' | 'cv' | 'interview' | 'salary'>('general');
@@ -408,8 +543,17 @@ export default function AssistantPage() {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  const { messages, status, error, loadHistory, sendMessage, resetError, clearMessages } =
-    useCareerAssistantStore();
+  const {
+    messages,
+    status,
+    error,
+    historyLoadFailed,
+    loadHistory,
+    sendMessage,
+    resetError,
+    dismissHistoryWarning,
+    clearMessages,
+  } = useCareerAssistantStore();
 
   const isSending = status === 'sending';
   const isLoading = status === 'syncing';
@@ -418,6 +562,26 @@ export default function AssistantPage() {
     if (isSignedIn) void loadHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn]);
+
+  // Accept a prefilled prompt from sibling pages (e.g. Legal Hub topic search).
+  // Consumed once per navigation to avoid replaying on re-renders.
+  useEffect(() => {
+    if (!isSignedIn) return;
+    if (prefillConsumedRef.current) return;
+    const state = (location.state as AssistantPrefillState | null) ?? null;
+    const prefill = state?.prefill;
+    if (!prefill?.text) return;
+    prefillConsumedRef.current = true;
+    const mode = prefill.mode ?? 'general';
+    setReplyMode(mode);
+    if (prefill.autoSend === false) {
+      setInput(prefill.text);
+    } else {
+      void sendMessage(prefill.text, mode);
+    }
+    navigate(location.pathname, { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSignedIn, location.state]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -495,8 +659,11 @@ export default function AssistantPage() {
   const latestAssistantMeta =
     [...messages].reverse().find((msg) => msg.role === 'assistant' && msg.meta)?.meta ?? null;
 
+  const hasSafetyBlock =
+    latestAssistantMeta?.safetyNotes?.some((n) => n.level === 'block') ?? false;
+
   return (
-    <div className="flex h-[calc(100vh-10rem)] flex-col gap-4">
+    <div className="flex min-h-0 flex-col gap-4 max-h-[calc(100dvh-10rem)]">
 
         {/* ── Header ──────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between">
@@ -543,6 +710,39 @@ export default function AssistantPage() {
           </div>
         )}
 
+        {historyLoadFailed && (
+          <div
+            role="status"
+            className="flex items-start justify-between gap-3 rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100"
+          >
+            <p className="min-w-0 flex-1 leading-snug">
+              <span className="font-semibold text-white">Past messages could not be loaded.</span>{' '}
+              You can still use the assistant in this browser session. For durable, reviewable context across visits, upload a{' '}
+              <strong className="text-white">CV or career PDF</strong> in{' '}
+              <Link to="/documents" className="font-medium text-amber-200 underline-offset-2 hover:underline">
+                Document Lab
+              </Link>
+              — that is how production grounding is intended to work, not an endless chat archive.
+            </p>
+            <button
+              type="button"
+              onClick={dismissHistoryWarning}
+              className="shrink-0 rounded-lg p-1 text-amber-200/80 hover:bg-amber-500/20 hover:text-white"
+              aria-label="Dismiss"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
+        <TopicPickerBar onPick={(prompt, mode) => void handleQuickStart(prompt, mode)} isSending={isSending} />
+
+        <SensitiveCaseLayer
+          meta={latestAssistantMeta}
+          onNewChat={() => clearMessages?.()}
+          onOpenCasePractice={() => void navigate('/case-practice')}
+        />
+
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
           {/* ── Conversation Panel ───────────────────────────────────── */}
           <div className="flex min-h-0 flex-col gap-4">
@@ -558,10 +758,7 @@ export default function AssistantPage() {
                   ))}
                 </div>
               ) : messages.length === 0 ? (
-                <EmptyState
-                  onAction={(prompt, mode) => void handleQuickStart(prompt, mode)}
-                  isSending={isSending}
-                />
+                <EmptyState />
               ) : (
                 <div className="space-y-5 p-5">
                   {messages.map((msg) => (
@@ -573,7 +770,6 @@ export default function AssistantPage() {
                     />
                   ))}
                   {isSending && <TypingIndicator />}
-                  <RoutingBlocks meta={latestAssistantMeta} onRoute={handleRouteAction} />
                   <div ref={messagesEndRef} />
                 </div>
               )}
@@ -584,7 +780,12 @@ export default function AssistantPage() {
           <div className="hidden min-h-0 flex-col gap-4 overflow-y-auto lg:flex">
             <ContextSidebar replyMode={replyMode} messageCount={messages.length} meta={latestAssistantMeta} />
             <ActionRail onRoute={handleRouteAction} meta={latestAssistantMeta} />
+            <RoutingBlocks meta={latestAssistantMeta} onRoute={handleRouteAction} />
           </div>
+        </div>
+
+        <div className="shrink-0 lg:hidden">
+          <RoutingBlocks meta={latestAssistantMeta} onRoute={handleRouteAction} />
         </div>
 
         {/* ── Input bar ───────────────────────────────────────────────── */}
@@ -624,7 +825,7 @@ export default function AssistantPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            disabled={isSending || isTranscribing}
+            disabled={isSending || isTranscribing || hasSafetyBlock}
             className="flex-1 resize-none bg-transparent text-sm text-white placeholder:text-slate-500 outline-none disabled:opacity-50"
             style={{ lineHeight: `${LINE_HEIGHT_PX}px`, overflowY: 'hidden' }}
           />
@@ -633,7 +834,7 @@ export default function AssistantPage() {
             {/* Mic */}
             <button
               onClick={toggleRecording}
-              disabled={isSending || isTranscribing}
+              disabled={isSending || isTranscribing || hasSafetyBlock}
               title={isRecording ? 'Stop recording' : 'Voice input'}
               className={`flex h-9 w-9 items-center justify-center rounded-xl transition-all disabled:opacity-40 ${
                 isRecording
@@ -647,7 +848,7 @@ export default function AssistantPage() {
             {/* Send */}
             <button
               onClick={() => void handleSend()}
-              disabled={isSending || !input.trim()}
+              disabled={isSending || !input.trim() || hasSafetyBlock}
               className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 transition-all hover:bg-indigo-500 disabled:opacity-40 disabled:shadow-none"
             >
               <Send className="h-4 w-4" />
@@ -656,8 +857,11 @@ export default function AssistantPage() {
           </div>
         </div>
 
+        <SupportingMaterialsDisclaimer compact collapsible className="shrink-0" />
+
         <p className="text-center text-[11px] text-slate-600">
           Mode applies to typed messages · Enter to send · Shift+Enter for new line · Mic for voice
+          {hasSafetyBlock ? ' · Sending is paused until you start a new chat' : ''}
         </p>
     </div>
   );

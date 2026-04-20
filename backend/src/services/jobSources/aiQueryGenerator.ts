@@ -1,18 +1,23 @@
-import OpenAI from 'openai';
+import { tryGetOpenAiClient } from '../../lib/openai/openai.client.js';
+import { getRoutingModel } from '../../lib/openai/model-registry.js';
 
 interface ProfileInput {
   skills?: string[];
   experiences?: Array<{ jobTitle: string }>;
   targetRole?: string;
+  targetSeniority?: string | null;
+  workValues?: string[];
+  practiceAreas?: string[];
+  blockedAreas?: string[];
 }
 
 export async function generateJobQueries(
   profile: ProfileInput,
   count = 5,
 ): Promise<string[]> {
-  if (process.env.OPENAI_API_KEY) {
+  const client = tryGetOpenAiClient();
+  if (client) {
     try {
-      const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
       const profileSummary = [
         profile.targetRole ? `Target role: ${profile.targetRole}` : '',
         profile.experiences?.length
@@ -26,7 +31,7 @@ export async function generateJobQueries(
         .join('. ');
 
       const response = await client.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: getRoutingModel(),
         messages: [
           {
             role: 'system',
@@ -59,7 +64,14 @@ function buildHeuristicQueries(profile: ProfileInput, count: number): string[] {
   const queries: string[] = [];
 
   if (profile.targetRole) {
-    queries.push(profile.targetRole);
+    queries.push(
+      profile.targetSeniority ? `${profile.targetRole} (${profile.targetSeniority})` : profile.targetRole,
+    );
+  }
+
+  for (const area of profile.practiceAreas?.slice(0, 2) ?? []) {
+    if (queries.length >= count) break;
+    queries.push(`${profile.targetRole ?? profile.experiences?.[0]?.jobTitle ?? 'jobs'} ${area}`.trim());
   }
 
   const recentTitle = profile.experiences?.[0]?.jobTitle;

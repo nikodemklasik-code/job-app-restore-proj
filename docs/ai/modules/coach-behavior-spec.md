@@ -7,6 +7,8 @@ Coach is the targeted answer improvement and training module.
 It does not simulate a full interview.
 It works on one answer quality problem or one competency cluster at a time.
 
+> **★ Materiały wspierające** — Coach daje **kierunek** i **rytm** ćwiczeń; **nie** gwarantuje wyniku rozmowy ani zatrudnienia. [`supporting-materials-disclaimer-v1.0.md`](../../policies/supporting-materials-disclaimer-v1.0.md)
+
 ---
 
 ## Core Behavior

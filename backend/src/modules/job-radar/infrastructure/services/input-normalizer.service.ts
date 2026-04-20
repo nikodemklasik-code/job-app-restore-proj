@@ -11,14 +11,20 @@ export class InputNormalizerService {
     const employer =
       typeof input.employerName === 'string' ? input.employerName.trim().toLowerCase() : null;
 
+    const savedJobId =
+      typeof input.savedJobId === 'string' ? input.savedJobId.trim().toLowerCase() : null;
+
     const title = typeof input.jobTitle === 'string' ? input.jobTitle.trim() : null;
 
     const location = typeof input.location === 'string' ? input.location.trim() : null;
 
     const url = typeof input.sourceUrl === 'string' ? this.normalizeUrl(input.sourceUrl) : null;
 
+    const canonicalEmployerCandidate =
+      employer ?? (savedJobId ? `saved-job:${savedJobId}` : null);
+
     return {
-      canonicalEmployerCandidate: employer,
+      canonicalEmployerCandidate,
       normalizedRoleFamily: this.normalizeRoleFamily(title),
       normalizedLocation: location,
       canonicalUrl: url,

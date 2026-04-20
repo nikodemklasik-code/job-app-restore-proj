@@ -1,0 +1,8 @@
+ROLE=AGENT_1
+PREVIOUS_TASK=Backend runtime hardening
+CURRENT_TASK=QC intake for runtime hardening RFQ
+NEXT_TASK=MySQL DDL evidence on target DB after QC verdict
+AUTO_ADVANCE_FROM=READY_FOR_QC
+AUTO_ADVANCE_TO=ASSIGNED
+AUTO_ADVANCE_CONDITION=QC_VERDICT_PRESENT
+NEXT_REPORT=docs/qc-reports/agent-1-mysql-ddl-evidence-ready-for-qc.md

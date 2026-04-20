@@ -1,0 +1,35 @@
+---
+description: Rolling local backup before any repo file modifications
+alwaysApply: true
+---
+
+# Backup before disk work (rolling)
+
+## Rule
+
+Before **any** tool-driven change that creates, edits, or deletes files under the project workspace (this repo), the agent **must** refresh the rolling backup **once at the start of that edit batch** for the conversation turn.
+
+- **One slot:** the previous backup at the destination is **removed** and replaced by a new snapshot — do not scatter copies elsewhere.
+- If the turn is **read-only** (no writes, no `apply_patch`, no shell that mutates files), skip the backup.
+
+## How (this repo)
+
+**Run In:** `/Users/nikodem/job-app-restore/proj`
+
+**Command:**
+
+```bash
+cd /Users/nikodem/job-app-restore/proj && bash scripts/rolling-workspace-backup.sh
+```
+
+Restore manually by copying files out of **`$HOME/Downloads/KOPIA/.job-app-restore/proj`** (created automatically; not part of the git repo).
+
+## Notes
+
+- Backup excludes `node_modules`, `.git`, and `frontend/dist` / `backend/dist` to stay fast and small.
+- The mirror can include `.env` / `.env.local` if present — treat `Downloads/KOPIA/` like secrets.
+- This does **not** replace `git commit`; it is a safety mirror for local agent edits.
+
+## Deploy (server path)
+
+Local `scripts/deploy.sh` and GitHub Actions **refuse** a non-canonical `REMOTE_BASE` unless you explicitly override (see comments in `deploy.sh`). That cuts off mistaken deploys to the wrong folder on the VPS.

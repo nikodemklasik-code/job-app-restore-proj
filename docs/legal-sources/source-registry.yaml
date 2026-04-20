@@ -1,0 +1,131 @@
+# Legal Hub Search — source of truth for approved source groups.
+# Consumed by backend legal-hub-search (scope router) and tooling; do not fork ad hoc lists in code.
+#
+# Fields:
+#   key                 — stable machine id
+#   label               — UI + PDF copy
+#   source_type         — category for routing / prompts
+#   approved            — if false, must never be queried
+#   default_enabled     — initial toggle when user first opens search
+#   optional_secondary  — true = allowed only as “optional approved” layer, not core-only default
+#   jurisdiction        — e.g. UK
+#   legal_domain        — primary domain tag
+#   update_cadence      — human/process hint for content ops (not a cron by itself)
+#   paths               — repo-relative directories for curated material
+
+version: 1
+updated: '2026-04-17'
+notes: >
+  Paths are under docs/legal-sources/. Populate each directory with curated excerpts,
+  official PDFs, or pointers per content ops. Empty dirs are placeholders until content lands.
+  Default-enabled flags align with docs/features/legal-hub-search-full-implementation-spec-v1.0.md §4
+  (core includes EAT / appeal tribunal decisions).
+
+source_groups:
+  - key: primary_law
+    label: Primary Law
+    source_type: legislation
+    approved: true
+    default_enabled: true
+    optional_secondary: false
+    jurisdiction: UK
+    legal_domain: employment
+    update_cadence: on_statute_change_or_quarterly_review
+    paths:
+      - docs/legal-sources/legislation/
+
+  - key: acas
+    label: ACAS
+    source_type: guidance
+    approved: true
+    default_enabled: true
+    optional_secondary: false
+    jurisdiction: UK
+    legal_domain: employment
+    update_cadence: monthly_or_when_acas_publishes
+    paths:
+      - docs/legal-sources/acas/
+
+  - key: gov_guidance
+    label: Official Guidance
+    source_type: gov_guidance
+    approved: true
+    default_enabled: true
+    optional_secondary: false
+    jurisdiction: UK
+    legal_domain: employment
+    update_cadence: quarterly_review
+    paths:
+      - docs/legal-sources/gov-guidance/
+
+  - key: tribunal_decisions
+    label: Tribunal Decisions
+    source_type: case_law
+    approved: true
+    default_enabled: true
+    optional_secondary: false
+    jurisdiction: UK
+    legal_domain: employment
+    update_cadence: quarterly_curated_snapshot
+    paths:
+      - docs/legal-sources/tribunal-decisions/
+
+  - key: eat_decisions
+    label: EAT Decisions
+    source_type: case_law
+    approved: true
+    default_enabled: true
+    optional_secondary: false
+    jurisdiction: UK
+    legal_domain: employment
+    update_cadence: quarterly_curated_snapshot
+    paths:
+      - docs/legal-sources/eat-decisions/
+
+  - key: explanatory_notes
+    label: Explanatory Notes
+    source_type: legislation_notes
+    approved: true
+    default_enabled: false
+    optional_secondary: true
+    jurisdiction: UK
+    legal_domain: employment
+    update_cadence: on_statute_change
+    paths:
+      - docs/legal-sources/explanatory-notes/
+
+  - key: official_pdfs
+    label: Official PDFs
+    source_type: official_pdf
+    approved: true
+    default_enabled: false
+    optional_secondary: true
+    jurisdiction: UK
+    legal_domain: employment
+    update_cadence: when_source_publishes
+    paths:
+      - docs/legal-sources/official-pdfs/
+
+  - key: contract_law
+    label: Curated Contract Law
+    source_type: reference
+    approved: true
+    default_enabled: false
+    optional_secondary: true
+    jurisdiction: UK
+    legal_domain: employment_contracts
+    update_cadence: quarterly_review
+    paths:
+      - docs/legal-sources/contract-law/
+
+  - key: company_law
+    label: Curated Company Law
+    source_type: reference
+    approved: true
+    default_enabled: false
+    optional_secondary: true
+    jurisdiction: UK
+    legal_domain: company_employment_interface
+    update_cadence: quarterly_review
+    paths:
+      - docs/legal-sources/company-law/

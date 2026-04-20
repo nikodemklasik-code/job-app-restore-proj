@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth, useClerk, useSignIn, useSignUp } from '@clerk/clerk-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Sparkles,
   KeyRound,
@@ -73,6 +73,20 @@ function sanitizeAuthError(err: unknown, fallback: string): string {
   if (!msg || TECHNICAL.test(msg)) return fallback;
   // Capitalise first letter for consistency
   return msg.charAt(0).toUpperCase() + msg.slice(1);
+}
+
+/** Internal app path only — blocks open redirects and /auth loops. */
+function safeReturnPath(raw: string | null): string | null {
+  if (raw == null) return null;
+  let decoded = raw.trim();
+  try {
+    decoded = decodeURIComponent(decoded);
+  } catch {
+    return null;
+  }
+  if (!decoded.startsWith('/') || decoded.startsWith('//')) return null;
+  if (decoded.startsWith('/auth')) return null;
+  return decoded;
 }
 
 
@@ -245,13 +259,17 @@ function splitFullName(raw: string): { firstName?: string; lastName?: string } {
 export default function AuthPage() {
   const { isSignedIn, isLoaded: authLoaded } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnToPath = useMemo(() => safeReturnPath(searchParams.get('returnTo')), [searchParams]);
+  const postAuthPath = returnToPath ?? '/dashboard';
+  const showSessionHelpBanner = searchParams.get('reason') === 'authentication_required';
 
-  // Already signed in → go to dashboard immediately
+  // Already signed in → continue to intended page (or dashboard)
   useEffect(() => {
     if (authLoaded && isSignedIn) {
-      void navigate('/dashboard', { replace: true });
+      void navigate(postAuthPath, { replace: true });
     }
-  }, [authLoaded, isSignedIn, navigate]);
+  }, [authLoaded, isSignedIn, navigate, postAuthPath]);
 
   const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in');
   const [email, setEmail] = useState('');
@@ -347,7 +365,7 @@ export default function AuthPage() {
         });
         if (result.status === 'complete' && result.createdSessionId) {
           await setActive({ session: result.createdSessionId });
-          void navigate('/dashboard');
+          void navigate(postAuthPath);
         } else if (result.status === 'missing_requirements') {
           await signUp!.prepareEmailAddressVerification({ strategy: 'email_code' });
           setAwaitingEmailCode(true);
@@ -377,7 +395,7 @@ export default function AuthPage() {
       if (result.status === 'complete' && result.createdSessionId) {
         await setActive({ session: result.createdSessionId });
         resetVerification();
-        void navigate('/dashboard');
+        void navigate(postAuthPath);
       } else {
         setError('Could not complete sign-up. Please try again or request a new code.');
       }
@@ -422,7 +440,7 @@ export default function AuthPage() {
       if (result.status === 'complete' && result.createdSessionId) {
         await setActive({ session: result.createdSessionId });
         resetVerification();
-        void navigate('/dashboard');
+        void navigate(postAuthPath);
       } else if (result.status === 'needs_second_factor') {
         setError(
           'Two-factor authentication is required after this step. Complete 2FA where your account is managed, or try another sign-in method.',
@@ -529,7 +547,7 @@ export default function AuthPage() {
       const result = await (signIn as any).authenticateWithPasskey({ flow: 'discoverable' });
       if (result.status === 'complete' && result.createdSessionId) {
         await setActive({ session: result.createdSessionId });
-        void navigate('/dashboard');
+        void navigate(postAuthPath);
       }
     } catch (err) {
       setError(sanitizeAuthError(err, 'Passkey sign-in failed. Please try email/password or a social provider.'));
@@ -547,7 +565,7 @@ export default function AuthPage() {
       const redirect = {
         strategy: provider,
         redirectUrl: `${window.location.origin}/sso-callback`,
-        redirectUrlComplete: `${window.location.origin}/dashboard`,
+        redirectUrlComplete: `${window.location.origin}${postAuthPath}`,
       } as const;
       if (mode === 'sign-up') {
         await signUp.authenticateWithRedirect(redirect);
@@ -744,6 +762,29 @@ export default function AuthPage() {
             <p className="mt-1 text-sm text-slate-400">
               {mode === 'sign-in' ? 'Sign in to your career workspace' : 'Start your career journey today'}
             </p>
+            {showSessionHelpBanner ? (
+              <div
+                role="status"
+                className="mt-4 rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 text-left text-xs leading-relaxed text-amber-100 sm:text-sm"
+              >
+                <p className="font-semibold text-amber-50">Authentication required</p>
+                <p className="mt-1.5 text-amber-100/95">
+                  Your workspace lost its active link to the server (session expired, signed out elsewhere, or the app
+                  could not read your Clerk token). Sign in below to continue.
+                </p>
+                <p className="mt-2 text-amber-100/85">
+                  Sending applications from <strong className="font-medium">your own</strong> email address is
+                  separate: after you are signed in, open{' '}
+                  <strong className="font-medium">Settings → Email &amp; SMTP</strong> to connect and test SMTP.
+                </p>
+                {returnToPath ? (
+                  <p className="mt-2 text-amber-50/90">
+                    After sign-in you will be taken back to{' '}
+                    <span className="font-mono text-[11px] text-amber-200/95 sm:text-xs">{returnToPath}</span>.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           {/* MIDDLE — fits between welcome and policy; no scroll on full layout */}

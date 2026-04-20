@@ -4,6 +4,9 @@
 **Status:** Production reference  
 **Source:** Product spec review + CLOSING-SUMMARY.md  
 
+> **★ Materiały wspierające** — Interview i Coach pokazują **kierunek** i **rytm** pracy; **nie** stanowią jedynej drogi ani **nie** gwarantują wyniku rozmowy lub zatrudnienia. Efekt zależy od wielu czynników. Kanoniczny tekst UI: [`docs/policies/supporting-materials-disclaimer-v1.0.md`](../policies/supporting-materials-disclaimer-v1.0.md).  
+> Zachowanie AI (granice, ton, feedback, pytania zakazane): [`docs/ai/principles/ai-boundaries-and-feedback-rules.md`](../ai/principles/ai-boundaries-and-feedback-rules.md).
+
 ---
 
 ## Overview

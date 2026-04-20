@@ -1,5 +1,7 @@
 # Case Practice Final Consolidated Spec
 
+> **★ Materiały wspierające** — Case Practice to symulacja i trening (**kierunek**, **rytm**); **nie** porada prawna, **nie** jedyna możliwa ścieżka działania w pracy ani **gwarancja** wyniku. [`supporting-materials-disclaimer-v1.0.md`](../policies/supporting-materials-disclaimer-v1.0.md)
+
 ## Module Name
 **Case Practice**
 

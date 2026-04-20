@@ -30,11 +30,26 @@ CREATE TABLE IF NOT EXISTS career_goals (
   current_salary        INT,                       -- annual GBP
   target_job_title      VARCHAR(255),
   target_salary         INT,                       -- annual GBP
+  target_salary_min     INT NULL,
+  target_salary_max     INT NULL,
+  target_seniority      VARCHAR(80) NULL,
   work_values           TEXT,                      -- "remote, growth, stability"
   auto_apply_min_score  INT         NOT NULL DEFAULT 75,  -- 50–100%
+  strategy_json         JSON NULL,
   created_at            TIMESTAMP   NOT NULL DEFAULT NOW(),
   updated_at            TIMESTAMP   NOT NULL DEFAULT NOW() ON UPDATE NOW(),
   INDEX idx_career_goals_user (user_id)
+);
+
+CREATE TABLE IF NOT EXISTS user_preference_flags (
+  user_id                        VARCHAR(36)  NOT NULL PRIMARY KEY,
+  case_study_opt_in              BOOLEAN        NOT NULL DEFAULT FALSE,
+  community_visibility           BOOLEAN        NOT NULL DEFAULT FALSE,
+  referral_participation         BOOLEAN        NOT NULL DEFAULT TRUE,
+  shared_sessions_discoverable   BOOLEAN        NOT NULL DEFAULT FALSE,
+  ai_personalization_enabled     BOOLEAN        NOT NULL DEFAULT TRUE,
+  created_at                     TIMESTAMP      NOT NULL DEFAULT NOW(),
+  updated_at                     TIMESTAMP      NOT NULL DEFAULT NOW() ON UPDATE NOW()
 );
 
 -- Social media scan consents

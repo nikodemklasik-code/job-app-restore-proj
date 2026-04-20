@@ -1,12 +1,8 @@
 import { randomUUID } from 'crypto';
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import {
-  allowedAssistantSourceTypes,
-  assistantModes,
-  type AssistantContextRef,
-} from '../../../../shared/assistant.js';
-import { assistantConversations, assistantMessages } from '../../db/schema.js';
+import { allowedAssistantSourceTypes, assistantModes } from '../../../../shared/assistant.js';
+import { assistantConversations, assistantMessages, applications, documents, profiles } from '../../db/schema.js';
 import { db } from '../../db/index.js';
 import {
   assertAllowedAssistantSourceType,
@@ -16,30 +12,7 @@ import {
 } from '../../services/openai.js';
 import { getUserPlan, planToPromptBehaviorTier } from '../../services/billingGuard.js';
 import { protectedProcedure, router } from '../trpc.js';
-
-function inferModeFromText(text: string): (typeof assistantModes)[number] {
-  const t = text.toLowerCase();
-  if (/\b(cv|resume|cover letter|ats)\b/.test(t)) return 'cv';
-  if (/\b(interview|star|mock)\b/.test(t)) return 'interview';
-  if (/\b(salary|offer|negotiat|compensation)\b/.test(t)) return 'salary';
-  return 'general';
-}
-
-function buildContextRefs(
-  mode: (typeof assistantModes)[number],
-  sourceType: (typeof allowedAssistantSourceTypes)[number],
-): AssistantContextRef[] {
-  const refs: AssistantContextRef[] = [
-    { type: 'assistant', label: 'Mode', value: mode.toUpperCase() },
-    { type: 'assistant', label: 'Source Type', value: sourceType.replace(/_/g, ' ') },
-  ];
-  if (sourceType === 'job_listing_table') {
-    refs.push({ type: 'applications', label: 'Active Job Context', value: 'Job Listing Context Available' });
-  }
-  if (mode === 'cv') refs.push({ type: 'documents', label: 'Document Context', value: 'CV Improvement Focus' });
-  if (mode === 'interview') refs.push({ type: 'skills', label: 'Practice Context', value: 'Interview Readiness Focus' });
-  return refs;
-}
+import { buildAssistantAiProductMeta } from '../../lib/openai/assistant-product-meta.js';
 
 async function getOrCreateConversation(userId: string): Promise<string> {
   const existing = await db
@@ -78,15 +51,17 @@ export const assistantRouter = router({
       .limit(100);
 
     let lastUserText = '';
-    let lastMode: (typeof assistantModes)[number] = 'general';
     return rows.map((r) => {
       if (r.role === 'user') {
         lastUserText = r.text;
-        lastMode = inferModeFromText(r.text);
         return { ...r, createdAt: r.createdAt.toISOString(), meta: null };
       }
-      const baseMeta = buildAssistantResponseMeta(lastUserText || r.text);
-      const inferredContext = buildContextRefs(lastMode, r.sourceType as (typeof allowedAssistantSourceTypes)[number]);
+      const sourceType = assertAllowedAssistantSourceType(String(r.sourceType));
+      const baseMeta = buildAssistantResponseMeta({
+        userText: lastUserText || r.text,
+        sourceType,
+      });
+      const aiProductMeta = buildAssistantAiProductMeta('general');
       return {
         ...r,
         createdAt: r.createdAt.toISOString(),
@@ -94,10 +69,11 @@ export const assistantRouter = router({
           detectedIntent: baseMeta.detectedIntent,
           suggestedActions: baseMeta.suggestedActions,
           routeSuggestions: baseMeta.routeSuggestions,
-          contextRefs: [...baseMeta.contextRefs, ...inferredContext].slice(0, 6),
+          contextRefs: baseMeta.contextRefs,
           safetyNotes: baseMeta.safetyNotes,
           nextBestStep: baseMeta.nextBestStep ?? 'Open Coach',
           complianceFlags: baseMeta.complianceFlags ?? [],
+          aiProductMeta,
         },
       };
     });
@@ -116,8 +92,11 @@ export const assistantRouter = router({
       const userId = ctx.user.id;
       const sourceType = assertAllowedAssistantSourceType(input.sourceType);
       const conversationId = await getOrCreateConversation(userId);
-      const baseMeta = buildAssistantResponseMeta(input.text);
-      const contextRefs = buildContextRefs(input.mode, sourceType);
+      const baseMeta = buildAssistantResponseMeta({
+        userText: input.text,
+        mode: input.mode,
+        sourceType,
+      });
 
       // Insert user message
       const userMsgId = randomUUID();
@@ -198,6 +177,7 @@ export const assistantRouter = router({
       }
 
       const nextBestStep = baseMeta.nextBestStep ?? 'Open Coach';
+      const aiProductMeta = buildAssistantAiProductMeta(input.mode);
 
       return {
         conversationId,
@@ -209,15 +189,16 @@ export const assistantRouter = router({
             detectedIntent: baseMeta.detectedIntent,
             suggestedActions: baseMeta.suggestedActions,
             routeSuggestions: baseMeta.routeSuggestions,
-            contextRefs: [...baseMeta.contextRefs, ...contextRefs].slice(0, 6),
+            contextRefs: baseMeta.contextRefs,
             safetyNotes: baseMeta.safetyNotes,
             nextBestStep,
             complianceFlags: baseMeta.complianceFlags ?? [],
+            aiProductMeta,
           },
         },
         structured: {
           conversation: aiTextWithSafety,
-          relevantContext: [...baseMeta.contextRefs, ...contextRefs].slice(0, 6),
+          relevantContext: baseMeta.contextRefs,
           suggestedActions: baseMeta.suggestedActions,
           nextBestStep,
           routeSuggestions: baseMeta.routeSuggestions,
@@ -225,4 +206,20 @@ export const assistantRouter = router({
         },
       };
     }),
+
+  resolveContext: protectedProcedure.query(async ({ ctx }) => {
+    const [profile] = await db.select().from(profiles)
+      .where(eq(profiles.userId, ctx.user.id)).limit(1);
+    const recentApplications = await db.select().from(applications)
+      .where(eq(applications.userId, ctx.user.id))
+      .orderBy(desc(applications.updatedAt)).limit(5);
+    const recentDocuments = await db.select().from(documents)
+      .where(eq(documents.userId, ctx.user.id))
+      .orderBy(desc(documents.updatedAt)).limit(3);
+    return {
+      profile: profile ?? null,
+      recentApplications,
+      recentDocuments,
+    };
+  }),
 });

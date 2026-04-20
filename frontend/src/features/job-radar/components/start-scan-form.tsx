@@ -32,16 +32,19 @@ export function StartScanForm() {
       forceRescan: false,
     });
 
-    if (result.reportId && result.status && terminal.has(result.status)) {
-      navigate(`/job-radar/report/${result.reportId}`);
+    if (result.report_id && result.status && terminal.has(result.status)) {
+      navigate(`/job-radar/report/${result.report_id}`);
       return;
     }
 
-    navigate(`/job-radar/scan/${result.scanId}`);
+    navigate(`/job-radar/scan/${result.scan_id}`);
   }
 
   return (
-    <form onSubmit={(e) => void onSubmit(e)} className="space-y-4 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-950">
+    <form
+      onSubmit={(e) => void onSubmit(e)}
+      className="mvh-card-glow space-y-4 rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-950"
+    >
       <div>
         <h1 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50">Job Radar scan</h1>
         <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">

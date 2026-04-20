@@ -1,6 +1,14 @@
 # 19 Screens For Users And Agents
 
-**Repo note:** Kanoniczny, rozszerzony opis ekranów: [`product-screens-spec-v1.0.md`](./product-screens-spec-v1.0.md). Ten plik jest importem agent-ready z `~/Downloads/19_Screens_For_Users_And_Agents.md` (2026-04-16).
+**Repo note:** Kanoniczny, rozszerzony opis ekranów: [`product-screens-spec-v1.0.md`](./product-screens-spec-v1.0.md). Ten plik jest importem agent-ready z `~/Downloads/19_Screens_For_Users_And_Agents.md`.
+
+**Legal Hub Search:** pełna specyfikacja [`legal-hub-search-full-implementation-spec-v1.0.md`](./legal-hub-search-full-implementation-spec-v1.0.md); repo + PDF [`legal-hub-search-repo-and-pdf-export-addendum-v1.0.md`](./legal-hub-search-repo-and-pdf-export-addendum-v1.0.md); rejestr źródeł [`../legal-sources/source-registry.yaml`](../legal-sources/source-registry.yaml).
+
+**Podział prac (obowiązujący):** [`../squad/README.md`](../squad/README.md) — fazy 1–4, Agent 1 / 2 / 3, QC, PO · workboard [`../squad/Squad_Workboard.md`](../squad/Squad_Workboard.md).
+
+**Szczegóły modułowe (pomocnicze):** practice [`practice-refactor/README.md`](./practice-refactor/README.md) · [`practice-modules-refactor-three-developer-split-v1.0.md`](./practice-modules-refactor-three-developer-split-v1.0.md) · Skill Lab / Job Radar [`skill-lab-job-radar-refactor/README.md`](./skill-lab-job-radar-refactor/README.md) · [`skill-lab-job-radar-refactor-three-developer-split-v1.0.md`](./skill-lab-job-radar-refactor-three-developer-split-v1.0.md) · backend roadmap [`backend-completion-spec/README.md`](./backend-completion-spec/README.md) · [`backend-completion-three-developer-split-v1.0.md`](./backend-completion-three-developer-split-v1.0.md).
+
+**Czas (zasada pracy + zapis w repo):** utworzenie dokumentu źródłowego ma mieć **w treści / metadanych pliku godzinę**; wersja w repozytorium ma trafiać do agentów **maks. 2–3 minuty** później. **Pierwszy commit importu tego pliku w git:** `2026-04-16 12:29:24 +0100` — przy tej zasadzie **szacowane utworzenie pliku w Downloads:** ok. **12:26–12:27** (czas lokalny jak w commicie, **+0100**). Dokładny timestamp z dysku ma właściciel pliku źródłowego.
 
 This document consolidates the 19 core product screens in a user- and agent-ready format.
 It is intended as a practical source of truth for implementation, review, and product alignment.

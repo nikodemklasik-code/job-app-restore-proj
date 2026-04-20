@@ -5,7 +5,7 @@ set -euo pipefail
 
 # Na VPS: bash /path/scripts/setup-openai-key.sh  |  z Maca: ssh … 'bash -s' < skrypt (wtedy BASH_SOURCE[0] == "-")
 if [[ "${BASH_SOURCE[0]:-}" == "-" ]]; then
-  ROOT="${MULTIVOHUB_ROOT:-/var/www/multivohub-jobapp}"
+  ROOT="${MULTIVOHUB_ROOT:-/root/project}"
 else
   ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fi

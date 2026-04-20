@@ -1,6 +1,10 @@
-import { eq } from 'drizzle-orm';
-import { jobRadarReports, jobRadarScans } from '../../../../db/schema.js';
-import type { RadarReportRepository } from '../../domain/repositories/radar-report.repository.js';
+import { and, desc, eq } from 'drizzle-orm';
+import { jobRadarReports, jobRadarScans, jobRadarScores } from '../../../../db/schema.js';
+import type {
+  EmployerHistoryEntryRow,
+  JobRadarReportListRow,
+  RadarReportRepository,
+} from '../../domain/repositories/radar-report.repository.js';
 import type { RadarReportEntity } from '../../domain/entities/radar-report.entity.js';
 import type { JobRadarDb } from '../../job-radar-database.types.js';
 
@@ -63,6 +67,81 @@ export class DrizzleRadarReportRepository implements RadarReportRepository {
 
     if (scanRows[0]?.userId !== userId) return null;
     return report;
+  }
+
+  async listRecentForUser(userId: string, limit: number): Promise<JobRadarReportListRow[]> {
+    const rows = await this.db
+      .select({
+        reportId: jobRadarReports.id,
+        scanId: jobRadarReports.scanId,
+        reportStatus: jobRadarReports.status,
+        scanStatus: jobRadarScans.status,
+        startedAt: jobRadarScans.startedAt,
+        inputPayload: jobRadarScans.inputPayload,
+        employerId: jobRadarScans.employerId,
+        freshnessStatus: jobRadarReports.freshnessStatus,
+        employerScore: jobRadarScores.employerScore,
+        offerScore: jobRadarScores.offerScore,
+        riskScore: jobRadarScores.riskScore,
+      })
+      .from(jobRadarReports)
+      .innerJoin(jobRadarScans, eq(jobRadarReports.scanId, jobRadarScans.id))
+      .leftJoin(jobRadarScores, eq(jobRadarReports.scanId, jobRadarScores.scanId))
+      .where(eq(jobRadarScans.userId, userId))
+      .orderBy(desc(jobRadarScans.startedAt))
+      .limit(Math.min(Math.max(limit, 1), 50));
+
+    return rows.map((r) => {
+      const payload = (r.inputPayload ?? {}) as Record<string, unknown>;
+      const employerName = typeof payload.employerName === 'string' ? payload.employerName : null;
+      const jobTitle = typeof payload.jobTitle === 'string' ? payload.jobTitle : null;
+      const sourceUrl = typeof payload.sourceUrl === 'string' ? payload.sourceUrl : null;
+      return {
+        reportId: r.reportId,
+        scanId: r.scanId,
+        reportStatus: String(r.reportStatus),
+        scanStatus: String(r.scanStatus),
+        startedAt: r.startedAt ?? null,
+        employerName,
+        jobTitle,
+        sourceUrl,
+        employerId: r.employerId ?? null,
+        employerScore: r.employerScore != null ? Number(r.employerScore) : null,
+        offerScore: r.offerScore != null ? Number(r.offerScore) : null,
+        riskScore: r.riskScore != null ? Number(r.riskScore) : null,
+        freshnessStatus: r.freshnessStatus != null ? String(r.freshnessStatus) : null,
+      };
+    });
+  }
+
+  async listEmployerHistoryForUser(
+    userId: string,
+    employerId: string,
+    limit: number,
+  ): Promise<EmployerHistoryEntryRow[]> {
+    const lim = Math.min(Math.max(limit, 1), 50);
+    const rows = await this.db
+      .select({
+        reportId: jobRadarReports.id,
+        lastScannedAt: jobRadarReports.lastScannedAt,
+        employerScore: jobRadarScores.employerScore,
+        offerScore: jobRadarScores.offerScore,
+        riskScore: jobRadarScores.riskScore,
+      })
+      .from(jobRadarReports)
+      .innerJoin(jobRadarScans, eq(jobRadarReports.scanId, jobRadarScans.id))
+      .leftJoin(jobRadarScores, eq(jobRadarReports.scanId, jobRadarScores.scanId))
+      .where(and(eq(jobRadarScans.userId, userId), eq(jobRadarScans.employerId, employerId)))
+      .orderBy(desc(jobRadarScans.startedAt))
+      .limit(lim);
+
+    return rows.map((r) => ({
+      reportId: r.reportId,
+      createdAt: r.lastScannedAt ?? null,
+      employerScore: r.employerScore != null ? Number(r.employerScore) : 0,
+      offerScore: r.offerScore != null ? Number(r.offerScore) : 0,
+      riskScore: r.riskScore != null ? Number(r.riskScore) : 0,
+    }));
   }
 
   async updateComputedReport(input: {

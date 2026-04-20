@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Check, X, Zap, ExternalLink, Loader2, CreditCard, Heart, Bitcoin, Coins } from 'lucide-react';
 import { useBillingStore } from '@/stores/billingStore';
 import { trpcClient } from '@/lib/api';
+import { BillingLedgerPanels } from '@/components/billing/BillingLedgerPanels';
 
 type PaymentMethod = 'stripe' | 'paypal' | 'crypto';
 
@@ -36,7 +37,7 @@ const COMPARISON_ROWS: { label: string; free: string | boolean | null; pro: stri
   { label: 'AI policy depth (system)',   free: 'Core', pro: 'Extended', autopilot: 'Full' },
   { label: 'AI-generated documents',     free: null,   pro: true,  autopilot: true  },
   { label: 'Interview practice',         free: null,   pro: true,  autopilot: true  },
-  { label: 'Negotiation Coach',          free: null,   pro: true,  autopilot: true  },
+  { label: 'Negotiation',                free: null,   pro: true,  autopilot: true  },
   { label: 'Skills Lab',                 free: null,   pro: true,  autopilot: true  },
   { label: 'Document Lab (style & build)', free: null, pro: true, autopilot: true },
   { label: 'Salary Calculator',          free: null,   pro: true,  autopilot: true  },
@@ -230,6 +231,17 @@ export default function BillingPage() {
             </button>
           </div>
         )}
+      </section>
+
+      <section aria-labelledby="billing-ledger-heading" className="space-y-4">
+        <h2 id="billing-ledger-heading" className="text-lg font-semibold text-white">
+          Ledger and pending spend
+        </h2>
+        <p className="text-sm text-slate-500">
+          Optional SQL-backed ledger (see <code className="rounded bg-black/30 px-1">backend/sql/billing_ledger_pending_charges.sql</code>).
+          Until tables exist, you will see empty states without errors.
+        </p>
+        <BillingLedgerPanels enabled={Boolean(isLoaded && userId)} />
       </section>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">

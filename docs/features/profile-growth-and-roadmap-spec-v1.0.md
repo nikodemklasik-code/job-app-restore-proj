@@ -1,5 +1,10 @@
 # Profile Growth And Roadmap Spec v1.0
 
+> **★ Propozycja — plan rozwoju (Growth Plan / roadmap)**  
+> Ten plan jest **propozycją**, a nie gwarancją ani jedyną możliwą ścieżką. **Zależy od wielu czynników** (m.in. dane użytkownika, rynek, dostępność kursów i narzędzi, zmiany celów, weryfikacja skillsów). **Nie jest to jedyna droga** dojścia do opisanego poziomu — to **droga zaproponowana przez nas** (produkt / zespół), którą uznajemy za **najlepiej dostosowaną do potrzeb użytkownika** w danym momencie, podlegającą aktualizacji gdy kontekst się zmieni. Ten sam przekaz co moduły wspierające (Coach, Interview itd.): **kierunek i rytm**, nie wyłączna droga i nie gwarancja wyniku.  
+> **EN (short):** The growth plan is a **suggested path**, not the only path; it is **conditional** on many factors and may change as inputs change.  
+> **Polityka kanoniczna (UI + copy):** [`docs/policies/supporting-materials-disclaimer-v1.0.md`](../policies/supporting-materials-disclaimer-v1.0.md)
+
 ## Purpose
 
 The Profile screen must not be only static user data. It must show visible direction and strategic progression.

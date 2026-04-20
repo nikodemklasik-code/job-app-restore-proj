@@ -1,4 +1,5 @@
-import OpenAI from 'openai';
+import { tryGetOpenAiClient } from '../lib/openai/openai.client.js';
+import { getRoutingModel } from '../lib/openai/model-registry.js';
 
 interface ParsedCv {
   fullName: string;
@@ -93,12 +94,11 @@ export async function extractTextFromFile(base64: string, mimeType: string): Pro
 }
 
 async function structureWithOpenAI(text: string): Promise<ParsedCv | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey || text.length <= 50) return null;
+  const client = tryGetOpenAiClient();
+  if (!client || text.length <= 50) return null;
   try {
-    const client = new OpenAI({ apiKey });
     const resp = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: getRoutingModel(),
       max_tokens: 1000,
       response_format: { type: 'json_object' },
       messages: [

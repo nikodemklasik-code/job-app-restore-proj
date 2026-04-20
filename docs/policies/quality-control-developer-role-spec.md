@@ -1,5 +1,9 @@
 # Quality Control Developer Role Specification
 
+**Squad — wykonanie implementacji (Agent / QC / PO, szukanie raportów, integracja):** [`../squad/IMPLEMENTATION_EXECUTION_RULES.md`](../squad/IMPLEMENTATION_EXECUTION_RULES.md)
+
+**Squad — rozszerzony model raportów, pamięci QC i eskalacji do PO:** [`../qc/qc-reporting-certification-and-po-communication-spec-v1.0.md`](../qc/qc-reporting-certification-and-po-communication-spec-v1.0.md) · [`../qc/README.md`](../qc/README.md).
+
 ## Role Name
 
 Quality Control Developer

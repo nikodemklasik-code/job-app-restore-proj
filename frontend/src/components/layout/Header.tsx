@@ -32,7 +32,7 @@ const THEME_ICONS: Record<ThemeId, typeof Moon> = {
 const NEUTRAL_HEADER_THEMES: ThemeId[] = ['gray-safe', 'light', 'overstimulated', 'elegant'];
 
 export default function Header() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const { user } = useUser();
   const { theme, setTheme, focusMode, setFocusMode } = useThemeStore();
   const creditsQuery = api.billing.getCurrentPlan.useQuery(
@@ -41,7 +41,7 @@ export default function Header() {
   );
   const credits = creditsQuery.data?.credits ?? null;
 
-  const title = pageTitleForPath(pathname);
+  const title = pageTitleForPath(pathname, search);
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   const displayName =
     user?.fullName?.trim() ||
@@ -76,8 +76,10 @@ export default function Header() {
             : <PanelLeftClose className="h-4 w-4" />}
         </button>
 
-        <div>
-          <h1 className="font-display text-base font-semibold text-slate-900 dark:text-white">{title}</h1>
+        <div className="min-w-0 flex-1 pr-2">
+          <h1 className="font-display text-balance break-words text-base font-semibold leading-snug text-slate-900 dark:text-white">
+            {title}
+          </h1>
           <p className="text-xs text-slate-400">{today}</p>
         </div>
       </div>

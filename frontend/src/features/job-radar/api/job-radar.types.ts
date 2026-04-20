@@ -180,14 +180,16 @@ export type StartScanPayload = {
   jobTitle?: string;
   location?: string;
   sourceUrl?: string;
+  savedJobId?: string;
   jobPostId?: string | null;
   forceRescan?: boolean;
 };
 
+/** Matches OpenAPI `ScanAcceptedResponse` (snake_case) from `jobRadar.startScan` / `rescanReport`. */
 export type StartScanResponse = {
-  scanId: string;
-  reportId?: string;
+  scan_id: string;
+  report_id?: string;
   status: ScanStatus;
-  quotaRemaining: number;
-  idempotencyReused?: boolean;
+  quota_remaining: number;
+  idempotency_reused?: boolean;
 };

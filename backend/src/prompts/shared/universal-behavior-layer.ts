@@ -1,3 +1,4 @@
+import { AI_BOUNDARY_RULE_CORE } from './ai-boundary-rule-core.js';
 import { ABUSE_RESISTANCE_RULES } from './abuse-resistance-rules.js';
 import { PERSONA_STABILITY_RULES } from './persona-stability-rules.js';
 import { CAPACITY_ADAPTATION_RULES } from './capacity-adaptation-rules.js';
@@ -21,15 +22,20 @@ export function buildUniversalBehaviorLayer(tier: BehaviorLayerTier): string {
   const positive = POSITIVE_MOTIVATION_RULES;
   const neuro = NEURODIVERSITY_AWARE_COACHING_RULES;
 
+  let body: string;
   switch (tier) {
     case 'minimal':
-      return [abuse, persona].join('\n\n');
+      body = [abuse, persona].join('\n\n');
+      break;
     case 'standard':
-      return [abuse, persona, capacity, positive].join('\n\n');
+      body = [abuse, persona, capacity, positive].join('\n\n');
+      break;
     case 'full':
     default:
-      return [abuse, persona, capacity, skill, positive, neuro].join('\n\n');
+      body = [abuse, persona, capacity, skill, positive, neuro].join('\n\n');
+      break;
   }
+  return `${AI_BOUNDARY_RULE_CORE}\n\n${body}`;
 }
 
 /**

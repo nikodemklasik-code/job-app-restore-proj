@@ -215,8 +215,8 @@ export default function AutoApplyPage() {
   const weeklyRemaining = Math.max(0, stats.weeklyLimit - stats.weeklyUsed);
   const planLabels: Record<string, string> = { free: 'Free', pro: 'Pro', autopilot: 'Autopilot' };
   const upgradeHints: Record<string, string | null> = {
-    free: 'Upgrade to Pro for 15/week or Autopilot for 50/week',
-    pro: 'Upgrade to Autopilot for 50/week',
+    free: null,
+    pro: null,
     autopilot: null,
   };
 

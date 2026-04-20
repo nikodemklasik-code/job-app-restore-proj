@@ -1,0 +1,20 @@
+ROLE|ORDER|TASK_KEY|TITLE|TYPE|AUTO_ENTER_WHEN|DONE_WHEN|NEXT_ON_SUCCESS|NEXT_ON_REWORK|NOTES
+AGENT_1|1|A1_RUNTIME_HARDENING|Backend runtime hardening|IMPLEMENT|STATE=IMPLEMENTING|VERDICT=Approved For Integration|A1_PROFILE_BEHAVIOUR_COMPLETION||trust proxy + mysql closed-state guard + minimal tests/report
+AGENT_1|2|A1_PROFILE_BEHAVIOUR_COMPLETION|Profile downstream behavioural completion|IMPLEMENT|STATE=APPROVED_FOR_INTEGRATION|VERDICT=Approved For Integration|A1_SAFE_DEPLOY_GUARDS||jobs/radar/auto-apply/growth outputs alignment
+AGENT_1|3|A1_SAFE_DEPLOY_GUARDS|Safe deploy guards completion|IMPLEMENT|STATE=APPROVED_FOR_INTEGRATION|VERDICT=Approved For Integration|||backup-before-change + obvious rollback + build-stop-on-fail
+
+AGENT_2|1|A2_JOB_RADAR_PARITY|Job Radar bounded parity|IMPLEMENT|STATE=IMPLEMENTING|VERDICT=Approved For Integration|A2_AI_COST_VISIBILITY||close one bounded parity gap only
+AGENT_2|2|A2_AI_COST_VISIBILITY|AI cost visibility bounded slice|IMPLEMENT|STATE=APPROVED_FOR_INTEGRATION|VERDICT=Approved For Integration|A2_LEGAL_RETRIEVAL_DISCIPLINE||surface lightweight/fixed/estimated-cost states
+AGENT_2|3|A2_LEGAL_RETRIEVAL_DISCIPLINE|Legal retrieval discipline bounded slice|IMPLEMENT|STATE=APPROVED_FOR_INTEGRATION|VERDICT=Approved For Integration|||source-bounded execution transparency only
+
+AGENT_3|1|A3_LEGACY_INTERVIEW_BILLING|Legacy interview billing parity|IMPLEMENT|STATE=IMPLEMENTING|VERDICT=Approved For Integration|A3_NEGOTIATION_MODULE_BOUNDARY||approve/commit/reject flow parity
+AGENT_3|2|A3_NEGOTIATION_MODULE_BOUNDARY|Negotiation distinct module logic|IMPLEMENT|STATE=APPROVED_FOR_INTEGRATION|VERDICT=Approved For Integration|A3_DAILY_WARMUP_BOUNDARY||separate from coach/interview logic
+AGENT_3|3|A3_DAILY_WARMUP_BOUNDARY|Daily Warmup distinct low-friction module|IMPLEMENT|STATE=APPROVED_FOR_INTEGRATION|VERDICT=Approved For Integration|||timed/simple/fixed-cost behaviour only
+
+PRODUCT_OWNER|1|PO_ENFORCE_MOVEMENT|Enforce movement and keep board/dashboard current|OPERATE|STATE=IMPLEMENTING|STATE=IMPLEMENTING|PO_ASSIGN_NEXT_AFTER_VERDICTS||monitor all roles, stale detection, no fake completion
+PRODUCT_OWNER|2|PO_ASSIGN_NEXT_AFTER_VERDICTS|Assign next bounded tasks after QC verdicts|OPERATE|STATE=IMPLEMENTING|STATE=IMPLEMENTING|PO_CLEAR_BOTTLENECKS||publish next tasks only after visible QC state
+PRODUCT_OWNER|3|PO_CLEAR_BOTTLENECKS|Clear bottlenecks immediately|OPERATE|STATE=IMPLEMENTING|STATE=IMPLEMENTING|||intervene on QC bottleneck, stale roles, scope drift
+
+QC|1|QC_REVIEW_ACTIVE_INTAKES|Review active Ready For QC intakes|REVIEW|STATE=REVIEWING|VERDICT=Approved For Integration|QC_REPO_RISK_SWEEP|QC_REVIEW_ACTIVE_INTAKES|review report/code/tests/scope honesty
+QC|2|QC_REPO_RISK_SWEEP|Repo risk sweep when no intake waits|REVIEW|STATE=REVIEWING|STATE=REVIEWING|QC_REVIEW_ACTIVE_INTAKES||hidden spend/runtime risks/mismatch/source integrity
+QC|3|QC_NARROW_CLEANUPS|Narrow QC cleanup with report|REVIEW|STATE=REVIEWING|STATE=REVIEWING|QC_REVIEW_ACTIVE_INTAKES||only low-risk cleanup, always documented

@@ -5,10 +5,7 @@ import { ReportOrchestrator } from '../../ai/orchestrators/report-orchestrator.j
 import { PdfGeneratorService } from '../../ai/services/pdf-generator.service.js';
 
 export async function interviewReportRoute(body: any) {
-  const llmClient = new OpenAiLlmClient({
-    apiKey: process.env.OPENAI_API_KEY,
-    model: process.env.OPENAI_MODEL || 'gpt-5.4-thinking',
-  });
+  const llmClient = new OpenAiLlmClient({});
 
   const reportOrchestrator = new ReportOrchestrator(
     new ClosingSummaryOrchestrator(llmClient),

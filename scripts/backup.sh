@@ -4,7 +4,7 @@
 # /var/backups/multivohub with timestamps. Keeps the 3 most recent backups per type.
 #
 # Paths (must match scripts/deploy.sh and .github/workflows/deploy.yml):
-#   REMOTE_BASE=/var/www/multivohub-jobapp
+#   REMOTE_BASE=/root/project
 #   Frontend : ${REMOTE_BASE}/frontend/dist/
 #   Backend  : ${REMOTE_BASE}/dist/backend/
 #
@@ -16,7 +16,7 @@ set -euo pipefail
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_ROOT="/var/backups/multivohub"
 
-REMOTE_BASE="${REMOTE_BASE:-/var/www/multivohub-jobapp}"
+REMOTE_BASE="${REMOTE_BASE:-/root/project}"
 FRONTEND_SRC="${REMOTE_BASE}/frontend/dist"
 BACKEND_SRC="${REMOTE_BASE}/dist/backend"
 

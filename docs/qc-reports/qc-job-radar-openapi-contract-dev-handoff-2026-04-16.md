@@ -4,6 +4,8 @@
 
 **Ustalenie:** dla tego zadania cała oficjalna wymiana (developer → QC → product owner / Ciebie → ewentualny powrót do dev) odbywa się **wyłącznie w tym pliku w repozytorium**, nie w równoległych „nieoficjalnych” wątkach bez śladu w repo.
 
+**Kontrakt vs sekrety vs deploy:** źródłem prawdy OpenAPI jest plik w git [`docs/job-radar/job-radar-openapi-v1.1.yaml`](../job-radar/job-radar-openapi-v1.1.yaml). Nie mylić z `OPENAI_API_KEY` ani z markerami integralności deploy — [`docs/job-radar/CONTRACT-KEYS-AND-SECRETS.md`](../job-radar/CONTRACT-KEYS-AND-SECRETS.md).
+
 | Element | Zasada |
 |--------|--------|
 | **Ścieżka kanoniczna** | `docs/qc-reports/qc-job-radar-openapi-contract-dev-handoff-2026-04-16.md` (w klonie: pełna ścieżka od rootu monorepo) |
@@ -13,11 +15,14 @@
 
 Inne kanały (czat, e-mail) mogą służyć tylko do **wysłania linku do tego pliku** lub pilnego pinga, nie do przenoszenia treści werdyktu bez zapisu tutaj.
 
+**Ogólna wiadomość Dev → QC** (inne zakresy, pytania, pakiet UX obok Job Radar): [`qc-developer-to-qc-sync-2026-04-17.md`](./qc-developer-to-qc-sync-2026-04-17.md) — tam QC może dopisać sekcję **Odpowiedź QC**; **werdykt Job Radar** nadal zapisujemy **w tym pliku** w **QC Verdict** poniżej.
+
 ---
 
 ## Status
 
-**READY FOR QC**
+- **Executor intake:** **READY FOR QC** (checklist wyżej — bez zmiany faktów technicznych).
+- **QC:** przegląd zakończony — sekcja **QC Verdict** poniżej (2026-04-19); wynik: **Approved For Integration** dla wątku kontraktu przy 3 jawnych lukach (szczegóły w werdykcie).
 
 ## What Exactly Was Done
 
@@ -81,9 +86,10 @@ Listed in code as **`OPENAPI_V1_1_GAPS_VS_REPO`** inside `job-radar-openapi-v1.1
 
 - Job Radar is exposed via **tRPC**, not as literal Express routes matching every `/job-radar/*` path in the YAML.
 - **POST `/job-radar/scan/from-saved-job`** and **GET `/job-radar/employers/{employer_id}/history`** are not implemented as dedicated procedures/routes matching those operations.
-- **`jobRadar.getScanStatus`** response shape still differs from OpenAPI **`ScanProgressResponse`** (camelCase + `reportId` vs spec snake_case + `partial_report_id`, etc.) — separate follow-up if full wire parity is required.
 
-QC should confirm these gaps remain **honest** (not hidden by loosened contract assertions) and that DTO/mapper/router/FE alignment for **start scan accepted response** matches the **ScanAcceptedResponse** section of the YAML.
+**Update (Agent B follow-up):** `jobRadar.getScanStatus` now returns **`ScanProgressResponse` wire** via `JobRadarHttpMapper.toScanProgressResponseWire` (snake_case, `partial_report_id`, OpenAPI `ScanProgress` keys). Frontend normalizes wire + legacy camelCase. Contract test asserts GET `/job-radar/scan/{scan_id}` response codes and required `ScanProgressResponse` keys on mapper output.
+
+QC should confirm remaining gaps stay **honest** and that **start scan** + **scan status** payloads match the YAML sections referenced in tests.
 
 ## Final Result
 
@@ -98,14 +104,65 @@ QC should confirm these gaps remain **honest** (not hidden by loosened contract 
 - [x] Explicit **READY FOR QC** status (see top).
 - [x] Verifiable commands with absolute `cd … &&` pattern per repo policy.
 
+## Executor follow-up (Agent B — backend)
+
+- `JobRadarHttpMapper.toScanProgressResponseWire` + router `getScanStatus`; contract + integration tests extended; `OPENAPI_V1_1_GAPS_VS_REPO` shortened to 3 items.
+- `frontend` `normalizeJobRadarScan` accepts OpenAPI wire progress and legacy camelCase.
+- Assistant: Vitest guard `AssistantResponseMeta` assignability on `buildAssistantResponseMeta` output.
+
 ## QC Verdict
 
-_(QC uzupełnia po przeglądzie — jedyna oficjalna rejestracja wyniku review dla tego wątku.)_
+_(Jedyna oficjalna rejestracja wyniku review dla wątku Job Radar OpenAPI v1.1 w tym pliku.)_
 
-- Data:
-- Uruchomione weryfikacje (komendy):
-- Wynik: **Approved for integration** / **Not approved**
-- Uzasadnienie:
+### Previous reports checked (same / overlapping scope)
+
+| Ścieżka | Status |
+|---------|--------|
+| [`qc-job-radar-openapi-contract-dev-handoff-2026-04-16.md`](./qc-job-radar-openapi-contract-dev-handoff-2026-04-16.md) (ten plik — sekcje dev) | Intake **READY FOR QC**; brak wcześniejszego werdyktu QC w repo dla tego wątku |
+| [`qc-decision-practice-modules-settings-community-2026-04-18.md`](./qc-decision-practice-modules-settings-community-2026-04-18.md) | **Not Approved** całego slice’u; Job Radar wymieniony tylko jako część szerszego tematu — **nie** zastępuje osobnej oceny kontraktu OpenAPI |
+| [`agent-b-report.md`](./agent-b-report.md) | Raport wykonawcy; zgodny z opisem testów i `OPENAPI_V1_1_GAPS_VS_REPO` |
+| [`qc-developer-to-qc-sync-2026-04-17.md`](./qc-developer-to-qc-sync-2026-04-17.md) | Pytania poboczne; werdykt Job Radar **tylko** tutaj |
+
+### Data
+
+2026-04-19
+
+### Uruchomione weryfikacje (komendy)
+
+```bash
+cd /Users/nikodem/job-app-restore/proj/backend && npm test -- --run src/modules/job-radar/__tests__/job-radar-openapi-v1.1.contract.spec.ts
+```
+
+```bash
+cd /Users/nikodem/job-app-restore/proj/backend && npx vitest run src/modules/job-radar/__tests__/
+```
+
+```bash
+cd /Users/nikodem/job-app-restore/proj/frontend && npm run build
+```
+
+**Wynik:** wszystkie powyższe zakończone kodem wyjścia **0** (kontrakt: 11 testów; cały katalog `__tests__` modułu Job Radar: 46 testów w 17 plikach).
+
+### Wynik
+
+**Approved for integration** → w słowniku integracji repo: **Approved For Integration** dla **zakresu wątku OpenAPI v1.1** opisanego w tym handoffu (testy czytają wyłącznie `docs/job-radar/job-radar-openapi-v1.1.yaml`, mapper / DTO / `getScanStatus` wire, frontend na kluczach snake_case zgodnie z raportem wykonawcy), **przy jawnych lukach** poniżej.
+
+### Uzasadnienie
+
+- Kontrakt w kodzie: `OPENAPI_V1_1_GAPS_VS_REPO` w `job-radar-openapi-v1.1.contract.spec.ts` ma **dokładnie 3** wpisy (asercja liczby w teście — lista nie może cicho zgnić); opisują one uczciwie: ekspozycja **tRPC** zamiast literalnych ścieżek REST z YAML, brak **POST `/job-radar/scan/from-saved-job`**, brak **GET `/job-radar/employers/{employer_id}/history`**.
+- Testy kontraktu nie wymyślają ścieżek ani schemów spoza pliku YAML (ścieżki i kody odpowiedzi sprawdzane względem dokumentu).
+- Zatwierdzenie dotyczy **zgodności kontraktu / wire shape / testów** w zakresie zgłoszonym do QC — **nie** znaczy „pełna zgodność REST z każdą operacją OpenAPI”, dopóki te trzy luki są zamierzone lub zaakceptowane przez PO jako dług produktowy.
+
+### Integracja — co dalej (technicznie)
+
+- Merge / deploy: dozwolony dla plików w zakresie handoffu **przy świadomości** trzech luk; zamknięcie luk REST / procedur wymaga **osobnej** dostawy + opcjonalnie nowego `READY FOR QC`.
+- **PO follow-up (opcjonalnie):** czy priorytetem jest implementacja `from-saved-job` i employer **history** pod OpenAPI, czy utrzymanie modelu tRPC + dokumentowany dług wystarczy na dany etap.
+
+### Required Next Action
+
+- `Owning agent: required work is executed in the repository, not in chat instead of implementation — see docs/squad/IMPLEMENTATION_EXECUTION_RULES.md §5a and Hard Rule 8.`
+- **Wykonawca:** zamknięcie luk z `OPENAPI_V1_1_GAPS_VS_REPO` albo jawna decyzja PO o długu — przez zmiany w repo + raport **§6** / `READY FOR QC`, nie przez wątek zamiast diffu.
+- **QC:** przy kolejnej dostawie dotykającej kontraktu — poprzedni werdykt + delta (reguły w [`../squad/IMPLEMENTATION_EXECUTION_RULES.md`](../squad/IMPLEMENTATION_EXECUTION_RULES.md)).
 
 ---
 

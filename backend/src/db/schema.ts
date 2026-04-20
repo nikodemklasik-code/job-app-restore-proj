@@ -1,6 +1,54 @@
 import { mysqlTable, varchar, text, timestamp, int, boolean, json, decimal } from 'drizzle-orm/mysql-core';
 import { relations } from 'drizzle-orm';
 
+/** Posted ledger + pending charges (optional; run `backend/sql/billing_ledger_pending_charges.sql` on MySQL). */
+export const billingLedgerDirectionValues = ['debit', 'credit'] as const;
+export const billingLedgerCategoryValues = [
+  'subscription',
+  'interview',
+  'warmup',
+  'coach',
+  'negotiation',
+  'skill_lab',
+  'document_lab',
+  'adjustment',
+  'refund',
+  'other',
+] as const;
+export const pendingChargeStatusValues = ['queued', 'authorized', 'committed', 'cancelled', 'failed'] as const;
+
+export const billingLedger = mysqlTable('billing_ledger', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  direction: varchar('direction', { length: 16 }).notNull(),
+  category: varchar('category', { length: 32 }).notNull(),
+  description: varchar('description', { length: 255 }).notNull(),
+  currency: varchar('currency', { length: 3 }).notNull().default('GBP'),
+  amountCents: int('amount_cents').notNull(),
+  unitPrice: decimal('unit_price', { precision: 10, scale: 2 }),
+  quantity: int('quantity'),
+  sourceType: varchar('source_type', { length: 64 }),
+  sourceId: varchar('source_id', { length: 36 }),
+  occurredAt: timestamp('occurred_at').defaultNow().notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+export const pendingCharges = mysqlTable('pending_charges', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  category: varchar('category', { length: 32 }).notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('queued'),
+  description: varchar('description', { length: 255 }).notNull(),
+  currency: varchar('currency', { length: 3 }).notNull().default('GBP'),
+  amountCents: int('amount_cents').notNull(),
+  sourceType: varchar('source_type', { length: 64 }),
+  sourceId: varchar('source_id', { length: 36 }),
+  expectedCommitAt: timestamp('expected_commit_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
 export const users = mysqlTable('users', {
   id: varchar('id', { length: 36 }).primaryKey(),
   clerkId: varchar('clerk_id', { length: 255 }).notNull().unique(),
@@ -23,7 +71,11 @@ export const profiles = mysqlTable('profiles', {
   userId: varchar('user_id', { length: 36 }).notNull(),
   fullName: varchar('full_name', { length: 255 }).notNull().default(''),
   phone: varchar('phone', { length: 50 }),
+  location: varchar('location', { length: 255 }),
+  headline: varchar('headline', { length: 255 }),
   summary: text('summary'),
+  linkedinUrl: varchar('linkedin_url', { length: 500 }),
+  cvUrl: varchar('cv_url', { length: 500 }),
   avatarUrl: varchar('avatar_url', { length: 500 }),
   readinessScore: int('readiness_score').default(0),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -260,6 +312,8 @@ export const applications = mysqlTable('applications', {
   emailSentAt: timestamp('email_sent_at'),
   channel: varchar('channel', { length: 50 }).default('email'),
   notes: text('notes'),
+  silenceDays: int('silence_days').notNull().default(0),
+  lastFollowedUpAt: timestamp('last_followed_up_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
 });
@@ -415,6 +469,8 @@ export const liveInterviewSessions = mysqlTable('live_interview_sessions', {
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
   startedAt: timestamp('started_at'),
   endedAt: timestamp('ended_at'),
+  /** Approved credit_spend_events.id held until session completes or is abandoned */
+  pendingCreditSpendEventId: varchar('pending_credit_spend_event_id', { length: 36 }),
 });
 
 export const liveInterviewTurns = mysqlTable('live_interview_turns', {
@@ -471,8 +527,86 @@ export const careerGoals = mysqlTable('career_goals', {
   currentSalary: int('current_salary'),                    // annual, GBP
   targetJobTitle: varchar('target_job_title', { length: 255 }),
   targetSalary: int('target_salary'),                      // annual, GBP
+  targetSalaryMin: int('target_salary_min'),
+  targetSalaryMax: int('target_salary_max'),
+  targetSeniority: varchar('target_seniority', { length: 80 }),
   workValues: text('work_values'),                         // comma-separated: "remote, growth, stability"
   autoApplyMinScore: int('auto_apply_min_score').default(75), // 50–100%
+  strategyJson: json('strategy_json').$type<Record<string, unknown>>(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+export const userPreferenceFlags = mysqlTable('user_preference_flags', {
+  userId: varchar('user_id', { length: 36 }).primaryKey(),
+  caseStudyOptIn: boolean('case_study_opt_in').default(false).notNull(),
+  communityVisibility: boolean('community_visibility').default(false).notNull(),
+  referralParticipation: boolean('referral_participation').default(true).notNull(),
+  sharedSessionsDiscoverable: boolean('shared_sessions_discoverable').default(false).notNull(),
+  aiPersonalizationEnabled: boolean('ai_personalization_enabled').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+/** Versioned content documents (CV drafts, cover letters, emails). Separate from documentUploads (file extraction). */
+export const documentTypeValues = ['cv', 'cover_letter', 'email', 'other'] as const;
+
+export const documents = mysqlTable('documents', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  title: varchar('title', { length: 255 }).notNull(),
+  content: text('content').notNull(),
+  type: varchar('type', { length: 32 }).notNull(),
+  parentDocumentId: varchar('parent_document_id', { length: 36 }),
+  version: int('version').notNull().default(1),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+/** Saved jobs — user bookmarks. */
+export const savedJobs = mysqlTable('saved_jobs', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  jobId: varchar('job_id', { length: 36 }).notNull(),
+  savedAt: timestamp('saved_at').defaultNow().notNull(),
+});
+
+/** Reports — interview/coach/manual/analysis notes. Run `backend/sql/2026-04-19-reports.sql`. */
+export const reportSourceValues = ['interview', 'coach', 'manual', 'analysis'] as const;
+export const reportStatusValues = ['open', 'closed'] as const;
+
+export const reports = mysqlTable('reports', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  title: varchar('title', { length: 255 }).notNull(),
+  content: text('content').notNull(),
+  source: varchar('source', { length: 32 }).notNull(),
+  status: varchar('status', { length: 16 }).notNull().default('open'),
+  sourceReferenceId: varchar('source_reference_id', { length: 36 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
+/** Product prefs (notifications, theme intent, assistant tone, blocked domains). Run `backend/sql/user_settings.sql`. */
+export const themeModeValues = ['light', 'dark', 'system'] as const;
+export const assistantToneValues = ['concise', 'balanced', 'detailed'] as const;
+
+export const userSettings = mysqlTable('user_settings', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull().unique(),
+  emailNotifications: boolean('email_notifications').notNull().default(true),
+  pushNotifications: boolean('push_notifications').notNull().default(true),
+  weeklyDigest: boolean('weekly_digest').notNull().default(true),
+  marketingEmails: boolean('marketing_emails').notNull().default(false),
+  autoSaveDocuments: boolean('auto_save_documents').notNull().default(true),
+  darkMode: boolean('dark_mode').notNull().default(false),
+  themeMode: varchar('theme_mode', { length: 16 }).notNull().default('system'),
+  assistantTone: varchar('assistant_tone', { length: 16 }).notNull().default('balanced'),
+  timezone: varchar('timezone', { length: 64 }).notNull().default('UTC'),
+  language: varchar('language', { length: 10 }).notNull().default('en'),
+  privacyMode: boolean('privacy_mode').notNull().default(false),
+  shareProfileAnalytics: boolean('share_profile_analytics').notNull().default(false),
+  blockedCompanyDomains: json('blocked_company_domains').$type<string[]>().notNull().default([]),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
 });

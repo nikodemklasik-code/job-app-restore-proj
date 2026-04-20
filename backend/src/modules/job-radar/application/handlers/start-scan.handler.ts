@@ -16,6 +16,7 @@ import type { JobRadarDb } from '../../job-radar-database.types.js';
 import { DrizzleRadarScanRepository } from '../../infrastructure/repositories/drizzle-radar-scan.repository.js';
 import { DrizzleRadarReportRepository } from '../../infrastructure/repositories/drizzle-radar-report.repository.js';
 import { DrizzleRadarOutboxRepository } from '../../infrastructure/repositories/drizzle-radar-outbox.repository.js';
+import { deriveStableEmployerIdFromScanPayload } from '../../infrastructure/services/stable-employer-id.service.js';
 
 function cacheTtlMs(): number {
   const hours = Number.parseInt(process.env.JOB_RADAR_CACHE_TTL_HOURS ?? '72', 10);
@@ -97,6 +98,8 @@ export class StartScanHandler {
     const scanId = randomUUID();
     const reportId = randomUUID();
 
+    const stableEmployerId = deriveStableEmployerIdFromScanPayload(command.payload);
+
     const scan = new RadarScanEntity(
       scanId,
       command.userId,
@@ -107,7 +110,7 @@ export class StartScanHandler {
       payloadRecord,
       RadarScanEntity.defaultProgress(),
       command.idempotencyKey ?? null,
-      null,
+      stableEmployerId,
       command.payload.jobPostId ?? null,
       now,
       now,

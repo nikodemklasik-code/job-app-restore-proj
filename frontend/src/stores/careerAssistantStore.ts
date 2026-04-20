@@ -9,11 +9,14 @@ interface CareerAssistantStore {
   messages: AssistantHistoryMessage[];
   status: AssistantStatus;
   error: string | null;
+  /** True when server history failed — chat still works; product memory is document-led, not this list. */
+  historyLoadFailed: boolean;
   selectedJobId: string | null;
   setSelectedJobId: (id: string | null) => void;
   loadHistory: () => Promise<void>;
   sendMessage: (text: string, mode?: 'general' | 'cv' | 'interview' | 'salary') => Promise<void>;
   resetError: () => void;
+  dismissHistoryWarning: () => void;
   clearMessages: () => void;
 }
 
@@ -28,13 +31,14 @@ export const useCareerAssistantStore = create<CareerAssistantStore>((set, get) =
   messages: [],
   status: 'idle',
   error: null,
+  historyLoadFailed: false,
   selectedJobId: null,
 
   setSelectedJobId: (id) => set({ selectedJobId: id }),
 
   async loadHistory() {
     if (get().status === 'syncing') return;
-    set({ status: 'syncing', error: null });
+    set({ status: 'syncing', error: null, historyLoadFailed: false });
     try {
       const history = await trpcClient.assistant.getHistory.query();
       set({
@@ -42,9 +46,16 @@ export const useCareerAssistantStore = create<CareerAssistantStore>((set, get) =
         conversationId: (history[0] as AssistantHistoryMessage | undefined)?.conversationId ?? null,
         status: 'idle',
         error: null,
+        historyLoadFailed: false,
       });
     } catch {
-      set({ status: 'error', error: 'Could not load conversation history. Please refresh.' });
+      set({
+        messages: [],
+        conversationId: null,
+        status: 'idle',
+        error: null,
+        historyLoadFailed: true,
+      });
     }
   },
 
@@ -97,8 +108,12 @@ export const useCareerAssistantStore = create<CareerAssistantStore>((set, get) =
     set({ status: 'idle', error: null });
   },
 
+  dismissHistoryWarning() {
+    set({ historyLoadFailed: false });
+  },
+
   clearMessages() {
     // Clears local view only — starts fresh conversation thread on next message
-    set({ messages: [], conversationId: null, status: 'idle', error: null });
+    set({ messages: [], conversationId: null, status: 'idle', error: null, historyLoadFailed: false });
   },
 }));

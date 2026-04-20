@@ -8,6 +8,7 @@ import {
 import type { ProfileSnapshot } from '../../../../shared/profile';
 import { Search, MapPin, DollarSign, Plus, ExternalLink, Loader2, Cookie, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Sparkles, Wifi, BookOpen, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { MIN_JOB_FIT_LOCAL_KEY, readMinJobFitPercent } from '@/lib/jobMatchPreferences';
 
 type JobResult = {
   id: string;
@@ -45,10 +46,19 @@ const SOURCE_META: Record<Source, { label: string; color: string; requiresSessio
   gumtree: { label: 'Gumtree', color: 'bg-green-500/20 text-green-400', requiresSession: true, url: 'https://www.gumtree.com/jobs' },
 };
 
+const SESSION_BOARD_TOOLTIP: Partial<Record<Source, string>> = {
+  indeed:
+    'Indeed needs a saved browser session. Click “Sessions” (cookie icon) above, expand Indeed, sign in with the secure wizard, then tick Indeed here again.',
+  gumtree:
+    'Gumtree needs a saved browser session. Click “Sessions”, expand Gumtree, complete the login wizard, then enable Gumtree here.',
+};
+
 
 /** Build a search string from saved profile / CV data so Jobs can auto-load listings. */
 function deriveJobSearchQueryFromProfile(profile: ProfileSnapshot | undefined): string {
   if (!profile) return '';
+  const target = profile.careerGoals?.targetJobTitle?.trim();
+  if (target) return target.slice(0, 120);
   const exp = profile.experiences?.[0];
   if (exp?.jobTitle?.trim()) return exp.jobTitle.trim().slice(0, 120);
   const skills = (profile.skills ?? []).filter((s) => s?.trim());
@@ -701,6 +711,17 @@ export default function JobsDiscovery() {
   const [explainJobId, setExplainJobId] = useState<string | null>(null);
   /** After CV upload/import elsewhere: wait for profile refetch, then re-run profile-derived search. */
   const [pendingJobsSearchAfterCv, setPendingJobsSearchAfterCv] = useState(false);
+  const [minJobFitPercent, setMinJobFitPercent] = useState(() => readMinJobFitPercent());
+
+  useEffect(() => {
+    const sync = () => setMinJobFitPercent(readMinJobFitPercent());
+    window.addEventListener('storage', sync);
+    window.addEventListener('mvh-min-fit-changed', sync);
+    return () => {
+      window.removeEventListener('storage', sync);
+      window.removeEventListener('mvh-min-fit-changed', sync);
+    };
+  }, []);
 
   const utils = api.useUtils();
   const startCvJobsFlow = useCallback(() => {
@@ -832,9 +853,19 @@ export default function JobsDiscovery() {
   }
 
   const jobResults = (searchQuery.data ?? []) as JobResult[];
-  const jobIds = jobResults.map((j) => j.id);
+  const visibleJobs = useMemo(
+    () => jobResults.filter((j) => j.fitScore >= minJobFitPercent),
+    [jobResults, minJobFitPercent],
+  );
+  const jobIds = visibleJobs.map((j) => j.id);
   const indeedStatus = sessions.find((s) => s.provider === 'indeed');
   const gumtreeStatus = sessions.find((s) => s.provider === 'gumtree');
+
+  const usesSessionBoardInSearch = sources.includes('indeed') || sources.includes('gumtree');
+  const sessionBoardGap =
+    (sources.includes('indeed') && !indeedStatus?.isActive) ||
+    (sources.includes('gumtree') && !gumtreeStatus?.isActive);
+  const sessionBoardsReady = usesSessionBoardInSearch && !sessionBoardGap;
 
   const jobStatusQuery = api.jobs.getUserJobStatuses.useQuery(
     { userId, jobIds },
@@ -852,13 +883,27 @@ export default function JobsDiscovery() {
         </div>
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={() => setShowSessions((v) => !v)}
-            className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-white/10"
+            title={
+              sessionBoardGap
+                ? 'Finish Indeed / Gumtree session setup so selected boards can search.'
+                : sessionBoardsReady
+                  ? 'Indeed and Gumtree sessions are active for your current search sources.'
+                  : 'Open provider sessions (Indeed and Gumtree) when you enable those sources.'
+            }
+            className={`flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-medium transition ${
+              sessionBoardGap
+                ? 'motion-safe:animate-session-warn border-red-900/70 bg-gradient-to-br from-red-950/90 to-orange-950/60 text-orange-50 motion-reduce:animate-none'
+                : sessionBoardsReady
+                  ? 'motion-safe:animate-session-ok border-teal-900/80 bg-gradient-to-br from-emerald-950/95 to-teal-950/80 text-teal-50 motion-reduce:animate-none'
+                  : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'
+            }`}
           >
-            <Cookie className="h-4 w-4" />
+            <Cookie className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
             Sessions
             {sessions.filter((s) => s.isActive).length > 0 && (
-              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-white">
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[9px] font-bold text-white ring-1 ring-emerald-400/40">
                 {sessions.filter((s) => s.isActive).length}
               </span>
             )}
@@ -940,8 +985,13 @@ export default function JobsDiscovery() {
             const hasSession = needsSession
               ? sessions.some((s) => s.provider === source && s.isActive)
               : true;
+            const sessionTip = SESSION_BOARD_TOOLTIP[source];
             return (
-              <label key={source} className={`flex items-center gap-1.5 cursor-pointer ${needsSession && !hasSession ? 'opacity-50' : ''}`}>
+              <label
+                key={source}
+                title={sessionTip}
+                className={`flex items-center gap-1.5 cursor-pointer ${sessionTip ? 'cursor-help' : ''} ${needsSession && !hasSession ? 'opacity-50' : ''}`}
+              >
                 <input
                   type="checkbox"
                   checked={sources.includes(source)}
@@ -952,12 +1002,47 @@ export default function JobsDiscovery() {
                 <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${meta.color}`}>
                   {meta.label}
                   {needsSession && !hasSession && (
-                    <span className="ml-1 text-xs opacity-60" title="Connect this job board in Settings to enable job search here">⚠</span>
+                    <span
+                      className="ml-1 text-xs opacity-60"
+                      title={
+                        sessionTip ??
+                        'Connect this job board via Sessions (cookie button), then enable it here.'
+                      }
+                    >
+                      ⚠
+                    </span>
                   )}
                 </span>
               </label>
             );
           })}
+        </div>
+
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label htmlFor="jobs-min-fit" className="text-xs font-medium text-slate-300">
+              Minimum fit score: {minJobFitPercent}%
+            </label>
+            <Link to="/profile" className="text-[10px] text-indigo-400 hover:text-indigo-300">
+              Same slider on Profile
+            </Link>
+          </div>
+          <input
+            id="jobs-min-fit"
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={minJobFitPercent}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              setMinJobFitPercent(n);
+              window.localStorage.setItem(MIN_JOB_FIT_LOCAL_KEY, String(n));
+              window.dispatchEvent(new Event('mvh-min-fit-changed'));
+            }}
+            className="w-full accent-indigo-500"
+          />
+          <p className="text-[10px] text-slate-500">Listings below this threshold are hidden. Matches the value stored under {MIN_JOB_FIT_LOCAL_KEY}.</p>
         </div>
       </div>
 
@@ -976,7 +1061,8 @@ export default function JobsDiscovery() {
             </p>
           ) : jobResults.length > 0 ? (
             <p className="text-xs text-slate-500">
-              {jobResults.length} listing{jobResults.length === 1 ? '' : 's'}
+              Showing {visibleJobs.length} of {jobResults.length} listing{jobResults.length === 1 ? '' : 's'}
+              {visibleJobs.length < jobResults.length ? ` (min fit ${minJobFitPercent}%)` : ''}
             </p>
           ) : searchParams !== null ? (
             <p className="text-xs text-slate-500">No Listings For This Search — Try Other Keywords Or Location</p>
@@ -997,9 +1083,15 @@ export default function JobsDiscovery() {
           )}
         </div>
 
+        {jobResults.length > 0 && visibleJobs.length === 0 && (
+          <p className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+            Every listing is below your minimum fit. Lower the slider (here or on Profile) to see more roles.
+          </p>
+        )}
+
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
           {jobResults.length > 0
-            ? jobResults.map((job) => (
+            ? visibleJobs.map((job) => (
                 <JobCard
                   key={job.id}
                   job={job}

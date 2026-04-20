@@ -19,15 +19,27 @@
 #   DEPLOY_HOST   e.g. root@147.93.86.209   (default: root@147.93.86.209)
 #   DEPLOY_USER   (optional, overrides user in DEPLOY_HOST)
 #
+# Canonical targets: .canonical-repo-key (integrity marker, not a secret).
+# Policy: docs/policies/canonical-repo-deploy-lock-policy-v1.0.md
+# Overrides (dangerous): DEPLOY_BYPASS_CANONICAL_REMOTE, DEPLOY_SKIP_LOCAL_REPO_PATH,
+#   DEPLOY_SKIP_BRANCH_GUARD, DEPLOY_SKIP_DNS_GUARD — see scripts/lib/canonical-deploy-guards.sh
+#
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/lib/canonical-deploy-guards.sh
+source "${ROOT}/scripts/lib/canonical-deploy-guards.sh"
 
-# ─── Token guard ─────────────────────────────────────────────────────────────
-# Load .env.local if present (ignored by git)
+canonical_assert_repo_key_present
+
+# Load .env.local if present (ignored by git) — may set DEPLOY_SKIP_* bypasses
 if [[ -f "$ROOT/.env.local" ]]; then
   # shellcheck disable=SC1091
   set -o allexport; source "$ROOT/.env.local"; set +o allexport
 fi
+
+canonical_load_remote_targets
+canonical_assert_local_repo_path
+canonical_assert_deploy_branch
 
 # Positional arg overrides env var
 DEPLOY_TOKEN="${1:-${DEPLOY_TOKEN:-}}"
@@ -53,8 +65,19 @@ else
 fi
 
 HOST="${DEPLOY_HOST:-root@147.93.86.209}"
-REMOTE_BASE="/var/www/multivohub-jobapp"
-REMOTE_FRONTEND_DIST="${REMOTE_FRONTEND_DIST:-${REMOTE_BASE}/frontend/dist}"
+
+if [[ "${DEPLOY_BYPASS_CANONICAL_REMOTE:-}" == "1" ]]; then
+  echo "⚠️   DEPLOY_BYPASS_CANONICAL_REMOTE=1 — REMOTE_* from env may diverge from .canonical-repo-key" >&2
+  REMOTE_BASE="${REMOTE_BASE:-$CANONICAL_REMOTE_BASE}"
+  REMOTE_FRONTEND_DIST="${REMOTE_FRONTEND_DIST:-$CANONICAL_REMOTE_FRONTEND_DIST}"
+else
+  REMOTE_BASE="$CANONICAL_REMOTE_BASE"
+  REMOTE_FRONTEND_DIST="$CANONICAL_REMOTE_FRONTEND_DIST"
+fi
+
+canonical_assert_dns_target
+canonical_assert_ssh_host_matches "$HOST"
+canonical_assert_remote_deploy_marker "$HOST" "$REMOTE_BASE"
 
 echo "════════════════════════════════════════════"
 echo "  multivohub-jobapp deploy — $(date -u '+%Y-%m-%d %H:%M UTC')"
@@ -106,10 +129,11 @@ rsync -avz \
   "$ROOT/lib/envSchema.mjs" \
   "${HOST}:${REMOTE_BASE}/"
 
-rsync -avz \
-  "$ROOT/scripts/smoke-test.sh" \
-  "$ROOT/scripts/rollback.sh" \
-  "${HOST}:${REMOTE_BASE}/scripts/"
+rsync -avz "$ROOT/scripts/" "${HOST}:${REMOTE_BASE}/scripts/"
+
+# Job Radar contract + docs (OpenAPI v1.1 SSoT — same paths as CI/tests read from repo)
+echo "      Syncing docs/job-radar/ → ${HOST}:${REMOTE_BASE}/docs/job-radar/"
+rsync -avz "$ROOT/docs/job-radar/" "${HOST}:${REMOTE_BASE}/docs/job-radar/"
 
 # 5. Install production deps + reload PM2
 echo "[5/6] Installing backend deps + reloading PM2 on VPS…"

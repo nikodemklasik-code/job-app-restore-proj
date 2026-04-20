@@ -24,13 +24,13 @@ const CookiesPage = lazy(() => import('./app/legal/CookiesPage'));
 const ReportsHub = lazy(() => import('./app/reports/ReportsHub'));
 const AutoApplyPage = lazy(() => import('./app/autopilot/AutoApplyPage'));
 const SkillsLab = lazy(() => import('./app/skills/SkillsLab'));
-const NegotiationCoach = lazy(() => import('./app/negotiation/NegotiationCoach'));
+const NegotiationPage = lazy(() => import('./app/negotiation/NegotiationPage'));
 const JobRadar = lazy(() => import('./app/radar/JobRadar'));
 const JobRadarLandingPage = lazy(() => import('./app/job-radar/JobRadarLandingPage'));
 const JobRadarReportPage = lazy(() => import('./app/job-radar/JobRadarReportPage'));
 const JobRadarScanPage = lazy(() => import('./app/job-radar/JobRadarScanPage'));
 const JobRadarAdminComplaintsPage = lazy(() => import('./app/job-radar/admin/JobRadarAdminComplaintsPage'));
-const InterviewWarmup = lazy(() => import('./app/warmup/InterviewWarmup'));
+const DailyWarmupPage = lazy(() => import('./app/warmup/DailyWarmupPage'));
 const CoachPage = lazy(() => import('./app/coach/CoachPage'));
 const FAQPage = lazy(() => import('./app/faq/FAQPage'));
 const DocumentLab = lazy(() => import('./app/documents/DocumentLab'));
@@ -101,6 +101,7 @@ export const router = createBrowserRouter([
       { path: 'profile', element: withSuspense(ProfilePage) },
       { path: 'billing', element: withSuspense(BillingPage) },
       { path: 'settings', element: withSuspense(SettingsHub) },
+      { path: 'settings/community', element: <Navigate to="/settings?tab=privacy" replace /> },
       { path: 'security', element: withSuspense(SecurityPage) },
       { path: 'style-studio', element: withSuspense(StyleStudioRedirect) },
       { path: 'salary', element: withSuspense(UKSalaryCalculator) },
@@ -109,13 +110,13 @@ export const router = createBrowserRouter([
       { path: 'ai-analysis', element: withSuspense(AiAnalysisPage) },
       { path: 'auto-apply', element: withSuspense(AutoApplyPage) },
       { path: 'skills', element: withSuspense(SkillsLab) },
-      { path: 'negotiation', element: withSuspense(NegotiationCoach) },
+      { path: 'negotiation', element: withSuspense(NegotiationPage) },
       { path: 'radar', element: withSuspense(JobRadar) },
       { path: 'job-radar', element: withSuspense(JobRadarLandingPage) },
       { path: 'job-radar/scan/:scanId', element: withSuspense(JobRadarScanPage) },
       { path: 'job-radar/report/:reportId', element: withSuspense(JobRadarReportPage) },
       { path: 'job-radar/admin/complaints', element: withSuspense(JobRadarAdminComplaintsPage) },
-      { path: 'warmup', element: withSuspense(InterviewWarmup) },
+      { path: 'warmup', element: withSuspense(DailyWarmupPage) },
       { path: 'coach', element: withSuspense(CoachPage) },
       { path: 'faq', element: withSuspense(FAQPage) },
       { path: 'documents', element: withSuspense(DocumentLab) },

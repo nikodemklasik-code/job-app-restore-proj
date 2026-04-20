@@ -1,7 +1,7 @@
 # Multivohub-jobapp — production deploy (SSH + GitHub-hosted runner)
 #
-# Aligns with scripts/deploy.sh and infra/ecosystem.config.cjs:
-#   REMOTE_BASE=/var/www/multivohub-jobapp
+# Aligns with scripts/deploy.sh, .canonical-repo-key, and infra/ecosystem.config.cjs:
+#   REMOTE_BASE=/root/project
 #   Frontend static files → ${REMOTE_BASE}/frontend/dist/
 #   Backend compiled output → ${REMOTE_BASE}/dist/backend/   (PM2 script: dist/backend/src/server.js)
 #
@@ -26,7 +26,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  REMOTE_BASE: /var/www/multivohub-jobapp
+  REMOTE_BASE: /root/project
 
 jobs:
   # ─── 1. CI tests (must pass before build/deploy) ─────────────────────────────
@@ -46,6 +46,9 @@ jobs:
 
       - name: Backend unit tests
         run: npm test -w multivohub-jobapp-backend
+
+      - name: Canonical deploy guards (bash unit tests)
+        run: bash scripts/tests/canonical-deploy-guards.test.sh
 
   # ─── 2. Build ───────────────────────────────────────────────────────────────
   build:
@@ -136,6 +139,9 @@ jobs:
           name: deploy-scripts
           path: scripts/
 
+      - name: Assert canonical deploy markers (repo key vs workflow)
+        run: bash scripts/ci-assert-canonical-deploy.sh
+
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
@@ -183,6 +189,11 @@ jobs:
             infra/ecosystem.config.cjs \
             lib/envSchema.mjs \
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${REMOTE_BASE}/"
+
+      - name: Sync Job Radar docs (OpenAPI v1.1 contract on VPS)
+        run: |
+          rsync -avz docs/job-radar/ \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${REMOTE_BASE}/docs/job-radar/"
 
       - name: Install production deps on VPS and reload PM2
         run: |

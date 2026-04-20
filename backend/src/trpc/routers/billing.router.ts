@@ -1,10 +1,19 @@
+import { randomUUID } from 'crypto';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import Stripe from 'stripe';
 import { TRPCError } from '@trpc/server';
-import { publicProcedure, router } from '../trpc.js';
+import { protectedProcedure, publicProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
-import { subscriptions, users } from '../../db/schema.js';
+import {
+  billingLedger,
+  billingLedgerCategoryValues,
+  billingLedgerDirectionValues,
+  pendingChargeStatusValues,
+  pendingCharges,
+  subscriptions,
+  users,
+} from '../../db/schema.js';
 import { createCheckoutSession, createCustomerPortal } from '../../services/stripe.js';
 import { createPayPalOrder as createPayPalOrderService, capturePayPalOrder as capturePayPalOrderService } from '../../services/paypal.js';
 import {
@@ -52,6 +61,116 @@ const PLAN_AMOUNTS: Record<string, string> = {
   pro: '9.99',
   autopilot: '24.99',
 };
+
+const ledgerDirectionZ = z.enum(billingLedgerDirectionValues);
+const ledgerCategoryZ = z.enum(billingLedgerCategoryValues);
+const pendingChargeStatusZ = z.enum(pendingChargeStatusValues);
+
+const ledgerEntrySchema = z.object({
+  id: z.string(),
+  direction: ledgerDirectionZ,
+  category: ledgerCategoryZ,
+  description: z.string(),
+  currency: z.string().length(3),
+  amountCents: z.number().int(),
+  sourceType: z.string().nullable(),
+  sourceId: z.string().nullable(),
+  occurredAt: z.string(),
+});
+
+const pendingChargeSchema = z.object({
+  id: z.string(),
+  category: ledgerCategoryZ,
+  status: pendingChargeStatusZ,
+  description: z.string(),
+  currency: z.string().length(3),
+  amountCents: z.number().int(),
+  sourceType: z.string().nullable(),
+  sourceId: z.string().nullable(),
+  expectedCommitAt: z.string().nullable(),
+  createdAt: z.string(),
+});
+
+const billingSummarySchema = z.object({
+  currency: z.string().length(3),
+  postedDebitCents: z.number().int(),
+  postedCreditCents: z.number().int(),
+  postedNetCents: z.number().int(),
+  pendingDebitCents: z.number().int(),
+  pendingCreditCents: z.number().int(),
+  pendingNetCents: z.number().int(),
+  availableBalanceCents: z.number().int(),
+  pendingCount: z.number().int().min(0),
+  postedCount: z.number().int().min(0),
+});
+
+const ledgerOutputSchema = z.object({
+  entries: z.array(ledgerEntrySchema),
+  summary: billingSummarySchema,
+});
+
+const pendingOutputSchema = z.object({
+  charges: z.array(pendingChargeSchema),
+  summary: billingSummarySchema,
+});
+
+function emptyBillingSummary(currency = 'GBP'): z.infer<typeof billingSummarySchema> {
+  return {
+    currency,
+    postedDebitCents: 0,
+    postedCreditCents: 0,
+    postedNetCents: 0,
+    pendingDebitCents: 0,
+    pendingCreditCents: 0,
+    pendingNetCents: 0,
+    availableBalanceCents: 0,
+    pendingCount: 0,
+    postedCount: 0,
+  };
+}
+
+export function computeBillingSummary(input: {
+  posted: Array<{ direction: 'debit' | 'credit'; amountCents: number; currency: string }>;
+  pending: Array<{ amountCents: number; currency: string }>;
+}): z.infer<typeof billingSummarySchema> {
+  const currency = input.posted[0]?.currency ?? input.pending[0]?.currency ?? 'GBP';
+
+  const postedDebitCents = input.posted
+    .filter((entry) => entry.direction === 'debit')
+    .reduce((sum, entry) => sum + entry.amountCents, 0);
+
+  const postedCreditCents = input.posted
+    .filter((entry) => entry.direction === 'credit')
+    .reduce((sum, entry) => sum + entry.amountCents, 0);
+
+  const pendingDebitCents = input.pending.reduce((sum, entry) => sum + entry.amountCents, 0);
+  const pendingCreditCents = 0;
+
+  const postedNetCents = postedCreditCents - postedDebitCents;
+  const pendingNetCents = pendingCreditCents - pendingDebitCents;
+  const availableBalanceCents = postedNetCents + pendingNetCents;
+
+  return {
+    currency,
+    postedDebitCents,
+    postedCreditCents,
+    postedNetCents,
+    pendingDebitCents,
+    pendingCreditCents,
+    pendingNetCents,
+    availableBalanceCents,
+    pendingCount: input.pending.length,
+    postedCount: input.posted.length,
+  };
+}
+
+function isMissingBillingTables(err: unknown): boolean {
+  const e = err as { errno?: number; code?: string; message?: string };
+  if (e.errno === 1146) return true;
+  if (e.code === 'ER_NO_SUCH_TABLE') return true;
+  if (typeof e.message === 'string' && e.message.includes("doesn't exist")) return true;
+  return false;
+}
 
 const PLAN_DEFINITIONS = [
   {
@@ -548,5 +667,206 @@ export const billingRouter = router({
       }
 
       return { success: true, captureId: result.captureId };
+    }),
+
+  /** Posted ledger rows + summary (requires `billing_ledger` table). */
+  getLedger: protectedProcedure
+    .input(z.object({ limit: z.number().int().min(1).max(200).optional() }).optional())
+    .output(ledgerOutputSchema)
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.user.id;
+      const limit = input?.limit ?? 50;
+
+      try {
+        const postedEntries = await db
+          .select({
+            id: billingLedger.id,
+            direction: billingLedger.direction,
+            category: billingLedger.category,
+            description: billingLedger.description,
+            currency: billingLedger.currency,
+            amountCents: billingLedger.amountCents,
+            sourceType: billingLedger.sourceType,
+            sourceId: billingLedger.sourceId,
+            occurredAt: billingLedger.occurredAt,
+          })
+          .from(billingLedger)
+          .where(eq(billingLedger.userId, userId))
+          .orderBy(desc(billingLedger.occurredAt), desc(billingLedger.createdAt))
+          .limit(limit);
+
+        const pendingRows = await db
+          .select({
+            amountCents: pendingCharges.amountCents,
+            currency: pendingCharges.currency,
+          })
+          .from(pendingCharges)
+          .where(
+            and(
+              eq(pendingCharges.userId, userId),
+              inArray(pendingCharges.status, ['queued', 'authorized']),
+            ),
+          );
+
+        const summary = computeBillingSummary({
+          posted: postedEntries.map((entry) => ({
+            direction: entry.direction as 'debit' | 'credit',
+            amountCents: entry.amountCents,
+            currency: entry.currency,
+          })),
+          pending: pendingRows.map((row) => ({
+            amountCents: row.amountCents,
+            currency: row.currency,
+          })),
+        });
+
+        return ledgerOutputSchema.parse({
+          entries: postedEntries.map((entry) => ({
+            id: entry.id,
+            direction: entry.direction,
+            category: entry.category,
+            description: entry.description,
+            currency: entry.currency,
+            amountCents: entry.amountCents,
+            sourceType: entry.sourceType ?? null,
+            sourceId: entry.sourceId ?? null,
+            occurredAt: entry.occurredAt.toISOString(),
+          })),
+          summary,
+        });
+      } catch (err) {
+        if (isMissingBillingTables(err)) {
+          return { entries: [], summary: emptyBillingSummary() };
+        }
+        throw err;
+      }
+    }),
+
+  /** Insert a credit row for a subscription payment (smoke/testing helper). */
+  processSubscription: protectedProcedure
+    .input(
+      z.object({
+        planId: z.string().min(1).max(128),
+        amountGbp: z.number().positive().finite(),
+      }),
+    )
+    .output(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const id = randomUUID();
+      await db.insert(billingLedger).values({
+        id,
+        userId: ctx.user.id,
+        direction: 'credit',
+        category: 'subscription',
+        description: `Subscription ${input.planId}`,
+        currency: 'GBP',
+        amountCents: Math.round(input.amountGbp * 100),
+        sourceType: 'subscription',
+        sourceId: input.planId,
+        occurredAt: new Date(),
+      });
+      return { id };
+    }),
+
+  /** Insert a credit row for a refund (smoke/testing helper). */
+  processRefund: protectedProcedure
+    .input(
+      z.object({
+        referenceId: z.string().min(1).max(128),
+        amountGbp: z.number().positive().finite(),
+      }),
+    )
+    .output(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const id = randomUUID();
+      await db.insert(billingLedger).values({
+        id,
+        userId: ctx.user.id,
+        direction: 'credit',
+        category: 'refund',
+        description: `Refund ${input.referenceId}`,
+        currency: 'GBP',
+        amountCents: Math.round(input.amountGbp * 100),
+        sourceType: 'refund',
+        sourceId: input.referenceId,
+        occurredAt: new Date(),
+      });
+      return { id };
+    }),
+
+  /** Pending spend rows + summary (requires `pending_charges` table). */
+  getPendingSpend: protectedProcedure
+    .input(z.object({ limit: z.number().int().min(1).max(200).optional() }).optional())
+    .output(pendingOutputSchema)
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.user.id;
+      const limit = input?.limit ?? 50;
+
+      try {
+        const pendingList = await db
+          .select({
+            id: pendingCharges.id,
+            category: pendingCharges.category,
+            status: pendingCharges.status,
+            description: pendingCharges.description,
+            currency: pendingCharges.currency,
+            amountCents: pendingCharges.amountCents,
+            sourceType: pendingCharges.sourceType,
+            sourceId: pendingCharges.sourceId,
+            expectedCommitAt: pendingCharges.expectedCommitAt,
+            createdAt: pendingCharges.createdAt,
+          })
+          .from(pendingCharges)
+          .where(
+            and(
+              eq(pendingCharges.userId, userId),
+              inArray(pendingCharges.status, ['queued', 'authorized']),
+            ),
+          )
+          .orderBy(desc(pendingCharges.createdAt))
+          .limit(limit);
+
+        const postedRows = await db
+          .select({
+            direction: billingLedger.direction,
+            amountCents: billingLedger.amountCents,
+            currency: billingLedger.currency,
+          })
+          .from(billingLedger)
+          .where(eq(billingLedger.userId, userId));
+
+        const summary = computeBillingSummary({
+          posted: postedRows.map((entry) => ({
+            direction: entry.direction as 'debit' | 'credit',
+            amountCents: entry.amountCents,
+            currency: entry.currency,
+          })),
+          pending: pendingList.map((row) => ({
+            amountCents: row.amountCents,
+            currency: row.currency,
+          })),
+        });
+
+        return pendingOutputSchema.parse({
+          charges: pendingList.map((charge) => ({
+            id: charge.id,
+            category: charge.category,
+            status: charge.status,
+            description: charge.description,
+            currency: charge.currency,
+            amountCents: charge.amountCents,
+            sourceType: charge.sourceType ?? null,
+            sourceId: charge.sourceId ?? null,
+            expectedCommitAt: charge.expectedCommitAt ? charge.expectedCommitAt.toISOString() : null,
+            createdAt: charge.createdAt.toISOString(),
+          })),
+          summary,
+        });
+      } catch (err) {
+        if (isMissingBillingTables(err)) {
+          return { charges: [], summary: emptyBillingSummary() };
+        }
+        throw err;
+      }
     }),
 });

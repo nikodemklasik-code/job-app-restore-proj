@@ -1,10 +1,13 @@
 # Agent Work Split (Execution Protocol)
 
+**Moduły i fazy produktu:** kanoniczny podział wykonawczy — [`../squad/README.md`](../squad/README.md) (Agent 1 / 2 / 3 + QC + PO). Ten dokument zostaje **protokołem technicznym A / B / QC** (frontend vs backend w ramach zadania); nie przeczy fazom squadu.
+
 ## Roles
 
 ### Agent A — Frontend Product/UX
 - Owns page UX, layout quality, states (loading/empty/error/populated), CTA clarity.
 - Owns component reuse and UI consistency across modules.
+- **Theme/layout contract:** zmiany w UI muszą być zgodne z [`unified-app-layout-and-theme-standard-v1.0.md`](./unified-app-layout-and-theme-standard-v1.0.md); egzekucję spójności motywów na całej www ustala PO przez rolę opisaną w [`visual-consistency-owner-role-spec.md`](./visual-consistency-owner-role-spec.md).
 - Works in:
   - `frontend/src/app/*`
   - `frontend/src/components/*`

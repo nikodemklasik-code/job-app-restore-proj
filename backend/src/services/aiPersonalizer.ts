@@ -1,11 +1,7 @@
-import OpenAI from 'openai';
+import { tryGetOpenAiClient } from '../lib/openai/openai.client.js';
+import { getDefaultTextModel } from '../lib/openai/model-registry.js';
 
-const getClient = () => new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-
-const getOpenAIClient = (): OpenAI | null => {
-  if (!process.env.OPENAI_API_KEY) return null;
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-};
+const getOpenAIClient = () => tryGetOpenAiClient();
 
 interface Profile {
   fullName?: string;
@@ -45,8 +41,12 @@ ${signalHint}
 
 Write in first person. Tone: professional, confident, UK English. No generic filler. End with "Yours sincerely,\n${profile.fullName ?? 'Candidate'}".`;
 
-  const resp = await getClient().chat.completions.create({
-    model: 'gpt-4o-mini',
+  const client = tryGetOpenAiClient();
+  if (!client) {
+    return fallbackCoverLetter(profile, job);
+  }
+  const resp = await client.chat.completions.create({
+    model: getDefaultTextModel(),
     max_tokens: 600,
     messages: [
       { role: 'system', content: 'You write tailored UK job application cover letters. Be specific, concise, and compelling.' },
@@ -71,8 +71,12 @@ ${profile.fullName ?? 'Candidate'}`;
 }
 
 export async function generateCvSummary(profile: Profile, job: Job): Promise<string> {
-  const resp = await getClient().chat.completions.create({
-    model: 'gpt-4o-mini',
+  const client = tryGetOpenAiClient();
+  if (!client) {
+    return profile.summary ?? '';
+  }
+  const resp = await client.chat.completions.create({
+    model: getDefaultTextModel(),
     max_tokens: 150,
     messages: [
       { role: 'system', content: 'Write a 2-sentence professional summary tailored to a specific role. UK English.' },
@@ -179,7 +183,7 @@ Return: { "score": 0-100, "strengths": ["...","...","..."], "gaps": ["...","..."
 extractedRequirements: extract up to 8 specific skills/requirements from the job description as short strings.`;
 
   const res = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+    model: getDefaultTextModel(),
     messages: [{ role: 'user', content: prompt }],
     response_format: { type: 'json_object' },
     max_tokens: 400,
@@ -212,7 +216,7 @@ export async function generateFollowUp(input: {
   }
 
   const res = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+    model: getDefaultTextModel(),
     messages: [{
       role: 'user',
       content: `Write a short, professional follow-up email for a UK job application.
@@ -261,7 +265,7 @@ If you don't have specific knowledge of this company, provide a reasonable infer
 
   try {
     const res = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: getDefaultTextModel(),
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
       max_tokens: 300,

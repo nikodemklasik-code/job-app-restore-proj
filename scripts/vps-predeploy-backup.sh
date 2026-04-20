@@ -6,11 +6,11 @@
 #   3) Prune archives: keep 3 newest per prefix (same rule as scripts/backup.sh)
 #
 # Env:
-#   REMOTE_BASE  default /var/www/multivohub-jobapp
+#   REMOTE_BASE  default /root/project (see .canonical-repo-key)
 #
 set -euo pipefail
 
-REMOTE_BASE="${REMOTE_BASE:-/var/www/multivohub-jobapp}"
+REMOTE_BASE="${REMOTE_BASE:-/root/project}"
 DIST="${REMOTE_BASE}/frontend/dist"
 
 # ── Rollback-style (next to dist/) ────────────────────────────────────────────

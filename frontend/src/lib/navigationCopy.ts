@@ -1,5 +1,5 @@
 /**
- * Canonical English **Title Case** for shell chrome (header title + sidebar labels).
+ * English labels for shell chrome (header title; sidebar uses the same strings where listed).
  * One source of truth — keep in sync with `router.tsx` paths.
  */
 export const SHELL_PAGE_TITLE: Record<string, string> = {
@@ -7,7 +7,8 @@ export const SHELL_PAGE_TITLE: Record<string, string> = {
   '/jobs': 'Jobs',
   '/applications': 'Applications',
   '/applications/board': 'Applications Board',
-  '/review': 'Applications Review',
+  /** Short label — avoids “Applications Rew…” truncation in narrow shell chrome. */
+  '/review': 'Review queue',
   '/assistant': 'Assistant',
   '/interview': 'Interview',
   '/warmup': 'Daily Warmup',
@@ -16,7 +17,8 @@ export const SHELL_PAGE_TITLE: Record<string, string> = {
   '/profile': 'Profile',
   '/style-studio': 'Style Studio',
   '/settings': 'Settings',
-  '/security': 'Security & Passkeys',
+  '/settings/community': 'Community Centre',
+  '/security': 'Security, passkeys & 2FA',
   '/billing': 'Billing',
   '/skills': 'Skill Lab',
   '/radar': 'Job Radar',
@@ -31,10 +33,14 @@ export const SHELL_PAGE_TITLE: Record<string, string> = {
   '/case-practice': 'Case Practice',
 };
 
-export function pageTitleForPath(pathname: string): string {
-  if (SHELL_PAGE_TITLE[pathname]) return SHELL_PAGE_TITLE[pathname];
-  if (pathname.startsWith('/job-radar/scan/')) return 'Job Radar Scan';
-  if (pathname.startsWith('/job-radar/report/')) return 'Job Radar Report';
-  if (pathname.startsWith('/job-radar/admin/')) return 'Job Radar Admin';
+export function pageTitleForPath(pathname: string, search = ''): string {
+  const pathOnly = pathname.split('?')[0] ?? pathname;
+  const q = search.startsWith('?') ? search : search ? `?${search}` : '';
+  const hasTab = (s: string) => new URLSearchParams(s.startsWith('?') ? s : `?${s}`).get('tab');
+  if (pathOnly === '/settings' && hasTab(q) === 'privacy') return 'Community Centre';
+  if (SHELL_PAGE_TITLE[pathOnly]) return SHELL_PAGE_TITLE[pathOnly];
+  if (pathOnly.startsWith('/job-radar/scan/')) return 'Job Radar Scan';
+  if (pathOnly.startsWith('/job-radar/report/')) return 'Job Radar Report';
+  if (pathOnly.startsWith('/job-radar/admin/')) return 'Job Radar Admin';
   return 'Career Workspace';
 }

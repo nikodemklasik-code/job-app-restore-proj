@@ -16,7 +16,7 @@
  * Environment variables:
  *   DEPLOY_TOKEN      Required. Secret token that must match the ?token= query param.
  *   WEBHOOK_PORT      Port to listen on (default: 9000).
- *   APP_DIR           Absolute path to the app on the VPS (default: /var/www/multivohub-jobapp).
+ *   APP_DIR           Absolute path to the app on the VPS (default: /root/project).
  *   BRANCH            Git branch to pull (default: main).
  *   PM2_APP_NAME      PM2 process name to reload (default: jobapp-server).
  *
@@ -43,7 +43,7 @@ const execFileAsync = promisify(execFile);
 // ─── Config ──────────────────────────────────────────────────────────────────
 const DEPLOY_TOKEN = process.env.DEPLOY_TOKEN ?? '';
 const PORT = parseInt(process.env.WEBHOOK_PORT ?? '9000', 10);
-const APP_DIR = process.env.APP_DIR ?? '/var/www/multivohub-jobapp';
+const APP_DIR = process.env.APP_DIR ?? '/root/project';
 const BRANCH = process.env.BRANCH ?? 'main';
 const PM2_APP = process.env.PM2_APP_NAME ?? 'jobapp-server';
 

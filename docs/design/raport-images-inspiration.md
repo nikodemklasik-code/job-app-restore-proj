@@ -26,6 +26,12 @@ Files in `images/` are mostly **WebP** payloads with a `.png` extension (VP8). U
 | `ai-features-illustration.png` | Landing / **AI capability map** one-pager. |
 | `hero-background.png` | Marketing hero **atmosphere** (do not ship 1:1 as app chrome without PO decision). |
 
+## Values and philosophy (in repo)
+
+Decks committed for **copy, positioning, and philosophy alignment** (not pixel mocks):
+
+- `docs/design/inspiration/multivohub-values/` — see `README.md` there for `Multivohub_katalog_wartosci_i_filozofii.pptx` (PL) and `Multivohub_values_philosophy_EN_edited.pptx` (EN).
+
 ## Wireframe tokens (`screen-previews.txt`)
 
 Useful defaults to align mocks with the live shell (if PO chooses this direction):
@@ -36,6 +42,31 @@ Useful defaults to align mocks with the live shell (if PO chooses this direction
 - Card + soft shadow pattern for “workspace” feel
 
 Current MultivoHub app leans **indigo**; converging to mock blue is a **single PO decision** (tokens in `frontend/src/index.css` / theme store).
+
+## Komposo HTML bundle (local)
+
+**Folder:** `/Users/nikodem/Downloads/raport/komposo-2026-04-09T21-13-21-848Z/`  
+**What it is:** statyczne strony HTML z klasami Tailwind — szkielet **AppShell** (sidebar + treść), wiele ekranów (`1-auth-page.html` …) oraz osobne pliki **specyfikacji motywów** (`24-visually-impaired-…` … `29-dark-…`). W katalogu są też `setup.md` i `tailwind-imports-best-practice.md` (reminder pod Vite: `@tailwind` w `index.css`, `content` w config).
+
+**Kierunek wizualny (do spięcia z kodem):**
+
+- **Powłoka:** `flex h-screen`, tło canvas `bg-slate-50`, tekst `text-slate-900`, sidebar ~`w-72`, `bg-white`, `border-slate-200`, subtelny cień — spójne z normą [`unified-app-layout-and-theme-standard-v1.0.md`](../policies/unified-app-layout-and-theme-standard-v1.0.md) (max-width treści, jeden chrome).
+- **Akcent produktowy:** **indigo** (np. aktywny nav, gradient marki) — zgodne z obecną linią aplikacji; nie mieszać losowo z `blue-*` z innych plików eksportu bez decyzji tokenowej.
+- **Uwaga na niespójności eksportu:** część plików motywów używa innych skal (`gray-*`, placeholder typu „Bez” w nawigacji) — traktować jako **eksplorację**, a kanoniczne zachowanie motywów utrzymywać w `themeStore` + `.theme-*` w repo.
+
+## Decki PPTX (local — treść „dlaczego”, nie siatka pikseli)
+
+Ścieżki względem `Downloads/raport/` (sprawdzone na dysku użytkownika):
+
+- `Multivohub_katalog_wartosci_i_filozofii.pptx` — **PL:** wartości i filozofia → ton komunikacji, hierarchia przekazów, co jest „święte” w brandzie.
+- `Multivohub_values_philosophy_EN_edited.pptx` — **EN:** to samo dla rynków anglojęzycznych i spójności copy z UI EN.
+- `mitigation_investor_partner_deck.pptx` — **nie znaleziono** w `Downloads/raport/` przy przeglądzie katalogu; może być w innym folderze — po dodaniu ścieżki można tu dopisać jedną linię (mitigation / partner / investor = **narracja ryzyka i partnerstwa**, nie styl komponentów).
+
+**Jak używać decków przy produkcie www:** ustalenie **priorytetów modułów** i języka wartości (np. zaufanie, neuroróżnorodność, przejrzystość ryzyka) → potem **Visual Consistency Owner** tłumaczy to na tokeny, typografię i checklistę motywów; nie kopiować slajdów 1:1 jako layoutu aplikacji bez PO.
+
+## Pisownia marki
+
+**Kanonicznie w UI i nowych materiałach:** **MultivoHub** (wielka litera **V** w „Vo”, **H** w „Hub”). W nazwach historycznych plików (`Multivohub_…`) nie trzeba zmieniać nazw dyskowych; w treści produktu unikać losowych wariantów (`MultiVoHub`, `multivohub` w nagłówkach) — Owner + copy QA.
 
 ## Next steps (optional)
 

@@ -4,13 +4,51 @@ import { eq, desc, and } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { router, protectedProcedure, publicProcedure } from '../trpc.js';
 import { db } from '../../db/index.js';
-import { interviewSessions, interviewAnswers } from '../../db/schema.js';
+import {
+  interviewSessions,
+  interviewAnswers,
+  creditSpendEvents,
+  users,
+} from '../../db/schema.js';
 import {
   buildInterviewQuestions,
   scoreInterviewAnswer,
   computeSessionScore,
 } from '../../services/interview.js';
-import { interviewModes, interviewDifficulties } from '../../../../shared/interview.js';
+import {
+  interviewModes,
+  interviewDifficulties,
+  type InterviewMode,
+} from '../../../../shared/interview.js';
+import { approveSpend, commitSpend, rejectSpend, BillingError } from '../../services/creditsBilling.js';
+import { FEATURE_COSTS, isKnownFeature, type FeatureKey } from '../../services/creditsConfig.js';
+import { billingToTrpc } from './_shared.js';
+
+function legacyInterviewFeatureForMode(mode: InterviewMode): FeatureKey {
+  if (mode === 'case-study') return 'interview_deep';
+  if (mode === 'behavioral' || mode === 'technical') return 'interview_standard';
+  return 'interview_lite';
+}
+
+async function findApprovedLegacyInterviewSpend(
+  clerkId: string,
+  sessionId: string,
+): Promise<{ id: string; feature: string } | null> {
+  const [row] = await db
+    .select({ id: creditSpendEvents.id, feature: creditSpendEvents.feature })
+    .from(creditSpendEvents)
+    .innerJoin(users, eq(users.id, creditSpendEvents.userId))
+    .where(
+      and(
+        eq(users.clerkId, clerkId),
+        eq(creditSpendEvents.referenceId, sessionId),
+        eq(creditSpendEvents.status, 'approved'),
+        eq(creditSpendEvents.kind, 'estimated'),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
 
 const metricsSchema = z.object({
   answerDurationMs: z.number(),
@@ -52,8 +90,39 @@ export const interviewRouter = router({
         selectedJobId: input.selectedJobId ?? null,
       });
 
-      const questions = buildInterviewQuestions(input.mode, input.questionCount);
-      return { sessionId, questions };
+      let approvedSpendEventId: string | undefined;
+      try {
+        const approval = await approveSpend({
+          clerkId: ctx.user.clerkId,
+          feature: legacyInterviewFeatureForMode(input.mode),
+          referenceId: sessionId,
+          notes: `Legacy interview start · ${input.mode}`,
+        });
+        approvedSpendEventId = approval.spendEventId;
+      } catch (e) {
+        await db.delete(interviewSessions).where(eq(interviewSessions.id, sessionId));
+        if (e instanceof BillingError) billingToTrpc(e);
+        throw e;
+      }
+
+      try {
+        const questions = buildInterviewQuestions(input.mode, input.questionCount);
+        return { sessionId, questions };
+      } catch (e) {
+        if (approvedSpendEventId) {
+          try {
+            await rejectSpend({
+              clerkId: ctx.user.clerkId,
+              spendEventId: approvedSpendEventId,
+              reason: 'legacy_interview_start_post_approve_failed',
+            });
+          } catch {
+            /* best-effort */
+          }
+        }
+        await db.delete(interviewSessions).where(eq(interviewSessions.id, sessionId));
+        throw e;
+      }
     }),
 
   // ── Save one answer ──────────────────────────────────────────────────────────
@@ -124,13 +193,25 @@ export const interviewRouter = router({
       const userId = ctx.user.id;
 
       const [session] = await db
-        .select({ userId: interviewSessions.userId })
+        .select({
+          userId: interviewSessions.userId,
+          status: interviewSessions.status,
+          score: interviewSessions.score,
+        })
         .from(interviewSessions)
         .where(eq(interviewSessions.id, input.sessionId))
         .limit(1);
 
       if (!session || session.userId !== userId) {
         throw new TRPCError({ code: 'FORBIDDEN' });
+      }
+
+      if (session.status === 'completed') {
+        return {
+          sessionId: input.sessionId,
+          status: 'completed' as const,
+          score: session.score ?? 0,
+        };
       }
 
       const answers = await db
@@ -140,6 +221,27 @@ export const interviewRouter = router({
 
       const scores = answers.map((a) => (a.feedback as { score: number }).score);
       const score = computeSessionScore(scores);
+
+      const pendingSpend = await findApprovedLegacyInterviewSpend(ctx.user.clerkId, input.sessionId);
+      if (pendingSpend) {
+        const fk: FeatureKey =
+          pendingSpend.feature && isKnownFeature(pendingSpend.feature)
+            ? (pendingSpend.feature as FeatureKey)
+            : 'interview_lite';
+        const cfg = FEATURE_COSTS[fk];
+        const actualCost = cfg.kind === 'estimated' ? cfg.minCost : cfg.cost;
+        try {
+          await commitSpend({
+            clerkId: ctx.user.clerkId,
+            spendEventId: pendingSpend.id,
+            actualCost,
+            notes: 'Legacy interview session completed',
+          });
+        } catch (e) {
+          if (e instanceof BillingError) billingToTrpc(e);
+          throw e;
+        }
+      }
 
       await db
         .update(interviewSessions)
@@ -320,7 +422,7 @@ export const interviewRouter = router({
         .select({ fullName: profiles.fullName })
         .from(profiles)
         .innerJoin(users, eq(users.id, profiles.userId))
-        .where(eq(users.clerkId, userId))
+        .where(eq(users.id, userId))
         .limit(1);
 
       const modeLabelMap: Record<string, string> = {

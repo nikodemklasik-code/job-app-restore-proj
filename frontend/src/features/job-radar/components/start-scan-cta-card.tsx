@@ -28,12 +28,12 @@ export function StartScanCtaCard(props: Props) {
       forceRescan: false,
     });
 
-    if (result.reportId && result.status && terminal.has(result.status)) {
-      navigate(`/job-radar/report/${result.reportId}`);
+    if (result.report_id && result.status && terminal.has(result.status)) {
+      navigate(`/job-radar/report/${result.report_id}`);
       return;
     }
 
-    navigate(`/job-radar/scan/${result.scanId}`);
+    navigate(`/job-radar/scan/${result.scan_id}`);
   }
 
   return (

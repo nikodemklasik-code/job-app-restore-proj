@@ -2,6 +2,8 @@
 
 This standard is mandatory without exceptions.
 
+**Squad — pełny obieg implementacji → QC → integracja (format dostawy agenta, format recenzji QC, mapowanie werdyktów):** [`../squad/IMPLEMENTATION_EXECUTION_RULES.md`](../squad/IMPLEMENTATION_EXECUTION_RULES.md)
+
 ## 1) Repository Is The Source Of Truth
 
 - Every team member must regularly check tasks in the repository.

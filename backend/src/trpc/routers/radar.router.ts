@@ -3,12 +3,8 @@ import { eq, desc } from 'drizzle-orm';
 import { router, protectedProcedure } from '../trpc.js';
 import { db } from '../../db/index.js';
 import { applications } from '../../db/schema.js';
-import OpenAI from 'openai';
-
-function getOpenAI(): OpenAI {
-  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not configured');
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-}
+import { getOpenAiClient } from '../../lib/openai/openai.client.js';
+import { getRoutingModel } from '../../lib/openai/model-registry.js';
 
 export interface RadarSkill {
   skill: string;
@@ -42,7 +38,7 @@ export const radarRouter = router({
       const jobTitles = recentApps.map((a) => a.jobTitle).filter(Boolean).slice(0, 20);
       const sectorHint = input.sector ?? (jobTitles.length > 0 ? `roles including: ${jobTitles.slice(0, 8).join(', ')}` : 'general professional roles');
 
-      const openai = getOpenAI();
+      const openai = getOpenAiClient();
       const prompt = `You are a labour-market intelligence analyst. Based on the candidate's job search history (${sectorHint}), predict which skills will be most in demand in their sector over the next 6–12 months.
 
 Return a JSON object with this exact structure (no markdown, pure JSON):
@@ -70,7 +66,7 @@ Rules:
 - Never mention the candidate's name or profile — only skills and market context.`;
 
       const response = await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
+        model: getRoutingModel(),
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.6,
         max_tokens: 1800,

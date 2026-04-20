@@ -1,10 +1,24 @@
 import { describe, expect, it } from 'vitest';
+import type { AssistantResponseMeta } from '../../../../shared/assistant.js';
 import { buildAssistantResponseMeta } from '../openai.js';
 
 describe('buildAssistantResponseMeta', () => {
+  it('matches AssistantResponseMeta shape (shared contract for QC drift guard)', () => {
+    const meta = buildAssistantResponseMeta({ userText: 'Help me prepare for a system design interview.' });
+    const typed: AssistantResponseMeta = meta;
+    expect(typed.detectedIntent).toBeTruthy();
+    expect(Array.isArray(typed.suggestedActions)).toBe(true);
+    expect(Array.isArray(typed.routeSuggestions)).toBe(true);
+    expect(Array.isArray(typed.contextRefs)).toBe(true);
+    expect(Array.isArray(typed.safetyNotes)).toBe(true);
+    expect(typed.nextBestStep === undefined || typeof typed.nextBestStep === 'string').toBe(true);
+    expect(typed.complianceFlags === undefined || Array.isArray(typed.complianceFlags)).toBe(true);
+  });
+
   it('returns deterministic contract fields for general prompts', () => {
-    const input = 'Help me improve my CV bullets for product manager roles.';
-    const meta = buildAssistantResponseMeta(input);
+    const meta = buildAssistantResponseMeta({
+      userText: 'Help me improve my cv bullets for product manager roles.',
+    });
 
     expect(meta.detectedIntent).toBe('improve_cv');
     expect(meta.suggestedActions.length).toBeGreaterThan(0);
@@ -16,9 +30,9 @@ describe('buildAssistantResponseMeta', () => {
   });
 
   it('adds case-practice legal caution notes and flags', () => {
-    const meta = buildAssistantResponseMeta(
-      'I may need ACAS before an employment tribunal for discrimination.',
-    );
+    const meta = buildAssistantResponseMeta({
+      userText: 'I may need ACAS before an employment tribunal for discrimination.',
+    });
 
     const noteTexts = meta.safetyNotes.map((note) => note.text);
     expect(noteTexts).toContain(
@@ -32,10 +46,18 @@ describe('buildAssistantResponseMeta', () => {
     expect(meta.routeSuggestions.some((route) => route.route === '/case-practice')).toBe(true);
   });
 
+  it('prefers explicit client mode over vague text for intent', () => {
+    const meta = buildAssistantResponseMeta({
+      userText: 'What should I focus on next?',
+      mode: 'interview',
+    });
+    expect(meta.detectedIntent).toBe('prepare_for_interview');
+  });
+
   it('adds urgent safeguarding behavior for high-risk prompts', () => {
-    const meta = buildAssistantResponseMeta(
-      'There is violence at work and I feel unsafe right now.',
-    );
+    const meta = buildAssistantResponseMeta({
+      userText: 'There is violence at work and I feel unsafe right now.',
+    });
 
     expect(
       meta.safetyNotes.some(

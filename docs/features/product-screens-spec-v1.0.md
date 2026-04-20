@@ -1,12 +1,20 @@
 # Product Screens Spec v1.0 (Overwritten)
 
-**Related (agent-ready digest, same 19 screens, Title Case):** [`19-screens-for-users-and-agents.md`](./19-screens-for-users-and-agents.md) — import z `~/Downloads/19_Screens_For_Users_And_Agents.md` (2026-04-16). Ten plik (`product-screens-spec-v1.0.md`) zostaje kanonicznym, bogatszym opisem produktu; tamten format jest wygodny pod review agentów i checklisty implementacji.
+**Related (agent-ready digest, same 19 screens, Title Case):** [`19-screens-for-users-and-agents.md`](./19-screens-for-users-and-agents.md) — import z `~/Downloads/19_Screens_For_Users_And_Agents.md`. **Czas:** w pliku `19-screens-for-users-and-agents.md` jest opisana zasada (godzina w dokumencie źródłowym → repo do agentów w **≤ 2–3 min**) oraz **pierwszy commit importu** (`2026-04-16 12:29:24 +0100`). Ten plik (`product-screens-spec-v1.0.md`) zostaje kanonicznym, bogatszym opisem produktu; tamten format jest wygodny pod review agentów i checklisty implementacji.
 
 **AI Analysis (screen 9) — UI shell w aplikacji:** trasa `/ai-analysis` (`frontend/src/app/analysis/AiAnalysisPage.tsx`). Wykresy i copy są demonstracyjne do czasu podłączenia analizy pod profil / backend.
 
 **Norma spójnego layoutu + motywów + lewej nawigacji:** [`../policies/unified-app-layout-and-theme-standard-v1.0.md`](../policies/unified-app-layout-and-theme-standard-v1.0.md).
 
 **Plan AI Analysis (koncepcja, motywy, lista, agenda PO):** [`ai-analysis-page-concept-po-plan-2026-04-16.md`](./ai-analysis-page-concept-po-plan-2026-04-16.md).
+
+**Legal Hub Search:** pełna implementacja [`legal-hub-search-full-implementation-spec-v1.0.md`](./legal-hub-search-full-implementation-spec-v1.0.md); moduł repo + PDF [`legal-hub-search-repo-and-pdf-export-addendum-v1.0.md`](./legal-hub-search-repo-and-pdf-export-addendum-v1.0.md); registry [`../legal-sources/source-registry.yaml`](../legal-sources/source-registry.yaml).
+
+**Podział prac (obowiązujący):** [`../squad/README.md`](../squad/README.md) · [`../squad/Squad_Workboard.md`](../squad/Squad_Workboard.md).
+
+**Warmup / Coach / Interview / Negotiation + billing (szczegóły):** [`practice-refactor/README.md`](./practice-refactor/README.md) · [`practice-modules-refactor-three-developer-split-v1.0.md`](./practice-modules-refactor-three-developer-split-v1.0.md).
+
+**Skill Lab + Job Radar (szczegóły):** [`skill-lab-job-radar-refactor/README.md`](./skill-lab-job-radar-refactor/README.md) · [`skill-lab-job-radar-refactor-three-developer-split-v1.0.md`](./skill-lab-job-radar-refactor-three-developer-split-v1.0.md).
 
 ## Product Intent
 

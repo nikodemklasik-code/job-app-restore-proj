@@ -1,0 +1,13 @@
+SCREEN	SLICE	OWNER_TRACK	PRIORITY	RFQ_PATH	REPORT_PATH	STATUS
+Dashboard	dashboard aggregate snapshot	AGENT_A	P1	docs/agent-work/dashboard-dashboard-aggregate-snapshot-rfq.md	docs/qc-reports/dashboard-dashboard-aggregate-snapshot-ready-for-qc.md	IN_PROGRESS
+Profile	profile completeness + missing critical fields	AGENT_A	P1	docs/agent-work/profile-profile-completeness-missing-critical-fields-rfq.md	docs/qc-reports/profile-profile-completeness-missing-critical-fields-ready-for-qc.md	TODO
+Applications	durable stage transitions + audit trail	AGENT_A	P1	docs/agent-work/applications-durable-stage-transitions-audit-trail-rfq.md	docs/qc-reports/applications-durable-stage-transitions-audit-trail-ready-for-qc.md	TODO
+Applications Review	review queue based on silence days	AGENT_C	P1	docs/agent-work/applications-review-review-queue-based-on-silence-days-rfq.md	docs/qc-reports/applications-review-review-queue-based-on-silence-days-ready-for-qc.md	TODO
+Document Lab	version lineage + parentDocumentId	AGENT_A	P1	docs/agent-work/document-lab-version-lineage-parentdocumentid-rfq.md	docs/qc-reports/document-lab-version-lineage-parentdocumentid-ready-for-qc.md	TODO
+Style Studio	style mode selector + compare view	AGENT_A	P2	docs/agent-work/style-studio-style-mode-selector-compare-view-rfq.md	docs/qc-reports/style-studio-style-mode-selector-compare-view-ready-for-qc.md	TODO
+AI Assistant	context bundle resolver	AGENT_C	P1	docs/agent-work/ai-assistant-context-bundle-resolver-rfq.md	docs/qc-reports/ai-assistant-context-bundle-resolver-ready-for-qc.md	TODO
+AI Analysis	input mode selector + schema	AGENT_B	P2	docs/agent-work/ai-analysis-input-mode-selector-schema-rfq.md	docs/qc-reports/ai-analysis-input-mode-selector-schema-ready-for-qc.md	TODO
+Job Radar	start scan from saved job hardening	AGENT_B	P1	docs/agent-work/job-radar-start-scan-from-saved-job-hardening-rfq.md	docs/qc-reports/job-radar-start-scan-from-saved-job-hardening-ready-for-qc.md	TODO
+Community Centre	community route + placeholder shell	AGENT_C	P3	docs/agent-work/community-centre-community-route-placeholder-shell-rfq.md	docs/qc-reports/community-centre-community-route-placeholder-shell-ready-for-qc.md	TODO
+Settings	server-authoritative settings read/write	AGENT_A	P1	docs/agent-work/settings-server-authoritative-settings-read-write-rfq.md	docs/qc-reports/settings-server-authoritative-settings-read-write-ready-for-qc.md	TODO
+Billing	ledger parity + pending spend visibility	AGENT_A	P1	docs/agent-work/billing-ledger-parity-pending-spend-visibility-rfq.md	docs/qc-reports/billing-ledger-parity-pending-spend-visibility-ready-for-qc.md	TODO

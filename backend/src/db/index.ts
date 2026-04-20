@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { createConnection } from 'mysql2/promise';
 import { drizzle } from 'drizzle-orm/mysql2';
+import { attachMysqlClosedStateGuard } from '../runtime/mysql-closed-state-guard.js';
 import * as schema from './schema.js';
 
 // Load .env early — ESM hoists imports before server.ts dotenv.config() runs
@@ -14,5 +15,13 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env') });      // dist/
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error('Missing DATABASE_URL');
 
-const connection = await createConnection(connectionString);
+let connection;
+try {
+  connection = await createConnection(connectionString);
+} catch (err) {
+  console.error('[mysql] initial connect failed (unavailable, DNS, refused, or bad DATABASE_URL)', err);
+  if (process.env.NODE_ENV === 'test') throw err;
+  process.exit(1);
+}
+attachMysqlClosedStateGuard(connection);
 export const db = drizzle(connection, { schema, mode: 'default' });

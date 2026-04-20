@@ -1,4 +1,5 @@
-import OpenAI from 'openai';
+import { getOpenAiClient } from '../lib/openai/openai.client.js';
+import { getDefaultTextModel } from '../lib/openai/model-registry.js';
 
 export type AllowedAssistantSourceType =
   | 'manual_user_input'
@@ -27,7 +28,6 @@ export interface GenerateCareerResponseInput {
   sourceType: AllowedAssistantSourceType;
 }
 
-const DEFAULT_MODEL = 'gpt-4o-mini';
 const MAX_MESSAGE_COUNT = 16;
 const MAX_MESSAGE_LENGTH = 4000;
 const MAX_RESPONSE_TOKENS = 700;
@@ -118,19 +118,12 @@ function buildGuardrailInstruction(sourceType: AllowedAssistantSourceType): stri
 }
 
 export class VohubService {
-  private static client: OpenAI | null = null;
-
-  private static getClient(): OpenAI {
-    if (this.client) return this.client;
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error('Missing OPENAI_API_KEY environment variable');
-    this.client = new OpenAI({ apiKey });
-    return this.client;
+  private static getClient() {
+    return getOpenAiClient();
   }
 
   private static getModel(): string {
-    const configured = process.env.OPENAI_MODEL;
-    return configured && configured.trim().length > 0 ? configured.trim() : DEFAULT_MODEL;
+    return getDefaultTextModel();
   }
 
   static async redactSensitiveText(rawText: string): Promise<string> {

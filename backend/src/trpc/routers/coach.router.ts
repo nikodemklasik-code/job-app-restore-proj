@@ -1,17 +1,20 @@
 import { z } from 'zod';
-import { eq, sql } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
-import OpenAI from 'openai';
-import { publicProcedure, router } from '../trpc.js';
-import { db } from '../../db/index.js';
-import { subscriptions, users } from '../../db/schema.js';
+import { protectedProcedure, router } from '../trpc.js';
+import { tryGetOpenAiClient } from '../../lib/openai/openai.client.js';
+import { getDefaultTextModel } from '../../lib/openai/model-registry.js';
+import { BillingError } from '../../services/creditsBilling.js';
+import { FEATURE_COSTS } from '../../services/creditsConfig.js';
+import {
+  billingToTrpc,
+  requireSpendApproval,
+  settleSpendFailure,
+  settleSpendSuccess,
+} from './_shared.js';
 
-const CREDITS_PER_EVALUATION = 5;
-
-function getOpenAI(): OpenAI | null {
-  if (!process.env.OPENAI_API_KEY) return null;
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-}
+const coachSessionCfg = FEATURE_COSTS.coach_session;
+const COACH_SESSION_DEBIT =
+  coachSessionCfg.kind === 'estimated' ? coachSessionCfg.maxCost : coachSessionCfg.cost;
 
 const CATEGORY_CONTEXT: Record<string, string> = {
   behavioural: `You are an expert career coach specialising in behavioural interview technique.
@@ -35,45 +38,44 @@ Focus on: structured thinking, prioritisation, communication, risk awareness, an
 Use British English throughout.`,
 };
 
-export const coachRouter = router({
-  evaluateAnswer: publicProcedure
-    .input(z.object({
-      userId: z.string().min(1),
+const evaluateAnswerProcedure = protectedProcedure
+  .use(requireSpendApproval('coach_session'))
+  .input(
+    z.object({
       category: z.enum(['behavioural', 'technical', 'motivation', 'situational']),
       question: z.string().max(500),
       answer: z.string().max(3000),
-    }))
-    .mutation(async ({ input }) => {
-      // ── Resolve local user + check credits ────────────────────────────────
-      const userRow = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
-      const localUserId = userRow[0]?.id;
+    }),
+  );
 
-      if (localUserId) {
-        const sub = (await db.select({ credits: subscriptions.credits, plan: subscriptions.plan })
-          .from(subscriptions)
-          .where(eq(subscriptions.userId, localUserId))
-          .limit(1))[0];
-
-        const currentCredits = sub?.credits ?? 100;
-        if (currentCredits < CREDITS_PER_EVALUATION) {
-          throw new TRPCError({
-            code: 'FORBIDDEN',
-            message: `Not enough credits. Coach evaluation costs ${CREDITS_PER_EVALUATION} credits. You have ${currentCredits} remaining.`,
-          });
-        }
-
-        // Deduct credits immediately
-        await db.update(subscriptions)
-          .set({ credits: sql`${subscriptions.credits} - ${CREDITS_PER_EVALUATION}` })
-          .where(eq(subscriptions.userId, localUserId));
+export const coachRouter = router({
+  evaluateAnswer: evaluateAnswerProcedure.mutation(async ({ ctx, input }) => {
+    let spendFinalized = false;
+    const commitAndReturn = async (out: {
+      score: number;
+      label: string;
+      whatWorked: string[];
+      toImprove: string[];
+      expertInsight: string;
+      interviewTip: string;
+    }) => {
+      try {
+        await settleSpendSuccess(ctx, COACH_SESSION_DEBIT, 'Coach evaluateAnswer completed');
+        spendFinalized = true;
+      } catch (e) {
+        await settleSpendFailure(ctx, e instanceof Error ? e.message : 'commit_failed');
+        spendFinalized = true;
+        if (e instanceof BillingError) billingToTrpc(e);
+        throw e;
       }
+      return { ...out, creditsUsed: COACH_SESSION_DEBIT };
+    };
 
-      // ── OpenAI evaluation ─────────────────────────────────────────────────
-      const openai = getOpenAI();
+    try {
+      const openai = tryGetOpenAiClient();
 
       if (!openai) {
-        // Fallback: client-side heuristic
-        return buildHeuristicFeedback(input.category, input.answer);
+        return commitAndReturn(buildHeuristicFeedback(input.category, input.answer));
       }
 
       const systemPrompt = CATEGORY_CONTEXT[input.category] ?? CATEGORY_CONTEXT.behavioural;
@@ -105,7 +107,7 @@ STRICT LANGUAGE RULES — these override everything:
 
       try {
         const resp = await openai.chat.completions.create({
-          model: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
+          model: getDefaultTextModel(),
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },
@@ -124,19 +126,30 @@ STRICT LANGUAGE RULES — these override everything:
           interviewTip?: string;
         };
 
-        return {
+        const out = {
           score: typeof raw.score === 'number' ? Math.min(100, Math.max(0, raw.score)) : 50,
           label: raw.label ?? 'Developing',
           whatWorked: Array.isArray(raw.whatWorked) ? raw.whatWorked.slice(0, 3) : [],
           toImprove: Array.isArray(raw.toImprove) ? raw.toImprove.slice(0, 3) : [],
           expertInsight: raw.expertInsight ?? '',
           interviewTip: raw.interviewTip ?? '',
-          creditsUsed: CREDITS_PER_EVALUATION,
         };
+        return commitAndReturn(out);
       } catch {
-        return buildHeuristicFeedback(input.category, input.answer);
+        return commitAndReturn(buildHeuristicFeedback(input.category, input.answer));
       }
-    }),
+    } catch (e) {
+      if (!spendFinalized) {
+        await settleSpendFailure(ctx, e instanceof Error ? e.message : 'coach_evaluate_failed');
+      }
+      if (e instanceof BillingError) billingToTrpc(e);
+      if (e instanceof TRPCError) throw e;
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: e instanceof Error ? e.message : 'Coach evaluation failed',
+      });
+    }
+  }),
 });
 
 // ── Heuristic fallback (no OpenAI) ────────────────────────────────────────────
@@ -149,7 +162,8 @@ function buildHeuristicFeedback(category: string, answer: string) {
   const hasResult = /\b(result|outcome|achiev|improv|reduc|increas|saved|delivered|launched)\b/.test(t);
 
   let score = 50;
-  if (words >= 80) score += 15; else if (words < 20) score -= 15;
+  if (words >= 80) score += 15;
+  else if (words < 20) score -= 15;
   if (hasSituation) score += 8;
   if (hasAction) score += 10;
   if (hasResult) score += 12;
@@ -158,10 +172,14 @@ function buildHeuristicFeedback(category: string, answer: string) {
   const label = score >= 85 ? 'Excellent' : score >= 70 ? 'Good' : score >= 55 ? 'Developing' : 'Needs work';
 
   const INSIGHTS: Record<string, string> = {
-    behavioural: 'The strongest behavioural answers use the full STAR structure and close with a specific, measurable result. Interviewers are trained to listen for all four components.',
-    technical: 'Expert technical answers explain not just what you did, but why you chose that approach over alternatives — demonstrating judgement, not just knowledge.',
-    motivation: 'The best motivation answers are specific to the role and company. Generic answers ("I want to grow") are easy to spot; specific ones ("I want to work on distributed systems at scale") signal genuine interest.',
-    situational: 'Strong situational answers show structured thinking: identify the problem, consider options, choose a path, and explain the reasoning — not just what you would do, but why.',
+    behavioural:
+      'The strongest behavioural answers use the full STAR structure and close with a specific, measurable result. Interviewers are trained to listen for all four components.',
+    technical:
+      'Expert technical answers explain not just what you did, but why you chose that approach over alternatives — demonstrating judgement, not just knowledge.',
+    motivation:
+      'The best motivation answers are specific to the role and company. Generic answers ("I want to grow") are easy to spot; specific ones ("I want to work on distributed systems at scale") signal genuine interest.',
+    situational:
+      'Strong situational answers show structured thinking: identify the problem, consider options, choose a path, and explain the reasoning — not just what you would do, but why.',
   };
 
   return {
@@ -174,7 +192,7 @@ function buildHeuristicFeedback(category: string, answer: string) {
       !hasResult ? 'Close with the outcome: "As a result…", "This led to…". Add a number if possible.' : '',
     ].filter(Boolean),
     expertInsight: INSIGHTS[category] ?? INSIGHTS.behavioural,
-    interviewTip: 'Prepare 3-5 strong stories before any interview. Each story should cover all four STAR elements and include at least one number.',
-    creditsUsed: CREDITS_PER_EVALUATION,
+    interviewTip:
+      'Prepare 3-5 strong stories before any interview. Each story should cover all four STAR elements and include at least one number.',
   };
 }

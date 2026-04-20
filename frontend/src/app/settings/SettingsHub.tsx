@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import {
   Shield,
   CreditCard,
   Bell,
-  Plug,
   ChevronRight,
   Eye,
   EyeOff,
@@ -24,12 +23,17 @@ import {
   Contrast,
   PanelLeftClose,
   Lock,
+  Users,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { JobSourcesSettingsTab } from '@/app/settings/JobSourcesSettingsTab';
 import { useThemeStore, THEME_CHOICES, type ThemeId } from '@/stores/themeStore';
 import { api } from '@/lib/api';
+import { isTrpcUnauthorizedError } from '@/lib/trpc-auth-redirect';
+import { resolveActiveSettingsTab } from './settingsTabFromUrl';
+import { UserProductSettingsTab } from './UserProductSettingsTab';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -56,7 +60,8 @@ const PROVIDER_PRESETS: Record<EmailProvider, ProviderPreset> = {
 // ---------------------------------------------------------------------------
 
 const QUICK_LINKS = [
-  { label: 'Security & Passkeys', icon: Shield, href: '/security' },
+  { label: 'Community Centre', icon: Users, href: '/settings/community' },
+  { label: 'Security, passkeys & 2FA', icon: Shield, href: '/security' },
   { label: 'Billing & Credits', icon: CreditCard, href: '/billing' },
 ];
 
@@ -597,10 +602,13 @@ function TelegramSettingsTab({ userId }: { userId: string }) {
 // ---------------------------------------------------------------------------
 
 function SystemReadinessTab({ userId }: { userId: string }) {
-  const { data: profile } = api.profile.getProfile.useQuery(
-    undefined,
-    { enabled: !!userId },
-  );
+  const {
+    data: profile,
+    isError: profileQueryError,
+    error: profileQueryErr,
+    refetch: refetchProfile,
+    isFetching: profileRefetching,
+  } = api.profile.getProfile.useQuery(undefined, { enabled: !!userId });
   const { data: emailSettings } = api.emailSettings.getSettings.useQuery(
     { userId },
     { enabled: !!userId },
@@ -637,12 +645,50 @@ function SystemReadinessTab({ userId }: { userId: string }) {
     { label: 'Job Sources', value: jobSourcesScore },
   ];
 
+  const sessionOk = !!profile && !profileQueryError;
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>System Readiness</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-700 dark:bg-slate-900/40">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-200">API session (Clerk to server)</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+                Confirms your sign-in token is accepted by the app backend. Use this after you see Authentication
+                required or when something in the app cannot load your data.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void refetchProfile()}
+              disabled={!userId || profileRefetching}
+              className="inline-flex shrink-0 items-center justify-center gap-2 self-start rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700/80"
+            >
+              {profileRefetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              Check API session
+            </button>
+          </div>
+          {profileQueryError ? (
+            <p className="mt-3 text-xs leading-relaxed text-red-600 dark:text-red-400">
+              {isTrpcUnauthorizedError(profileQueryErr)
+                ? 'The server did not accept your session. If you were not sent to the sign-in page automatically, open Sign in from the menu and try again.'
+                : profileQueryErr instanceof Error
+                  ? profileQueryErr.message
+                  : 'Request failed. Try again in a moment.'}
+            </p>
+          ) : null}
+          {sessionOk && !profileRefetching ? (
+            <p className="mt-3 flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Server recognises your account.
+            </p>
+          ) : null}
+        </div>
+
         {items.map((item) => (
           <div key={item.label}>
             <div className="mb-1.5 flex items-center justify-between text-sm">
@@ -825,11 +871,22 @@ function saveConsents(c: Record<string, boolean>) {
 
 export default function SettingsHub() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useUser();
   const userId = user?.id ?? '';
 
-  const { emailNotifications, jobSources, loadSettings, toggleEmailNotifications, toggleJobSource } =
-    useSettingsStore();
+  const tabFromUrl = searchParams.get('tab');
+  const activeSettingsTab = resolveActiveSettingsTab(tabFromUrl);
+
+  const onSettingsTabChange = (value: string) => {
+    if (value === 'overview') {
+      setSearchParams({}, { replace: true });
+    } else {
+      setSearchParams({ tab: value }, { replace: true });
+    }
+  };
+
+  const { emailNotifications, loadSettings, toggleEmailNotifications } = useSettingsStore();
 
   useEffect(() => {
     void loadSettings();
@@ -861,10 +918,11 @@ export default function SettingsHub() {
         <p className="mt-1 text-slate-500">Configure your workspace, integrations and preferences.</p>
       </div>
 
-      <Tabs defaultValue="overview">
+      <Tabs value={activeSettingsTab} onValueChange={onSettingsTabChange}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="privacy">Privacy &amp; Consents</TabsTrigger>
+          <TabsTrigger value="server">Server preferences</TabsTrigger>
+          <TabsTrigger value="privacy">Community &amp; consent</TabsTrigger>
           <TabsTrigger value="accessibility">Accessibility</TabsTrigger>
           <TabsTrigger value="email">Email &amp; SMTP</TabsTrigger>
           <TabsTrigger value="telegram">Telegram</TabsTrigger>
@@ -910,16 +968,25 @@ export default function SettingsHub() {
           </div>
         </TabsContent>
 
+        <TabsContent value="server">
+          <div className="space-y-4">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Preferences stored in MySQL for this account (separate from local-only toggles where noted).
+            </p>
+            <UserProductSettingsTab />
+          </div>
+        </TabsContent>
+
         {/* PRIVACY & CONSENTS */}
         <TabsContent value="privacy">
           <div className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Lock className="h-4 w-4" /> Consent Centre
+                  <Lock className="h-4 w-4" /> Community Centre
                 </CardTitle>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  Control exactly what MultivoHub is allowed to do on your behalf. You can change these at any time.
+                  Consent and data-sharing: control what MultivoHub may do on your behalf. You can change these at any time.
                 </p>
               </CardHeader>
               <CardContent className="space-y-5">
@@ -1056,27 +1123,11 @@ export default function SettingsHub() {
 
         {/* JOB SOURCES */}
         <TabsContent value="sources">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plug className="h-4 w-4" /> Job Sources
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {jobSources.map((source) => (
-                <div
-                  key={source.id}
-                  className="flex items-center justify-between rounded-xl border border-slate-100 p-4 dark:border-slate-800"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{source.name}</p>
-                    <p className="text-xs text-slate-400">{source.connected ? 'Connected' : 'Not connected'}</p>
-                  </div>
-                  <Toggle checked={source.connected} onChange={() => toggleJobSource(source.id)} />
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+          {userId ? (
+            <JobSourcesSettingsTab userId={userId} />
+          ) : (
+            <p className="text-sm text-slate-500">Loading…</p>
+          )}
         </TabsContent>
 
         {/* SYSTEM READINESS */}

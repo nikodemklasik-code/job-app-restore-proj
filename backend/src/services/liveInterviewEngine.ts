@@ -1,5 +1,7 @@
 import { randomUUID } from 'crypto';
-import OpenAI from 'openai';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import { getOpenAiClient } from '../lib/openai/openai.client.js';
+import { getDefaultTextModel } from '../lib/openai/model-registry.js';
 import {
   dbCreateSession,
   dbGetSession,
@@ -129,11 +131,6 @@ export interface ProcessTurnResult {
 }
 
 // ── Session store removed — sessions are persisted via liveInterviewRepository ─
-
-function getOpenAI(): OpenAI {
-  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not configured');
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-}
 
 // ── Intent classification (heuristic) ────────────────────────────────────────
 
@@ -441,14 +438,14 @@ async function generateInterviewerResponse(
   session: LiveInterviewSession,
   nextAction: NextAction,
 ): Promise<string> {
-  const openai = getOpenAI();
+  const openai = getOpenAiClient();
 
   const actionInstruction = buildActionInstruction(nextAction, session.memory);
   const systemPrompt = buildInterviewerSystemPrompt(session);
 
   // Build conversation history (last 10 turns to control token usage)
   const recentTurns = session.transcript.slice(-10);
-  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+  const messages: ChatCompletionMessageParam[] = [
     { role: 'system', content: systemPrompt },
     ...recentTurns.map((t) => ({
       role: t.speaker === 'assistant' ? ('assistant' as const) : ('user' as const),
@@ -461,7 +458,7 @@ async function generateInterviewerResponse(
   ];
 
   const response = await openai.chat.completions.create({
-    model: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
+    model: getDefaultTextModel(),
     messages,
     temperature: 0.75,
     max_tokens: 400,
@@ -473,7 +470,7 @@ async function generateInterviewerResponse(
 // ── Summary generation ────────────────────────────────────────────────────────
 
 async function generateSummary(session: LiveInterviewSession): Promise<InterviewSummary> {
-  const openai = getOpenAI();
+  const openai = getOpenAiClient();
   const { memory, roleContext, config } = session;
 
   const transcriptText = session.transcript
@@ -505,7 +502,7 @@ Be honest and specific. Do not invent achievements. Base everything on the answe
 
   try {
     const response = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
+      model: getDefaultTextModel(),
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.4,
       max_tokens: 600,

@@ -1,9 +1,9 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import {
   GraduationCap, Users, Brain, Target, BarChart2,
   Mic, MicOff, RefreshCw, ChevronRight, Timer,
-  CheckCircle, Star, Zap, BookOpen, Loader2, Coins,
+  CheckCircle, Star, Zap, BookOpen, Loader2, Coins, Volume2,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
@@ -106,9 +106,81 @@ const CATEGORIES = [
 
 type Category = keyof typeof QUESTION_BANK;
 
+/** Ten fixed tiles — no nested scroll; jump straight into a bank question. */
+const COACH_QUICK_TILES: { label: string; cat: Category; idx: number }[] = [
+  { label: 'Pressure Story', cat: 'behavioural', idx: 0 },
+  { label: 'Influence Without Title', cat: 'behavioural', idx: 1 },
+  { label: 'Learning From Failure', cat: 'behavioural', idx: 2 },
+  { label: 'Critical Feedback', cat: 'behavioural', idx: 3 },
+  { label: 'Prod Debugging', cat: 'technical', idx: 0 },
+  { label: 'Maintainable Code', cat: 'technical', idx: 1 },
+  { label: 'Version Control Story', cat: 'technical', idx: 2 },
+  { label: 'Quality System', cat: 'technical', idx: 3 },
+  { label: 'Next Role Success', cat: 'motivation', idx: 0 },
+  { label: 'Skill You Are Fixing', cat: 'motivation', idx: 1 },
+];
+
 const ANSWER_TIME = 90;
 const COOLDOWN = 3;
 const CREDITS_COST = 5;
+
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
+
+const COACH_TTS_VOICES = [
+  { id: 'coral' as const, label: 'Coral (default, UK)' },
+  { id: 'sage' as const, label: 'Sage' },
+  { id: 'fable' as const, label: 'Fable' },
+  { id: 'nova' as const, label: 'Nova' },
+  { id: 'shimmer' as const, label: 'Shimmer' },
+  { id: 'onyx' as const, label: 'Onyx' },
+  { id: 'alloy' as const, label: 'Alloy' },
+  { id: 'echo' as const, label: 'Echo' },
+];
+
+async function transcribeCoachAudio(blob: Blob): Promise<string> {
+  try {
+    const form = new FormData();
+    form.append('audio', blob, 'audio.webm');
+    const res = await fetch(`${API_BASE}/api/interview/transcribe`, {
+      method: 'POST',
+      body: form,
+      credentials: 'include',
+    });
+    if (!res.ok) return '';
+    const data = (await res.json()) as { transcript?: string };
+    return data.transcript ?? '';
+  } catch {
+    return '';
+  }
+}
+
+async function speakCoachText(text: string, voice: string): Promise<void> {
+  try {
+    const res = await fetch(`${API_BASE}/api/interview/tts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text.slice(0, 2500), voice }),
+      credentials: 'include',
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    await new Promise<void>((resolve) => {
+      const audio = new Audio(url);
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+      void audio.play().catch(() => resolve());
+    });
+  } catch {
+    /* TTS optional */
+  }
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -143,12 +215,23 @@ export default function CoachPage() {
   const [session, setSession] = useState<SessionEntry[]>([]);
   const [showHint, setShowHint] = useState(false);
   const [evalError, setEvalError] = useState<string | null>(null);
+  const [answerDraft, setAnswerDraft] = useState('');
+  const [ttsVoice, setTtsVoice] = useState<string>('coral');
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcribeError, setTranscribeError] = useState<string | null>(null);
+  const [micDenied, setMicDenied] = useState(false);
+  const [micLevel, setMicLevel] = useState(0);
+  const [ttsBusy, setTtsBusy] = useState(false);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cdTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const levelRafRef = useRef<number | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   const evaluateMutation = api.coach.evaluateAnswer.useMutation();
   const creditsQuery = api.billing.getCurrentPlan.useQuery(
@@ -160,15 +243,158 @@ export default function CoachPage() {
   const questions = category ? QUESTION_BANK[category] : [];
   const currentQ = questions[qIndex];
 
-  const startSession = (cat: Category) => {
+  const stopLevelMeter = useCallback(() => {
+    if (levelRafRef.current != null) {
+      cancelAnimationFrame(levelRafRef.current);
+      levelRafRef.current = null;
+    }
+    setMicLevel(0);
+    analyserRef.current = null;
+    if (audioCtxRef.current) {
+      void audioCtxRef.current.close().catch(() => {});
+      audioCtxRef.current = null;
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      mediaStreamRef.current = null;
+    }
+  }, []);
+
+  const startLevelMeter = useCallback((stream: MediaStream) => {
+    stopLevelMeter();
+    mediaStreamRef.current = stream;
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    audioCtxRef.current = ctx;
+    const source = ctx.createMediaStreamSource(stream);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.65;
+    source.connect(analyser);
+    analyserRef.current = analyser;
+    const buf = new Uint8Array(analyser.frequencyBinCount);
+    const tick = () => {
+      analyser.getByteFrequencyData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) sum += buf[i];
+      const norm = buf.length ? sum / buf.length / 255 : 0;
+      setMicLevel(norm);
+      levelRafRef.current = requestAnimationFrame(tick);
+    };
+    levelRafRef.current = requestAnimationFrame(tick);
+  }, [stopLevelMeter]);
+
+  const startSession = (cat: Category, index = 0) => {
     setCategory(cat);
-    setQIndex(0);
+    setQIndex(index);
     setSession([]);
     setShowHint(false);
+    setAnswerDraft('');
+    setTranscribeError(null);
+    setMicDenied(false);
     setPhase('question');
   };
 
+  const jumpToBankQuestion = (cat: Category, index: number) => {
+    setCategory(cat);
+    setQIndex(index);
+    setSession([]);
+    setShowHint(false);
+    setAnswerDraft('');
+    setTranscribeError(null);
+    setMicDenied(false);
+    setPhase('question');
+  };
+
+  const stopRecording = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    const rec = recorderRef.current;
+    if (rec && rec.state !== 'inactive') {
+      rec.stop();
+    } else {
+      stopLevelMeter();
+      setPhase((p) => (p === 'recording' ? 'reviewing' : p));
+    }
+  }, [stopLevelMeter]);
+
+  const beginRecording = useCallback(async () => {
+    setMicDenied(false);
+    setTranscribeError(null);
+    setTimeLeft(ANSWER_TIME);
+    chunksRef.current = [];
+    recorderRef.current = null;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setPhase('recording');
+      const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+          ? 'audio/webm'
+          : '';
+      const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+      recorderRef.current = rec;
+      rec.ondataavailable = (e) => {
+        if (e.data.size) chunksRef.current.push(e.data);
+      };
+      rec.onstop = () => {
+        stopLevelMeter();
+        const tracks = stream.getTracks();
+        tracks.forEach((t) => t.stop());
+        const blobType = rec.mimeType || 'audio/webm';
+        const blob = new Blob(chunksRef.current, { type: blobType });
+        chunksRef.current = [];
+        recorderRef.current = null;
+        void (async () => {
+          if (blob.size < 200) {
+            setPhase('reviewing');
+            setTranscribeError('Recording was too short to transcribe. Type your answer or try again.');
+            return;
+          }
+          setIsTranscribing(true);
+          setPhase('reviewing');
+          const text = await transcribeCoachAudio(blob);
+          setIsTranscribing(false);
+          if (text.trim()) {
+            setAnswerDraft((prev) => {
+              const p = prev.trim();
+              return p ? `${p}\n\n${text.trim()}` : text.trim();
+            });
+            setTranscribeError(null);
+          } else {
+            setTranscribeError('Could not transcribe audio. Edit below or record again.');
+          }
+        })();
+      };
+
+      startLevelMeter(stream);
+      rec.start(250);
+
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setTimeLeft((t) => {
+          if (t <= 1) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            timerRef.current = null;
+            stopRecording();
+            return 0;
+          }
+          return t - 1;
+        });
+      }, 1000);
+    } catch {
+      setMicDenied(true);
+      stopLevelMeter();
+      setPhase('question');
+    }
+  }, [startLevelMeter, stopLevelMeter, stopRecording]);
+
   const startCountdown = useCallback(() => {
+    if (cdTimerRef.current) clearInterval(cdTimerRef.current);
     setPhase('countdown');
     setCountdown(COOLDOWN);
     let c = COOLDOWN;
@@ -176,48 +402,40 @@ export default function CoachPage() {
       c -= 1;
       setCountdown(c);
       if (c <= 0) {
-        clearInterval(cdTimerRef.current!);
-        beginRecording();
+        if (cdTimerRef.current) clearInterval(cdTimerRef.current);
+        cdTimerRef.current = null;
+        void beginRecording();
       }
     }, 1000);
-  }, []);
+  }, [beginRecording]);
 
-  const beginRecording = async () => {
-    setPhase('recording');
-    setTimeLeft(ANSWER_TIME);
-    chunksRef.current = [];
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const rec = new MediaRecorder(stream);
-      recorderRef.current = rec;
-      rec.ondataavailable = (e) => { if (e.data.size) chunksRef.current.push(e.data); };
-      rec.start();
-    } catch { /* mic denied */ }
-    timerRef.current = setInterval(() => {
-      setTimeLeft(t => {
-        if (t <= 1) { clearInterval(timerRef.current!); stopRecording(); return 0; }
-        return t - 1;
-      });
-    }, 1000);
-  };
-
-  const stopRecording = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    if (recorderRef.current && recorderRef.current.state !== 'inactive') {
-      recorderRef.current.stop();
-      recorderRef.current.stream.getTracks().forEach(t => t.stop());
-    }
-    setPhase('reviewing');
-  }, []);
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (cdTimerRef.current) clearInterval(cdTimerRef.current);
+      const rec = recorderRef.current;
+      if (rec && rec.state !== 'inactive') {
+        try {
+          rec.stop();
+        } catch {
+          /* noop */
+        }
+      }
+      stopLevelMeter();
+    };
+  }, [stopLevelMeter]);
 
   const submitAnswer = async () => {
-    const txt = textareaRef.current?.value.trim() ?? '';
+    const txt = answerDraft.trim();
     if (!txt) return;
+    if (!userId) {
+      setEvalError('Sign in to evaluate your answer and use credits.');
+      return;
+    }
     setEvalError(null);
     setPhase('evaluating');
     try {
       const result = await evaluateMutation.mutateAsync({
-        userId,
         category: category! as 'behavioural' | 'technical' | 'motivation' | 'situational',
         question: currentQ.q,
         answer: txt,
@@ -229,6 +447,7 @@ export default function CoachPage() {
         feedback: result as AIFeedback,
       };
       setSession(prev => [...prev, entry]);
+      setAnswerDraft('');
       // Refresh credits display
       void creditsQuery.refetch();
       setPhase('result');
@@ -247,8 +466,16 @@ export default function CoachPage() {
     } else {
       setQIndex(next);
       setShowHint(false);
+      setAnswerDraft('');
+      setTranscribeError(null);
       setPhase('question');
     }
+  };
+
+  const playQuestionAloud = () => {
+    if (!currentQ) return;
+    setTtsBusy(true);
+    void speakCoachText(currentQ.q, ttsVoice).finally(() => setTtsBusy(false));
   };
 
   const timerColor = timeLeft <= 15 ? '#f87171' : timeLeft <= 30 ? '#fbbf24' : '#34d399';
@@ -257,6 +484,39 @@ export default function CoachPage() {
   const avgScore = session.length > 0
     ? Math.round(session.reduce((sum, e) => sum + e.feedback.score, 0) / session.length)
     : null;
+
+  const showActiveQuestion = !!currentQ && !['select', 'evaluating', 'result'].includes(phase);
+
+  const questionPanel = showActiveQuestion && currentQ ? (
+    <div className="mvh-card-glow rounded-2xl px-5 py-4 space-y-3" style={{ background: 'rgba(15,23,42,0.92)', border: '1px solid #1e293b' }}>
+      <div className="flex items-start gap-3">
+        <p className="flex-1 min-w-0 text-base font-semibold text-white leading-relaxed">{currentQ.q}</p>
+        <button
+          type="button"
+          onClick={() => void playQuestionAloud()}
+          disabled={ttsBusy}
+          className="shrink-0 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-indigo-500/35 bg-indigo-500/15 text-indigo-200 hover:bg-indigo-500/25 disabled:opacity-40 transition"
+          title="Listen to question (OpenAI voice)"
+        >
+          <Volume2 className="h-5 w-5" />
+        </button>
+      </div>
+      <button
+        type="button"
+        onClick={() => setShowHint(!showHint)}
+        className="text-xs text-indigo-400 hover:text-indigo-300 transition"
+      >
+        {showHint ? '▲ Hide hint' : '▼ Show hint'}
+      </button>
+      {showHint && (
+        <p className="text-xs text-slate-400 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+          💡 {currentQ.hint}
+        </p>
+      )}
+    </div>
+  ) : null;
+
+  const meterBars = 28;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
@@ -270,6 +530,10 @@ export default function CoachPage() {
           <div>
             <h1 className="text-xl font-bold text-white">Coach</h1>
             <p className="text-xs text-slate-400">Structured practice · choose a category · work through questions</p>
+            <p className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
+              GPT-4o · online
+            </p>
           </div>
         </div>
         {session.length > 0 && avgScore !== null && (
@@ -293,9 +557,50 @@ export default function CoachPage() {
             </div>
           )}
 
+          <div className="mvh-card-glow rounded-2xl border border-white/10 bg-white/[0.04] p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Volume2 className="h-4 w-4 text-indigo-300" />
+              <p className="text-sm font-semibold text-white">Coach voice (OpenAI TTS)</p>
+            </div>
+            <p className="text-[11px] text-slate-500">Used when you tap the speaker on a question. Recording uses Whisper on the server.</p>
+            <div className="flex flex-wrap gap-2">
+              {COACH_TTS_VOICES.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => setTtsVoice(v.id)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold border transition ${
+                    ttsVoice === v.id
+                      ? 'border-indigo-400 bg-indigo-500/25 text-white'
+                      : 'border-white/10 text-slate-400 hover:border-white/20 hover:text-slate-200'
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-amber-400" />
-            <p className="text-sm font-semibold text-white">Select a category to begin</p>
+            <p className="text-sm font-semibold text-white">Quick start — 10 practice prompts</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5">
+            {COACH_QUICK_TILES.map((tile) => (
+              <button
+                key={`${tile.cat}-${tile.idx}-${tile.label}`}
+                type="button"
+                onClick={() => jumpToBankQuestion(tile.cat, tile.idx)}
+                className="rounded-xl border border-white/10 bg-white/[0.05] px-3 py-3 text-left text-xs font-medium text-slate-100 hover:border-indigo-500/40 hover:bg-indigo-500/10 transition min-h-[4.25rem] flex flex-col justify-center"
+              >
+                {tile.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 pt-2">
+            <BookOpen className="h-4 w-4 text-slate-500" />
+            <p className="text-sm font-semibold text-white">Or pick a full category</p>
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -333,42 +638,57 @@ export default function CoachPage() {
 
       {/* ── Active category breadcrumb ─────────────────────────────────────────── */}
       {phase !== 'select' && activeCat && (
-        <div className="flex items-center gap-3">
-          <div
-            className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
-            style={{ background: activeCat.color + '20', color: activeCat.color, border: `1px solid ${activeCat.color}40` }}
-          >
-            <activeCat.icon className="h-3 w-3" />
-            {activeCat.label}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <div
+              className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+              style={{ background: activeCat.color + '20', color: activeCat.color, border: `1px solid ${activeCat.color}40` }}
+            >
+              <activeCat.icon className="h-3 w-3" />
+              {activeCat.label}
+            </div>
+            <span className="text-xs text-slate-500">Question {qIndex + 1} of {questions.length}</span>
           </div>
-          <span className="text-xs text-slate-500">Question {qIndex + 1} of {questions.length}</span>
-          <button
-            onClick={() => { setPhase('select'); }}
-            className="ml-auto text-xs text-slate-500 hover:text-slate-300 transition underline underline-offset-2"
-          >
-            Exit session
-          </button>
+          <div className="flex flex-wrap items-center gap-1.5 sm:ml-auto">
+            <span className="text-[10px] uppercase tracking-wide text-slate-600">Voice</span>
+            {COACH_TTS_VOICES.map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => setTtsVoice(v.id)}
+                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold border transition ${
+                  ttsVoice === v.id
+                    ? 'border-indigo-400/80 bg-indigo-500/20 text-indigo-100'
+                    : 'border-white/10 text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {v.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                setPhase('select');
+                setCategory(null);
+              }}
+              className="text-xs text-slate-500 hover:text-slate-300 transition underline underline-offset-2 sm:ml-2"
+            >
+              Exit
+            </button>
+          </div>
         </div>
       )}
 
       {/* ── Phase: question (ready to answer) ─────────────────────────────────── */}
       {phase === 'question' && currentQ && (
         <div className="space-y-4">
-          {/* Question card */}
-          <div className="mvh-card-glow rounded-2xl px-6 py-5 space-y-3" style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid #1e293b' }}>
-            <p className="text-base font-semibold text-white leading-relaxed">{currentQ.q}</p>
-            <button
-              onClick={() => setShowHint(!showHint)}
-              className="text-xs text-indigo-400 hover:text-indigo-300 transition"
-            >
-              {showHint ? '▲ Hide hint' : '▼ Show hint'}
-            </button>
-            {showHint && (
-              <p className="text-xs text-slate-400 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
-                💡 {currentQ.hint}
-              </p>
-            )}
-          </div>
+          {questionPanel}
+
+          {micDenied && (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+              Microphone access was blocked. Allow the mic for this site, or type your answer below.
+            </div>
+          )}
 
           {/* Credits cost notice */}
           <div className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2">
@@ -386,15 +706,18 @@ export default function CoachPage() {
           )}
 
           <button
-            onClick={startCountdown}
+            type="button"
+            onClick={() => startCountdown()}
             className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-base transition-all"
             style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff' }}
           >
-            <Mic className="h-5 w-5" /> Record Answer (90 seconds)
+            <Mic className="h-5 w-5" /> Record answer (90s) — auto-transcribed
           </button>
-          <p className="text-xs text-slate-500 text-center">Or type below and submit for AI evaluation.</p>
+          <p className="text-xs text-slate-500 text-center">After recording, your speech is sent to Whisper and appears in the box. You can edit before scoring.</p>
           <textarea
             ref={textareaRef}
+            value={answerDraft}
+            onChange={(e) => setAnswerDraft(e.target.value)}
             placeholder="Type your answer here…"
             className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 resize-none"
             rows={5}
@@ -410,34 +733,62 @@ export default function CoachPage() {
 
       {/* ── Phase: countdown ──────────────────────────────────────────────────── */}
       {phase === 'countdown' && (
-        <div className="flex flex-col items-center gap-4 py-10">
-          <div className="text-7xl font-black" style={{ color: '#6366f1', fontVariantNumeric: 'tabular-nums' }}>{countdown}</div>
-          <p className="text-sm text-slate-400">Get ready to answer…</p>
+        <div className="space-y-5">
+          {questionPanel}
+          <div className="flex flex-col items-center gap-4 py-6">
+            <div className="text-7xl font-black" style={{ color: '#6366f1', fontVariantNumeric: 'tabular-nums' }}>{countdown}</div>
+            <p className="text-sm text-slate-400">Get ready — recording starts automatically.</p>
+          </div>
         </div>
       )}
 
       {/* ── Phase: recording ──────────────────────────────────────────────────── */}
       {phase === 'recording' && (
         <div className="space-y-4">
+          {questionPanel}
           <div className="flex items-center justify-between px-5 py-4 rounded-xl" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
             <div className="flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
               <span className="text-sm font-semibold text-red-400">Recording</span>
+              <span className="text-[11px] text-slate-500">mic input</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Timer className="h-4 w-4" style={{ color: timerColor }} />
               <span className="text-2xl font-black" style={{ color: timerColor, fontVariantNumeric: 'tabular-nums' }}>{timeLeft}s</span>
             </div>
           </div>
+          <div
+            className="flex items-end justify-center gap-0.5 rounded-xl border border-white/10 bg-slate-950/80 px-2 py-2"
+            style={{ height: '4.5rem' }}
+            aria-hidden
+          >
+            {Array.from({ length: meterBars }).map((_, i) => {
+              const wobble = 0.35 + ((i * 13) % 7) * 0.09;
+              const h = Math.max(6, (0.08 + micLevel * wobble) * 56);
+              return (
+                <div
+                  key={i}
+                  className="w-1 rounded-full bg-gradient-to-t from-indigo-700 to-indigo-300 transition-[height] duration-75"
+                  style={{ height: `${h}px` }}
+                />
+              );
+            })}
+          </div>
+          <p className="text-center text-[11px] text-slate-500">
+            Bars move when the mic hears sound. If they stay flat, check permissions or your input device.
+          </p>
           <button
-            onClick={stopRecording}
+            type="button"
+            onClick={() => stopRecording()}
             className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors"
           >
-            <MicOff className="h-4 w-4" /> Stop Early
+            <MicOff className="h-4 w-4" /> Stop &amp; transcribe
           </button>
           <textarea
             ref={textareaRef}
-            placeholder="Or type here while recording…"
+            value={answerDraft}
+            onChange={(e) => setAnswerDraft(e.target.value)}
+            placeholder="Optional: type extra notes while you speak…"
             className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 resize-none"
             rows={4}
           />
@@ -447,19 +798,34 @@ export default function CoachPage() {
       {/* ── Phase: reviewing ──────────────────────────────────────────────────── */}
       {phase === 'reviewing' && (
         <div className="space-y-4">
-          <p className="text-sm text-slate-400">Recording stopped. Type out what you said to get scored:</p>
+          {questionPanel}
+          {isTranscribing && (
+            <div className="flex items-center gap-3 rounded-xl border border-indigo-500/25 bg-indigo-500/10 px-4 py-3">
+              <Loader2 className="h-5 w-5 shrink-0 animate-spin text-indigo-300" />
+              <p className="text-sm text-indigo-100">Turning your recording into text…</p>
+            </div>
+          )}
+          {transcribeError && (
+            <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">{transcribeError}</p>
+          )}
+          <p className="text-sm text-slate-400">Review and edit your answer, then request a score.</p>
           <textarea
             ref={textareaRef}
-            placeholder="Type your answer here…"
-            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 resize-none"
+            value={answerDraft}
+            onChange={(e) => setAnswerDraft(e.target.value)}
+            disabled={isTranscribing}
+            placeholder="Your transcribed answer appears here…"
+            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 resize-none disabled:opacity-60"
             rows={7}
           />
           <button
-            onClick={submitAnswer}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm"
+            type="button"
+            onClick={() => void submitAnswer()}
+            disabled={isTranscribing || !answerDraft.trim()}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm disabled:opacity-40 disabled:pointer-events-none"
             style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: '#fff' }}
           >
-            <ChevronRight className="h-4 w-4" /> Get Score
+            <ChevronRight className="h-4 w-4" /> Get score
           </button>
         </div>
       )}
@@ -566,7 +932,13 @@ export default function CoachPage() {
                 </button>
               )}
               <button
-                onClick={() => { setPhase('question'); setShowHint(false); }}
+                type="button"
+                onClick={() => {
+                  setPhase('question');
+                  setShowHint(false);
+                  setAnswerDraft('');
+                  setTranscribeError(null);
+                }}
                 className="px-4 py-3 rounded-xl font-semibold text-sm border border-slate-700 text-slate-400 hover:bg-slate-800 transition-colors"
                 title="Redo this question"
               >

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─── Fresh VPS setup — multivohub-jobapp ──────────────────────────────────────
-# Wipes /var/www/multivohub-jobapp and reinstalls everything from scratch.
+# Wipes /root/project (app tree) and reinstalls everything from scratch.
 # Run this ONCE to bootstrap an empty (or broken) server.
 # After initial setup, use `bash scripts/deploy.sh` for subsequent deploys.
 #
@@ -24,7 +24,7 @@ if [[ -f "$ROOT/.env.local" ]]; then
 fi
 
 HOST="${DEPLOY_HOST:-root@147.93.86.209}"
-REMOTE_BASE="/var/www/multivohub-jobapp"
+REMOTE_BASE="/root/project"
 
 echo "════════════════════════════════════════════"
 echo "  Fresh VPS setup — $(date -u '+%Y-%m-%d %H:%M UTC')"
@@ -88,11 +88,7 @@ rsync -avz \
   "$ROOT/lib/envSchema.mjs" \
   "${HOST}:${REMOTE_BASE}/"
 
-rsync -avz \
-  "$ROOT/scripts/smoke-test.sh" \
-  "$ROOT/scripts/rollback.sh" \
-  "$ROOT/scripts/webhook-server.js" \
-  "${HOST}:${REMOTE_BASE}/scripts/"
+rsync -avz "$ROOT/scripts/" "${HOST}:${REMOTE_BASE}/scripts/"
 
 rsync -avz \
   "$ROOT/infra/nginx/" \
@@ -139,4 +135,4 @@ echo "      scp .env.production ${HOST}:${REMOTE_BASE}/.env"
 echo "      ssh ${HOST} 'pm2 reload ${REMOTE_BASE}/infra/ecosystem.config.cjs --update-env && pm2 save'"
 echo "  • SSL (first time):"
 echo "      ssh ${HOST} 'certbot --nginx -d jobs.multivohub.com'"
-echo "  • Future deploys: bash scripts/deploy.sh  or  push to main"
+echo "  • Future deploys: bash scripts/deploy-safe.sh  or  bash scripts/deploy.sh  or  push to claude/improvements (CI)"

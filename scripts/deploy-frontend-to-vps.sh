@@ -4,7 +4,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 HOST="${DEPLOY_HOST:-root@147.93.86.209}"
-REMOTE="${REMOTE_JOBAPP_DIST:-/var/www/multivohub-jobapp/frontend/dist}"
+REMOTE="${REMOTE_JOBAPP_DIST:-/root/project/frontend/dist}"
 
 if [[ ! -f "$ROOT/frontend/dist/index.html" ]]; then
   echo "Brak buildu. Uruchom z katalogu projektu: npm run build:frontend" >&2

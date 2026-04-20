@@ -1,9 +1,9 @@
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { eq, and, desc, like, or, inArray } from 'drizzle-orm';
-import { publicProcedure, router } from '../trpc.js';
+import { publicProcedure, protectedProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
-import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions } from '../../db/schema.js';
+import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions, savedJobs } from '../../db/schema.js';
 import { searchAllProviders } from '../../services/jobProviders.js';
 import { scoreJobFit, explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.js';
 import { assessJobScamRisk } from '../../services/jobProtection.js';
@@ -250,5 +250,75 @@ export const jobsRouter = router({
     .input(z.object({ companyName: z.string().min(1), jobTitle: z.string().optional() }))
     .query(async ({ input }) => {
       return getCompanyProfile(input.companyName, input.jobTitle);
+    }),
+
+  saveJob: protectedProcedure
+    .input(z.object({ jobId: z.string().min(1) }))
+    .output(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await db.select({ id: savedJobs.id })
+        .from(savedJobs)
+        .where(and(eq(savedJobs.userId, ctx.user.id), eq(savedJobs.jobId, input.jobId)))
+        .limit(1);
+      if (existing[0]) return { id: existing[0].id };
+      const id = randomUUID();
+      await db.insert(savedJobs).values({ id, userId: ctx.user.id, jobId: input.jobId });
+      return { id };
+    }),
+
+  unsaveJob: protectedProcedure
+    .input(z.object({ jobId: z.string().min(1) }))
+    .output(z.object({ success: z.literal(true) }))
+    .mutation(async ({ ctx, input }) => {
+      await db.delete(savedJobs)
+        .where(and(eq(savedJobs.userId, ctx.user.id), eq(savedJobs.jobId, input.jobId)));
+      return { success: true };
+    }),
+
+  getSavedJobs: protectedProcedure
+    .output(z.array(z.object({
+      savedId: z.string(),
+      savedAt: z.string(),
+      job: z.object({
+        id: z.string(),
+        title: z.string(),
+        company: z.string(),
+        location: z.string().nullable(),
+        applyUrl: z.string().nullable(),
+        isActive: z.boolean(),
+        fitScore: z.number().nullable(),
+      }),
+    })))
+    .query(async ({ ctx }) => {
+      const rows = await db
+        .select({
+          savedId: savedJobs.id,
+          savedAt: savedJobs.savedAt,
+          jobId: jobs.id,
+          title: jobs.title,
+          company: jobs.company,
+          location: jobs.location,
+          applyUrl: jobs.applyUrl,
+          isActive: jobs.isActive,
+          fitScore: jobs.fitScore,
+        })
+        .from(savedJobs)
+        .innerJoin(jobs, eq(jobs.id, savedJobs.jobId))
+        .where(eq(savedJobs.userId, ctx.user.id))
+        .orderBy(desc(savedJobs.savedAt));
+
+      return rows.map((r) => ({
+        savedId: r.savedId,
+        savedAt: r.savedAt.toISOString(),
+        job: {
+          id: r.jobId,
+          title: r.title,
+          company: r.company,
+          location: r.location ?? null,
+          applyUrl: r.applyUrl ?? null,
+          isActive: r.isActive,
+          fitScore: r.fitScore ?? null,
+        },
+      }));
     }),
 });

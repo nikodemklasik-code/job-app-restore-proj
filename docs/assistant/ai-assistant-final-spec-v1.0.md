@@ -4,6 +4,8 @@
 
 **Status:** Final product specification — not a worksheet. For the team worksheet used before locking decisions, see [AI Assistant Configuration Sheet v1.0](../ai/assistant/ai-assistant-configuration-sheet-v1.0.md).
 
+> **★ Materiały wspierające** — Asystent ułatwia decyzje i routing; treści są **propozycją** (**kierunek**, **rytm**), **nie** jedyną drogą i **bez** gwarancji rezultatów zawodowych. [`supporting-materials-disclaimer-v1.0.md`](../policies/supporting-materials-disclaimer-v1.0.md)
+
 ---
 
 ## 1. Purpose

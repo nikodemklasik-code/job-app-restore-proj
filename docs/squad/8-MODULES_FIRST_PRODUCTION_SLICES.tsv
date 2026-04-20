@@ -1,0 +1,9 @@
+MODULE	SLICE_ID	SLICE_TITLE	OWNER_LANE	PRIORITY	RFQ_PATH	REPORT_PATH	STATUS
+LEGAL_HUB	L1	Source scope UI + search scope summary	AGENT_B	P1	docs/agent-work/legal-hub-source-scope-rfq.md	docs/qc-reports/legal-hub-source-scope-ready-for-qc.md	PLANNED
+SKILL_LAB	S1	Signals snapshot v1	AGENT_B	P1	docs/agent-work/skill-lab-signals-snapshot-rfq.md	docs/qc-reports/skill-lab-signals-snapshot-ready-for-qc.md	PLANNED
+CASE_PRACTICE	C1	Case setup + session shell	AGENT_C	P1	docs/agent-work/case-practice-session-shell-rfq.md	docs/qc-reports/case-practice-session-shell-ready-for-qc.md	PLANNED
+INTERVIEW	I1	Session lifecycle hardening	AGENT_C	P0	docs/agent-work/interview-session-lifecycle-rfq.md	docs/qc-reports/interview-session-lifecycle-ready-for-qc.md	PLANNED
+COACH	CO1	Structured coach output v1	AGENT_C	P1	docs/agent-work/coach-structured-output-rfq.md	docs/qc-reports/coach-structured-output-ready-for-qc.md	PLANNED
+DAILY_WARMUP	W1	Tier cards + fixed cost display	AGENT_C	P1	docs/agent-work/daily-warmup-tier-cards-rfq.md	docs/qc-reports/daily-warmup-tier-cards-ready-for-qc.md	PLANNED
+NEGOTIATION	N1	Negotiation setup + mode selector	AGENT_C	P1	docs/agent-work/negotiation-setup-rfq.md	docs/qc-reports/negotiation-setup-ready-for-qc.md	PLANNED
+JOB_SEARCH	J1	Results snapshot + source badges	AGENT_B	P0	docs/agent-work/job-search-results-snapshot-rfq.md	docs/qc-reports/job-search-results-snapshot-ready-for-qc.md	PLANNED

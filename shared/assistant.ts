@@ -1,3 +1,8 @@
+/**
+ * Canonical assistant contracts (types + runtime const arrays for bundlers).
+ * Node ESM in this repo imports `shared/assistant.js` — keep that file’s **const exports**
+ * aligned with the arrays here (see header in `assistant.js`); do not fork values manually.
+ */
 export const assistantModes = ['general', 'cv', 'interview', 'salary'] as const;
 export type AssistantMode = (typeof assistantModes)[number];
 
@@ -67,6 +72,19 @@ export interface AssistantSafetyNote {
   text: string;
 }
 
+/**
+ * Safe, product-facing AI metadata for the UI (no raw model IDs, no secrets).
+ */
+export interface AssistantAiProductMeta {
+  interactionModeLabel: string;
+  estimatedCredits: { min: number; max: number };
+  maxApprovedCredits: number;
+  usesPremiumTier: boolean;
+  usesRealtimeVoice: boolean;
+  /** True when the reply path is bound to approved legal sources (e.g. catalogue-only synthesis). */
+  legalSourceRestricted: boolean;
+}
+
 export interface AssistantResponseMeta {
   detectedIntent: AssistantIntent;
   suggestedActions: AssistantActionSuggestion[];
@@ -75,7 +93,15 @@ export interface AssistantResponseMeta {
   safetyNotes: AssistantSafetyNote[];
   nextBestStep?: string;
   complianceFlags?: string[];
+  aiProductMeta?: AssistantAiProductMeta | null;
 }
+
+// draft (FU-2 / Case Practice contract sketch for PO+QCs — not runtime logic)
+// - Route: `/case-practice` appears in `routeSuggestions` when user text matches workplace/legal stressors (backend `buildRouteSuggestions`).
+// - Safety: `AssistantSafetyNote` warning/block levels carry non-legal-advice framing; `complianceFlags` may include Case Practice Legal Caution, Sensitive Workplace Concern, Urgent Safeguarding.
+// - Types: reuse `AssistantIntent` / `AssistantResponseMeta`; a dedicated Case Practice intent enum waits on PO vocabulary freeze.
+// - History: `getHistory` rebuilds the same `AssistantResponseMeta` from the prior user turn plus stored `sourceType` (no second merge in router).
+// - Open question for PO: persist explicit UI `mode` on user rows if history must match send-time intent when user text is ambiguous.
 
 export interface AssistantStructuredResponse {
   conversation: string;

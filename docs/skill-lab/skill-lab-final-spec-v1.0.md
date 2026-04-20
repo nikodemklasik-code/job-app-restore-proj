@@ -4,6 +4,8 @@
 
 ## 1. Purpose
 
+> **★ Materiały wspierające** — Skill Lab podpowiada **kierunek** i **rytm** rozwoju; **nie** jest jedyną możliwą ścieżką ani **nie** gwarantuje m.in. wynagrodzenia czy zatrudnienia. Wynik zależy od wielu czynników. [`supporting-materials-disclaimer-v1.0.md`](../policies/supporting-materials-disclaimer-v1.0.md)
+
 **Skill Lab** is a private, AI-assisted career growth module that helps the user understand:
 
 - what skills they currently claim,

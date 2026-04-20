@@ -17,32 +17,36 @@
   frontend/
 ```
 
+## Deploy — canonical lock (nie sekret)
+- **Marker integralności (commitowany):** `.canonical-repo-key` — dozwolona ścieżka lokalnego repo, `REMOTE_BASE` na VPS, domena, IP, gałąź deployu. Nie zawiera haseł ani API keys.
+- **Polityka:** `docs/policies/canonical-repo-deploy-lock-policy-v1.0.md`
+- **Na VPS jednorazowo:** skopiować `infra/deploy-target-key.example` → `${CANONICAL_REMOTE_BASE}/.deploy-target-key` (zgodnie z przykładem w pliku).
+- **Szybki test (QC / dev):** `cd /Users/nikodem/job-app-restore/proj && bash scripts/verify-canonical-repo.sh`
+- **Ręczny deploy (pełny łańcuch):** `bash scripts/deploy-safe.sh [token]` — ack → backup na VPS → `deploy.sh`; brudne drzewo git blokuje (chyba że `DEPLOY_ALLOW_DIRTY=1`). Sam **`bash scripts/deploy.sh`** — te same guardy (DNS, SSH, `.deploy-target-key`); kopia w `Downloads/KOPIA/...` nie przejdzie ścieżki lokalnej (chyba że `DEPLOY_SKIP_LOCAL_REPO_PATH=1` w `.env.local`).
+
 ## Deploy — automatyczny (domyślny)
 - Workflow: `.github/workflows/deploy.yml` — trigger: **push** na `claude/improvements` lub ręcznie **Run workflow**.
 - W logu sukcesu jest **`github.ref_name`**, żeby od razu było widać, z której gałęzi poszedł deploy.
-- **Ten sam produkcyjny VPS** co wcześniej z `main`: `/var/www/multivohub/`, `/root/project/backend/dist/`, `pm2 restart jobapp-server`. Osobny staging = inne ścieżki albo osobny workflow.
+- **Produkcyjny VPS:** aplikacja (PM2, `npm ci`, artefakty buildu) w **`/root/project`** — zgodnie z `.canonical-repo-key` i `infra/ecosystem.config.cjs`. Osobny staging = inna ścieżka w pliku kanonicznym albo osobny workflow.
 - W GitHubie muszą być **te same secrets** co przy starym deployu z `main`; runner self-hosted musi mieć label **`production`** (jak w `runs-on` w jobie deploy).
 
 ## Deploy — ręcznie (gdy Actions nie działają)
 
 ### Frontend (statyczne pliki)
 ```bash
-cd frontend && npm run build
-rsync -az --delete dist/ root@147.93.86.209:/var/www/multivohub/
+cd /Users/nikodem/job-app-restore/proj/frontend && npm run build
+rsync -az --delete dist/ root@147.93.86.209:/root/project/frontend/dist/
 ```
-- Nginx serwuje z `/var/www/multivohub/` — **bez restartu**
-- ⚠️ NIE deployuj do `/root/project/frontend/dist/` — tam Nginx nie zagląda
-- Zmiana widoczna od razu po rsync
+- Nginx (konfig w repo: `infra/nginx/multivohub-jobapp.conf`) serwuje SPA z **`/root/project/frontend/dist`** — po rsync zwykle **bez restartu** nginx (`nginx -t && systemctl reload nginx` tylko gdy zmieniasz sam config).
 
 ### Backend (Node.js / tRPC / Express)
 ```bash
-cd backend && npm run build
-rsync -az dist/ root@147.93.86.209:/root/project/backend/dist/
-ssh root@147.93.86.209 "pm2 restart jobapp-server"
+cd /Users/nikodem/job-app-restore/proj/backend && npm run build
+rsync -az dist/ root@147.93.86.209:/root/project/dist/backend/
+ssh root@147.93.86.209 "cd /root/project && npm ci --omit=dev --prefix backend && pm2 reload infra/ecosystem.config.cjs --update-env || pm2 start infra/ecosystem.config.cjs"
 ```
-- PM2 proces: **`jobapp-server`**
-- Skrypt: `/root/project/backend/dist/backend/src/server.js`
-- Working dir: `/root/project`
+- PM2: **`infra/ecosystem.config.cjs`** (procesy `jobapp-server`, worker, webhook) — **`cwd`: `/root/project`**
+- Skrypt serwera: `dist/backend/src/server.js` względem `cwd`
 
 ### Serwer VPS
 - IP: `147.93.86.209`
@@ -92,6 +96,10 @@ Zdefiniowane w `frontend/src/index.css` i `frontend/src/stores/themeStore.ts`:
 ## Plan wykonawczy (rollout)
 - **Kanoniczny plan kolejności, MVP, DoD, ryzyka:** [`docs/executive-plan/final-rollout-execution-plan-v1.0.md`](docs/executive-plan/final-rollout-execution-plan-v1.0.md)
 - **Profile growth direction (Growth Plan + Roadmap):** [`docs/features/profile-growth-and-roadmap-spec-v1.0.md`](docs/features/profile-growth-and-roadmap-spec-v1.0.md)
+
+## Podział prac (squad — obowiązujący)
+- **Tablica faz, Agent 1 / 2 / 3, QC, PO:** [`docs/squad/README.md`](docs/squad/README.md) · workboard [`docs/squad/Squad_Workboard.md`](docs/squad/Squad_Workboard.md)
+- Starsze pliki `*-three-developer-split*.md` w `docs/features/` = szczegóły modułowe; **kolejność globalna** z workboardu squadu.
 
 ## Quality Control Developer (bramka jakości)
 - Obowiązuje rola finalnego recenzenta techniczno-produktowego przed integracją.

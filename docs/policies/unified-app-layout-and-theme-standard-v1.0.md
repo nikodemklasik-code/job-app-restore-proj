@@ -4,6 +4,8 @@
 **Problem it solves:** „Skakanie” między motywami i chaosem layoutu bez jednego kontraktu dla stron.  
 **Single source of theme:** `frontend/src/stores/themeStore.ts` + `applyThemeToDocument` + `frontend/src/index.css` (klasy `.theme-*` + `dark`).
 
+**Kto pilnuje wdrożenia tej normy:** decyzja PO — opis roli w [`visual-consistency-owner-role-spec.md`](./visual-consistency-owner-role-spec.md).
+
 ---
 
 ## 1. Obowiązkowa powłoka (chrome)

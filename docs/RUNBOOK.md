@@ -9,7 +9,10 @@
 | Task | Command |
 |------|---------|
 | **Fresh VPS setup** | `bash scripts/setup-vps.sh` |
-| Deploy (local) | `bash scripts/deploy.sh` |
+| Deploy (local, guarded) | `bash scripts/deploy-safe.sh` (ack → remote backup → `deploy.sh`) |
+| Deploy (local, direct) | `bash scripts/deploy.sh` |
+| Ack only | `bash scripts/ack-deploy.sh` |
+| Remote backup only | `bash scripts/backup-safe.sh` |
 | Rollback frontend | `bash scripts/rollback.sh` (on VPS) |
 | Smoke test | `bash scripts/smoke-test.sh` (on VPS) |
 | Validate ENV | `node lib/envSchema.mjs` |
@@ -31,7 +34,7 @@ bash scripts/setup-vps.sh
 
 What it does:
 1. Builds frontend + backend locally
-2. Wipes `/var/www/multivohub-jobapp/` (backs up `.env` if present)
+2. Wipes `/root/project/` (backs up `.env` if present)
 3. Syncs all files: dist, backend `package.json`/`package-lock.json`, infra, scripts, nginx config
 4. Runs `npm ci --omit=dev` on the VPS to install backend production deps
 5. Starts PM2 (`pm2 start infra/ecosystem.config.cjs`)
@@ -39,9 +42,9 @@ What it does:
 7. Runs a smoke test
 
 **After setup:**
-- If `.env` didn't exist yet: `scp .env.production root@<VPS>:/var/www/multivohub-jobapp/.env`, then reload PM2
+- If `.env` didn't exist yet: `scp .env.production root@<VPS>:/root/project/.env`, then reload PM2
 - SSL (first time): `ssh root@<VPS> 'certbot --nginx -d jobs.multivohub.com'`
-- Subsequent deploys: `bash scripts/deploy.sh` or push to `main`
+- Subsequent deploys: `bash scripts/deploy-safe.sh` (recommended) or `bash scripts/deploy.sh`, or push to **`claude/improvements`** for GitHub Actions
 
 ---
 
@@ -63,7 +66,7 @@ Every push to `main` triggers `.github/workflows/deploy.yml`:
 | `VPS_SSH_KEY` | Private SSH key for the VPS |
 | `VPS_HOST` | VPS IP or hostname |
 | `VPS_USER` | SSH user (e.g. `root`) |
-| `VPS_FRONTEND_DIST_PATH` | e.g. `/var/www/multivohub-jobapp/frontend/dist` |
+| `VPS_FRONTEND_DIST_PATH` | e.g. `/root/project/frontend/dist` |
 | `DATABASE_URL` | MySQL connection string |
 | `CLERK_SECRET_KEY` | Clerk secret key |
 | `OPENAI_API_KEY` | OpenAI key |
@@ -95,12 +98,12 @@ Frontend rollback (restores previous dist backup):
 
 ```bash
 # SSH into VPS
-bash /var/www/multivohub-jobapp/scripts/rollback.sh
+bash /root/project/scripts/rollback.sh
 ```
 
 `deploy.sh` keeps the **3 most recent** backups at:
 ```
-/var/www/multivohub-jobapp/frontend/dist-backup-<timestamp>
+/root/project/frontend/dist-backup-<timestamp>
 ```
 
 Backend rollback: re-run the previous deploy or checkout the previous commit and deploy again.
@@ -111,7 +114,7 @@ Backend rollback: re-run the previous deploy or checkout the previous commit and
 
 ```bash
 # On VPS
-bash /var/www/multivohub-jobapp/scripts/smoke-test.sh
+bash /root/project/scripts/smoke-test.sh
 
 # With custom API base (e.g. test against staging)
 API_BASE=http://127.0.0.1:3001 bash scripts/smoke-test.sh
@@ -133,7 +136,7 @@ Checks:
 node lib/envSchema.mjs
 
 # On VPS
-cd /var/www/multivohub-jobapp && node lib/envSchema.mjs
+cd /root/project && node lib/envSchema.mjs
 ```
 
 ### Full ENV reference
@@ -167,10 +170,10 @@ See `.env.example` in the repo root. Required variables:
 
 ```bash
 # Start (first time)
-pm2 start /var/www/multivohub-jobapp/infra/ecosystem.config.cjs
+pm2 start /root/project/infra/ecosystem.config.cjs
 
 # Reload after deploy (zero-downtime)
-pm2 reload /var/www/multivohub-jobapp/infra/ecosystem.config.cjs --update-env
+pm2 reload /root/project/infra/ecosystem.config.cjs --update-env
 
 # Status
 pm2 list
@@ -192,11 +195,12 @@ pm2 startup   # follow the printed command to register PM2 as a system service
 
 ## 7. Nginx
 
-Config: `infra/nginx/multivohub-jobapp.conf`
+Config: `infra/nginx/multivohub-jobapp.conf` — SPA **`root`** is **`/root/project/frontend/dist`**.  
+`infra/nginx/www-multivohub.conf` — landing **`root`** is **`/root/project/landing`** (create that directory or adjust the path).
 
 ```bash
 # Install (on VPS)
-ln -s /var/www/multivohub-jobapp/infra/nginx/multivohub-jobapp.conf \
+ln -s /root/project/infra/nginx/multivohub-jobapp.conf \
       /etc/nginx/sites-enabled/multivohub-jobapp
 
 # Test + reload
@@ -244,15 +248,15 @@ If the worker crashes, PM2 restarts it automatically. Jobs stuck in `processing`
 ```bash
 pm2 logs jobapp-server --lines 50
 # Check for missing ENV vars — server exits immediately if validation fails
-node /var/www/multivohub-jobapp/lib/envSchema.mjs
+node /root/project/lib/envSchema.mjs
 ```
 
 ### Frontend shows blank page
 ```bash
 # Check Nginx is serving index.html
-curl -I https://jobapp.multivohub.com
+curl -I https://jobs.multivohub.com
 # Check dist exists
-ls /var/www/multivohub-jobapp/frontend/dist/
+ls /root/project/frontend/dist/
 ```
 
 ### Auto-apply jobs stuck in "processing"

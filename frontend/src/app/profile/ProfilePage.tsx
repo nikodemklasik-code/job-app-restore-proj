@@ -3,10 +3,12 @@ import { useUser } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import {
   Save, Plus, X, Download, Loader2,
-  Pencil, Trash2, Briefcase, GraduationCap, Award, FolderOpen,
+  Pencil, Trash2, Briefcase, GraduationCap, Award,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useProfileStore } from '@/stores/profileStore';
+import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
+import { MIN_JOB_FIT_LOCAL_KEY } from '@/lib/jobMatchPreferences';
 import type {
   ProfileExperienceInput,
   ProfileEducationInput,
@@ -23,6 +25,10 @@ const emptyExp = (): ExpForm => ({ employerName: '', jobTitle: '', startDate: ''
 const emptyEdu = (): EduForm => ({ schoolName: '', degree: '', fieldOfStudy: '', startDate: '', endDate: null });
 const emptyTrain = (): TrainForm => ({ title: '', providerName: '', issuedAt: '', expiresAt: null, credentialUrl: '' });
 
+/** Same width for Work Experience / Education / Trainings add actions (aligned rhythm). */
+const PROFILE_SECTION_ADD_BTN =
+  'inline-flex h-9 w-[12.25rem] shrink-0 items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/5 text-sm text-slate-300 transition hover:bg-white/10';
+
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
@@ -36,7 +42,7 @@ export default function ProfilePage() {
   } = useProfileStore();
 
   const [newSkill, setNewSkill] = useState('');
-  const [form, setForm] = useState({ fullName: '', email: '', phone: '', summary: '' });
+  const [form, setForm] = useState({ fullName: '', email: '', phone: '', location: '', headline: '', summary: '', linkedinUrl: '', cvUrl: '' });
 
   // ── Experience state ──────────────────────────────────────────────────────
   const [expEditingIdx, setExpEditingIdx] = useState<number | null>(null);
@@ -52,6 +58,25 @@ export default function ProfilePage() {
   const [trainEditingIdx, setTrainEditingIdx] = useState<number | null>(null);
   const [trainForm, setTrainForm] = useState<TrainForm>(emptyTrain());
   const [trainIsAdding, setTrainIsAdding] = useState(false);
+
+  const [minJobFitPercent, setMinJobFitPercent] = useState(() => {
+    if (typeof window === 'undefined') return 50;
+    const v = Number.parseInt(window.localStorage.getItem(MIN_JOB_FIT_LOCAL_KEY) ?? '50', 10);
+    return Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : 50;
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem(MIN_JOB_FIT_LOCAL_KEY, String(minJobFitPercent));
+    window.dispatchEvent(new Event('mvh-min-fit-changed'));
+  }, [minJobFitPercent]);
+
+  const WORK_VALUES_LS = 'mvh.profileWorkValues';
+  const [workValuesNote, setWorkValuesNote] = useState(() =>
+    typeof window === 'undefined' ? '' : window.localStorage.getItem(WORK_VALUES_LS) ?? '',
+  );
+  useEffect(() => {
+    window.localStorage.setItem(WORK_VALUES_LS, workValuesNote);
+  }, [workValuesNote]);
 
   const skillsAndCourses = useMemo(() => {
     const skills = profile?.skills ?? [];
@@ -94,7 +119,11 @@ export default function ProfilePage() {
         fullName: profile.personalInfo.fullName,
         email: profile.personalInfo.email,
         phone: profile.personalInfo.phone,
+        location: profile.personalInfo.location ?? '',
+        headline: profile.personalInfo.headline ?? '',
         summary: profile.personalInfo.summary,
+        linkedinUrl: profile.personalInfo.linkedinUrl ?? '',
+        cvUrl: profile.personalInfo.cvUrl ?? '',
       });
     }
   }, [profile]);
@@ -304,37 +333,70 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Document Lab — CV upload & parse moved here */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-indigo-500/25 bg-indigo-500/5 p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20">
-            <FolderOpen className="h-5 w-5 text-indigo-400" />
+      {/* Growth first: plan vs roadmap + disclaimer */}
+      <section className="rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 via-slate-900/40 to-emerald-950/30 p-6 space-y-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-white">Growth Plan and Roadmap</h2>
+            <p className="mt-1 text-sm text-slate-400">
+              <strong className="text-slate-200">Growth Plan</strong> is what to work on next (near-term, actionable).{' '}
+              <strong className="text-slate-200">Roadmap</strong> is the longer arc: ordered milestones from your current baseline toward a target role — not the same as day-to-day tasks.
+            </p>
           </div>
-          <div>
-            <h2 className="font-semibold text-white">CV &amp; documents</h2>
-            <p className="text-xs text-slate-400">Upload and parse your CV in Document Lab, then use Build to analyse style and import into this profile.</p>
+          <SupportingMaterialsDisclaimer compact collapsible className="shrink-0 lg:max-w-sm" />
+        </div>
+        <div className="grid gap-3 lg:grid-cols-2">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300">Growth plan</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 text-xs text-slate-300">
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2">
+                <p className="text-[10px] uppercase text-slate-500">Target role</p>
+                <p className="mt-0.5 font-medium text-white">
+                  {profile?.experiences?.[0]?.jobTitle ? `Toward ${profile.experiences[0].jobTitle}` : 'Add experience to anchor'}
+                </p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2">
+                <p className="text-[10px] uppercase text-slate-500">Skills to verify</p>
+                <p className="mt-0.5">{(profile?.skills ?? []).slice(0, 3).join(', ') || 'Add skills in Profile'}</p>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2">
+                <p className="text-[10px] uppercase text-slate-500">Next step</p>
+                <p className="mt-0.5">Quantify outcomes in your top roles, then refresh CV in Document Lab.</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+            <p className="text-xs font-semibold tracking-wide text-emerald-300">Roadmap</p>
+            <ol className="space-y-2 text-xs text-slate-300 list-decimal list-inside">
+              <li>Strengthen profile evidence (experience + skills).</li>
+              <li>Align CV and applications with target role keywords.</li>
+              <li>Practice interviews and negotiation scenarios.</li>
+              <li>Track offers and salary positioning over time.</li>
+            </ol>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            to="/documents"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
-          >
-            Open Document Lab
-          </Link>
-          {userId && (
-            <button
-              type="button"
-              onClick={() => downloadCvMutation.mutate({ userId })}
-              disabled={downloadCvMutation.isPending}
-              className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-400 transition hover:bg-emerald-500/20 disabled:opacity-60"
-            >
-              {downloadCvMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              Download CV PDF
-            </button>
-          )}
+      </section>
+
+      <div className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <label htmlFor="min-job-fit" className="text-sm font-medium text-white">
+            Jobs: minimum fit score ({minJobFitPercent}%)
+          </label>
+          <span className="text-xs text-slate-500">Applies on Jobs discovery in this browser</span>
         </div>
-        {downloadCvMutation.isError && <p className="text-sm text-red-400 sm:w-full">CV download failed. Please try again.</p>}
+        <input
+          id="min-job-fit"
+          type="range"
+          min={0}
+          max={100}
+          step={5}
+          value={minJobFitPercent}
+          onChange={(e) => setMinJobFitPercent(Number(e.target.value))}
+          className="w-full accent-indigo-500"
+        />
+        <p className="text-[11px] text-slate-500">
+          Listings below this fit score stay hidden so you only see stronger matches. Raise or lower anytime.
+        </p>
       </div>
 
       {/* Personal Information — contact column + summary column */}
@@ -354,7 +416,22 @@ export default function ProfilePage() {
               <label htmlFor="phone" className="block text-xs text-slate-400">Phone</label>
               <input id="phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+44 7700 000000" className={inputCls} />
             </div>
-            <p className="text-xs text-slate-500">Add LinkedIn or other links in your summary for now; dedicated social fields will follow.</p>
+            <div className="space-y-2">
+              <label htmlFor="location" className="block text-xs text-slate-400">Location</label>
+              <input id="location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="London, UK" className={inputCls} />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="headline" className="block text-xs text-slate-400">Headline</label>
+              <input id="headline" value={form.headline} onChange={(e) => setForm({ ...form, headline: e.target.value })} placeholder="Senior Frontend Engineer" className={inputCls} />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="linkedinUrl" className="block text-xs text-slate-400">LinkedIn URL</label>
+              <input id="linkedinUrl" type="url" value={form.linkedinUrl} onChange={(e) => setForm({ ...form, linkedinUrl: e.target.value })} placeholder="https://linkedin.com/in/yourname" className={inputCls} />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="cvUrl" className="block text-xs text-slate-400">CV URL</label>
+              <input id="cvUrl" type="url" value={form.cvUrl} onChange={(e) => setForm({ ...form, cvUrl: e.target.value })} placeholder="https://drive.google.com/..." className={inputCls} />
+            </div>
           </div>
           <div className="space-y-2 flex flex-col min-h-[12rem]">
             <label htmlFor="summary" className="block text-xs text-slate-400">Professional summary</label>
@@ -367,45 +444,64 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      {/* Skills */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
-        <h2 className="font-semibold text-white">Skills</h2>
-        <div className="flex flex-wrap gap-2">
-          {(profile?.skills ?? []).map((skill) => (
-            <span key={skill} className="flex items-center gap-1.5 rounded-full bg-indigo-500/20 px-3 py-1 text-sm font-medium text-indigo-300">
-              {skill}
-              <button onClick={() => void handleRemoveSkill(skill)} aria-label={`Remove skill: ${skill}`} className="hover:text-indigo-100"><X className="h-3 w-3" /></button>
-            </span>
-          ))}
+      {/* Skills + work values (two columns on large screens) */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
+          <h2 className="font-semibold text-white">Skills</h2>
+          <div className="flex flex-wrap gap-2">
+            {(profile?.skills ?? []).map((skill) => (
+              <span key={skill} className="flex items-center gap-1.5 rounded-full bg-indigo-500/20 px-3 py-1 text-sm font-medium text-indigo-300">
+                {skill}
+                <button onClick={() => void handleRemoveSkill(skill)} aria-label={`Remove skill: ${skill}`} className="hover:text-indigo-100"><X className="h-3 w-3" /></button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <label htmlFor="skill-input" className="sr-only">Add a skill</label>
+            <input
+              id="skill-input"
+              placeholder="Add a skill…"
+              value={newSkill}
+              onChange={(e) => setNewSkill(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') void handleAddSkill(); }}
+              className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+            />
+            <button onClick={() => void handleAddSkill()} aria-label="Add skill" className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-slate-400 transition hover:bg-white/10">
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <label htmlFor="skill-input" className="sr-only">Add a skill</label>
-          <input
-            id="skill-input"
-            placeholder="Add a skill…"
-            value={newSkill}
-            onChange={(e) => setNewSkill(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') void handleAddSkill(); }}
-            className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-3">
+          <h2 className="font-semibold text-white">Work values</h2>
+          <p className="text-xs text-slate-500">
+            What matters beyond title and pay (e.g. remote, learning budget, inclusion, pace). Saved on this device for now; profile sync can follow.
+          </p>
+          <textarea
+            value={workValuesNote}
+            onChange={(e) => setWorkValuesNote(e.target.value)}
+            placeholder="e.g. Remote-first, no on-call weekends, mentorship, ethical product…"
+            rows={8}
+            className={inputCls}
           />
-          <button onClick={() => void handleAddSkill()} aria-label="Add skill" className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-slate-400 transition hover:bg-white/10">
-            <Plus className="h-4 w-4" />
-          </button>
         </div>
       </div>
 
       {/* Work Experience */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/20">
               <Briefcase className="h-5 w-5 text-violet-400" />
             </div>
             <h2 className="font-semibold text-white">Work Experience</h2>
           </div>
           {!expIsAdding && expEditingIdx === null && (
-            <button onClick={() => { setExpIsAdding(true); setExpForm(emptyExp()); }} className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-300 transition hover:bg-white/10">
-              <Plus className="h-4 w-4" /> Add Experience
+            <button
+              type="button"
+              onClick={() => { setExpIsAdding(true); setExpForm(emptyExp()); }}
+              className={PROFILE_SECTION_ADD_BTN}
+            >
+              <Plus className="h-4 w-4 shrink-0" aria-hidden /> Add Experience
             </button>
           )}
         </div>
@@ -466,16 +562,20 @@ export default function ProfilePage() {
 
       {/* Education */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20">
               <GraduationCap className="h-5 w-5 text-emerald-400" />
             </div>
             <h2 className="font-semibold text-white">Education</h2>
           </div>
           {!eduIsAdding && eduEditingIdx === null && (
-            <button onClick={() => { setEduIsAdding(true); setEduForm(emptyEdu()); }} className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-300 transition hover:bg-white/10">
-              <Plus className="h-4 w-4" /> Add Education
+            <button
+              type="button"
+              onClick={() => { setEduIsAdding(true); setEduForm(emptyEdu()); }}
+              className={PROFILE_SECTION_ADD_BTN}
+            >
+              <Plus className="h-4 w-4 shrink-0" aria-hidden /> Add Education
             </button>
           )}
         </div>
@@ -537,16 +637,20 @@ export default function ProfilePage() {
 
       {/* Trainings & Certifications */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20">
               <Award className="h-5 w-5 text-amber-400" />
             </div>
             <h2 className="font-semibold text-white">Trainings &amp; Certifications</h2>
           </div>
           {!trainIsAdding && trainEditingIdx === null && (
-            <button onClick={() => { setTrainIsAdding(true); setTrainForm(emptyTrain()); }} className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-slate-300 transition hover:bg-white/10">
-              <Plus className="h-4 w-4" /> Add Training
+            <button
+              type="button"
+              onClick={() => { setTrainIsAdding(true); setTrainForm(emptyTrain()); }}
+              className={PROFILE_SECTION_ADD_BTN}
+            >
+              <Plus className="h-4 w-4 shrink-0" aria-hidden /> Add Training
             </button>
           )}
         </div>
@@ -675,87 +779,27 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {/* Growth Plan */}
-      <div className="rounded-2xl border border-indigo-500/25 bg-indigo-500/5 p-6 space-y-4">
-        <h2 className="font-semibold text-white">Growth Plan</h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Target Role</p>
-            <p className="mt-1 text-sm font-medium text-white">
-              {profile?.experiences?.[0]?.jobTitle ? `Senior ${profile.experiences[0].jobTitle}` : 'Define target role'}
-            </p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Target Seniority</p>
-            <p className="mt-1 text-sm font-medium text-white">
-              {(profile?.experiences?.length ?? 0) >= 4 ? 'Senior / Lead' : 'Mid → Senior'}
-            </p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Target Salary Range</p>
-            <p className="mt-1 text-sm font-medium text-white">
-              {(profile?.experiences?.length ?? 0) >= 4 ? '£65k–£90k' : '£45k–£70k'}
-            </p>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Priority Skills To Build</p>
-            <p className="mt-1 text-sm text-slate-300">
-              {(profile?.skills ?? []).slice(0, 5).join(', ') || 'Add core skills in Profile and verify in Skill Lab.'}
-            </p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Skills To Verify</p>
-            <p className="mt-1 text-sm text-slate-300">
-              {((profile?.skills?.length ?? 0) > 0)
-                ? `${Math.min(3, profile!.skills.length)} high-value skills still need stronger evidence (projects, outcomes, certificate links).`
-                : 'No skills added yet — start with 3 skills you use in target roles.'}
-            </p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Documents To Improve</p>
-            <p className="mt-1 text-sm text-slate-300">CV summary, role-specific cover letter, and follow-up email templates.</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Next Strategic Step</p>
-            <p className="mt-1 text-sm text-slate-300">
-              Update top 3 experience entries with quantified outcomes, then run Document Lab Build to regenerate CV positioning.
-            </p>
-          </div>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm">
+        <p className="text-slate-400">
+          <span className="text-slate-200">CV and documents</span> — upload and parse in{' '}
+          <Link to="/documents" className="font-medium text-indigo-400 hover:text-indigo-300">
+            Document Lab
+          </Link>
+          , not on this page.
+        </p>
+        {userId && (
+          <button
+            type="button"
+            onClick={() => downloadCvMutation.mutate({ userId })}
+            disabled={downloadCvMutation.isPending}
+            className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-400 transition hover:bg-emerald-500/20 disabled:opacity-60"
+          >
+            {downloadCvMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+            Download CV PDF
+          </button>
+        )}
       </div>
-
-      {/* Roadmap */}
-      <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-6 space-y-4">
-        <h2 className="font-semibold text-white">Roadmap</h2>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Current Position</p>
-            <p className="mt-1 text-sm text-white">{profile?.experiences?.[0]?.jobTitle || 'Profile baseline setup'}</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Next Milestone</p>
-            <p className="mt-1 text-sm text-white">Strengthen Core CV</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Medium-Term Goal</p>
-            <p className="mt-1 text-sm text-white">Raise Salary Positioning</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Long-Term Direction</p>
-            <p className="mt-1 text-sm text-white">Move Toward Senior / Leadership</p>
-          </div>
-        </div>
-        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-          <p className="text-xs uppercase tracking-wider text-slate-500">Suggested Actions</p>
-          <ul className="mt-2 space-y-1 text-sm text-slate-300">
-            <li>1) Add missing metrics to experience entries.</li>
-            <li>2) Verify one high-impact skill with evidence/certificate.</li>
-            <li>3) Practice interview answers for your target role weekly.</li>
-          </ul>
-        </div>
-      </div>
+      {downloadCvMutation.isError && <p className="text-sm text-red-400">CV download failed. Please try again.</p>}
     </div>
   );
 }

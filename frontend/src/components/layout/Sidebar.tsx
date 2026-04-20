@@ -4,15 +4,19 @@ import {
   LayoutDashboard, Briefcase, ClipboardList, FileText,
   MessageSquare, Mic, User, CreditCard, Settings,
   Shield, LogOut, Sparkles, Calculator, Scale, BarChart2, LineChart, Zap, FlaskConical, Handshake, Radar, Flame, HelpCircle, FolderKanban,
-  GraduationCap, FolderOpen,
+  GraduationCap, FolderOpen, Users,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface NavItem {
   path: string;
+  /** When set, NavLink uses `pathname` + `search` (e.g. Settings deep tab). */
+  search?: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: number;
+  /** Extra context on hover (esp. when `label` is shortened for the sidebar). */
+  title?: string;
 }
 
 const MAIN_FLOW: NavItem[] = [
@@ -20,7 +24,12 @@ const MAIN_FLOW: NavItem[] = [
   { path: '/profile', label: 'Profile', icon: User },
   { path: '/jobs', label: 'Jobs', icon: Briefcase },
   { path: '/applications', label: 'Applications', icon: ClipboardList },
-  { path: '/review', label: 'Applications Review', icon: FileText },
+  {
+    path: '/review',
+    label: 'Review queue',
+    icon: FileText,
+    title: 'Applications that need your attention — follow-ups, interviews, offers',
+  },
 ];
 
 const AI_GROWTH: NavItem[] = [
@@ -48,8 +57,9 @@ const AUTOMATION: NavItem[] = [
 ];
 
 const TECHNICAL: NavItem[] = [
+  { path: '/settings', search: '?tab=privacy', label: 'Community Centre', icon: Users, title: 'Consent and data-sharing controls' },
   { path: '/settings', label: 'Settings', icon: Settings },
-  { path: '/security', label: 'Security & Passkeys', icon: Shield },
+  { path: '/security', label: 'Security, passkeys & 2FA', icon: Shield },
   { path: '/billing', label: 'Billing', icon: CreditCard },
   { path: '/faq', label: 'FAQ', icon: HelpCircle },
 ];
@@ -66,8 +76,9 @@ const NavSection = ({ label, items }: NavSectionProps) => (
     </p>
     {items.map((item) => (
       <NavLink
-        key={item.path}
-        to={item.path}
+        key={item.search ? `${item.path}${item.search}` : item.path}
+        to={item.search ? { pathname: item.path, search: item.search.startsWith('?') ? item.search.slice(1) : item.search } : item.path}
+        title={item.title}
         className={({ isActive }) =>
           clsx(
             'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
