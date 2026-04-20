@@ -267,7 +267,7 @@ app.post('/api/interview/tts', async (req, res) => {
     if (ttsModel.startsWith('gpt-4o')) {
       payload.instructions = UK_TTS_INSTRUCTIONS;
     }
-    const mp3 = await openai.audio.speech.create(payload as Parameters<typeof openai.audio.speech.create>[0]);
+    const mp3 = await openai.audio.speech.create(payload as unknown as Parameters<typeof openai.audio.speech.create>[0]);
 
     const buffer = Buffer.from(await mp3.arrayBuffer());
     res.setHeader('Content-Type', 'audio/mpeg');

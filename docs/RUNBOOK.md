@@ -1,6 +1,26 @@
 # Runbook — multivohub-jobapp
 
-> Single source of truth for deploy, rollback, smoke-test, ENV setup, and PM2 operations.
+> Single source of truth for deploy, rollback, smoke-test, ENV setup, PM2 operations, and local development.
+
+---
+
+## 0. Local Development
+
+```bash
+cp .env.example .env
+bash scripts/bootstrap-local.sh
+npm run dev
+```
+
+Requirements:
+- Docker Desktop or Docker Engine running locally
+- valid `.env` values for Clerk, OpenAI, Stripe, and encryption
+- local MySQL comes from `docker-compose.yml`
+
+Local URLs:
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:3001`
+- API health: `http://localhost:3001/api/health`
 
 ---
 
@@ -8,269 +28,19 @@
 
 | Task | Command |
 |------|---------|
+| **Local bootstrap** | `bash scripts/bootstrap-local.sh` |
 | **Fresh VPS setup** | `bash scripts/setup-vps.sh` |
 | Deploy (local, guarded) | `bash scripts/deploy-safe.sh` (ack → remote backup → `deploy.sh`) |
 | Deploy (local, direct) | `bash scripts/deploy.sh` |
-| Ack only | `bash scripts/ack-deploy.sh` |
-| Remote backup only | `bash scripts/backup-safe.sh` |
-| Rollback frontend | `bash scripts/rollback.sh` (on VPS) |
 | Smoke test | `bash scripts/smoke-test.sh` (on VPS) |
 | Validate ENV | `node lib/envSchema.mjs` |
-| PM2 status | `pm2 list` |
-| PM2 logs | `pm2 logs jobapp-server` / `pm2 logs jobapp-worker` |
 | PM2 reload | `pm2 reload infra/ecosystem.config.cjs --update-env` |
 | DB migration | `npm run db:push` (from repo root) |
 
 ---
 
-## 1. Fresh VPS setup
+## Deploy workflow note
 
-Run this **once** when deploying to a blank server (or after a full wipe):
+The current GitHub workflow file should match the branch policy you actually want to deploy from.
+If production deploys are intended from `main`, align `.github/workflows/deploy.yml` accordingly before relying on CI/CD.
 
-```bash
-# From repo root (builds locally, then wipes + bootstraps the VPS)
-bash scripts/setup-vps.sh
-```
-
-What it does:
-1. Builds frontend + backend locally
-2. Wipes `/root/project/` (backs up `.env` if present)
-3. Syncs all files: dist, backend `package.json`/`package-lock.json`, infra, scripts, nginx config
-4. Runs `npm ci --omit=dev` on the VPS to install backend production deps
-5. Starts PM2 (`pm2 start infra/ecosystem.config.cjs`)
-6. Symlinks the nginx config and reloads nginx
-7. Runs a smoke test
-
-**After setup:**
-- If `.env` didn't exist yet: `scp .env.production root@<VPS>:/root/project/.env`, then reload PM2
-- SSL (first time): `ssh root@<VPS> 'certbot --nginx -d jobs.multivohub.com'`
-- Subsequent deploys: `bash scripts/deploy-safe.sh` (recommended) or `bash scripts/deploy.sh`, or push to **`claude/improvements`** for GitHub Actions
-
----
-
-## 2. Deploy
-
-### Automated (GitHub Actions)
-
-Every push to `main` triggers `.github/workflows/deploy.yml`:
-1. Validates ENV schema
-2. Builds frontend + backend
-3. `rsync` dist to VPS
-4. Reloads PM2 (`jobapp-server` + `jobapp-worker`)
-5. Runs smoke test
-
-**Required GitHub secrets:**
-
-| Secret | Description |
-|--------|-------------|
-| `VPS_SSH_KEY` | Private SSH key for the VPS |
-| `VPS_HOST` | VPS IP or hostname |
-| `VPS_USER` | SSH user (e.g. `root`) |
-| `VPS_FRONTEND_DIST_PATH` | e.g. `/root/project/frontend/dist` |
-| `DATABASE_URL` | MySQL connection string |
-| `CLERK_SECRET_KEY` | Clerk secret key |
-| `OPENAI_API_KEY` | OpenAI key |
-| `STRIPE_SECRET_KEY` | Stripe secret key |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
-| `ENCRYPTION_KEY` | Min 32-char key for SMTP password encryption |
-| `VITE_CLERK_PUBLISHABLE_KEY` | Clerk publishable key |
-| `VITE_API_URL` | Backend API URL (e.g. `https://jobapp.multivohub.com`) |
-| `VITE_STRIPE_PRO_PRICE_ID` | Stripe Price ID for Pro plan |
-| `VITE_STRIPE_AUTOPILOT_PRICE_ID` | Stripe Price ID for Autopilot plan |
-
-### Manual deploy
-
-```bash
-# From repo root, with .env loaded
-bash scripts/deploy.sh
-```
-
-ENV overrides:
-```bash
-DEPLOY_HOST=root@147.93.86.209 bash scripts/deploy.sh
-```
-
----
-
-## 3. Rollback
-
-Frontend rollback (restores previous dist backup):
-
-```bash
-# SSH into VPS
-bash /root/project/scripts/rollback.sh
-```
-
-`deploy.sh` keeps the **3 most recent** backups at:
-```
-/root/project/frontend/dist-backup-<timestamp>
-```
-
-Backend rollback: re-run the previous deploy or checkout the previous commit and deploy again.
-
----
-
-## 4. Smoke test
-
-```bash
-# On VPS
-bash /root/project/scripts/smoke-test.sh
-
-# With custom API base (e.g. test against staging)
-API_BASE=http://127.0.0.1:3001 bash scripts/smoke-test.sh
-```
-
-Checks:
-- `GET /health` → `{"status":"ok"}`
-- `GET /api/health` → `{"status":"ok"}`
-- Frontend `index.html` → `<div id="root"`
-
----
-
-## 5. Environment variables
-
-### Validate
-
-```bash
-# Local
-node lib/envSchema.mjs
-
-# On VPS
-cd /root/project && node lib/envSchema.mjs
-```
-
-### Full ENV reference
-
-See `.env.example` in the repo root. Required variables:
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | ✅ | `mysql://user:pass@host:3306/db` |
-| `CLERK_SECRET_KEY` | ✅ | `sk_test_…` or `sk_live_…` |
-| `OPENAI_API_KEY` | ✅ | `sk-…` |
-| `STRIPE_SECRET_KEY` | ✅ | `sk_test_…` or `sk_live_…` |
-| `STRIPE_WEBHOOK_SECRET` | ✅ | `whsec_…` |
-| `ENCRYPTION_KEY` | ✅ | Minimum 32 characters |
-| `PORT` | ❌ | Default `3001` |
-| `NODE_ENV` | ❌ | `production` / `development` |
-| `FRONTEND_URL` | ❌ | Default `http://localhost:5173` |
-
----
-
-## 6. PM2
-
-### Processes
-
-| Name | Script | Port |
-|------|--------|------|
-| `jobapp-server` | `dist/backend/src/server.js` | 3001 |
-| `jobapp-worker` | `dist/backend/src/worker.js` | — (polls DB) |
-
-### Commands
-
-```bash
-# Start (first time)
-pm2 start /root/project/infra/ecosystem.config.cjs
-
-# Reload after deploy (zero-downtime)
-pm2 reload /root/project/infra/ecosystem.config.cjs --update-env
-
-# Status
-pm2 list
-pm2 show jobapp-server
-
-# Logs
-pm2 logs jobapp-server --lines 100
-pm2 logs jobapp-worker --lines 100
-
-# Flush logs
-pm2 flush
-
-# Save current process list (survives reboot)
-pm2 save
-pm2 startup   # follow the printed command to register PM2 as a system service
-```
-
----
-
-## 7. Nginx
-
-Config: `infra/nginx/multivohub-jobapp.conf` — SPA **`root`** is **`/root/project/frontend/dist`**.  
-`infra/nginx/www-multivohub.conf` — landing **`root`** is **`/root/project/landing`** (create that directory or adjust the path).
-
-```bash
-# Install (on VPS)
-ln -s /root/project/infra/nginx/multivohub-jobapp.conf \
-      /etc/nginx/sites-enabled/multivohub-jobapp
-
-# Test + reload
-nginx -t && systemctl reload nginx
-
-# SSL (first time)
-certbot --nginx -d jobapp.multivohub.com
-```
-
----
-
-## 8. Database
-
-```bash
-# Push schema changes (Drizzle)
-npm run db:push
-
-# On VPS
-bash scripts/db-push-on-vps.sh
-```
-
----
-
-## 9. Auto-apply worker
-
-The `jobapp-worker` PM2 process polls `auto_apply_queue` every 30 seconds.
-
-**Weekly caps per plan:**
-
-| Plan | Auto-applies/week |
-|------|-------------------|
-| Free | 3 |
-| Pro | 15 |
-| Autopilot | 50 |
-
-Caps reset every **Monday at 00:00 UTC**.
-
-If the worker crashes, PM2 restarts it automatically. Jobs stuck in `processing` state are reset to `pending` on worker startup (crash recovery).
-
----
-
-## 10. Troubleshooting
-
-### Backend won't start
-```bash
-pm2 logs jobapp-server --lines 50
-# Check for missing ENV vars — server exits immediately if validation fails
-node /root/project/lib/envSchema.mjs
-```
-
-### Frontend shows blank page
-```bash
-# Check Nginx is serving index.html
-curl -I https://jobs.multivohub.com
-# Check dist exists
-ls /root/project/frontend/dist/
-```
-
-### Auto-apply jobs stuck in "processing"
-```bash
-# Worker does crash recovery automatically at startup — restart it
-pm2 restart jobapp-worker
-pm2 logs jobapp-worker --lines 30
-```
-
-### Credits showing wrong value
-Credits are loaded live from `billing.getCurrentPlan` — check the subscription row in the database:
-```sql
-SELECT u.clerk_id, s.plan, s.credits, s.status
-FROM subscriptions s
-JOIN users u ON u.id = s.user_id
-WHERE u.clerk_id = 'user_xxx';
-```
