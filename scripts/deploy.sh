@@ -124,10 +124,8 @@ rsync -avz \
   "$ROOT/backend/package-lock.json" \
   "${HOST}:${REMOTE_BASE}/backend/"
 
-rsync -avz \
-  "$ROOT/infra/ecosystem.config.cjs" \
-  "$ROOT/lib/envSchema.mjs" \
-  "${HOST}:${REMOTE_BASE}/"
+rsync -avz "$ROOT/infra/ecosystem.config.cjs" "${HOST}:${REMOTE_BASE}/infra/"
+rsync -avz "$ROOT/lib/envSchema.mjs" "${HOST}:${REMOTE_BASE}/lib/"
 
 rsync -avz "$ROOT/scripts/" "${HOST}:${REMOTE_BASE}/scripts/"
 

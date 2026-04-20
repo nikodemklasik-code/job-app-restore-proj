@@ -71,6 +71,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
@@ -183,12 +184,13 @@ jobs:
             backend/package-lock.json \
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${REMOTE_BASE}/backend/"
 
-      - name: Sync PM2 ecosystem and env schema
+      - name: Sync PM2 ecosystem
         run: |
-          rsync -avz \
-            infra/ecosystem.config.cjs \
-            lib/envSchema.mjs \
-            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${REMOTE_BASE}/"
+          rsync -avz             infra/ecosystem.config.cjs             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${REMOTE_BASE}/infra/"
+
+      - name: Sync env schema
+        run: |
+          rsync -avz             lib/envSchema.mjs             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${REMOTE_BASE}/lib/"
 
       - name: Sync Job Radar docs (OpenAPI v1.1 contract on VPS)
         run: |

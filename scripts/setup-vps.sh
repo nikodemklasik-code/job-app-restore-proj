@@ -83,10 +83,8 @@ rsync -avz \
   "$ROOT/backend/package-lock.json" \
   "${HOST}:${REMOTE_BASE}/backend/"
 
-rsync -avz \
-  "$ROOT/infra/ecosystem.config.cjs" \
-  "$ROOT/lib/envSchema.mjs" \
-  "${HOST}:${REMOTE_BASE}/"
+rsync -avz "$ROOT/infra/ecosystem.config.cjs" "${HOST}:${REMOTE_BASE}/infra/"
+rsync -avz "$ROOT/lib/envSchema.mjs" "${HOST}:${REMOTE_BASE}/lib/"
 
 rsync -avz "$ROOT/scripts/" "${HOST}:${REMOTE_BASE}/scripts/"
 
@@ -135,4 +133,4 @@ echo "      scp .env.production ${HOST}:${REMOTE_BASE}/.env"
 echo "      ssh ${HOST} 'pm2 reload ${REMOTE_BASE}/infra/ecosystem.config.cjs --update-env && pm2 save'"
 echo "  • SSL (first time):"
 echo "      ssh ${HOST} 'certbot --nginx -d jobs.multivohub.com'"
-echo "  • Future deploys: bash scripts/deploy-safe.sh  or  bash scripts/deploy.sh  or  push to claude/improvements (CI)"
+echo "  • Future deploys: bash scripts/deploy-safe.sh  or  bash scripts/deploy.sh  or  push to main (CI)"
