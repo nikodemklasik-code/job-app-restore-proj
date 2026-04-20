@@ -15,7 +15,7 @@ name: Deploy — multivohub-jobapp
 on:
   push:
     branches:
-      - claude/improvements
+      - main
   workflow_dispatch:
 
 permissions:
