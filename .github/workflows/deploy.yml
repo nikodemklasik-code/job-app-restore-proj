@@ -69,9 +69,10 @@ jobs:
       - name: Validate ENV schema
         run: node lib/envSchema.mjs
         env:
+          NODE_ENV: production
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+          CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
