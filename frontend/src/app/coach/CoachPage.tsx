@@ -7,6 +7,11 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
+import PracticeHeroHeader from '@/features/practice-shell/components/PracticeHeroHeader';
+import PracticeCostCard from '@/features/practice-shell/components/PracticeCostCard';
+import PracticeModeCard from '@/features/practice-shell/components/PracticeModeCard';
+import PracticeSupportRail from '@/features/practice-shell/components/PracticeSupportRail';
+import { PRACTICE_MODULE_CONFIGS } from '@/features/practice-shell/config/practiceModuleConfigs';
 
 // ─── Question bank by category ────────────────────────────────────────────────
 
@@ -516,6 +521,10 @@ export default function CoachPage() {
     </div>
   ) : null;
 
+  const coachShell = PRACTICE_MODULE_CONFIGS.coach;
+  const [selectedCoachMode, setSelectedCoachMode] = useState(coachShell.modes[0]?.id ?? 'quick-reframe');
+  const selectedCoachModeConfig = coachShell.modes.find((mode) => mode.id === selectedCoachMode) ?? coachShell.modes[0];
+
   const meterBars = 28;
 
   return (
@@ -546,6 +555,22 @@ export default function CoachPage() {
       </div>
 
       <SupportingMaterialsDisclaimer compact collapsible defaultExpanded={false} />
+
+      <section className="space-y-3">
+        <PracticeHeroHeader hero={coachShell.hero} />
+        <div className="grid gap-3 md:grid-cols-2">
+          {coachShell.modes.map((mode) => (
+            <PracticeModeCard
+              key={mode.id}
+              option={mode}
+              selected={mode.id === selectedCoachModeConfig.id}
+              onSelect={setSelectedCoachMode}
+            />
+          ))}
+        </div>
+        <PracticeCostCard cost={selectedCoachModeConfig.cost} />
+        <PracticeSupportRail items={coachShell.supportItems ?? []} />
+      </section>
 
       {/* ── Phase: select category ─────────────────────────────────────────────── */}
       {phase === 'select' && (

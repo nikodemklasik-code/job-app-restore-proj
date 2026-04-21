@@ -12,6 +12,11 @@ import {
   VolumeX,
 } from 'lucide-react';
 import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
+import PracticeHeroHeader from '@/features/practice-shell/components/PracticeHeroHeader';
+import PracticeCostCard from '@/features/practice-shell/components/PracticeCostCard';
+import PracticeModeCard from '@/features/practice-shell/components/PracticeModeCard';
+import PracticeSessionPanel from '@/features/practice-shell/components/PracticeSessionPanel';
+import { PRACTICE_MODULE_CONFIGS } from '@/features/practice-shell/config/practiceModuleConfigs';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 const API_VOICE_BASE = API_BASE;
@@ -170,9 +175,9 @@ export default function NegotiationPage() {
   const [isSpeaking] = useState(false);
 
   // VAD state
-  const [_vadActive, setVadActive] = useState(false);
-  const [_vadSpeechDetected, setVadSpeechDetected] = useState(false);
-  const [_audioLevel, setAudioLevel] = useState(0);
+  const [, setVadActive] = useState(false);
+  const [, setVadSpeechDetected] = useState(false);
+  const [, setAudioLevel] = useState(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const vadStreamRef = useRef<MediaStream | null>(null);
@@ -191,6 +196,8 @@ export default function NegotiationPage() {
   const [offer, setOffer] = useState<SimulatorOffer>(DEFAULT_OFFER);
   const [simStarted, setSimStarted] = useState(false);
   const [simComplete, setSimComplete] = useState(false);
+  const negotiationShell = PRACTICE_MODULE_CONFIGS.negotiation;
+  const selectedNegotiationMode = negotiationShell.modes.find((mode) => mode.id === appMode) ?? negotiationShell.modes[0];
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -548,6 +555,23 @@ export default function NegotiationPage() {
 
       <div className="px-6 py-2 shrink-0">
         <SupportingMaterialsDisclaimer compact collapsible />
+        <div className="mt-3 space-y-3">
+          <PracticeHeroHeader hero={negotiationShell.hero} />
+          <div className="grid gap-3 md:grid-cols-2">
+            {negotiationShell.modes.map((mode) => (
+              <PracticeModeCard
+                key={mode.id}
+                option={mode}
+                selected={mode.id === selectedNegotiationMode.id}
+                onSelect={(id) => handleModeSwitch(id === 'simulator' ? 'simulator' : 'coach')}
+              />
+            ))}
+          </div>
+          <PracticeCostCard cost={selectedNegotiationMode.cost} />
+          <PracticeSessionPanel title="Negotiation flow">
+            Choose Strategy for drafting or Simulator for a live counter-offer conversation.
+          </PracticeSessionPanel>
+        </div>
       </div>
 
       {/* Practice scenarios (coach mode only) */}
