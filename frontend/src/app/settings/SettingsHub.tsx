@@ -34,6 +34,8 @@ import { api } from '@/lib/api';
 import { isTrpcUnauthorizedError } from '@/lib/trpc-auth-redirect';
 import { resolveActiveSettingsTab } from './settingsTabFromUrl';
 import { UserProductSettingsTab } from './UserProductSettingsTab';
+import { getPhase56ModuleTitles, getPhase56Routes } from '@/config/phase56Readiness';
+import { PHASE_9_10_READINESS } from '@/config/phase910Readiness';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -911,6 +913,10 @@ export default function SettingsHub() {
     saveConsents(c);
   };
 
+  const phase56Titles = getPhase56ModuleTitles();
+  const phase56Routes = getPhase56Routes();
+  const governanceReadyCount = PHASE_9_10_READINESS.modules.filter((module) => module.status === 'ready').length;
+
   return (
     <div className="space-y-8">
       <div>
@@ -963,6 +969,53 @@ export default function SettingsHub() {
                   </div>
                   <Toggle checked={emailNotifications} onChange={toggleEmailNotifications} />
                 </label>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" /> Product readiness &amp; governance
+                </CardTitle>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  Snapshot of core module readiness and governance status.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Phase 5–6 modules</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {phase56Titles.map((title) => (
+                      <span
+                        key={title}
+                        className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-[11px] text-indigo-300"
+                      >
+                        {title}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {phase56Routes.map((route) => (
+                      <Link
+                        key={route}
+                        to={route}
+                        className="rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] text-slate-600 hover:border-indigo-300 hover:text-indigo-500 dark:border-slate-700 dark:text-slate-300"
+                      >
+                        {route}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-slate-100 p-4 dark:border-slate-800">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Phase 9–10 governance</p>
+                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                    {PHASE_9_10_READINESS.title}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    Ready modules: {governanceReadyCount} / {PHASE_9_10_READINESS.modules.length}
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </div>

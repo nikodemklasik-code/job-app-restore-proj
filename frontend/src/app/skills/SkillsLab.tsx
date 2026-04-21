@@ -5,6 +5,7 @@ import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import { useProfileStore } from '@/stores/profileStore';
 import { useBillingStore } from '@/stores/billingStore';
+import { appScreens } from '@/config/appScreens';
 import type { ProfileSnapshot, ProfileExperience, ProfileEducation } from '../../../../shared/profile';
 import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
 
@@ -495,7 +496,7 @@ export default function SkillsLab() {
             </div>
           </div>
           <Link
-            to="/documents?tab=upload"
+            to={`${appScreens.documents.path}?tab=upload`}
             className="mvh-card-glow inline-flex shrink-0 items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
           >
             Open Document Lab
@@ -660,9 +661,9 @@ export default function SkillsLab() {
             <div className="mvh-card-glow flex flex-col items-center gap-2 rounded-xl border border-dashed border-white/10 bg-white/[0.02] py-10 text-center">
               <AlertCircle className="h-8 w-8 text-slate-600" />
               <p className="text-sm text-slate-400">No skills in your profile yet.</p>
-              <a href="/profile" className="text-xs text-indigo-400 hover:underline">
-                Add skills in Profile &rarr;
-              </a>
+              <Link to={appScreens.profile.path} className="text-xs text-indigo-400 hover:underline">
+                Add skills in {appScreens.profile.label} &rarr;
+              </Link>
             </div>
           ) : (
             <div className="space-y-3">
@@ -745,7 +746,7 @@ export default function SkillsLab() {
             <span className="text-sm font-bold text-white tabular-nums">{currentPlan.credits.toLocaleString()}</span>
           </div>
           <Link
-            to="/billing"
+            to={appScreens.billing.path}
             className="shrink-0 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-300 transition hover:bg-indigo-500/20"
           >
             Buy Credits →

@@ -5,6 +5,7 @@ import { Check, X, Zap, ExternalLink, Loader2, CreditCard, Heart, Bitcoin, Coins
 import { useBillingStore } from '@/stores/billingStore';
 import { trpcClient } from '@/lib/api';
 import { BillingLedgerPanels } from '@/components/billing/BillingLedgerPanels';
+import { appScreens } from '@/config/appScreens';
 
 type PaymentMethod = 'stripe' | 'paypal' | 'crypto';
 
@@ -128,7 +129,7 @@ export default function BillingPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-10 pb-12">
       <header className="space-y-1">
-        <h1 className="text-3xl font-bold text-white">Billing &amp; Credits</h1>
+        <h1 className="text-3xl font-bold text-white">{appScreens.billing.label} &amp; Credits</h1>
         <p className="text-slate-400">Plans, top-ups, comparison table, and billing history in one place.</p>
       </header>
 

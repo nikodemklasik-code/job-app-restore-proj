@@ -121,6 +121,8 @@ export const router = createBrowserRouter([
       { path: 'faq', element: withSuspense(FAQPage) },
       { path: 'documents', element: withSuspense(DocumentLab) },
       { path: 'case-practice', element: withSuspense(CasePracticePage) },
+      { path: 'interview-warmup', element: <Navigate to="/warmup" replace /> },
+      { path: 'negotiation-coach', element: <Navigate to="/negotiation" replace /> },
     ],
   },
 ]);

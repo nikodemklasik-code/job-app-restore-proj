@@ -7,6 +7,11 @@ import { interviewModeLabels } from '../../../../shared/interview';
 import type { InterviewMode } from '../../../../shared/interview';
 import { useBillingStore } from '@/stores/billingStore';
 import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
+import { PRACTICE_MODULE_CONFIGS } from '@/features/practice-shell/config/practiceModuleConfigs';
+import { PracticeHeroHeader } from '@/features/practice-shell/components/PracticeHeroHeader';
+import { PracticeCostCard } from '@/features/practice-shell/components/PracticeCostCard';
+import { PracticeProgressBadge } from '@/features/practice-shell/components/PracticeProgressBadge';
+import { EstimatedSpendInlineNotice } from '@/features/practice-shell/components/EstimatedSpendInlineNotice';
 
 // ─── Wave/avatar keyframes injected once ─────────────────────────────────────
 const AVATAR_STYLES = `
@@ -1032,6 +1037,7 @@ export default function InterviewPractice() {
 
   if (phase === 'lobby') {
     const job = getJob();
+    const interviewConfig = PRACTICE_MODULE_CONFIGS.interview;
     const canJoin = (selectedJob !== null) || (customCompany.trim() !== '' && customRole.trim() !== '');
 
     return (
@@ -1066,18 +1072,21 @@ export default function InterviewPractice() {
 
           {/* Right: job selector + join */}
           <div style={{ flex: '1 1 340px', display: 'flex', flexDirection: 'column', gap: 16, justifyContent: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#6366f1,#3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Briefcase style={{ width: 22, height: 22, color: '#fff' }} />
-              </div>
-              <div>
-                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>AI Interview Coach</h1>
-                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Share your answers — get structured coaching reports</p>
-                <p style={{ fontSize: 12, color: '#94a3b8', margin: '6px 0 0', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', boxShadow: '0 0 6px #34d399' }} />
-                  GPT-4o · online
-                </p>
-              </div>
+            <div style={{ marginBottom: 8 }}>
+              <PracticeHeroHeader
+                eyebrow={(
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, borderRadius: 999, border: '1px solid rgba(99,102,241,0.4)', background: 'rgba(99,102,241,0.14)', padding: '5px 10px', fontSize: 11, fontWeight: 700, color: '#c7d2fe' }}>
+                    <Briefcase style={{ width: 14, height: 14 }} />
+                    {interviewConfig.title}
+                  </span>
+                )}
+                title="AI Interview Coach"
+                description="Share your answers — get structured coaching reports"
+              />
+              <p style={{ fontSize: 12, color: '#94a3b8', margin: '6px 0 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', boxShadow: '0 0 6px #34d399' }} />
+                GPT-4o · online
+              </p>
             </div>
 
             <SupportingMaterialsDisclaimer compact collapsible defaultExpanded={false} className="mt-2" />
@@ -1115,7 +1124,7 @@ export default function InterviewPractice() {
                 </li>
                 <li style={{ marginTop: 6 }}>
                   <strong style={{ color: '#e2e8f0' }}>Daily Warmup</strong> — short timed drills with category choice:{' '}
-                  <Link to="/warmup" style={{ color: '#a5b4fc', fontWeight: 600 }}>Open Warmup →</Link>
+                  <Link to="/practice/daily-warmup" style={{ color: '#a5b4fc', fontWeight: 600 }}>Open Warmup →</Link>
                 </li>
               </ul>
             </div>
@@ -1223,18 +1232,23 @@ export default function InterviewPractice() {
 
         {currentPlan && (
           <div style={{ flexShrink: 0, width: '100%', padding: '12px 24px 20px', borderTop: '1px solid rgba(30,41,59,0.9)', background: 'rgba(5,10,20,0.95)' }}>
-            <div style={{ maxWidth: 880, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.18)', borderRadius: 12, padding: '10px 18px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <Zap style={{ width: 16, height: 16, color: '#818cf8', flexShrink: 0 }} />
-                <span style={{ fontSize: 13, color: '#94a3b8' }}>AI credits remaining:</span>
-                <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{currentPlan.credits.toLocaleString()}</span>
-              </div>
-              <Link
-                to="/billing"
-                style={{ fontSize: 12, fontWeight: 600, color: '#a5b4fc', textDecoration: 'none', padding: '5px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: 8 }}
-              >
-                Buy credits / Billing →
-              </Link>
+            <div style={{ maxWidth: 880, margin: '0 auto' }}>
+              <PracticeCostCard
+                icon={<Zap style={{ width: 16, height: 16, color: '#818cf8', flexShrink: 0 }} />}
+                label="AI credits remaining"
+                value={currentPlan.credits.toLocaleString()}
+                footer={(
+                  <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                    <EstimatedSpendInlineNotice estimatedCredits={1} className="text-[11px]" />
+                    <Link
+                      to="/billing"
+                      style={{ fontSize: 12, fontWeight: 600, color: '#a5b4fc', textDecoration: 'none', padding: '5px 12px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', borderRadius: 8 }}
+                    >
+                      Buy credits / Billing →
+                    </Link>
+                  </div>
+                )}
+              />
             </div>
           </div>
         )}
@@ -1267,6 +1281,7 @@ export default function InterviewPractice() {
 
   if (phase === 'complete') {
     const job = getJob();
+    const interviewConfig = PRACTICE_MODULE_CONFIGS.interview;
     const modeInfo = interviewModeLabels[selectedMode];
     const userMessages = messages.filter((m) => m.role === 'user').map((m) => m.content);
     const coachingPlan = generateCoachingPlan(userMessages);
@@ -1299,8 +1314,15 @@ export default function InterviewPractice() {
 
           {/* Summary header card */}
           <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 20, padding: 28, textAlign: 'center' }}>
-            <div style={{ fontSize: 48, marginBottom: 10 }}>🎙️</div>
-            <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>Interview Complete</h2>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
+              <PracticeProgressBadge
+                icon={<span style={{ fontSize: 18 }}>🎙️</span>}
+                caption={interviewConfig.title}
+                primary="Interview Complete"
+                secondary={modeInfo.label}
+                highlighted
+              />
+            </div>
             <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 14px' }}>
               {modeInfo.emoji} {modeInfo.label} · {job.title} at {job.company}
             </p>

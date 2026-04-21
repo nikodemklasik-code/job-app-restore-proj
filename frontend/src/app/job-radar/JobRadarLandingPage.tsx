@@ -2,6 +2,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { StartScanForm } from '@/features/job-radar/components/start-scan-form';
 import { api } from '@/lib/api';
+import { appScreens } from '@/config/appScreens';
 
 function whyThisMatch(row: {
   employerScore?: number | null;
@@ -59,7 +60,7 @@ export default function JobRadarLandingPage() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Employer history</h2>
             <Link
-              to="/job-radar"
+              to={appScreens.jobRadar.path}
               className="text-xs font-medium text-indigo-700 hover:underline dark:text-indigo-300"
             >
               Clear filter
@@ -116,7 +117,7 @@ export default function JobRadarLandingPage() {
                   'Scan';
                 const historyTo =
                   row.employerId && row.employerId.length >= 4
-                    ? `/job-radar?employerId=${encodeURIComponent(row.employerId)}`
+                    ? `${appScreens.jobRadar.path}?employerId=${encodeURIComponent(row.employerId)}`
                     : null;
                 return (
                   <li

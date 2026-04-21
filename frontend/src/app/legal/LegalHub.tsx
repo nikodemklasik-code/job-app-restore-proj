@@ -18,6 +18,7 @@ import {
   X,
   FileDown,
 } from 'lucide-react';
+import { appScreens } from '@/config/appScreens';
 
 interface AccordionItem {
   question: string;
@@ -549,7 +550,7 @@ export default function LegalHub() {
       'Cite the relevant statute, ACAS code or GOV.UK page where possible.',
       'Remind me to verify current figures on GOV.UK / ACAS / HMRC and that this is guidance, not legal advice.',
     ].join(' ');
-    navigate('/assistant', {
+    navigate(appScreens.assistant.path, {
       state: { prefill: { text: prompt, mode: 'general' as const, autoSend: true } },
     });
   };

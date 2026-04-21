@@ -156,7 +156,7 @@ const STEPS: Step[] = [
     aiTip:
       'Every answer is scored on STAR structure, clarity, and confidence. Candidates who practice several sessions often feel calmer in real interviews.',
     cta: 'Start Practicing',
-    route: '/interview',
+    route: '/practice/interview',
   },
   {
     icon: Briefcase,
@@ -178,7 +178,7 @@ function stepCtaIcon(stepIndex: number, isLast: boolean) {
   if (s.route === '/profile') return FileText;
   if (s.route === '/jobs') return Search;
   if (s.route === '/applications/board') return LayoutGrid;
-  if (s.route === '/interview') return Mic;
+  if (s.route === '/practice/interview') return Mic;
   if (s.route === '/dashboard') return ChevronRight;
   return ChevronRight;
 }

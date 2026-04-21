@@ -2,6 +2,12 @@ import { useUser } from '@clerk/clerk-react';
 import { Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { DashboardSnapshot } from '@/components/dashboard/DashboardSnapshot';
+import { phase56Readiness } from '@/config/phase56Readiness';
+import { phase78Readiness } from '@/config/phase78Readiness';
+import { phase910Readiness } from '@/config/phase910Readiness';
+import { PhaseReadinessChecklist } from '@/features/product-core/components/PhaseReadinessChecklist';
+import { IntelligenceReadinessPanel } from '@/features/product-intelligence/components/IntelligenceReadinessPanel';
+import { GovernanceReadinessPanel } from '@/features/product-governance/components/GovernanceReadinessPanel';
 
 export default function DashboardPage() {
   const { user, isLoaded } = useUser();
@@ -63,5 +69,21 @@ export default function DashboardPage() {
     );
   }
 
-  return <DashboardSnapshot snapshot={snapshotQuery.data} />;
+  return (
+    <div className="space-y-6">
+      <DashboardSnapshot snapshot={snapshotQuery.data} />
+
+      <section className="rounded-3xl border border-white/10 bg-slate-950/40 p-4 sm:p-5">
+        <div className="mb-4">
+          <h2 className="text-base font-semibold text-white">Readiness & Product Status</h2>
+          <p className="mt-1 text-xs text-slate-400">Operational status panels for product core, intelligence, and governance phases.</p>
+        </div>
+        <div className="grid gap-4 xl:grid-cols-3">
+          <PhaseReadinessChecklist title={phase56Readiness.title} modules={phase56Readiness.modules} />
+          <IntelligenceReadinessPanel title={phase78Readiness.title} modules={phase78Readiness.modules} />
+          <GovernanceReadinessPanel title={phase910Readiness.title} modules={phase910Readiness.modules} />
+        </div>
+      </section>
+    </div>
+  );
 }
