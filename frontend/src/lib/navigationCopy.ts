@@ -10,10 +10,10 @@ export const SHELL_PAGE_TITLE: Record<string, string> = {
   /** Short label — avoids “Applications Rew…” truncation in narrow shell chrome. */
   '/review': 'Review queue',
   '/assistant': 'Assistant',
-  '/interview': 'Interview',
-  '/warmup': 'Daily Warmup',
-  '/coach': 'Coach',
-  '/negotiation': 'Negotiation',
+  '/practice/interview': 'Interview',
+  '/practice/daily-warmup': 'Daily Warmup',
+  '/practice/coach': 'Coach',
+  '/practice/negotiation': 'Negotiation',
   '/profile': 'Profile',
   '/style-studio': 'Style Studio',
   '/settings': 'Settings',
@@ -30,7 +30,7 @@ export const SHELL_PAGE_TITLE: Record<string, string> = {
   '/documents': 'Documents Upload',
   '/faq': 'FAQ',
   '/ai-analysis': 'AI Analysis',
-  '/case-practice': 'Case Practice',
+  '/practice/case': 'Case Practice',
 };
 
 export function pageTitleForPath(pathname: string, search = ''): string {

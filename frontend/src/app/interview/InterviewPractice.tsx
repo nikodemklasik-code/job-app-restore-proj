@@ -1115,7 +1115,7 @@ export default function InterviewPractice() {
                 </li>
                 <li style={{ marginTop: 6 }}>
                   <strong style={{ color: '#e2e8f0' }}>Daily Warmup</strong> — short timed drills with category choice:{' '}
-                  <Link to="/warmup" style={{ color: '#a5b4fc', fontWeight: 600 }}>Open Warmup →</Link>
+                  <Link to="/practice/daily-warmup" style={{ color: '#a5b4fc', fontWeight: 600 }}>Open Warmup →</Link>
                 </li>
               </ul>
             </div>

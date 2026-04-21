@@ -34,13 +34,13 @@ const MAIN_FLOW: NavItem[] = [
 
 const AI_GROWTH: NavItem[] = [
   { path: '/assistant', label: 'Assistant', icon: MessageSquare },
-  { path: '/interview', label: 'Interview', icon: Mic },
-  { path: '/coach', label: 'Coach', icon: GraduationCap },
-  { path: '/warmup', label: 'Daily Warmup', icon: Flame },
-  { path: '/negotiation', label: 'Negotiation', icon: Handshake },
+  { path: '/practice/interview', label: 'Interview', icon: Mic },
+  { path: '/practice/coach', label: 'Coach', icon: GraduationCap },
+  { path: '/practice/daily-warmup', label: 'Daily Warmup', icon: Flame },
+  { path: '/practice/negotiation', label: 'Negotiation', icon: Handshake },
   { path: '/skills', label: 'Skill Lab', icon: FlaskConical },
   { path: '/ai-analysis', label: 'AI Analysis', icon: LineChart },
-  { path: '/case-practice', label: 'Case Practice', icon: FolderKanban },
+  { path: '/practice/case', label: 'Case Practice', icon: FolderKanban },
   { path: '/job-radar', label: 'Job Radar', icon: Radar },
 ];
 
