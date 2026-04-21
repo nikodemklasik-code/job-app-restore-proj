@@ -177,9 +177,6 @@ export default function NegotiationPage() {
   const [isSpeaking] = useState(false);
 
   // VAD state
-  const [_vadActive, setVadActive] = useState(false);
-  const [_vadSpeechDetected, setVadSpeechDetected] = useState(false);
-  const [_audioLevel, setAudioLevel] = useState(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const vadStreamRef = useRef<MediaStream | null>(null);
@@ -222,9 +219,6 @@ export default function NegotiationPage() {
     analyserRef.current = null;
     vadStreamRef.current = null;
     vadRecorderRef.current = null;
-    setVadActive(false);
-    setVadSpeechDetected(false);
-    setAudioLevel(0);
   }, []);
 
   const startAutoVAD = useCallback(async () => {
@@ -255,9 +249,6 @@ export default function NegotiationPage() {
         analyserRef.current = null;
         vadStreamRef.current = null;
         vadFrameRef.current = null;
-        setVadActive(false);
-        setVadSpeechDetected(false);
-        setAudioLevel(0);
         const blob = new Blob(vadChunksRef.current, { type: 'audio/webm' });
         if (blob.size > 1500) {
           const transcript = await transcribeVoice(blob);
@@ -274,8 +265,6 @@ export default function NegotiationPage() {
         }, 600);
       };
 
-      setVadActive(true);
-      setVadSpeechDetected(false);
       let speechStarted = false;
       const SILENCE_THRESH = 18;
       const SPEECH_THRESH = 30;
@@ -285,12 +274,8 @@ export default function NegotiationPage() {
         if (!analyserRef.current) return;
         analyserRef.current.getByteFrequencyData(dataArray);
         const avg = dataArray.reduce((s, v) => s + v, 0) / dataArray.length;
-        const lvl = Math.min(100, Math.round((avg / 80) * 100));
-        setAudioLevel(lvl);
-
         if (!speechStarted && avg > SPEECH_THRESH) {
           speechStarted = true;
-          setVadSpeechDetected(true);
           if (vadRecorderRef.current && vadRecorderRef.current.state === 'inactive') {
             vadRecorderRef.current.start();
           }
