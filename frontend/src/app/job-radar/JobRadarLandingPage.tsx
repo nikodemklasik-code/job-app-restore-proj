@@ -2,6 +2,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { StartScanForm } from '@/features/job-radar/components/start-scan-form';
 import { api } from '@/lib/api';
+import { APP_SCREENS } from '@/config/appScreens';
 
 function whyThisMatch(row: {
   employerScore?: number | null;
@@ -47,7 +48,7 @@ export default function JobRadarLandingPage() {
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">
       <header className="mvh-card-glow rounded-2xl border border-neutral-200 bg-white px-5 py-4 dark:border-white/10 dark:bg-white/[0.04]">
-        <h1 className="text-lg font-bold text-neutral-900 dark:text-white">Job Radar</h1>
+        <h1 className="text-lg font-bold text-neutral-900 dark:text-white">{APP_SCREENS.jobRadar.label}</h1>
         <p className="mt-1 text-sm text-neutral-600 dark:text-slate-400">
           Employer research and offer context — same module as in the 19-screen product map (screen 14).
         </p>
