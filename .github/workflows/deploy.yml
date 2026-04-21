@@ -199,7 +199,7 @@ jobs:
 
       - name: Install production deps on VPS and reload PM2
         run: |
-          ssh "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" "bash -lc 'set -e; cd \"${REMOTE_BASE}\"; npm ci --omit=dev --prefix backend; pm2 reload infra/ecosystem.config.cjs --update-env || pm2 start infra/ecosystem.config.cjs; pm2 save'"
+          ssh "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" "bash -lc 'set -e; cd \"${REMOTE_BASE}\"; npm install --omit=dev --prefix backend; pm2 reload infra/ecosystem.config.cjs --update-env || pm2 start infra/ecosystem.config.cjs; pm2 save'"
 
       - name: Smoke test (on VPS)
         run: |
