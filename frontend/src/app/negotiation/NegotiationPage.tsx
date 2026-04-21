@@ -155,7 +155,6 @@ export default function NegotiationPage() {
 
   // Voice state
   const [voiceMode, setVoiceMode] = useState(true);  // voice is default
-  const [isSpeaking] = useState(false);
 
   // VAD state
   const [, setVadActive] = useState(false);
@@ -170,10 +169,8 @@ export default function NegotiationPage() {
   const vadChunksRef = useRef<Blob[]>([]);
   const voiceModeRef = useRef(voiceMode);
   const isStreamingRef = useRef(isStreaming);
-  const isSpeakingRef = useRef(isSpeaking);
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
   useEffect(() => { isStreamingRef.current = isStreaming; }, [isStreaming]);
-  useEffect(() => { isSpeakingRef.current = isSpeaking; }, [isSpeaking]);
 
   // Simulator state
   const [offer, setOffer] = useState<SimulatorOffer>(DEFAULT_OFFER);
@@ -211,7 +208,7 @@ export default function NegotiationPage() {
   }, []);
 
   const startAutoVAD = useCallback(async () => {
-    if (!voiceModeRef.current || isStreamingRef.current || isSpeakingRef.current) return;
+    if (!voiceModeRef.current || isStreamingRef.current) return;
     stopVAD();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -251,7 +248,7 @@ export default function NegotiationPage() {
         }
         // Nothing heard — restart listening after short pause
         setTimeout(() => {
-          if (voiceModeRef.current && !isStreamingRef.current && !isSpeakingRef.current) {
+          if (voiceModeRef.current && !isStreamingRef.current) {
             void startAutoVAD();
           }
         }, 600);
