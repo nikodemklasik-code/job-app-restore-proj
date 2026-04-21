@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { lazy, Suspense, type ComponentType } from 'react';
 import { AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
 import AppShell from './components/layout/AppShell';
+import { APP_SCREENS, LEGACY_ROUTE_REDIRECTS } from './config/appScreens';
 
 const AuthPage = lazy(() => import('./app/auth/AuthPage'));
 const DashboardPage = lazy(() => import('./app/dashboard/DashboardPage'));
@@ -35,7 +36,6 @@ const CoachPage = lazy(() => import('./app/coach/CoachPage'));
 const FAQPage = lazy(() => import('./app/faq/FAQPage'));
 const DocumentLab = lazy(() => import('./app/documents/DocumentLab'));
 const CasePracticePage = lazy(() => import('./app/case-practice/CasePracticePage'));
-const AiAnalysisPage = lazy(() => import('./app/analysis/AiAnalysisPage'));
 
 const PageLoader = () => (
   <div className="flex h-full items-center justify-center py-24">
@@ -91,38 +91,42 @@ export const router = createBrowserRouter([
     element: <AppShell />,
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
-      { path: 'dashboard', element: withSuspense(DashboardPage) },
-      { path: 'jobs', element: withSuspense(JobsDiscovery) },
-      { path: 'applications', element: withSuspense(ApplicationsPage) },
+      { path: APP_SCREENS.dashboard.path.slice(1), element: withSuspense(DashboardPage) },
+      { path: APP_SCREENS.profile.path.slice(1), element: withSuspense(ProfilePage) },
+      { path: APP_SCREENS.documentHub.path.slice(1), element: withSuspense(DocumentLab) },
+      { path: APP_SCREENS.documentUpload.path.slice(1), element: withSuspense(DocumentLab) },
+      { path: APP_SCREENS.styleStudio.path.slice(1), element: withSuspense(StyleStudioRedirect) },
+      { path: APP_SCREENS.jobs.path.slice(1), element: withSuspense(JobsDiscovery) },
+      { path: APP_SCREENS.applications.path.slice(1), element: withSuspense(ApplicationsPage) },
       { path: 'applications/board', element: withSuspense(ApplicationsPipeline) },
-      { path: 'review', element: withSuspense(ReviewQueue) },
-      { path: 'assistant', element: withSuspense(AssistantPage) },
-      { path: 'interview', element: withSuspense(InterviewPractice) },
-      { path: 'interview-warmup', element: <Navigate to="/warmup" replace /> },
-      { path: 'profile', element: withSuspense(ProfilePage) },
-      { path: 'billing', element: withSuspense(BillingPage) },
-      { path: 'settings', element: withSuspense(SettingsHub) },
-      { path: 'settings/community', element: <Navigate to="/settings?tab=privacy" replace /> },
-      { path: 'security', element: withSuspense(SecurityPage) },
-      { path: 'style-studio', element: withSuspense(StyleStudioRedirect) },
-      { path: 'salary', element: withSuspense(UKSalaryCalculator) },
-      { path: 'legal', element: withSuspense(LegalHub) },
-      { path: 'reports', element: withSuspense(ReportsHub) },
-      { path: 'ai-analysis', element: withSuspense(AiAnalysisPage) },
-      { path: 'auto-apply', element: withSuspense(AutoApplyPage) },
-      { path: 'skills', element: withSuspense(SkillsLab) },
-      { path: 'negotiation', element: withSuspense(NegotiationPage) },
-      { path: 'negotiation-coach', element: <Navigate to="/negotiation" replace /> },
-      { path: 'radar', element: withSuspense(JobRadar) },
-      { path: 'job-radar', element: withSuspense(JobRadarLandingPage) },
+      { path: APP_SCREENS.applicationsReview.path.slice(1), element: withSuspense(ReviewQueue) },
+      { path: APP_SCREENS.assistant.path.slice(1), element: withSuspense(AssistantPage) },
+      { path: APP_SCREENS.dailyWarmup.path.slice(1), element: withSuspense(DailyWarmupPage) },
+      { path: APP_SCREENS.interview.path.slice(1), element: withSuspense(InterviewPractice) },
+      { path: APP_SCREENS.coach.path.slice(1), element: withSuspense(CoachPage) },
+      { path: APP_SCREENS.negotiation.path.slice(1), element: withSuspense(NegotiationPage) },
+      { path: APP_SCREENS.caseStudy.path.slice(1), element: withSuspense(CasePracticePage) },
+      { path: APP_SCREENS.skillLab.path.slice(1), element: withSuspense(SkillsLab) },
+      { path: APP_SCREENS.reports.path.slice(1), element: withSuspense(ReportsHub) },
+      { path: APP_SCREENS.jobRadar.path.slice(1), element: withSuspense(JobRadarLandingPage) },
       { path: 'job-radar/scan/:scanId', element: withSuspense(JobRadarScanPage) },
       { path: 'job-radar/report/:reportId', element: withSuspense(JobRadarReportPage) },
       { path: 'job-radar/admin/complaints', element: withSuspense(JobRadarAdminComplaintsPage) },
-      { path: 'warmup', element: withSuspense(DailyWarmupPage) },
-      { path: 'coach', element: withSuspense(CoachPage) },
-      { path: 'faq', element: withSuspense(FAQPage) },
-      { path: 'documents', element: withSuspense(DocumentLab) },
-      { path: 'case-practice', element: withSuspense(CasePracticePage) },
+      { path: APP_SCREENS.salaryCalculator.path.slice(1), element: withSuspense(UKSalaryCalculator) },
+      { path: APP_SCREENS.legalHub.path.slice(1), element: withSuspense(LegalHub) },
+      { path: APP_SCREENS.legalSearch.path.slice(1), element: withSuspense(LegalHub) },
+      { path: APP_SCREENS.communityCenter.path.slice(1), element: <Navigate to="/settings?tab=privacy" replace /> },
+      { path: APP_SCREENS.settings.path.slice(1), element: withSuspense(SettingsHub) },
+      { path: APP_SCREENS.autoApply.path.slice(1), element: withSuspense(AutoApplyPage) },
+      { path: APP_SCREENS.billing.path.slice(1), element: withSuspense(BillingPage) },
+      { path: APP_SCREENS.faq.path.slice(1), element: withSuspense(FAQPage) },
+
+      ...LEGACY_ROUTE_REDIRECTS.map(({ from, to }) => ({
+        path: from.slice(1),
+        element: <Navigate to={to} replace />,
+      })),
+      { path: 'security', element: withSuspense(SecurityPage) },
+      { path: 'radar', element: withSuspense(JobRadar) },
     ],
   },
 ]);
