@@ -118,6 +118,16 @@ interface TurnFeedback {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
+
+async function parseJsonSafely<T>(res: Response): Promise<T | null> {
+  const raw = await res.text();
+  if (!raw || raw.startsWith('<!DOCTYPE') || raw.startsWith('<html')) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
 const MAX_EXCHANGES = 8;
 
 // ─── Live Interview Summary type ──────────────────────────────────────────────
@@ -313,8 +323,8 @@ async function transcribeAudio(blob: Blob): Promise<string> {
       credentials: 'include',
     });
     if (!res.ok) return '';
-    const json = (await res.json()) as { transcript?: string };
-    return json.transcript ?? '';
+    const json = await parseJsonSafely<{ transcript?: string }>(res);
+    return json?.transcript ?? '';
   } catch {
     return '';
   }

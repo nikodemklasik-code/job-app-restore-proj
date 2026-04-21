@@ -131,6 +131,16 @@ const CREDITS_COST = 5;
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
+async function parseJsonSafely<T>(res: Response): Promise<T | null> {
+  const raw = await res.text();
+  if (!raw || raw.startsWith('<!DOCTYPE') || raw.startsWith('<html')) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
 const COACH_TTS_VOICES = [
   { id: 'coral' as const, label: 'Coral (default, UK)' },
   { id: 'sage' as const, label: 'Sage' },
@@ -152,8 +162,8 @@ async function transcribeCoachAudio(blob: Blob): Promise<string> {
       credentials: 'include',
     });
     if (!res.ok) return '';
-    const data = (await res.json()) as { transcript?: string };
-    return data.transcript ?? '';
+    const data = await parseJsonSafely<{ transcript?: string }>(res);
+    return data?.transcript ?? '';
   } catch {
     return '';
   }
