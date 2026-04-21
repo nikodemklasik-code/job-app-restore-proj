@@ -537,8 +537,8 @@ export default function ReviewQueue() {
               item={item}
               onStatusChange={(id, status) => statusMutation.mutate({ id, status, userId })}
               onFollowUp={(id) => followUpMutation.mutate({ applicationId: id, note: 'Follow-up sent' })}
-              onGoToInterview={() => navigate('/interview')}
-              onGoToNegotiation={() => navigate('/negotiation')}
+              onGoToInterview={() => navigate('/practice/interview')}
+              onGoToNegotiation={() => navigate('/practice/negotiation')}
               isPending={statusMutation.isPending || followUpMutation.isPending}
               logsExpanded={logForAppId === item.app.id}
               onToggleLogs={() => setLogForAppId((cur) => (cur === item.app.id ? null : item.app.id))}

@@ -8,10 +8,16 @@ import {
   Lightbulb,
   Play,
   Swords,
+  Zap,
   Volume2,
   VolumeX,
 } from 'lucide-react';
 import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
+import { PRACTICE_MODULE_CONFIGS } from '@/features/practice-shell/config/practiceModuleConfigs';
+import { PracticeHeroHeader } from '@/features/practice-shell/components/PracticeHeroHeader';
+import { PracticeCostCard } from '@/features/practice-shell/components/PracticeCostCard';
+import { PracticeModeCard } from '@/features/practice-shell/components/PracticeModeCard';
+import { PracticeSessionPanel } from '@/features/practice-shell/components/PracticeSessionPanel';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 const API_VOICE_BASE = API_BASE;
@@ -157,6 +163,7 @@ function fmt(n: number, currency: string): string {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function NegotiationPage() {
+  const negotiationConfig = PRACTICE_MODULE_CONFIGS.negotiation;
   const [appMode, setAppMode] = useState<AppMode>('coach');
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -170,9 +177,6 @@ export default function NegotiationPage() {
   const [isSpeaking] = useState(false);
 
   // VAD state
-  const [_vadActive, setVadActive] = useState(false);
-  const [_vadSpeechDetected, setVadSpeechDetected] = useState(false);
-  const [_audioLevel, setAudioLevel] = useState(0);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const vadStreamRef = useRef<MediaStream | null>(null);
@@ -215,9 +219,6 @@ export default function NegotiationPage() {
     analyserRef.current = null;
     vadStreamRef.current = null;
     vadRecorderRef.current = null;
-    setVadActive(false);
-    setVadSpeechDetected(false);
-    setAudioLevel(0);
   }, []);
 
   const startAutoVAD = useCallback(async () => {
@@ -248,9 +249,6 @@ export default function NegotiationPage() {
         analyserRef.current = null;
         vadStreamRef.current = null;
         vadFrameRef.current = null;
-        setVadActive(false);
-        setVadSpeechDetected(false);
-        setAudioLevel(0);
         const blob = new Blob(vadChunksRef.current, { type: 'audio/webm' });
         if (blob.size > 1500) {
           const transcript = await transcribeVoice(blob);
@@ -267,8 +265,6 @@ export default function NegotiationPage() {
         }, 600);
       };
 
-      setVadActive(true);
-      setVadSpeechDetected(false);
       let speechStarted = false;
       const SILENCE_THRESH = 18;
       const SPEECH_THRESH = 30;
@@ -278,12 +274,8 @@ export default function NegotiationPage() {
         if (!analyserRef.current) return;
         analyserRef.current.getByteFrequencyData(dataArray);
         const avg = dataArray.reduce((s, v) => s + v, 0) / dataArray.length;
-        const lvl = Math.min(100, Math.round((avg / 80) * 100));
-        setAudioLevel(lvl);
-
         if (!speechStarted && avg > SPEECH_THRESH) {
           speechStarted = true;
-          setVadSpeechDetected(true);
           if (vadRecorderRef.current && vadRecorderRef.current.state === 'inactive') {
             vadRecorderRef.current.start();
           }
@@ -485,14 +477,17 @@ export default function NegotiationPage() {
           <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-gradient-to-br from-indigo-500 to-violet-600 shadow-sm">
             <Scale className="h-[18px] w-[18px] text-white" aria-hidden />
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-white">Negotiation</h1>
-            <p className="text-xs text-slate-400">{appMode === 'coach' ? 'AI Strategy Analyst' : 'Live Simulation Mode'}</p>
-            <p className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
-              GPT-4o · online
-            </p>
-          </div>
+          <PracticeHeroHeader
+            title={negotiationConfig.title}
+            description={appMode === 'coach' ? 'AI Strategy Analyst' : 'Live Simulation Mode'}
+            eyebrow={(
+              <div className="inline-flex items-center gap-1.5 text-[11px] text-slate-500">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
+                GPT-4o · online · negotiation-only
+              </div>
+            )}
+            className="space-y-1"
+          />
         </div>
         <div className="flex items-center gap-2">
           {/* Mode toggle */}
@@ -550,6 +545,33 @@ export default function NegotiationPage() {
         <SupportingMaterialsDisclaimer compact collapsible />
       </div>
 
+      <div className="grid shrink-0 gap-3 px-6 pb-3 md:grid-cols-3">
+        <PracticeModeCard
+          title="Strategy mode"
+          description="Analyze proposals, transcripts and response framing."
+          selected={appMode === 'coach'}
+          onClick={() => handleModeSwitch('coach')}
+        />
+        <PracticeModeCard
+          title="Simulator mode"
+          description="Run an HR-style salary negotiation simulation turn by turn."
+          selected={appMode === 'simulator'}
+          onClick={() => handleModeSwitch('simulator')}
+        >
+          <div className="mt-2 text-[11px] text-slate-500">Uses existing simulate + stream flow.</div>
+        </PracticeModeCard>
+        <PracticeCostCard
+          icon={<Zap className="h-4 w-4 text-amber-300" />}
+          label="Cost overview"
+          value={appMode === 'simulator' ? '~2 credits' : '~1 credit'}
+          footer={(
+            <p className="mt-1 text-[11px] text-slate-400">
+              Estimated only. Final cost depends on message length and turns.
+            </p>
+          )}
+        />
+      </div>
+
       {/* Practice scenarios (coach mode only) */}
       {showScenarios && appMode === 'coach' && (
         <div className="mvh-card-glow px-6 py-3 border-b border-slate-800 bg-slate-900/60 shrink-0">
@@ -582,63 +604,65 @@ export default function NegotiationPage() {
           )}
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            {messages.length === 0 && !isStreaming && appMode === 'coach' && (
-              <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
-                <div style={{ width: 56, height: 56, borderRadius: 16, background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2))', border: '1px solid rgba(99,102,241,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Scale style={{ width: 28, height: 28, color: '#818cf8' }} />
-                </div>
-                <div>
-                  <p className="text-base font-semibold text-slate-200 mb-1">Welcome to Negotiation practice</p>
-                  <p className="text-sm text-slate-400 max-w-md">Share a negotiation message, proposal, or transcript and receive a full strategic analysis with a Tactical Score, position vs interest breakdown, and a refined response.</p>
-                </div>
-                <p className="text-xs text-slate-500 max-w-sm">Paste your negotiation text below — or use a practice scenario to get started.</p>
-              </div>
-            )}
-
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                {msg.role === 'assistant' ? (
-                  <div className="max-w-3xl rounded-2xl px-5 py-4 text-sm leading-relaxed"
-                    style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(99,102,241,0.2)', color: '#cbd5e1' }}
-                    dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
-                ) : (
-                  <div className="mvh-card-glow max-w-2xl rounded-2xl px-4 py-3 text-sm leading-relaxed"
-                    style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.25), rgba(139,92,246,0.2))', border: '1px solid rgba(99,102,241,0.3)', color: '#e2e8f0', whiteSpace: 'pre-wrap' }}>
-                    {msg.content}
+          <PracticeSessionPanel className="flex-1 overflow-hidden border-0 bg-transparent p-0">
+            <div className="h-full overflow-y-auto px-6 py-4 space-y-4">
+              {messages.length === 0 && !isStreaming && appMode === 'coach' && (
+                <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+                  <div style={{ width: 56, height: 56, borderRadius: 16, background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2))', border: '1px solid rgba(99,102,241,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Scale style={{ width: 28, height: 28, color: '#818cf8' }} />
                   </div>
-                )}
-              </div>
-            ))}
-
-            {isStreaming && streamingContent && (
-              <div className="flex justify-start">
-                <div className="mvh-card-glow max-w-3xl rounded-2xl px-5 py-4 text-sm leading-relaxed"
-                  style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(99,102,241,0.2)', color: '#cbd5e1' }}
-                  dangerouslySetInnerHTML={{ __html: renderMarkdown(streamingContent) }} />
-              </div>
-            )}
-
-            {isStreaming && !streamingContent && (
-              <div className="flex justify-start">
-                <div className="mvh-card-glow rounded-2xl px-5 py-3 text-sm" style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(99,102,241,0.2)', color: '#94a3b8' }}>
-                  <span className="inline-flex gap-1 items-center">
-                    <span className="animate-bounce" style={{ animationDelay: '0ms' }}>●</span>
-                    <span className="animate-bounce" style={{ animationDelay: '150ms' }}>●</span>
-                    <span className="animate-bounce" style={{ animationDelay: '300ms' }}>●</span>
-                  </span>
+                  <div>
+                    <p className="text-base font-semibold text-slate-200 mb-1">Welcome to Negotiation practice</p>
+                    <p className="text-sm text-slate-400 max-w-md">Share a negotiation message, proposal, or transcript and receive a full strategic analysis with a Tactical Score, position vs interest breakdown, and a refined response.</p>
+                  </div>
+                  <p className="text-xs text-slate-500 max-w-sm">Paste your negotiation text below — or use a practice scenario to get started.</p>
                 </div>
-              </div>
-            )}
+              )}
 
-            {error && (
-              <div className="flex justify-center">
-                <p className="text-xs text-red-400 bg-red-950/30 border border-red-900/50 rounded-lg px-4 py-2">{error}</p>
-              </div>
-            )}
+              {messages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  {msg.role === 'assistant' ? (
+                    <div className="max-w-3xl rounded-2xl px-5 py-4 text-sm leading-relaxed"
+                      style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(99,102,241,0.2)', color: '#cbd5e1' }}
+                      dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+                  ) : (
+                    <div className="mvh-card-glow max-w-2xl rounded-2xl px-4 py-3 text-sm leading-relaxed"
+                      style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.25), rgba(139,92,246,0.2))', border: '1px solid rgba(99,102,241,0.3)', color: '#e2e8f0', whiteSpace: 'pre-wrap' }}>
+                      {msg.content}
+                    </div>
+                  )}
+                </div>
+              ))}
 
-            <div ref={messagesEndRef} />
-          </div>
+              {isStreaming && streamingContent && (
+                <div className="flex justify-start">
+                  <div className="mvh-card-glow max-w-3xl rounded-2xl px-5 py-4 text-sm leading-relaxed"
+                    style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(99,102,241,0.2)', color: '#cbd5e1' }}
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(streamingContent) }} />
+                </div>
+              )}
+
+              {isStreaming && !streamingContent && (
+                <div className="flex justify-start">
+                  <div className="mvh-card-glow rounded-2xl px-5 py-3 text-sm" style={{ background: 'rgba(30,41,59,0.8)', border: '1px solid rgba(99,102,241,0.2)', color: '#94a3b8' }}>
+                    <span className="inline-flex gap-1 items-center">
+                      <span className="animate-bounce" style={{ animationDelay: '0ms' }}>●</span>
+                      <span className="animate-bounce" style={{ animationDelay: '150ms' }}>●</span>
+                      <span className="animate-bounce" style={{ animationDelay: '300ms' }}>●</span>
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <div className="flex justify-center">
+                  <p className="text-xs text-red-400 bg-red-950/30 border border-red-900/50 rounded-lg px-4 py-2">{error}</p>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+          </PracticeSessionPanel>
 
           {/* Input area */}
           {!simComplete && (

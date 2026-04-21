@@ -4,6 +4,17 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'clerk-trpc-vendor': ['@clerk/clerk-react', '@trpc/client', '@trpc/react-query', '@tanstack/react-query'],
+          'ui-vendor': ['lucide-react', 'clsx', 'tailwind-merge', 'zustand'],
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

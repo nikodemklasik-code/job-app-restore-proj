@@ -7,6 +7,7 @@ import {
   GraduationCap, FolderOpen, Users,
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { appScreens } from '@/config/appScreens';
 
 interface NavItem {
   path: string;
@@ -20,48 +21,47 @@ interface NavItem {
 }
 
 const MAIN_FLOW: NavItem[] = [
-  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/profile', label: 'Profile', icon: User },
-  { path: '/jobs', label: 'Jobs', icon: Briefcase },
-  { path: '/applications', label: 'Applications', icon: ClipboardList },
+  { ...appScreens.dashboard, icon: LayoutDashboard },
+  { ...appScreens.profile, icon: User },
+  { ...appScreens.jobs, icon: Briefcase },
+  { ...appScreens.applications, icon: ClipboardList },
   {
-    path: '/review',
-    label: 'Review queue',
+    ...appScreens.reviewQueue,
     icon: FileText,
     title: 'Applications that need your attention — follow-ups, interviews, offers',
   },
 ];
 
 const AI_GROWTH: NavItem[] = [
-  { path: '/assistant', label: 'Assistant', icon: MessageSquare },
-  { path: '/interview', label: 'Interview', icon: Mic },
-  { path: '/coach', label: 'Coach', icon: GraduationCap },
-  { path: '/warmup', label: 'Daily Warmup', icon: Flame },
-  { path: '/negotiation', label: 'Negotiation', icon: Handshake },
-  { path: '/skills', label: 'Skill Lab', icon: FlaskConical },
-  { path: '/ai-analysis', label: 'AI Analysis', icon: LineChart },
-  { path: '/case-practice', label: 'Case Practice', icon: FolderKanban },
-  { path: '/job-radar', label: 'Job Radar', icon: Radar },
+  { ...appScreens.assistant, icon: MessageSquare },
+  { ...appScreens.interviewPractice, icon: Mic },
+  { ...appScreens.coach, icon: GraduationCap },
+  { ...appScreens.dailyWarmup, icon: Flame },
+  { ...appScreens.negotiation, icon: Handshake },
+  { ...appScreens.skills, icon: FlaskConical },
+  { ...appScreens.aiAnalysis, icon: LineChart },
+  { ...appScreens.casePractice, icon: FolderKanban },
+  { ...appScreens.jobRadar, icon: Radar },
 ];
 
-const DOCUMENTS_ONLY: NavItem[] = [{ path: '/documents', label: 'Document Lab', icon: FolderOpen }];
+const DOCUMENTS_ONLY: NavItem[] = [{ ...appScreens.documents, icon: FolderOpen }];
 
 const TOOLS: NavItem[] = [
-  { path: '/salary', label: 'Salary Calculator', icon: Calculator },
-  { path: '/legal', label: 'Legal Hub', icon: Scale },
-  { path: '/reports', label: 'Reports', icon: BarChart2 },
+  { ...appScreens.salary, icon: Calculator },
+  { ...appScreens.legal, icon: Scale },
+  { ...appScreens.reports, icon: BarChart2 },
 ];
 
 const AUTOMATION: NavItem[] = [
-  { path: '/auto-apply', label: 'Auto Apply', icon: Zap },
+  { ...appScreens.autoApply, icon: Zap },
 ];
 
 const TECHNICAL: NavItem[] = [
-  { path: '/settings', search: '?tab=privacy', label: 'Community Centre', icon: Users, title: 'Consent and data-sharing controls' },
-  { path: '/settings', label: 'Settings', icon: Settings },
-  { path: '/security', label: 'Security, passkeys & 2FA', icon: Shield },
-  { path: '/billing', label: 'Billing', icon: CreditCard },
-  { path: '/faq', label: 'FAQ', icon: HelpCircle },
+  { ...appScreens.communityCentre, search: '?tab=privacy', icon: Users, title: 'Consent and data-sharing controls' },
+  { ...appScreens.settings, icon: Settings },
+  { ...appScreens.security, icon: Shield },
+  { ...appScreens.billing, icon: CreditCard },
+  { ...appScreens.faq, icon: HelpCircle },
 ];
 
 interface NavSectionProps {

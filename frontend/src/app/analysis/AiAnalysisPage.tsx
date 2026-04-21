@@ -101,7 +101,7 @@ function deriveInsights(profile: ProfileSnapshot | null): DerivedInsight | null 
   const recommendations = [
     { text: 'Tighten CV and documents before the next application wave.', to: '/documents?tab=upload', cta: 'Open Document Lab' },
     { text: 'Map skills to role text and close evidence gaps.', to: '/skills', cta: 'Open Skill Lab' },
-    { text: 'Practice salary and boundary language with structured prompts.', to: '/negotiation', cta: 'Open Negotiation' },
+    { text: 'Practice salary and boundary language with structured prompts.', to: '/practice/negotiation', cta: 'Open Negotiation' },
     { text: 'Run employer and listing checks before you commit.', to: '/job-radar', cta: 'Open Job Radar' },
     { text: 'Ask follow-ups in context when you are stuck between modules.', to: '/assistant', cta: 'Open Assistant' },
   ];
@@ -394,7 +394,7 @@ export default function AiAnalysisPage() {
             Open Assistant
           </Link>
           <Link
-            to="/negotiation"
+            to="/practice/negotiation"
             className="mvh-card-glow inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
           >
             <Handshake className="h-4 w-4" />

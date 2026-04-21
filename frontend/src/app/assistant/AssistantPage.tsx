@@ -344,23 +344,23 @@ function ActionRail({
 }) {
   const routeForAction = (label: string): string => {
     const normalized = label.toLowerCase();
-    if (normalized.includes('interview')) return '/interview';
-    if (normalized.includes('negotiation') || normalized.includes('salary')) return '/negotiation';
+    if (normalized.includes('interview')) return '/practice/interview';
+    if (normalized.includes('negotiation') || normalized.includes('salary')) return '/practice/negotiation';
     if (normalized.includes('style')) return '/style-studio';
     if (normalized.includes('profile')) return '/profile';
-    if (normalized.includes('case')) return '/case-practice';
+    if (normalized.includes('case')) return '/practice/case';
     if (normalized.includes('radar')) return '/job-radar';
     if (normalized.includes('application')) return '/applications';
-    if (normalized.includes('coach')) return '/coach';
+    if (normalized.includes('coach')) return '/practice/coach';
     return '/assistant';
   };
   const fallbackActions = [
-    { label: 'Open Coach', path: '/coach', prompt: 'I need deeper confidence and narrative support.', mode: 'general' as const },
-    { label: 'Open Interview', path: '/interview', prompt: 'Move me to mock interview practice.', mode: 'interview' as const },
-    { label: 'Open Negotiation', path: '/negotiation', prompt: 'Help me prepare compensation and boundary language.', mode: 'salary' as const },
+    { label: 'Open Coach', path: '/practice/coach', prompt: 'I need deeper confidence and narrative support.', mode: 'general' as const },
+    { label: 'Open Interview', path: '/practice/interview', prompt: 'Move me to mock interview practice.', mode: 'interview' as const },
+    { label: 'Open Negotiation', path: '/practice/negotiation', prompt: 'Help me prepare compensation and boundary language.', mode: 'salary' as const },
     { label: 'Open Job Radar', path: '/job-radar', prompt: 'Review this employer risk and fit signals.', mode: 'general' as const },
     { label: 'Open review queue', path: '/review', prompt: 'What should I follow up and when?', mode: 'general' as const },
-    { label: 'Open Case Practice', path: '/case-practice', prompt: 'I want pressure-based case rehearsal.', mode: 'general' as const },
+    { label: 'Open Case Practice', path: '/practice/case', prompt: 'I want pressure-based case rehearsal.', mode: 'general' as const },
   ];
   const actions = meta?.suggestedActions?.length
     ? meta.suggestedActions.map((action) => ({
@@ -740,7 +740,7 @@ export default function AssistantPage() {
         <SensitiveCaseLayer
           meta={latestAssistantMeta}
           onNewChat={() => clearMessages?.()}
-          onOpenCasePractice={() => void navigate('/case-practice')}
+          onOpenCasePractice={() => void navigate('/practice/case')}
         />
 
         <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">

@@ -7,6 +7,11 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
+import { PRACTICE_MODULE_CONFIGS } from '@/features/practice-shell/config/practiceModuleConfigs';
+import { PracticeHeroHeader } from '@/features/practice-shell/components/PracticeHeroHeader';
+import { PracticeCostCard } from '@/features/practice-shell/components/PracticeCostCard';
+import { PracticeModeCard } from '@/features/practice-shell/components/PracticeModeCard';
+import { PracticeSupportRail } from '@/features/practice-shell/components/PracticeSupportRail';
 
 // ─── Question bank by category ────────────────────────────────────────────────
 
@@ -240,6 +245,7 @@ export default function CoachPage() {
   );
 
   const activeCat = category ? CATEGORIES.find(c => c.key === category)! : null;
+  const coachConfig = PRACTICE_MODULE_CONFIGS.coach;
   const questions = category ? QUESTION_BANK[category] : [];
   const currentQ = questions[qIndex];
 
@@ -522,27 +528,58 @@ export default function CoachPage() {
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
 
       {/* ── Header ────────────────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
-            <GraduationCap className="h-5 w-5 text-white" />
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+        <div className="space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <PracticeHeroHeader
+              eyebrow={(
+                <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-200">
+                  <GraduationCap className="h-3.5 w-3.5" />
+                  {coachConfig.title}
+                </div>
+              )}
+              title="Coach"
+              description="Structured practice · choose a category · work through questions"
+            />
+            {session.length > 0 && avgScore !== null && (
+              <div className="mvh-card-glow flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                <Star className="h-3.5 w-3.5 text-amber-400" />
+                <span className="text-sm font-bold" style={{ color: scoreColor(avgScore) }}>{avgScore}</span>
+                <span className="text-xs text-slate-500">avg · {session.length} answered</span>
+              </div>
+            )}
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-white">Coach</h1>
-            <p className="text-xs text-slate-400">Structured practice · choose a category · work through questions</p>
-            <p className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
-              GPT-4o · online
-            </p>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <PracticeModeCard
+              title={phase === 'select' ? 'Mode: category bank' : `Mode: ${activeCat?.label ?? 'session'}`}
+              description="Question bank and timed answer flow stay unchanged."
+              selected
+            >
+              <p className="mt-2 text-xs text-slate-400">Voice model: {ttsVoice}</p>
+            </PracticeModeCard>
+
+            <PracticeCostCard
+              icon={<Coins className="h-4 w-4 text-amber-300" />}
+              label="AI evaluation"
+              value={`${CREDITS_COST} credits`}
+              footer={(
+                <p className="mt-1 text-[11px] text-amber-400">
+                  {creditsQuery.data ? `${creditsQuery.data.credits} remaining` : 'Credits balance loading…'}
+                </p>
+              )}
+            />
           </div>
         </div>
-        {session.length > 0 && avgScore !== null && (
-            <div className="mvh-card-glow flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-            <Star className="h-3.5 w-3.5 text-amber-400" />
-            <span className="text-sm font-bold" style={{ color: scoreColor(avgScore) }}>{avgScore}</span>
-            <span className="text-xs text-slate-500">avg · {session.length} answered</span>
-          </div>
-        )}
+
+        <PracticeSupportRail>
+          <p className="text-xs uppercase tracking-wide text-slate-500">Support</p>
+          <ul className="mt-2 space-y-1.5 text-xs text-slate-300">
+            <li>• GPT-4o online coaching feedback.</li>
+            <li>• Question bank + evaluation flow remain unchanged.</li>
+            <li>• Credits are deducted only on evaluation submit.</li>
+          </ul>
+        </PracticeSupportRail>
       </div>
 
       <SupportingMaterialsDisclaimer compact collapsible defaultExpanded={false} />
