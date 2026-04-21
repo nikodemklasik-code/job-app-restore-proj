@@ -17,19 +17,8 @@ import PracticeCostCard from '@/features/practice-shell/components/PracticeCostC
 import PracticeModeCard from '@/features/practice-shell/components/PracticeModeCard';
 import PracticeSessionPanel from '@/features/practice-shell/components/PracticeSessionPanel';
 import { PRACTICE_MODULE_CONFIGS } from '@/features/practice-shell/config/practiceModuleConfigs';
+import { fetchStream, postForm } from '@/lib/apiClient';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '';
-
-async function parseJsonSafely<T>(res: Response): Promise<T | null> {
-  const raw = await res.text();
-  if (!raw || raw.startsWith('<!DOCTYPE') || raw.startsWith('<html')) return null;
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
-}
-const API_VOICE_BASE = API_BASE;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -75,12 +64,7 @@ async function streamNegotiationResponse(
   messages: Message[],
   onChunk: (fullText: string) => void,
 ): Promise<string> {
-  const response = await fetch(`${API_BASE}/api/negotiation/stream`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages }),
-    credentials: 'include',
-  });
+  const response = await fetchStream('/api/negotiation/stream', { messages });
   if (!response.ok || !response.body) throw new Error(`Stream error ${response.status}`);
   return consumeStream(response, onChunk);
 }
@@ -90,12 +74,7 @@ async function streamNegotiationSimulation(
   offer: SimulatorOffer,
   onChunk: (fullText: string) => void,
 ): Promise<string> {
-  const response = await fetch(`${API_BASE}/api/negotiation/simulate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, offer }),
-    credentials: 'include',
-  });
+  const response = await fetchStream('/api/negotiation/simulate', { messages, offer });
   if (!response.ok || !response.body) throw new Error(`Stream error ${response.status}`);
   return consumeStream(response, onChunk);
 }
@@ -126,14 +105,8 @@ async function transcribeVoice(blob: Blob): Promise<string> {
   try {
     const form = new FormData();
     form.append('audio', blob, 'audio.webm');
-    const res = await fetch(`${API_VOICE_BASE}/api/interview/transcribe`, {
-      method: 'POST',
-      body: form,
-      credentials: 'include',
-    });
-    if (!res.ok) return '';
-    const json = await parseJsonSafely<{ transcript?: string }>(res);
-    return json?.transcript ?? '';
+    const json = await postForm<{ transcript?: string }>('/api/interview/transcribe', form);
+    return json.transcript ?? '';
   } catch { return ''; }
 }
 
@@ -182,7 +155,6 @@ export default function NegotiationPage() {
 
   // Voice state
   const [voiceMode, setVoiceMode] = useState(true);  // voice is default
-  const [isSpeaking] = useState(false);
 
   // VAD state
   const [, setVadActive] = useState(false);
@@ -197,10 +169,8 @@ export default function NegotiationPage() {
   const vadChunksRef = useRef<Blob[]>([]);
   const voiceModeRef = useRef(voiceMode);
   const isStreamingRef = useRef(isStreaming);
-  const isSpeakingRef = useRef(isSpeaking);
   useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
   useEffect(() => { isStreamingRef.current = isStreaming; }, [isStreaming]);
-  useEffect(() => { isSpeakingRef.current = isSpeaking; }, [isSpeaking]);
 
   // Simulator state
   const [offer, setOffer] = useState<SimulatorOffer>(DEFAULT_OFFER);
@@ -215,7 +185,6 @@ export default function NegotiationPage() {
   inputRef.current = input;
 
   // Stable ref to handleSend to avoid circular deps in VAD
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSendRef = useRef<(text?: string) => Promise<void>>(async () => {});
 
   const stopVAD = useCallback(() => {
@@ -238,7 +207,7 @@ export default function NegotiationPage() {
   }, []);
 
   const startAutoVAD = useCallback(async () => {
-    if (!voiceModeRef.current || isStreamingRef.current || isSpeakingRef.current) return;
+    if (!voiceModeRef.current || isStreamingRef.current) return;
     stopVAD();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -278,7 +247,7 @@ export default function NegotiationPage() {
         }
         // Nothing heard — restart listening after short pause
         setTimeout(() => {
-          if (voiceModeRef.current && !isStreamingRef.current && !isSpeakingRef.current) {
+          if (voiceModeRef.current && !isStreamingRef.current) {
             void startAutoVAD();
           }
         }, 600);

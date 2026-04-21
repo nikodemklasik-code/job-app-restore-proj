@@ -432,7 +432,7 @@ export default function SkillsLab() {
           <FlaskConical className="h-6 w-6 text-indigo-400" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white">{APP_SCREENS.skills.label}</h1>
+          <h1 className="text-2xl font-bold text-white">{APP_SCREENS.skillLab.label}</h1>
           <p className="text-sm text-slate-400">
             Profile-backed skills, AI course hints per skill, and gap analysis from your target role text.
           </p>

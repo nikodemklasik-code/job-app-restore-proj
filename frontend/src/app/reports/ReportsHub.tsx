@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState, type ComponentType } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import {
@@ -87,7 +87,7 @@ function downloadBlob(content: string, filename: string, mimeType: string) {
 interface StatCardProps {
   label: string;
   value: string | number;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string }>;
   color: string;
   bg: string;
   sub?: string;
@@ -367,7 +367,7 @@ interface DataExportProps {
 }
 
 function DataExport({ apps, isLoading, userId }: DataExportProps) {
-  const [pdfError, setPdfError] = React.useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const downloadReportMutation = api.applications.downloadCandidateReport.useMutation({
     onError: (err) => setPdfError(err.message),
   });
@@ -490,11 +490,28 @@ export default function ReportsHub() {
   const analytics = analyticsQuery.data;
   const apps = (allAppsQuery.data ?? []) as Application[];
   const isLoading = analyticsQuery.isLoading || allAppsQuery.isLoading;
+  const hasQueryError = analyticsQuery.isError || allAppsQuery.isError;
+
+  const retryLoad = () => {
+    void analyticsQuery.refetch();
+    void allAppsQuery.refetch();
+  };
+
+  const analyticsIsUsable = Boolean(analytics && typeof analytics.total === 'number' && analytics.byStatus);
 
   if (!isLoaded) {
     return (
       <div className="flex h-48 items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  if (!userId) {
+    return (
+      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 text-amber-100">
+        <h2 className="text-lg font-semibold">Reports unavailable</h2>
+        <p className="mt-2 text-sm text-amber-200">Sign in to load analytics and reports.</p>
       </div>
     );
   }
@@ -507,7 +524,7 @@ export default function ReportsHub() {
           <div className="inline-flex rounded-xl bg-indigo-500/10 p-2.5">
             <BarChart2 className="h-5 w-5 text-indigo-400" />
           </div>
-          <h1 className="text-3xl font-bold text-white">Reports Hub</h1>
+          <h1 className="text-3xl font-bold text-white">Reports</h1>
         </div>
         <p className="text-slate-400 ml-14">Analytics and insights across your job search campaign</p>
       </div>
@@ -519,13 +536,14 @@ export default function ReportsHub() {
         </div>
       )}
 
-      {(analyticsQuery.isError || allAppsQuery.isError) && (
-        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400">
-          Failed to load data. Please try again.
-        </p>
+      {hasQueryError && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+          <p className="text-sm text-red-300">Failed to load report data. Please try again.</p>
+          <button type="button" onClick={retryLoad} className="mt-2 inline-flex items-center gap-2 rounded-lg border border-red-300/40 px-3 py-1.5 text-xs font-medium text-red-200 hover:bg-red-500/10">Retry</button>
+        </div>
       )}
 
-      {!isLoading && analytics && (
+      {!isLoading && analyticsIsUsable && analytics && (
         <>
           {/* Summary stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -579,11 +597,20 @@ export default function ReportsHub() {
         </>
       )}
 
-      {!isLoading && !analyticsQuery.isError && analytics?.total === 0 && (
+      {!isLoading && !hasQueryError && analytics?.total === 0 && (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-12 text-center">
           <BarChart2 className="h-12 w-12 text-slate-600 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-white mb-2">No data yet</h3>
           <p className="text-slate-400 text-sm">Start applying to jobs and your analytics will appear here.</p>
+        </div>
+      )}
+
+
+      {!isLoading && !hasQueryError && !analyticsIsUsable && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6">
+          <h3 className="text-base font-semibold text-amber-100">Report data is temporarily unavailable</h3>
+          <p className="mt-2 text-sm text-amber-200">We received an unexpected response format. Please retry in a moment.</p>
+          <button type="button" onClick={retryLoad} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-amber-300/40 px-3 py-1.5 text-xs font-medium text-amber-100 hover:bg-amber-500/10">Retry</button>
         </div>
       )}
     </div>
