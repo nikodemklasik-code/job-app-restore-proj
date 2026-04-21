@@ -16,9 +16,9 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
-import { PracticeHeroHeader } from '@/features/practice-shell/components/PracticeHeroHeader';
-import { PracticeCostCard } from '@/features/practice-shell/components/PracticeCostCard';
-import { PracticeProgressBadge } from '@/features/practice-shell/components/PracticeProgressBadge';
+import PracticeHeroHeader from '@/features/practice-shell/components/PracticeHeroHeader';
+import PracticeCostCard from '@/features/practice-shell/components/PracticeCostCard';
+import PracticeProgressBadge from '@/features/practice-shell/components/PracticeProgressBadge';
 import type { WarmupTier } from './warmupTierCatalog';
 import { WARMUP_TIERS } from './warmupTierCatalog';
 

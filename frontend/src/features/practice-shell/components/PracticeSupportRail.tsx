@@ -1,15 +1,5 @@
-import type { ReactNode } from 'react';
+import type { PracticeSupportItem } from '../types/practice.types';
 
-/** Shared shell: right support rail (tips, disclaimers, secondary actions). Dev B expands. */
-export type PracticeSupportRailProps = {
-  children: ReactNode;
-  className?: string;
-};
-
-export function PracticeSupportRail({ children, className = '' }: PracticeSupportRailProps) {
-  return (
-    <aside className={`rounded-2xl border border-white/10 bg-slate-900/30 p-4 text-sm text-slate-400 ${className}`.trim()}>
-      {children}
-    </aside>
-  );
+export default function PracticeSupportRail({ title = 'Support', items }: { title?: string; items: PracticeSupportItem[] }) {
+  return <aside className="space-y-3"><div className="text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</div>{items.map((item) => <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="text-sm font-semibold text-slate-900">{item.title}</div><p className="mt-2 text-sm leading-6 text-slate-600">{item.body}</p></div>)}</aside>;
 }

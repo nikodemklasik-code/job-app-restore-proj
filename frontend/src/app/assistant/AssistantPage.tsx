@@ -13,6 +13,16 @@ import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsD
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
+async function parseJsonSafely<T>(res: Response): Promise<T | null> {
+  const raw = await res.text();
+  if (!raw || raw.startsWith('<!DOCTYPE') || raw.startsWith('<html')) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
 async function transcribeAudio(blob: Blob): Promise<string> {
   try {
     const form = new FormData();
@@ -21,8 +31,8 @@ async function transcribeAudio(blob: Blob): Promise<string> {
       method: 'POST', body: form, credentials: 'include',
     });
     if (!res.ok) return '';
-    const data = await res.json() as { transcript?: string };
-    return data.transcript ?? '';
+    const data = await parseJsonSafely<{ transcript?: string }>(res);
+    return data?.transcript ?? '';
   } catch { return ''; }
 }
 

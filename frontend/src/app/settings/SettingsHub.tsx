@@ -34,6 +34,8 @@ import { api } from '@/lib/api';
 import { isTrpcUnauthorizedError } from '@/lib/trpc-auth-redirect';
 import { resolveActiveSettingsTab } from './settingsTabFromUrl';
 import { UserProductSettingsTab } from './UserProductSettingsTab';
+import { getPhase56ModuleTitles, getPhase56Routes } from '@/config/phase56Readiness';
+import { PHASE_9_10_READINESS } from '@/config/phase910Readiness';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -64,6 +66,9 @@ const QUICK_LINKS = [
   { label: 'Security, passkeys & 2FA', icon: Shield, href: '/security' },
   { label: 'Billing & Credits', icon: CreditCard, href: '/billing' },
 ];
+
+const PHASE_56_TITLES = getPhase56ModuleTitles();
+const PHASE_56_ROUTES = getPhase56Routes();
 
 // ---------------------------------------------------------------------------
 // Toggle switch component
@@ -965,6 +970,15 @@ export default function SettingsHub() {
                 </label>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader><CardTitle className="text-base">Readiness summary</CardTitle></CardHeader>
+              <CardContent className="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+                <p>Phase 5/6 modules: {PHASE_56_TITLES.join(', ')}.</p>
+                <p>Routes: {PHASE_56_ROUTES.join(', ')}.</p>
+                <p>Governance modules: {PHASE_9_10_READINESS.map((item) => item.title).join(', ')}.</p>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 
@@ -1093,6 +1107,15 @@ export default function SettingsHub() {
                   <Link to="/cookies" className="text-indigo-500 hover:underline">Cookie Policy</Link>
                   .
                 </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader><CardTitle className="text-base">Readiness summary</CardTitle></CardHeader>
+              <CardContent className="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+                <p>Phase 5/6 modules: {PHASE_56_TITLES.join(', ')}.</p>
+                <p>Routes: {PHASE_56_ROUTES.join(', ')}.</p>
+                <p>Governance modules: {PHASE_9_10_READINESS.map((item) => item.title).join(', ')}.</p>
               </CardContent>
             </Card>
           </div>

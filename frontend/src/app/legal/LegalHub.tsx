@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
+import { APP_SCREENS } from '@/config/appScreens';
 import {
   Scale,
   ChevronDown,
@@ -562,7 +563,7 @@ export default function LegalHub() {
           <div className="inline-flex rounded-xl bg-purple-500/10 p-2.5">
             <Scale className="h-5 w-5 text-purple-400" />
           </div>
-          <h1 className="text-3xl font-bold text-white">Legal Hub</h1>
+          <h1 className="text-3xl font-bold text-white">{APP_SCREENS.legal.label}</h1>
         </div>
         <p className="text-slate-400 ml-14">UK employment law reference for job seekers — verify current rates on GOV.UK</p>
       </div>

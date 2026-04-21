@@ -1,39 +1,12 @@
 import type { ReactNode } from 'react';
 
-export type PracticeProgressBadgeProps = {
-  icon: ReactNode;
-  caption: string;
-  primary: ReactNode;
-  secondary?: ReactNode;
-  /** When true, uses warmer accent (e.g. active streak). */
-  highlighted?: boolean;
-  className?: string;
-};
+type Props =
+  | { label: string; value: string; icon?: never; caption?: never; primary?: never; secondary?: never; highlighted?: never }
+  | { label?: never; value?: never; icon: ReactNode; caption: string; primary: ReactNode; secondary?: ReactNode; highlighted?: boolean };
 
-export function PracticeProgressBadge({
-  icon,
-  caption,
-  primary,
-  secondary,
-  highlighted = false,
-  className = '',
-}: PracticeProgressBadgeProps) {
-  return (
-    <div
-      className={`mvh-card-glow flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 ${className}`.trim()}
-      style={{
-        background: highlighted ? 'rgba(249,115,22,0.12)' : 'rgba(100,116,139,0.1)',
-        borderColor: highlighted ? 'rgba(249,115,22,0.35)' : 'rgba(100,116,139,0.25)',
-      }}
-    >
-      <div className="flex shrink-0 items-center">{icon}</div>
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{caption}</p>
-        <p className="text-lg font-bold text-white">
-          {primary}
-          {secondary ? <span className="text-sm font-normal text-slate-400"> {secondary}</span> : null}
-        </p>
-      </div>
-    </div>
-  );
+export default function PracticeProgressBadge(props: Props) {
+  if ('label' in props && typeof props.label === 'string') {
+    return <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm shadow-sm"><span className="text-slate-500">{props.label}</span><span className="font-semibold text-slate-900">{props.value}</span></div>;
+  }
+  return <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm shadow-sm">{props.icon}<span className="text-slate-500">{props.caption}</span><span className="font-semibold text-slate-900">{props.primary}</span>{props.secondary ? <span className="text-slate-600">{props.secondary}</span> : null}</div>;
 }

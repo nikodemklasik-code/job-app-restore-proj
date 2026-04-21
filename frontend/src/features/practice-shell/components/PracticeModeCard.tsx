@@ -1,40 +1,6 @@
-import type { ReactNode } from 'react';
+import clsx from 'clsx';
+import type { PracticeModeOption } from '../types/practice.types';
 
-/** Shared shell: mode / duration selector card. Dev B replaces with full styling + behaviour. */
-export type PracticeModeCardProps = {
-  title: string;
-  description?: string;
-  footer?: ReactNode;
-  selected?: boolean;
-  disabled?: boolean;
-  onClick?: () => void;
-  className?: string;
-  children?: ReactNode;
-};
-
-export function PracticeModeCard({
-  title,
-  description,
-  footer,
-  selected,
-  disabled,
-  onClick,
-  className = '',
-  children,
-}: PracticeModeCardProps) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className={`rounded-2xl border border-white/10 bg-slate-900/50 p-4 text-left transition hover:border-white/20 disabled:cursor-not-allowed disabled:opacity-50 ${
-        selected ? 'ring-2 ring-indigo-500/60' : ''
-      } ${className}`.trim()}
-    >
-      <p className="font-semibold text-white">{title}</p>
-      {description ? <p className="mt-1 text-xs text-slate-400">{description}</p> : null}
-      {children}
-      {footer ? <div className="mt-3 border-t border-white/5 pt-2">{footer}</div> : null}
-    </button>
-  );
+export default function PracticeModeCard({ option, selected, onSelect }: { option: PracticeModeOption; selected: boolean; onSelect: (id: string) => void }) {
+  return <button type="button" onClick={() => onSelect(option.id)} className={clsx('w-full rounded-2xl border p-4 text-left transition', selected ? 'border-slate-900 bg-slate-900 text-white shadow-md' : 'border-slate-200 bg-white text-slate-900 hover:border-slate-300 hover:shadow-sm')}><div className="flex items-start justify-between gap-3"><div><div className="text-base font-semibold">{option.title}</div><div className={clsx('mt-1 text-sm', selected ? 'text-slate-200' : 'text-slate-600')}>{option.description}</div></div>{option.badge ? <span className={clsx('rounded-full px-2 py-1 text-xs font-medium', selected ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-700')}>{option.badge}</span> : null}</div>{option.durationLabel ? <div className={clsx('mt-3 text-xs', selected ? 'text-slate-300' : 'text-slate-500')}>{option.durationLabel}</div> : null}</button>;
 }

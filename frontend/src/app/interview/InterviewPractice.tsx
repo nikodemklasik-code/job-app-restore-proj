@@ -7,6 +7,11 @@ import { interviewModeLabels } from '../../../../shared/interview';
 import type { InterviewMode } from '../../../../shared/interview';
 import { useBillingStore } from '@/stores/billingStore';
 import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
+import PracticeHeroHeader from '@/features/practice-shell/components/PracticeHeroHeader';
+import PracticeCostCard from '@/features/practice-shell/components/PracticeCostCard';
+import PracticeProgressBadge from '@/features/practice-shell/components/PracticeProgressBadge';
+import EstimatedSpendInlineNotice from '@/features/practice-shell/components/EstimatedSpendInlineNotice';
+import { PRACTICE_MODULE_CONFIGS } from '@/features/practice-shell/config/practiceModuleConfigs';
 
 // ─── Wave/avatar keyframes injected once ─────────────────────────────────────
 const AVATAR_STYLES = `
@@ -113,6 +118,16 @@ interface TurnFeedback {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
+
+async function parseJsonSafely<T>(res: Response): Promise<T | null> {
+  const raw = await res.text();
+  if (!raw || raw.startsWith('<!DOCTYPE') || raw.startsWith('<html')) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
 const MAX_EXCHANGES = 8;
 
 // ─── Live Interview Summary type ──────────────────────────────────────────────
@@ -308,8 +323,8 @@ async function transcribeAudio(blob: Blob): Promise<string> {
       credentials: 'include',
     });
     if (!res.ok) return '';
-    const json = (await res.json()) as { transcript?: string };
-    return json.transcript ?? '';
+    const json = await parseJsonSafely<{ transcript?: string }>(res);
+    return json?.transcript ?? '';
   } catch {
     return '';
   }
@@ -606,6 +621,9 @@ export default function InterviewPractice() {
 
   // Transcript toggle (for complete screen)
   const [showTranscript, setShowTranscript] = useState(false);
+  const interviewShell = PRACTICE_MODULE_CONFIGS.interview;
+  const [selectedInterviewModeId] = useState(interviewShell.modes[1]?.id ?? interviewShell.modes[0]?.id ?? 'lite');
+  const selectedInterviewMode = interviewShell.modes.find((mode) => mode.id === selectedInterviewModeId) ?? interviewShell.modes[0];
 
   // Live Interview engine state
   const [useLiveMode, setUseLiveMode] = useState(true);
@@ -1081,6 +1099,16 @@ export default function InterviewPractice() {
             </div>
 
             <SupportingMaterialsDisclaimer compact collapsible defaultExpanded={false} className="mt-2" />
+
+            <div style={{ marginTop: 12, display: 'grid', gap: 12 }}>
+              <PracticeHeroHeader hero={interviewShell.hero} />
+              <PracticeCostCard cost={selectedInterviewMode.cost} />
+              <EstimatedSpendInlineNotice cost={selectedInterviewMode.cost} />
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <PracticeProgressBadge label="Mode" value={selectedInterviewMode.title} />
+                <PracticeProgressBadge label="Session" value="Voice" />
+              </div>
+            </div>
 
             {/* Custom role */}
             <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>

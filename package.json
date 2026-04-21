@@ -19,7 +19,7 @@
     "db:push": "cd backend && npx drizzle-kit push",
     "db:generate": "cd backend && npx drizzle-kit generate",
     "db:validate": "node lib/envSchema.mjs",
-    "smoke:local": "bash scripts/smoke-test.sh",
+    "smoke:local": "bash scripts/smoke-local.sh",
     "mobile:add:ios": "npx cap add ios",
     "mobile:add:android": "npx cap add android",
     "mobile:sync": "npm run build:frontend && npx cap sync",

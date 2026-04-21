@@ -7,6 +7,7 @@ import { useProfileStore } from '@/stores/profileStore';
 import { useBillingStore } from '@/stores/billingStore';
 import type { ProfileSnapshot, ProfileExperience, ProfileEducation } from '../../../../shared/profile';
 import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
+import { APP_SCREENS } from '@/config/appScreens';
 
 // ── Live profile context (no fabricated salaries or market %) ─────────────
 
@@ -431,7 +432,7 @@ export default function SkillsLab() {
           <FlaskConical className="h-6 w-6 text-indigo-400" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white">Skills Lab</h1>
+          <h1 className="text-2xl font-bold text-white">{APP_SCREENS.skills.label}</h1>
           <p className="text-sm text-slate-400">
             Profile-backed skills, AI course hints per skill, and gap analysis from your target role text.
           </p>

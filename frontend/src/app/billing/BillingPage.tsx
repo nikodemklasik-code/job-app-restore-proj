@@ -3,6 +3,7 @@ import { useUser } from '@clerk/clerk-react';
 import { useSearchParams } from 'react-router-dom';
 import { Check, X, Zap, ExternalLink, Loader2, CreditCard, Heart, Bitcoin, Coins } from 'lucide-react';
 import { useBillingStore } from '@/stores/billingStore';
+import { APP_SCREENS } from '@/config/appScreens';
 import { trpcClient } from '@/lib/api';
 import { BillingLedgerPanels } from '@/components/billing/BillingLedgerPanels';
 
@@ -128,7 +129,7 @@ export default function BillingPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-10 pb-12">
       <header className="space-y-1">
-        <h1 className="text-3xl font-bold text-white">Billing &amp; Credits</h1>
+        <h1 className="text-3xl font-bold text-white">{APP_SCREENS.billing.label} &amp; Credits</h1>
         <p className="text-slate-400">Plans, top-ups, comparison table, and billing history in one place.</p>
       </header>
 

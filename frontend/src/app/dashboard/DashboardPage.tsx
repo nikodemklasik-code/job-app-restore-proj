@@ -2,6 +2,12 @@ import { useUser } from '@clerk/clerk-react';
 import { Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { DashboardSnapshot } from '@/components/dashboard/DashboardSnapshot';
+import PhaseReadinessChecklist from '@/features/product-core/components/PhaseReadinessChecklist';
+import IntelligenceReadinessPanel from '@/features/product-intelligence/components/IntelligenceReadinessPanel';
+import GovernanceReadinessPanel from '@/features/product-governance/components/GovernanceReadinessPanel';
+import { PHASE_5_6_MODULES } from '@/config/phase56Readiness';
+import { PHASE_7_8_READINESS } from '@/config/phase78Readiness';
+import { PHASE_9_10_READINESS } from '@/config/phase910Readiness';
 
 export default function DashboardPage() {
   const { user, isLoaded } = useUser();
@@ -63,5 +69,14 @@ export default function DashboardPage() {
     );
   }
 
-  return <DashboardSnapshot snapshot={snapshotQuery.data} />;
+  return (
+    <div className="space-y-6">
+      <DashboardSnapshot snapshot={snapshotQuery.data} />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <PhaseReadinessChecklist title="Phase 5-6 readiness" modules={PHASE_5_6_MODULES} />
+        <IntelligenceReadinessPanel modules={PHASE_7_8_READINESS} />
+        <GovernanceReadinessPanel modules={PHASE_9_10_READINESS} />
+      </div>
+    </div>
+  );
 }

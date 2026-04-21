@@ -45,3 +45,20 @@ export type LedgerBillingSummary = {
   pendingCount: number;
   postedCount: number;
 };
+
+export type CreditChargeType = 'free' | 'fixed' | 'estimated';
+
+export interface CreditApprovalRule {
+  maxCostWithoutFurtherApproval: number;
+  requiresApproval: boolean;
+}
+
+export interface CreditCostViewModel {
+  type: CreditChargeType;
+  label: string;
+  credits: number | null;
+  estimatedMin?: number | null;
+  estimatedMax?: number | null;
+  approvalRule?: CreditApprovalRule | null;
+  freeAllowanceNote?: string | null;
+}
