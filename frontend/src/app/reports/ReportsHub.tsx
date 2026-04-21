@@ -613,6 +613,15 @@ export default function ReportsHub() {
           <button type="button" onClick={retryLoad} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-amber-300/40 px-3 py-1.5 text-xs font-medium text-amber-100 hover:bg-amber-500/10">Retry</button>
         </div>
       )}
+
+
+      {!isLoading && !hasQueryError && !analyticsIsUsable && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6">
+          <h3 className="text-base font-semibold text-amber-100">Report data is temporarily unavailable</h3>
+          <p className="mt-2 text-sm text-amber-200">We received an unexpected response format. Please retry in a moment.</p>
+          <button type="button" onClick={retryLoad} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-amber-300/40 px-3 py-1.5 text-xs font-medium text-amber-100 hover:bg-amber-500/10">Retry</button>
+        </div>
+      )}
     </div>
   );
 }

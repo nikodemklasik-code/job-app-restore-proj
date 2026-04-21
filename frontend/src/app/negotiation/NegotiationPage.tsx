@@ -185,7 +185,6 @@ export default function NegotiationPage() {
   inputRef.current = input;
 
   // Stable ref to handleSend to avoid circular deps in VAD
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleSendRef = useRef<(text?: string) => Promise<void>>(async () => {});
 
   const stopVAD = useCallback(() => {

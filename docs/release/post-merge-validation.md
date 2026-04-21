@@ -15,5 +15,10 @@ Date: 2026-04-21
 - All commands passed (green) in merged state simulation.
 - Temporary validation branch removed after verification.
 
+## Re-validation session
+- Date/time (UTC): 2026-04-21 22:20
+- Command: `bash scripts/smoke-local.sh`
+- Result: `Passed: 3 / Failed: 0` and final `✅ All smoke checks passed`.
+
 ## Note
 - This is a local target-branch simulation, not a remote GitHub merge event.
