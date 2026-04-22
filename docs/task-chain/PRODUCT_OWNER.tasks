@@ -1,8 +1,0 @@
-ROLE=PRODUCT_OWNER
-PREVIOUS_TASK=Keep board and dashboard current
-CURRENT_TASK=Force QC intake on 3 READY_FOR_QC slices and keep board status in sync
-NEXT_TASK=Assign tranche 2 immediately after each QC verdict appears
-AUTO_ADVANCE_FROM=ACTIVE
-AUTO_ADVANCE_TO=ACTIVE
-AUTO_ADVANCE_CONDITION=ALWAYS
-NEXT_REPORT=

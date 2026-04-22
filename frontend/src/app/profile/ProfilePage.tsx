@@ -95,6 +95,8 @@ export default function ProfilePage() {
     });
   }, [profile?.skills, profile?.trainings]);
 
+  const profileSkills = profile?.skills ?? [];
+
   const downloadCvMutation = api.applications.downloadCvPdf.useMutation({
     onSuccess: (data) => {
       const bytes = Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0));
@@ -304,10 +306,39 @@ export default function ProfilePage() {
 
   const handleCancelTrain = () => { setTrainIsAdding(false); setTrainEditingIdx(null); setTrainForm(emptyTrain()); };
 
+
+  const handleRetryLoad = () => {
+    dismissError();
+    void loadProfile();
+  };
+
+  if (isLoaded && !userId) {
+    return (
+      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 text-amber-100">
+        <h2 className="text-lg font-semibold">Profile unavailable</h2>
+        <p className="mt-2 text-sm text-amber-200">You need to be signed in to load your profile data.</p>
+      </div>
+    );
+  }
+
   if (!isLoaded || isLoadingProfile) {
     return (
       <div className="flex h-48 items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+
+  if (error && !profile) {
+    return (
+      <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6">
+        <h2 className="text-lg font-semibold text-red-200">Could not load profile</h2>
+        <p className="mt-2 text-sm text-red-300">{error}</p>
+        <div className="mt-4 flex gap-2">
+          <button type="button" onClick={handleRetryLoad} className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-500">Retry</button>
+          <button type="button" onClick={dismissError} className="inline-flex items-center gap-2 rounded-lg border border-red-300/40 px-3 py-2 text-sm font-medium text-red-200 hover:bg-red-500/10">Dismiss</button>
+        </div>
       </div>
     );
   }
@@ -325,11 +356,14 @@ export default function ProfilePage() {
 
       {/* Error Banner */}
       {error && (
-        <div className="flex items-center justify-between rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
-          <p className="text-sm text-red-400">{error}</p>
-          <button onClick={dismissError} className="ml-4 text-red-400 hover:text-red-300">
-            <X className="h-4 w-4" />
-          </button>
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+          <div className="flex items-start justify-between gap-4">
+            <p className="text-sm text-red-300">{error}</p>
+            <button onClick={dismissError} className="text-red-400 hover:text-red-300" aria-label="Dismiss error">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <button type="button" onClick={handleRetryLoad} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-red-300/40 px-3 py-1.5 text-xs font-medium text-red-200 hover:bg-red-500/10">Retry loading profile</button>
         </div>
       )}
 
@@ -402,7 +436,7 @@ export default function ProfilePage() {
       {/* Personal Information — contact column + summary column */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
         <h2 className="font-semibold text-white">Personal Information</h2>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2 lg:gap-8">
           <div className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="fullName" className="block text-xs text-slate-400">Full name</label>
@@ -428,14 +462,10 @@ export default function ProfilePage() {
               <label htmlFor="linkedinUrl" className="block text-xs text-slate-400">LinkedIn URL</label>
               <input id="linkedinUrl" type="url" value={form.linkedinUrl} onChange={(e) => setForm({ ...form, linkedinUrl: e.target.value })} placeholder="https://linkedin.com/in/yourname" className={inputCls} />
             </div>
-            <div className="space-y-2">
-              <label htmlFor="cvUrl" className="block text-xs text-slate-400">CV URL</label>
-              <input id="cvUrl" type="url" value={form.cvUrl} onChange={(e) => setForm({ ...form, cvUrl: e.target.value })} placeholder="https://drive.google.com/..." className={inputCls} />
-            </div>
           </div>
-          <div className="space-y-2 flex flex-col min-h-[12rem]">
+          <div className="space-y-2">
             <label htmlFor="summary" className="block text-xs text-slate-400">Professional summary</label>
-            <textarea id="summary" value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} placeholder="Senior frontend engineer with 8 years of experience..." rows={8} className={`${inputCls} resize-y flex-1 min-h-[10rem]`} />
+            <textarea id="summary" value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} placeholder="Senior frontend engineer with 8 years of experience..." rows={8} className={`${inputCls} min-h-[10rem] resize-y`} />
           </div>
         </div>
         <button onClick={() => void handleSaveInfo()} disabled={isSaving} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60">
@@ -449,13 +479,18 @@ export default function ProfilePage() {
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
           <h2 className="font-semibold text-white">Skills</h2>
           <div className="flex flex-wrap gap-2">
-            {(profile?.skills ?? []).map((skill) => (
+            {profileSkills.map((skill) => (
               <span key={skill} className="flex items-center gap-1.5 rounded-full bg-indigo-500/20 px-3 py-1 text-sm font-medium text-indigo-300">
                 {skill}
                 <button onClick={() => void handleRemoveSkill(skill)} aria-label={`Remove skill: ${skill}`} className="hover:text-indigo-100"><X className="h-3 w-3" /></button>
               </span>
             ))}
           </div>
+          {profileSkills.length === 0 && (
+            <p className="text-sm text-slate-500">
+              No skills yet. Add your first skill to unlock better matching and recommendations.
+            </p>
+          )}
           <div className="flex gap-2">
             <label htmlFor="skill-input" className="sr-only">Add a skill</label>
             <input

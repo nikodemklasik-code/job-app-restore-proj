@@ -120,13 +120,13 @@ const STEPS: Step[] = [
   },
   {
     icon: User,
-    title: 'Step 1 — Set up your CV Studio',
+    title: 'Step 1 — Set up Document Hub',
     description:
-      "Upload your CV (PDF) and we'll auto-fill your profile. Your data powers CV generation, cover letters, and job matching.",
+      "Manage your documents in Document Hub. Parsed document data powers profile context, generation tools, and job matching.",
     aiTip:
-      'The more complete your CV Studio is, the better your job match scores. Even a rough CV is fine — you can refine it later in the editor.',
-    cta: 'Go to CV Studio',
-    route: '/profile',
+      'Document Hub is the single intake workspace. Keep your latest files there and use Build for style and generation flows.',
+    cta: 'Open Document Hub',
+    route: '/documents?tab=upload',
   },
   {
     icon: Search,
@@ -175,7 +175,7 @@ export const ONBOARDING_STEP_COUNT = STEPS.length;
 function stepCtaIcon(stepIndex: number, isLast: boolean) {
   if (isLast) return CheckCircle;
   const s = STEPS[stepIndex];
-  if (s.route === '/profile') return FileText;
+  if (s.route === '/documents?tab=upload') return FileText;
   if (s.route === '/jobs') return Search;
   if (s.route === '/applications/board') return LayoutGrid;
   if (s.route === '/interview') return Mic;

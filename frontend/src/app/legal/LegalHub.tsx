@@ -1,5 +1,4 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import { APP_SCREENS } from '@/config/appScreens';
@@ -492,13 +491,14 @@ function SectionCard({ section }: { section: Section }) {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function LegalHub() {
-  const navigate = useNavigate();
   const { isSignedIn } = useUser();
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const trimmedQuery = searchQuery.trim();
   const [includeGroundedSummary, setIncludeGroundedSummary] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const DEFAULT_SOURCE_GROUPS = ['Primary Law', 'Official Guidance', 'ACAS', 'Tribunal Decisions', 'Appeal Tribunal Decisions'];
+  const OPTIONAL_SOURCE_GROUPS = ['Explanatory Notes', 'Official PDFs', 'Curated Contract Law', 'Curated Company Law'];
 
   const exportPdfMutation = api.legalHub.exportSearchPdf.useMutation({
     onSuccess: (data) => {
@@ -541,20 +541,6 @@ export default function LegalHub() {
     return hits.slice(0, 6);
   }, [trimmedQuery]);
 
-  const handleAskAi = (raw: string) => {
-    const text = raw.trim();
-    if (!text) return;
-    const prompt = [
-      `UK employment law question: ${text}.`,
-      'Answer as a career coach for UK job seekers. Be concise and practical.',
-      'Cite the relevant statute, ACAS code or GOV.UK page where possible.',
-      'Remind me to verify current figures on GOV.UK / ACAS / HMRC and that this is guidance, not legal advice.',
-    ].join(' ');
-    navigate('/assistant', {
-      state: { prefill: { text: prompt, mode: 'general' as const, autoSend: true } },
-    });
-  };
-
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -563,7 +549,7 @@ export default function LegalHub() {
           <div className="inline-flex rounded-xl bg-purple-500/10 p-2.5">
             <Scale className="h-5 w-5 text-purple-400" />
           </div>
-          <h1 className="text-3xl font-bold text-white">{APP_SCREENS.legal.label}</h1>
+          <h1 className="text-3xl font-bold text-white">{APP_SCREENS.legalHub.label}</h1>
         </div>
         <p className="text-slate-400 ml-14">UK employment law reference for job seekers — verify current rates on GOV.UK</p>
       </div>
@@ -603,8 +589,9 @@ export default function LegalHub() {
         )}
       </div>
 
-      {/* AI topic search — AI-only Q&A, not local answer generation */}
+      {/* Legal Search layer inside Legal Hub */}
       <section
+        id="legal-search"
         aria-labelledby="legal-hub-search-heading"
         className="mvh-card-glow rounded-2xl border border-indigo-500/25 bg-indigo-500/[0.06] p-5 md:p-6"
       >
@@ -614,11 +601,10 @@ export default function LegalHub() {
           </div>
           <div className="flex-1">
             <h2 id="legal-hub-search-heading" className="text-base font-semibold text-white">
-              Ask the AI Coach about UK employment law
+              Legal Search (Approved Sources)
             </h2>
             <p className="mt-1 text-sm text-slate-300">
-              Type a topic or a full question — we&apos;ll send it to the <span className="text-indigo-300">AI Coach</span> for a plain-English
-              answer with pointers to the relevant ACAS / GOV.UK / HMRC pages. The sections below remain unchanged.
+              Search the approved legal-source catalogue first. This layer is source-restricted and grounded — not open-web legal chat.
             </p>
           </div>
         </div>
@@ -626,7 +612,7 @@ export default function LegalHub() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            handleAskAi(searchQuery);
+            setIncludeGroundedSummary(false);
           }}
           className="mt-4 flex flex-col gap-2 sm:flex-row"
           role="search"
@@ -663,7 +649,7 @@ export default function LegalHub() {
             className="mvh-card-glow inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Sparkles className="h-4 w-4" aria-hidden />
-            Ask AI Coach
+            Search approved sources
           </button>
         </form>
 
@@ -683,7 +669,7 @@ export default function LegalHub() {
               type="button"
               onClick={() => {
                 setSearchQuery(topic);
-                handleAskAi(topic);
+                setIncludeGroundedSummary(false);
               }}
               className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] text-slate-300 transition hover:border-indigo-400/40 hover:bg-indigo-500/15 hover:text-white"
             >
@@ -692,13 +678,55 @@ export default function LegalHub() {
           ))}
         </div>
 
-        {legalSearch.data && legalSearch.data.hits.length > 0 && (
+        <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-indigo-300/90">Active source groups (default)</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {DEFAULT_SOURCE_GROUPS.map((group) => (
+              <span key={group} className="rounded-full border border-emerald-400/35 bg-emerald-500/15 px-2.5 py-1 text-[11px] text-emerald-100">
+                {group}
+              </span>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-slate-500">
+            Scope mode: Core approved sources only. Optional groups are available only via explicit scope expansion.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {OPTIONAL_SOURCE_GROUPS.map((group) => (
+              <span key={group} className="rounded-full border border-white/15 bg-white/[0.04] px-2.5 py-1 text-[11px] text-slate-300">
+                {group}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {trimmedQuery.length >= 2 && legalSearch.isFetching && (
+          <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3">
+            <p className="text-xs text-slate-300">Searching approved legal sources…</p>
+            <p className="mt-1 text-[11px] text-slate-500">Reading ACAS and primary-law indexed materials.</p>
+          </div>
+        )}
+
+        {trimmedQuery.length >= 2 && legalSearch.isError && !legalSearch.isFetching && (
+          <div className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-3">
+            <p className="text-xs font-medium text-rose-100">We could not complete the legal search.</p>
+            <p className="mt-1 text-[11px] text-rose-200/90">Please try again or adjust the search scope.</p>
+          </div>
+        )}
+
+        {trimmedQuery.length >= 2 && !legalSearch.isFetching && !legalSearch.isError && legalSearch.data?.hits.length === 0 && (
+          <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3">
+            <p className="text-xs font-medium text-slate-200">No source-backed results yet.</p>
+            <p className="mt-1 text-[11px] text-slate-500">Try a narrower legal question or switch to one of the suggested topics.</p>
+          </div>
+        )}
+
+        {legalSearch.data && legalSearch.data.hits.length > 0 && !legalSearch.isError && (
           <div className="mt-4 rounded-xl border border-indigo-500/20 bg-indigo-950/20 p-3">
             {legalSearch.data.scope?.scopeLabel ? (
-              <p className="mb-2 text-[10px] leading-snug text-slate-500">{legalSearch.data.scope.scopeLabel}</p>
+              <p className="mb-2 text-[10px] leading-snug text-slate-500">Search scope: {legalSearch.data.scope.scopeLabel}</p>
             ) : null}
             <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-indigo-300/90">
-              Official sources ({legalSearch.data.hits.length})
+              Sources used ({legalSearch.data.hits.length})
             </p>
             <ul className="space-y-2">
               {legalSearch.data.hits.map((h) => (
@@ -790,13 +818,13 @@ export default function LegalHub() {
               ))}
             </ul>
             <p className="mt-2 text-[11px] text-slate-500">
-              Tip: AI Coach answers your exact question; the curated sections below are a fixed reference.
+              Tip: Legal Search provides source-backed synthesis; curated Legal Hub sections below remain your persistent reference.
             </p>
           </div>
         )}
 
         <p className="mt-3 text-[11px] text-slate-500">
-          AI answers are educational guidance only — verify figures on GOV.UK / ACAS / HMRC. No legal advice.
+          Educational guidance only — verify figures on GOV.UK / ACAS / HMRC. This is not legal advice.
         </p>
       </section>
 

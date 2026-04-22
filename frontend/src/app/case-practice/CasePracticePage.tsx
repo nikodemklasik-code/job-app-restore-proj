@@ -169,9 +169,9 @@ export default function CasePracticePage() {
           </div>
           <div className="min-w-0 space-y-3">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">Case Practice</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">Case Study</h1>
               <p className="mt-2 text-sm leading-relaxed text-slate-300 md:text-base">
-                A <span className="font-medium text-white">warm-up studio</span> for high-stakes work moments: you pick a
+                A <span className="font-medium text-white">case-practice studio</span> for high-stakes work moments: you pick a
                 case, absorb the brief, then rehearse how you would explain, defend, or de-escalate — without rushing into
                 a real chat thread. Use the modes below when you want to simulate solo practice, a joint call mindset, a
                 private run-through, or a slower &quot;prepare for tomorrow&quot; pass.
