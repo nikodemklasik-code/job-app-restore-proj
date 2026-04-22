@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState, type ComponentType } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import {
@@ -87,7 +87,7 @@ function downloadBlob(content: string, filename: string, mimeType: string) {
 interface StatCardProps {
   label: string;
   value: string | number;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string }>;
   color: string;
   bg: string;
   sub?: string;
@@ -367,7 +367,7 @@ interface DataExportProps {
 }
 
 function DataExport({ apps, isLoading, userId }: DataExportProps) {
-  const [pdfError, setPdfError] = React.useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const downloadReportMutation = api.applications.downloadCandidateReport.useMutation({
     onError: (err) => setPdfError(err.message),
   });

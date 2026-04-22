@@ -23,7 +23,6 @@ const TermsPage = lazy(() => import('./app/legal/TermsPage'));
 const PrivacyPage = lazy(() => import('./app/legal/PrivacyPage'));
 const CookiesPage = lazy(() => import('./app/legal/CookiesPage'));
 const ReportsHub = lazy(() => import('./app/reports/ReportsHub'));
-const AutoApplyPage = lazy(() => import('./app/autopilot/AutoApplyPage'));
 const SkillsLab = lazy(() => import('./app/skills/SkillsLab'));
 const NegotiationPage = lazy(() => import('./app/negotiation/NegotiationPage'));
 const JobRadar = lazy(() => import('./app/radar/JobRadar'));
@@ -94,7 +93,7 @@ export const router = createBrowserRouter([
       { path: APP_SCREENS.dashboard.path.slice(1), element: withSuspense(DashboardPage) },
       { path: APP_SCREENS.profile.path.slice(1), element: withSuspense(ProfilePage) },
       { path: APP_SCREENS.documentHub.path.slice(1), element: withSuspense(DocumentLab) },
-      { path: APP_SCREENS.documentUpload.path.slice(1), element: withSuspense(DocumentLab) },
+      { path: APP_SCREENS.documentUpload.path.slice(1), element: <Navigate to="/documents?tab=upload" replace /> },
       { path: APP_SCREENS.styleStudio.path.slice(1), element: withSuspense(StyleStudioRedirect) },
       { path: APP_SCREENS.jobs.path.slice(1), element: withSuspense(JobsDiscovery) },
       { path: APP_SCREENS.applications.path.slice(1), element: withSuspense(ApplicationsPage) },
@@ -114,10 +113,10 @@ export const router = createBrowserRouter([
       { path: 'job-radar/admin/complaints', element: withSuspense(JobRadarAdminComplaintsPage) },
       { path: APP_SCREENS.salaryCalculator.path.slice(1), element: withSuspense(UKSalaryCalculator) },
       { path: APP_SCREENS.legalHub.path.slice(1), element: withSuspense(LegalHub) },
-      { path: APP_SCREENS.legalSearch.path.slice(1), element: withSuspense(LegalHub) },
+      { path: APP_SCREENS.legalSearch.path.slice(1), element: <Navigate to="/legal#legal-search" replace /> },
       { path: APP_SCREENS.communityCenter.path.slice(1), element: <Navigate to="/settings?tab=privacy" replace /> },
       { path: APP_SCREENS.settings.path.slice(1), element: withSuspense(SettingsHub) },
-      { path: APP_SCREENS.autoApply.path.slice(1), element: withSuspense(AutoApplyPage) },
+      { path: APP_SCREENS.autoApply.path.slice(1), element: <Navigate to="/settings?tab=auto-apply" replace /> },
       { path: APP_SCREENS.billing.path.slice(1), element: withSuspense(BillingPage) },
       { path: APP_SCREENS.faq.path.slice(1), element: withSuspense(FAQPage) },
 

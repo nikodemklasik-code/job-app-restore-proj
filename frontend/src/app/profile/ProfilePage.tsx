@@ -95,6 +95,8 @@ export default function ProfilePage() {
     });
   }, [profile?.skills, profile?.trainings]);
 
+  const profileSkills = profile?.skills ?? [];
+
   const downloadCvMutation = api.applications.downloadCvPdf.useMutation({
     onSuccess: (data) => {
       const bytes = Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0));
@@ -434,7 +436,7 @@ export default function ProfilePage() {
       {/* Personal Information — contact column + summary column */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
         <h2 className="font-semibold text-white">Personal Information</h2>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2 lg:gap-8">
           <div className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="fullName" className="block text-xs text-slate-400">Full name</label>
@@ -465,9 +467,9 @@ export default function ProfilePage() {
               <input id="cvUrl" type="url" value={form.cvUrl} onChange={(e) => setForm({ ...form, cvUrl: e.target.value })} placeholder="https://drive.google.com/..." className={inputCls} />
             </div>
           </div>
-          <div className="space-y-2 flex flex-col min-h-[12rem]">
+          <div className="space-y-2">
             <label htmlFor="summary" className="block text-xs text-slate-400">Professional summary</label>
-            <textarea id="summary" value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} placeholder="Senior frontend engineer with 8 years of experience..." rows={8} className={`${inputCls} resize-y flex-1 min-h-[10rem]`} />
+            <textarea id="summary" value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} placeholder="Senior frontend engineer with 8 years of experience..." rows={8} className={`${inputCls} min-h-[10rem] resize-y`} />
           </div>
         </div>
         <button onClick={() => void handleSaveInfo()} disabled={isSaving} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60">
@@ -481,13 +483,18 @@ export default function ProfilePage() {
         <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
           <h2 className="font-semibold text-white">Skills</h2>
           <div className="flex flex-wrap gap-2">
-            {(profile?.skills ?? []).map((skill) => (
+            {profileSkills.map((skill) => (
               <span key={skill} className="flex items-center gap-1.5 rounded-full bg-indigo-500/20 px-3 py-1 text-sm font-medium text-indigo-300">
                 {skill}
                 <button onClick={() => void handleRemoveSkill(skill)} aria-label={`Remove skill: ${skill}`} className="hover:text-indigo-100"><X className="h-3 w-3" /></button>
               </span>
             ))}
           </div>
+          {profileSkills.length === 0 && (
+            <p className="text-sm text-slate-500">
+              No skills yet. Add your first skill to unlock better matching and recommendations.
+            </p>
+          )}
           <div className="flex gap-2">
             <label htmlFor="skill-input" className="sr-only">Add a skill</label>
             <input

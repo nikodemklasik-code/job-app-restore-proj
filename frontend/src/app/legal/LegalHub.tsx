@@ -605,6 +605,7 @@ export default function LegalHub() {
 
       {/* AI topic search — AI-only Q&A, not local answer generation */}
       <section
+        id="legal-search"
         aria-labelledby="legal-hub-search-heading"
         className="mvh-card-glow rounded-2xl border border-indigo-500/25 bg-indigo-500/[0.06] p-5 md:p-6"
       >

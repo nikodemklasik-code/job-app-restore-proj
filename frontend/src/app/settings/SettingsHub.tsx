@@ -36,6 +36,7 @@ import { resolveActiveSettingsTab } from './settingsTabFromUrl';
 import { UserProductSettingsTab } from './UserProductSettingsTab';
 import { getPhase56ModuleTitles, getPhase56Routes } from '@/config/phase56Readiness';
 import { PHASE_9_10_READINESS } from '@/config/phase910Readiness';
+import AutoApplyPage from '@/app/autopilot/AutoApplyPage';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -932,6 +933,7 @@ export default function SettingsHub() {
           <TabsTrigger value="email">Email &amp; SMTP</TabsTrigger>
           <TabsTrigger value="telegram">Telegram</TabsTrigger>
           <TabsTrigger value="sources">Job Sources</TabsTrigger>
+          <TabsTrigger value="auto-apply">Auto Apply</TabsTrigger>
           <TabsTrigger value="readiness">System Readiness</TabsTrigger>
         </TabsList>
 
@@ -1154,6 +1156,11 @@ export default function SettingsHub() {
         </TabsContent>
 
         {/* SYSTEM READINESS */}
+
+        <TabsContent value="auto-apply">
+          <AutoApplyPage />
+        </TabsContent>
+
         <TabsContent value="readiness">
           {userId ? (
             <SystemReadinessTab userId={userId} />
