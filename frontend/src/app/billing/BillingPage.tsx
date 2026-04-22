@@ -3,9 +3,9 @@ import { useUser } from '@clerk/clerk-react';
 import { useSearchParams } from 'react-router-dom';
 import { Check, X, Zap, ExternalLink, Loader2, CreditCard, Heart, Bitcoin, Coins } from 'lucide-react';
 import { useBillingStore } from '@/stores/billingStore';
-import { APP_SCREENS } from '@/config/appScreens';
 import { trpcClient } from '@/lib/api';
 import { BillingLedgerPanels } from '@/components/billing/BillingLedgerPanels';
+import { APP_SCREENS } from '@/config/appScreens';
 
 type PaymentMethod = 'stripe' | 'paypal' | 'crypto';
 
