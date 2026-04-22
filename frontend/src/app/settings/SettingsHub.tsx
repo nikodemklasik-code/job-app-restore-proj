@@ -63,7 +63,7 @@ const PROVIDER_PRESETS: Record<EmailProvider, ProviderPreset> = {
 // ---------------------------------------------------------------------------
 
 const QUICK_LINKS = [
-  { label: 'Community Centre', icon: Users, href: '/settings/community' },
+  { label: 'Community Centre', icon: Users, href: '/community' },
   { label: 'Security, passkeys & 2FA', icon: Shield, href: '/security' },
   { label: 'Billing & Credits', icon: CreditCard, href: '/billing' },
 ];
