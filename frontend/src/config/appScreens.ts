@@ -43,7 +43,7 @@ export const APP_SCREENS: Record<AppScreenKey, AppScreenDefinition> = {
   jobs: { key: 'jobs', label: 'Jobs Discovery', path: '/jobs', topLevel: true, showInSidebar: true },
   applications: { key: 'applications', label: 'Applications Pipeline', path: '/applications', topLevel: true, showInSidebar: true },
   applicationsReview: { key: 'applicationsReview', label: 'Review Queue', path: '/applications-review', topLevel: true, showInSidebar: true },
-  assistant: { key: 'assistant', label: 'AI Assistant', path: '/assistant', topLevel: true, showInSidebar: true },
+  assistant: { key: 'assistant', label: 'AI Assistant', path: '/assistant', topLevel: false, showInSidebar: false },
   dailyWarmup: { key: 'dailyWarmup', label: 'Daily Warmup', path: '/warmup', topLevel: true, showInSidebar: true },
   interview: { key: 'interview', label: 'Interview', path: '/interview', topLevel: true, showInSidebar: true },
   coach: { key: 'coach', label: 'Coach', path: '/coach', topLevel: true, showInSidebar: true },
@@ -51,7 +51,7 @@ export const APP_SCREENS: Record<AppScreenKey, AppScreenDefinition> = {
   caseStudy: { key: 'caseStudy', label: 'Case Study', path: '/case-study', topLevel: false, showInSidebar: false },
   skillLab: { key: 'skillLab', label: 'Skill Lab', path: '/skills', topLevel: true, showInSidebar: true },
   reports: { key: 'reports', label: 'Reports', path: '/reports', topLevel: true, showInSidebar: true },
-  jobRadar: { key: 'jobRadar', label: 'Job Radar', path: '/job-radar', topLevel: true, showInSidebar: true },
+  jobRadar: { key: 'jobRadar', label: 'Job Radar', path: '/job-radar', topLevel: false, showInSidebar: false },
   salaryCalculator: { key: 'salaryCalculator', label: 'Salary Calculator', path: '/salary-calculator', topLevel: false, showInSidebar: false },
   legalHub: { key: 'legalHub', label: 'Legal Hub', path: '/legal', topLevel: true, showInSidebar: true },
   legalSearch: { key: 'legalSearch', label: 'Legal Search', path: '/legal/search', topLevel: false, parentKey: 'legalHub', showInSidebar: false },
@@ -72,7 +72,6 @@ export const SIDEBAR_SCREEN_ORDER: AppScreenKey[] = [
   'dailyWarmup',
   'interview',
   'coach',
-  'assistant',
   'negotiation',
   'skillLab',
   'reports',
@@ -80,7 +79,6 @@ export const SIDEBAR_SCREEN_ORDER: AppScreenKey[] = [
   'communityCenter',
   'billing',
   'settings',
-  'jobRadar',
 ];
 
 export const LEGACY_ROUTE_REDIRECTS: Array<{ from: string; to: string }> = [
