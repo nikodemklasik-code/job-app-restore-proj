@@ -125,7 +125,7 @@ function ApplicationFunnel({ byStatus, total }: FunnelProps) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-white">Application Funnel</h2>
+        <h2 className="font-semibold text-white">Process Funnel Findings</h2>
         <span className="text-xs text-slate-500">{total} total</span>
       </div>
 
@@ -214,7 +214,7 @@ function ActivityTimeline({ apps }: TimelineProps) {
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
-      <h2 className="font-semibold text-white">30-Day Activity Timeline</h2>
+      <h2 className="font-semibold text-white">30-Day Process Activity</h2>
       <div className="space-y-3">
         {weeks.map((week, i) => {
           const count = counts[i];
@@ -237,7 +237,7 @@ function ActivityTimeline({ apps }: TimelineProps) {
           );
         })}
       </div>
-      <p className="text-xs text-slate-600">Based on application creation date</p>
+      <p className="text-xs text-slate-600">Recruitment process signal based on application creation date</p>
     </div>
   );
 }
@@ -268,7 +268,7 @@ function SourcePerformance({ apps }: SourcePerformanceProps) {
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-6 space-y-4">
-      <h2 className="font-semibold text-white">Job Source Performance</h2>
+      <h2 className="font-semibold text-white">Source-Level Findings</h2>
       {sorted.length === 0 ? (
         <p className="text-sm text-slate-500">No applications yet</p>
       ) : (
@@ -291,7 +291,7 @@ function SourcePerformance({ apps }: SourcePerformanceProps) {
           })}
         </div>
       )}
-      <p className="text-xs text-slate-600">Source detected from job ID prefix and notes</p>
+      <p className="text-xs text-slate-600">Source inferred from job ID prefix and notes</p>
     </div>
   );
 }
@@ -325,7 +325,7 @@ function TopCompanies({ apps }: TopCompaniesProps) {
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-      <h2 className="font-semibold text-white mb-4">Top Companies Applied To</h2>
+      <h2 className="font-semibold text-white mb-4">Company Outcome Signals</h2>
       {sorted.length === 0 ? (
         <p className="text-sm text-slate-500">No applications yet</p>
       ) : (
@@ -411,7 +411,7 @@ function DataExport({ apps, isLoading, userId }: DataExportProps) {
           <Download className="h-5 w-5 text-indigo-400" />
         </div>
         <div>
-          <h2 className="font-semibold text-white">Data Export</h2>
+          <h2 className="font-semibold text-white">Report Exports</h2>
           <p className="text-xs text-slate-400 mt-0.5">Download all your application data</p>
         </div>
       </div>
@@ -526,7 +526,7 @@ export default function ReportsHub() {
           </div>
           <h1 className="text-3xl font-bold text-white">Reports</h1>
         </div>
-        <p className="text-slate-400 ml-14">Analytics and insights across your job search campaign</p>
+        <p className="text-slate-400 ml-14">AI analysis workspace for recruitment process outputs and outcome diagnostics.</p>
       </div>
 
       {/* Loading / Error states */}
@@ -548,14 +548,14 @@ export default function ReportsHub() {
           {/* Summary stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard
-              label="Total Applications"
+              label="Analysed Applications"
               value={analytics.total}
               icon={TrendingUp}
               color="text-indigo-400"
               bg="bg-indigo-500/10"
             />
             <StatCard
-              label="Interviews"
+              label="Interview Signals"
               value={analytics.interviews}
               icon={Users}
               color="text-amber-400"
@@ -563,7 +563,7 @@ export default function ReportsHub() {
               sub={fmtConversion(analytics.applied, analytics.interviews) + ' from applied'}
             />
             <StatCard
-              label="Offers"
+              label="Offer Signals"
               value={analytics.offers}
               icon={Building2}
               color="text-emerald-400"
@@ -571,7 +571,7 @@ export default function ReportsHub() {
               sub={fmtConversion(analytics.interviews, analytics.offers) + ' from interview'}
             />
             <StatCard
-              label="Response Rate"
+              label="Process Response Rate"
               value={analytics.responseRate + '%'}
               icon={BarChart2}
               color="text-sky-400"
@@ -600,8 +600,8 @@ export default function ReportsHub() {
       {!isLoading && !hasQueryError && analytics?.total === 0 && (
         <div className="rounded-2xl border border-white/10 bg-white/5 p-12 text-center">
           <BarChart2 className="h-12 w-12 text-slate-600 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white mb-2">No data yet</h3>
-          <p className="text-slate-400 text-sm">Start applying to jobs and your analytics will appear here.</p>
+          <h3 className="text-lg font-semibold text-white mb-2">No analysis available yet</h3>
+          <p className="text-slate-400 text-sm">Send applications first, then return here for structured findings and report summaries.</p>
         </div>
       )}
 
