@@ -36,6 +36,7 @@ import { resolveActiveSettingsTab } from './settingsTabFromUrl';
 import { UserProductSettingsTab } from './UserProductSettingsTab';
 import { getPhase56ModuleTitles, getPhase56Routes } from '@/config/phase56Readiness';
 import { PHASE_9_10_READINESS } from '@/config/phase910Readiness';
+import AutoApplyPage from '@/app/autopilot/AutoApplyPage';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -62,7 +63,7 @@ const PROVIDER_PRESETS: Record<EmailProvider, ProviderPreset> = {
 // ---------------------------------------------------------------------------
 
 const QUICK_LINKS = [
-  { label: 'Community Centre', icon: Users, href: '/settings/community' },
+  { label: 'Community Centre', icon: Users, href: '/community' },
   { label: 'Security, passkeys & 2FA', icon: Shield, href: '/security' },
   { label: 'Billing & Credits', icon: CreditCard, href: '/billing' },
 ];
@@ -646,7 +647,7 @@ function SystemReadinessTab({ userId }: { userId: string }) {
   const items = [
     { label: 'Profile', value: profileScore },
     { label: 'Email Integration', value: emailScore },
-    { label: 'CV Upload', value: cvScore },
+    { label: 'Document Library', value: cvScore },
     { label: 'Job Sources', value: jobSourcesScore },
   ];
 
@@ -932,6 +933,7 @@ export default function SettingsHub() {
           <TabsTrigger value="email">Email &amp; SMTP</TabsTrigger>
           <TabsTrigger value="telegram">Telegram</TabsTrigger>
           <TabsTrigger value="sources">Job Sources</TabsTrigger>
+          <TabsTrigger value="auto-apply">Auto Apply</TabsTrigger>
           <TabsTrigger value="readiness">System Readiness</TabsTrigger>
         </TabsList>
 
@@ -1154,6 +1156,11 @@ export default function SettingsHub() {
         </TabsContent>
 
         {/* SYSTEM READINESS */}
+
+        <TabsContent value="auto-apply">
+          <AutoApplyPage />
+        </TabsContent>
+
         <TabsContent value="readiness">
           {userId ? (
             <SystemReadinessTab userId={userId} />

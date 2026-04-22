@@ -255,7 +255,7 @@ function GapAnalysisPanel({ result, targetInput }: { result: AnalysisResult; tar
       <div className="flex items-center gap-3">
         <div className="text-4xl font-black text-white">{result.score}</div>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Overall Match Score</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Capability Match Score</p>
           <div className="mt-1 h-1.5 w-40 overflow-hidden rounded-full bg-white/10">
             <div
               className="h-full rounded-full bg-gradient-to-r from-red-500 via-amber-400 to-emerald-400 transition-all"
@@ -267,7 +267,7 @@ function GapAnalysisPanel({ result, targetInput }: { result: AnalysisResult; tar
 
       {/* Tone breakdown */}
       <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Document Tone</p>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Role Language Alignment</p>
         <div className="space-y-1.5">
           {Object.entries(result.tone).map(([key, val]) => (
             <div key={key} className="flex items-center gap-2">
@@ -300,7 +300,7 @@ function GapAnalysisPanel({ result, targetInput }: { result: AnalysisResult; tar
 
       {/* Suggestions */}
       <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Recommendations</p>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Capability Recommendations</p>
         <ul className="space-y-2">
           {result.suggestions.map((s, i) => (
             <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
@@ -313,7 +313,7 @@ function GapAnalysisPanel({ result, targetInput }: { result: AnalysisResult; tar
 
       {/* Recommended training */}
       <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Recommended Training</p>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Development Resources</p>
         <div className="space-y-2">
           {result.topVerbs.slice(0, 4).map((verb) => {
             const res = resourceForVerb(verb);
@@ -432,17 +432,17 @@ export default function SkillsLab() {
           <FlaskConical className="h-6 w-6 text-indigo-400" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white">{APP_SCREENS.skills.label}</h1>
+          <h1 className="text-2xl font-bold text-white">{APP_SCREENS.skillLab.label}</h1>
           <p className="text-sm text-slate-400">
-            Profile-backed skills, AI course hints per skill, and gap analysis from your target role text.
+            Profile-backed skills, capability value signals, and skill-gap insights for your target role.
           </p>
         </div>
       </div>
 
       <div className="mvh-card-glow rounded-2xl border border-amber-500/25 bg-amber-500/5 p-5">
-        <h2 className="font-semibold text-white">CV Value Signals &amp; Market Value Signals</h2>
+        <h2 className="font-semibold text-white">Capability Value Signals &amp; Market Value</h2>
         <p className="mt-1 text-sm text-slate-400">
-          Skill Lab now highlights salary relevance: what increases your market position and what still needs proof.
+          Skill Lab focuses on capability value: what strengthens your market position and what still needs evidence.
         </p>
         <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           <div className="mvh-card-glow rounded-xl border border-white/10 bg-white/5 p-4">
@@ -489,9 +489,9 @@ export default function SkillsLab() {
               <TrendingUp className="h-5 w-5 text-indigo-300" />
             </div>
             <div>
-              <h2 className="font-semibold text-white">CV Score &amp; Valuation</h2>
+              <h2 className="font-semibold text-white">Capability Evidence Workspace</h2>
               <p className="text-sm text-slate-400">
-                Run an AI-backed CV score on uploaded documents in Document Lab; use Build for style analysis. Skill Lab focuses on skills and gap analysis from job text.
+                Use Document Hub for document analysis outputs. Skill Lab stays focused on skills, capability evidence, and growth planning from target-role context.
               </p>
             </div>
           </div>
@@ -708,7 +708,7 @@ export default function SkillsLab() {
               ) : (
                 <>
                   <FlaskConical className="h-4 w-4" />
-                  Analyse Gap
+                  Analyse Skill Gap
                 </>
               )}
             </button>
@@ -726,10 +726,10 @@ export default function SkillsLab() {
           ) : (
             <div className="mvh-card-glow flex flex-col items-center gap-3 rounded-xl border border-dashed border-white/10 py-12 text-center">
               <FlaskConical className="h-10 w-10 text-slate-700" />
-              <p className="text-sm font-medium text-slate-500">No analysis yet</p>
+              <p className="text-sm font-medium text-slate-500">No skill-gap insight yet</p>
               <p className="max-w-xs text-xs text-slate-600">
                 Enter a job title or paste a full job description above, then click{' '}
-                <span className="text-indigo-400">"Analyse Gap"</span> to see required skills, gaps, and
+                <span className="text-indigo-400">"Analyse Skill Gap"</span> to see required skills, gaps, and
                 recommended training resources.
               </p>
             </div>
