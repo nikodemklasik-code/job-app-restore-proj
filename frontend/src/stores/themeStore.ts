@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-/** All colour themes; CSS tokens live in `index.css` (`.theme-*` + `dark`). */
+/** Wszystkie dostępne motywy kolorystyczne */
 export const THEME_IDS = [
   'dark',
   'light',
@@ -13,29 +13,30 @@ export const THEME_IDS = [
 
 export type ThemeId = (typeof THEME_IDS)[number];
 
-/** @deprecated use ThemeId */
+/** @deprecated Używaj `ThemeId` */
 export type Theme = ThemeId;
 
+/** Gotowe opcje do wyboru w UI */
 export const THEME_CHOICES: { id: ThemeId; label: string; hint: string }[] = [
-  { id: 'dark', label: 'Dark', hint: 'Deep navy with blue accents — default look.' },
-  { id: 'light', label: 'Light', hint: 'Light surfaces for daytime use.' },
+  { id: 'dark', label: 'Dark', hint: 'Głęboki granat z niebieskimi akcentami — domyślny wygląd.' },
+  { id: 'light', label: 'Light', hint: 'Jasny motyw na dzień.' },
   {
     id: 'visually-impaired',
     label: 'High Contrast',
-    hint: 'Yellow on black, larger controls — maximum contrast.',
+    hint: 'Żółty na czarnym, duże elementy — maksymalny kontrast.',
   },
   {
     id: 'overstimulated',
     label: 'Calm',
-    hint: 'Warm stone palette; softer motion in the theme layer.',
+    hint: 'Ciepła paleta kamieni; delikatniejsze animacje.',
   },
   {
     id: 'gray-safe',
     label: 'Gray Safe',
-    hint: 'Cool neutrals, low saturation, strong borders — gentle on eyes and colour perception.',
+    hint: 'Chłodne neutrale, niska saturacja, wyraźne obramowania.',
   },
-  { id: 'noir', label: 'Noir', hint: 'Cinematic black & white, sharp geometry.' },
-  { id: 'elegant', label: 'Elegant', hint: 'Cream, charcoal, muted gold accents.' },
+  { id: 'noir', label: 'Noir', hint: 'Filmowy czarno-biały, ostre geometryczne kształty.' },
+  { id: 'elegant', label: 'Elegant', hint: 'Krem, grafit, stonowane złoto.' },
 ];
 
 const THEME_CLASSES = [
@@ -46,10 +47,12 @@ const THEME_CLASSES = [
   'theme-elegant',
 ] as const;
 
-/** Applies theme classes on `<html>`. Call on init and whenever the user switches theme. */
+/** Nakłada klasy motywu na `<html>` */
 export function applyThemeToDocument(theme: ThemeId): void {
   const root = document.documentElement;
-  for (const c of THEME_CLASSES) root.classList.remove(c);
+
+  // Usuwamy wszystkie dodatkowe klasy tematyczne
+  THEME_CLASSES.forEach((c) => root.classList.remove(c));
   root.classList.remove('dark');
 
   switch (theme) {
@@ -57,6 +60,7 @@ export function applyThemeToDocument(theme: ThemeId): void {
       root.classList.add('dark');
       break;
     case 'light':
+      // light = brak dark + brak theme-*
       break;
     case 'visually-impaired':
       root.classList.add('theme-visually-impaired');
@@ -77,7 +81,9 @@ export function applyThemeToDocument(theme: ThemeId): void {
 }
 
 function resolveSaved(raw: string | null): ThemeId {
-  if (raw && (THEME_IDS as readonly string[]).includes(raw)) return raw as ThemeId;
+  if (raw && (THEME_IDS as readonly string[]).includes(raw)) {
+    return raw as ThemeId;
+  }
   return 'dark';
 }
 
@@ -107,6 +113,7 @@ export const useThemeStore = create<ThemeStore>((set) => ({
   initTheme: () => {
     const saved = resolveSaved(localStorage.getItem('theme'));
     const savedFocusMode = localStorage.getItem('focusMode') === '1';
+
     set({ theme: saved, focusMode: savedFocusMode });
     applyThemeToDocument(saved);
   },
