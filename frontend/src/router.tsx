@@ -33,7 +33,6 @@ const CoachPage = lazy(() => import('./app/coach/CoachPage'));
 const FAQPage = lazy(() => import('./app/faq/FAQPage'));
 const DocumentLab = lazy(() => import('./app/documents/DocumentLab'));
 const CasePracticePage = lazy(() => import('./app/case-practice/CasePracticePage'));
-const CommunityCentrePage = lazy(() => import('./app/community/CommunityCentrePage'));
 
 const PageLoader = () => (
   <div className="flex h-full items-center justify-center py-24">
@@ -104,16 +103,15 @@ export const router = createBrowserRouter([
       { path: APP_SCREENS.coach.path.slice(1), element: withSuspense(CoachPage) },
       { path: APP_SCREENS.negotiation.path.slice(1), element: withSuspense(NegotiationPage) },
       { path: APP_SCREENS.caseStudy.path.slice(1), element: withSuspense(CasePracticePage) },
-      { path: APP_SCREENS.skillLab.path.slice(1), element: withSuspense(SkillsLab) },
+      { path: APP_SCREENS.skills.path.slice(1), element: withSuspense(SkillsLab) },
       { path: APP_SCREENS.reports.path.slice(1), element: withSuspense(ReportsHub) },
       { path: APP_SCREENS.jobRadar.path.slice(1), element: <Navigate to={APP_SCREENS.jobs.path} replace /> },
       { path: 'job-radar/scan/:scanId', element: withSuspense(JobRadarScanPage) },
       { path: 'job-radar/report/:reportId', element: withSuspense(JobRadarReportPage) },
       { path: 'job-radar/admin/complaints', element: withSuspense(JobRadarAdminComplaintsPage) },
       { path: APP_SCREENS.salaryCalculator.path.slice(1), element: withSuspense(UKSalaryCalculator) },
-      { path: APP_SCREENS.legalHub.path.slice(1), element: withSuspense(LegalHub) },
+      { path: APP_SCREENS.legal.path.slice(1), element: withSuspense(LegalHub) },
       { path: APP_SCREENS.legalSearch.path.slice(1), element: <Navigate to="/legal#legal-search" replace /> },
-      { path: APP_SCREENS.communityCenter.path.slice(1), element: withSuspense(CommunityCentrePage) },
       { path: APP_SCREENS.settings.path.slice(1), element: withSuspense(SettingsHub) },
       { path: APP_SCREENS.autoApply.path.slice(1), element: <Navigate to="/settings?tab=auto-apply" replace /> },
       { path: APP_SCREENS.billing.path.slice(1), element: withSuspense(BillingPage) },

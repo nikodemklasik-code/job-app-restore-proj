@@ -1,0 +1,5 @@
+AGENT_1|IMPLEMENTING|Backend runtime hardening|NONE
+AGENT_2|IMPLEMENTING|Job Radar bounded parity|NONE
+AGENT_3|IMPLEMENTING|Legacy interview billing parity|NONE
+PRODUCT_OWNER|IMPLEMENTING|Keep board and dashboard current|NONE
+QC|REVIEWING|Review reports or scan repo risks|NONE

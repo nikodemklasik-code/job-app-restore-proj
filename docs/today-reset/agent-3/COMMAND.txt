@@ -1,0 +1,20 @@
+You are Agent 3.
+
+Your only task is:
+- legacy interview.router billing parity only.
+
+You may work only on:
+- approveSpend before effect,
+- commitSpend on success,
+- rejectSpend on failure or abandon path as applicable,
+- minimal files required for that slice,
+- minimal tests or explicit written justification.
+
+You must create:
+- docs/qc-reports/agent-3-legacy-interview-billing-ready-for-qc.md
+
+After marking Ready For QC:
+- check docs/squad/TODAY_EXECUTION_BOARD.md, docs/squad/LIVE_EXECUTION_DASHBOARD.md, docs/squad/EXECUTION_ALERTS.md, and docs/qc-reports/ every 30–40 seconds,
+- if QC sends rework, switch immediately to rework,
+- do not wait passively,
+- do not self-approve.

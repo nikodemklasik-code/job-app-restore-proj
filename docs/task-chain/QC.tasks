@@ -1,0 +1,8 @@
+ROLE=QC
+PREVIOUS_TASK=Repo sweep with no fresh intake
+CURRENT_TASK=Review 3 READY_FOR_QC slices: Agent 1, Agent 2, Agent 3
+NEXT_TASK=Return verdicts and then monitor tranche 2 intake
+AUTO_ADVANCE_FROM=MONITORING
+AUTO_ADVANCE_TO=REVIEWING
+AUTO_ADVANCE_CONDITION=ANY_READY_FOR_QC_EXISTS
+NEXT_REPORT=docs/qc-reports/qc-verdict-tranche-1-runtime-jobradar-legacy-2026-04-19.md

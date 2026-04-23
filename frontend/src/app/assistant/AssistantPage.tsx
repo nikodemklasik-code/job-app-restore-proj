@@ -11,20 +11,41 @@ import { useCareerAssistantStore } from '@/stores/careerAssistantStore';
 import type { AssistantResponseMeta } from '../../../../shared/assistant';
 import { SupportingMaterialsDisclaimer } from '@/components/SupportingMaterialsDisclaimer';
 
-import { fetchBlob, postForm } from '@/lib/apiClient';
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
+
+async function parseJsonSafely<T>(res: Response): Promise<T | null> {
+  const raw = await res.text();
+  if (!raw || raw.startsWith('<!DOCTYPE') || raw.startsWith('<html')) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
 
 async function transcribeAudio(blob: Blob): Promise<string> {
   try {
     const form = new FormData();
     form.append('audio', blob, 'audio.webm');
-    const data = await postForm<{ transcript?: string }>(`/api/interview/transcribe`, form);
-    return data.transcript ?? '';
+    const res = await fetch(`${API_BASE}/api/interview/transcribe`, {
+      method: 'POST', body: form, credentials: 'include',
+    });
+    if (!res.ok) return '';
+    const data = await parseJsonSafely<{ transcript?: string }>(res);
+    return data?.transcript ?? '';
   } catch { return ''; }
 }
 
 async function speakText(text: string): Promise<void> {
   try {
-    const blob = await fetchBlob('/api/interview/tts', { text: text.slice(0, 500) });
+    const res = await fetch(`${API_BASE}/api/interview/tts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text.slice(0, 500) }),
+      credentials: 'include',
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     await new Promise<void>((resolve) => {
       const audio = new Audio(url);

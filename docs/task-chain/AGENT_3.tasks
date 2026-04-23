@@ -1,0 +1,8 @@
+ROLE=AGENT_3
+PREVIOUS_TASK=Legacy interview billing parity
+CURRENT_TASK=QC intake for legacy interview billing RFQ
+NEXT_TASK=Legacy interview followups acknowledgement after QC verdict
+AUTO_ADVANCE_FROM=READY_FOR_QC
+AUTO_ADVANCE_TO=ASSIGNED
+AUTO_ADVANCE_CONDITION=QC_VERDICT_PRESENT
+NEXT_REPORT=docs/qc-reports/agent-3-legacy-interview-followups-ack-ready-for-qc.md

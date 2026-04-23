@@ -391,11 +391,11 @@ export default function DailyWarmupPage() {
               eyebrow={
                 <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-orange-200">
                   <Flame className="h-3.5 w-3.5" />
-                  Daily readiness routine
+                  Daily training
                 </div>
               }
               title="Daily Warmup"
-              description="Build a quick, repeatable daily habit: a free 15-second spark, or longer 30–60 second runs for structured readiness reps. Finish any run to keep your streak. GPT-4o powers scoring and tips."
+              description="Pick a length that fits your day: a free 15-second spark, or longer runs that use 1–3 AI credits for more room to practice. Build a streak with any session you finish. GPT-4o powers scoring and tips."
             />
             <div className="flex shrink-0 flex-col items-stretch gap-3 sm:items-end">
               <PracticeProgressBadge
@@ -534,7 +534,7 @@ export default function DailyWarmupPage() {
             <Flame style={{ width: 20, height: 20, color: '#fff' }} />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">Today&apos;s warmup routine</h1>
+            <h1 className="text-xl font-bold text-white">Today&apos;s run</h1>
             <p className="text-xs text-slate-400">
               {tier?.title ?? 'Warmup'} · {answerSeconds}s to answer
             </p>

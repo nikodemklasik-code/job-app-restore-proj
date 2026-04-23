@@ -13,13 +13,12 @@ export type AppScreenKey =
   | 'coach'
   | 'negotiation'
   | 'caseStudy'
-  | 'skillLab'
+  | 'skills'
   | 'reports'
   | 'jobRadar'
   | 'salaryCalculator'
-  | 'legalHub'
+  | 'legal'
   | 'legalSearch'
-  | 'communityCenter'
   | 'settings'
   | 'autoApply'
   | 'billing'
@@ -49,13 +48,12 @@ export const APP_SCREENS: Record<AppScreenKey, AppScreenDefinition> = {
   coach: { key: 'coach', label: 'Coach', path: '/coach', topLevel: true, showInSidebar: true },
   negotiation: { key: 'negotiation', label: 'Negotiation', path: '/negotiation', topLevel: true, showInSidebar: true },
   caseStudy: { key: 'caseStudy', label: 'Case Study', path: '/case-study', topLevel: false, showInSidebar: false },
-  skillLab: { key: 'skillLab', label: 'Skill Lab', path: '/skills', topLevel: true, showInSidebar: true },
+  skills: { key: 'skills', label: 'Skill Lab', path: '/skills', topLevel: true, showInSidebar: true },
   reports: { key: 'reports', label: 'Reports', path: '/reports', topLevel: true, showInSidebar: true },
   jobRadar: { key: 'jobRadar', label: 'Job Radar', path: '/job-radar', topLevel: false, showInSidebar: false },
   salaryCalculator: { key: 'salaryCalculator', label: 'Salary Calculator', path: '/salary-calculator', topLevel: false, showInSidebar: false },
-  legalHub: { key: 'legalHub', label: 'Legal Hub', path: '/legal', topLevel: true, showInSidebar: true },
-  legalSearch: { key: 'legalSearch', label: 'Legal Search', path: '/legal/search', topLevel: false, parentKey: 'legalHub', showInSidebar: false },
-  communityCenter: { key: 'communityCenter', label: 'Community Centre', path: '/community', topLevel: true, showInSidebar: true },
+  legal: { key: 'legal', label: 'Legal Hub', path: '/legal', topLevel: true, showInSidebar: true },
+  legalSearch: { key: 'legalSearch', label: 'Legal Search', path: '/legal/search', topLevel: false, parentKey: 'legal', showInSidebar: false },
   settings: { key: 'settings', label: 'Settings', path: '/settings', topLevel: true, showInSidebar: true },
   autoApply: { key: 'autoApply', label: 'Auto Apply', path: '/settings/auto-apply', topLevel: false, parentKey: 'settings', showInSidebar: false },
   billing: { key: 'billing', label: 'Billing', path: '/billing', topLevel: true, showInSidebar: true },
@@ -73,10 +71,9 @@ export const SIDEBAR_SCREEN_ORDER: AppScreenKey[] = [
   'interview',
   'coach',
   'negotiation',
-  'skillLab',
+  'skills',
   'reports',
-  'legalHub',
-  'communityCenter',
+  'legal',
   'billing',
   'settings',
 ];

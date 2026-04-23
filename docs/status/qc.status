@@ -1,0 +1,9 @@
+ROLE=QC
+STATE=MONITORING
+TASK=Agent 1 dashboard intake reviewed; Agent 2 next when RFQ peaks
+REPORT=docs/qc-reports/qc-verdict-agent-1-dashboard-aggregate-snapshot-2026-04-19.md
+VERDICT=Agent1_dashboard_snapshot:Rework Required
+UPDATED_AT=2026-04-19 06:05:30
+LAST_PROGRESS_AT=2026-04-19 06:05:30
+NOTES=Śledzenie A1: status REWORK_REQUIRED; powód nazwany w QC_REPORT.
+PROGRESS=80

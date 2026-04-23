@@ -19,15 +19,3 @@ android/
 .env.local
 .env.production
 .deploy-token-hash
-# AI Agents & Automation State
-tmp/
-.harmony-debug/
-docs/status-snapshots/
-docs/status-history/
-docs/status/
-docs/task-chain/
-docs/today-reset/
-*.snapshot
-*.tasks
-*.status
-*.prev.md

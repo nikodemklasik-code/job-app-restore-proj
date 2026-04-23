@@ -2,7 +2,6 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { api, trpcClient } from '@/lib/api';
-import { fetchBlob, fetchStream, postForm } from '@/lib/apiClient';
 import { Mic, MicOff, PhoneOff, RefreshCw, Briefcase, Video, VideoOff, ChevronDown, ChevronUp, TrendingUp, FileDown, StickyNote, Star, Zap, Lock } from 'lucide-react';
 import { interviewModeLabels } from '../../../../shared/interview';
 import type { InterviewMode } from '../../../../shared/interview';
@@ -118,6 +117,17 @@ interface TurnFeedback {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
+
+async function parseJsonSafely<T>(res: Response): Promise<T | null> {
+  const raw = await res.text();
+  if (!raw || raw.startsWith('<!DOCTYPE') || raw.startsWith('<html')) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
 const MAX_EXCHANGES = 8;
 
 // ─── Live Interview Summary type ──────────────────────────────────────────────
@@ -243,7 +253,12 @@ async function streamAIResponse(
   userId?: string,
   mode?: string,
 ): Promise<string> {
-  const response = await fetchStream('/api/interview/stream', { messages, job, userId: userId ?? undefined, mode });
+  const response = await fetch(`${API_BASE}/api/interview/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages, job, userId: userId ?? undefined, mode }),
+    credentials: 'include',
+  });
   if (!response.ok || !response.body) throw new Error(`Stream error ${response.status}`);
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -278,7 +293,14 @@ async function streamAIResponse(
 
 async function playTTS(text: string): Promise<void> {
   try {
-    const blob = await fetchBlob('/api/interview/tts', { text });
+    const response = await fetch(`${API_BASE}/api/interview/tts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+      credentials: 'include',
+    });
+    if (!response.ok) return;
+    const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     return new Promise((resolve) => {
       const audio = new Audio(url);
@@ -295,8 +317,14 @@ async function transcribeAudio(blob: Blob): Promise<string> {
   try {
     const form = new FormData();
     form.append('audio', blob, 'audio.webm');
-    const json = await postForm<{ transcript?: string }>('/api/interview/transcribe', form);
-    return json.transcript ?? '';
+    const res = await fetch(`${API_BASE}/api/interview/transcribe`, {
+      method: 'POST',
+      body: form,
+      credentials: 'include',
+    });
+    if (!res.ok) return '';
+    const json = await parseJsonSafely<{ transcript?: string }>(res);
+    return json?.transcript ?? '';
   } catch {
     return '';
   }
@@ -1061,8 +1089,8 @@ export default function InterviewPractice() {
                 <Briefcase style={{ width: 22, height: 22, color: '#fff' }} />
               </div>
               <div>
-                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Interview Practice</h1>
-                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Run dedicated interview sessions and get structured interview feedback.</p>
+                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>AI Interview Coach</h1>
+                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Share your answers — get structured coaching reports</p>
                 <p style={{ fontSize: 12, color: '#94a3b8', margin: '6px 0 0', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', boxShadow: '0 0 6px #34d399' }} />
                   GPT-4o · online
@@ -1106,7 +1134,7 @@ export default function InterviewPractice() {
             <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
               <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 8 }}>WHERE TO PICK INTERVIEW STYLE</p>
               <p style={{ fontSize: 12, color: '#94a3b8', margin: 0, lineHeight: 1.55 }}>
-                This page is the <strong style={{ color: '#e2e8f0' }}>dedicated voice interview practice area</strong> (use <strong style={{ color: '#e2e8f0' }}>Live Interview</strong> vs <strong style={{ color: '#e2e8f0' }}>Feedback Mode</strong> below). There is no behavioural/technical mode menu here — the voice session uses a fixed behavioural-style interviewer prompt in code.
+                This page is the <strong style={{ color: '#e2e8f0' }}>voice mock interview</strong> (use <strong style={{ color: '#e2e8f0' }}>Live Interview</strong> vs <strong style={{ color: '#e2e8f0' }}>Coaching Mode</strong> below). There is no behavioural/technical mode menu here — the voice session uses a fixed behavioural-style interviewer prompt in code.
               </p>
               <ul style={{ margin: '10px 0 0', paddingLeft: 18, fontSize: 12, color: '#94a3b8', lineHeight: 1.55 }}>
                 <li>

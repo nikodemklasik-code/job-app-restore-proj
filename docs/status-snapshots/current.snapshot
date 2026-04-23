@@ -1,0 +1,5 @@
+AGENT_1|READY_FOR_QC|Backend runtime hardening||2026-04-19T02:43:19Z
+AGENT_2|READY_FOR_QC|Job Radar bounded parity||2026-04-19T02:43:19Z
+AGENT_3|READY_FOR_QC|Legacy interview billing parity||2026-04-19T01:42:34Z
+PRODUCT_OWNER|ACTIVE|Drive QC intake and assign tranche 2 after verdicts||2026-04-19T02:50:00Z
+QC|REVIEWING|Review three READY_FOR_QC bounded slices||2026-04-19T02:50:00Z

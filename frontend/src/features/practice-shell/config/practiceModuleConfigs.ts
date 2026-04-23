@@ -34,7 +34,7 @@ export const PRACTICE_MODULE_CONFIGS: Record<PracticePageConfig['module'], Pract
   },
   negotiation: {
     module: 'negotiation',
-    hero: { eyebrow: 'Offer strategy', title: 'Negotiations', subtitle: 'Salary and terms strategy with simulation mode.' },
+    hero: { eyebrow: 'Offer strategy', title: 'Negotiation', subtitle: 'Salary and terms strategy with simulation mode.' },
     modes: [
       { id: 'strategy', title: 'Strategy', description: 'Draft negotiation responses', cost: { type: 'fixed', label: 'Fixed cost', credits: 3 }, recommended: true },
       { id: 'simulator', title: 'Simulation', description: 'Live back-and-forth simulation', cost: { type: 'estimated', label: 'Estimated spend', credits: null, estimatedMin: 5, estimatedMax: 12, approvalRule: { maxCostWithoutFurtherApproval: 9, requiresApproval: true } } },
