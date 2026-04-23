@@ -25,7 +25,6 @@ const CookiesPage = lazy(() => import('./app/legal/CookiesPage'));
 const ReportsHub = lazy(() => import('./app/reports/ReportsHub'));
 const SkillsLab = lazy(() => import('./app/skills/SkillsLab'));
 const NegotiationPage = lazy(() => import('./app/negotiation/NegotiationPage'));
-const JobRadar = lazy(() => import('./app/radar/JobRadar'));
 const JobRadarLandingPage = lazy(() => import('./app/job-radar/JobRadarLandingPage'));
 const JobRadarReportPage = lazy(() => import('./app/job-radar/JobRadarReportPage'));
 const JobRadarScanPage = lazy(() => import('./app/job-radar/JobRadarScanPage'));
@@ -126,7 +125,6 @@ export const router = createBrowserRouter([
         element: <Navigate to={to} replace />,
       })),
       { path: 'security', element: withSuspense(SecurityPage) },
-      { path: 'radar', element: withSuspense(JobRadar) },
     ],
   },
 ]);
