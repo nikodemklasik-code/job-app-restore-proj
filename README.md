@@ -17,16 +17,6 @@ Product monorepo for the MultiVO Hub Job App.
    npm run dev
    ```
 
-### Quick verification
-
-After bootstrapping, you can run these checks before starting work:
-
-```bash
-npm run test:backend
-npm run test:frontend
-npm run smoke:local
-```
-
 Default local URLs:
 - Frontend: `http://localhost:5173`
 - Backend: `http://localhost:3001`
