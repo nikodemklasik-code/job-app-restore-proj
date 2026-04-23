@@ -15,19 +15,19 @@ const FAQ_ITEMS: FaqItem[] = [
     category: 'Getting Started',
     question: 'How do I get started?',
     answer:
-      "Go to CV Studio (Profile page) and upload your CV as a PDF. The AI will parse it and auto-fill your profile. Once your profile is set up, you can start browsing jobs and get personalised fit scores.",
+      "Go to Document Hub and upload your CV as a PDF. The AI parses it and fills your profile context. Once set up, you can browse jobs and get personalised fit scores.",
   },
   {
     category: 'Getting Started',
-    question: 'What is CV Studio?',
+    question: 'What is Document Hub?',
     answer:
-      "CV Studio is your document hub. Upload your CV to auto-fill your profile, generate a formatted CV PDF, and prepare cover letters. It's the foundation that powers your job matching and AI tools.",
+      "Document Hub is the canonical document workspace. Upload files there to auto-fill profile context, generate CV/cover-letter outputs, and support job matching.",
   },
   {
     category: 'Getting Started',
     question: 'Do I need to fill in my profile manually?',
     answer:
-      'No. Upload your existing CV as a PDF and click "Import to Profile". The AI extracts your experience, education, skills, and contact info automatically. You can then review and edit any field.',
+      'No. Upload your existing CV as a PDF in Document Hub and import it to profile context. The AI extracts experience, education, skills, and contact info automatically.',
   },
 
   // Jobs & Applications
@@ -61,7 +61,7 @@ const FAQ_ITEMS: FaqItem[] = [
     category: 'AI Features',
     question: 'What AI features are available?',
     answer:
-      'MultivoHub includes: AI Assistant (career Q&A), Interview (6-mode practice with STAR detection), Daily Warmup, Style Studio (CV and cover letter rewriting), CV tools on the Profile page, Negotiation Coach, Skills Lab, Coach, and Job Radar. All AI features use your profile data for personalised results where you use them.',
+      'MultivoHub includes: AI Assistant (career Q&A), Interview, Daily Warmup, Document Hub (intake + document generation), Negotiation, Skills Lab, Coach, Reports, and Job Radar. AI features use your saved profile/document context where relevant.',
   },
   {
     category: 'AI Features',
@@ -79,7 +79,7 @@ const FAQ_ITEMS: FaqItem[] = [
     category: 'AI Features',
     question: 'What is Style Studio?',
     answer:
-      'Style Studio analyses your CV or cover letter, suggests improvements, rewrites sections to sound more professional, and can generate a complete document from a job description. It also recommends courses to fill skill gaps.',
+      'Document Hub analyses your CV or cover letter, suggests improvements, rewrites sections, and can generate complete documents from a job description.',
   },
 
   // Privacy & Security
@@ -99,7 +99,7 @@ const FAQ_ITEMS: FaqItem[] = [
     category: 'Privacy & Security',
     question: 'Can I delete my data?',
     answer:
-      'Yes. You can edit or remove profile and CV content from the Profile page. Export application records from Reports (JSON/CSV). For full account erasure and formal data-subject requests under UK GDPR, email privacy@multivohub.com from your registered address — see the Privacy Policy for timelines and retention.',
+      'Yes. You can edit profile details in Profile and manage uploaded documents in Document Hub. Export application records from Reports (JSON/CSV).',
   },
 
   // Billing & Plans
@@ -119,9 +119,9 @@ const FAQ_ITEMS: FaqItem[] = [
   // Technical
   {
     category: 'Technical',
-    question: 'What file format does CV Studio accept?',
+    question: 'What file format does Document Hub accept?',
     answer:
-      'CV Studio accepts PDF files only. For best results, use a text-based PDF (not a scanned image). If your CV is in Word format, save it as PDF first.',
+      'Document Hub accepts PDF files only. For best results, use a text-based PDF (not a scanned image). If your CV is in Word format, save as PDF first.',
   },
   {
     category: 'Technical',

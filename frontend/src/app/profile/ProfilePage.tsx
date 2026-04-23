@@ -320,7 +320,7 @@ export default function ProfilePage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-white">Profile</h1>
-        <p className="mt-1 text-slate-400">Edit your details here. Upload CVs and documents in Document Lab — not on this page.</p>
+        <p className="mt-1 text-slate-400">Edit your details here. Upload/import/parse documents in Document Hub — not on this page.</p>
       </div>
 
       {/* Error Banner */}
@@ -361,7 +361,7 @@ export default function ProfilePage() {
               </div>
               <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2">
                 <p className="text-[10px] uppercase text-slate-500">Next step</p>
-                <p className="mt-0.5">Quantify outcomes in your top roles, then refresh CV in Document Lab.</p>
+                <p className="mt-0.5">Quantify outcomes in your top roles, then refresh profile materials in Document Hub.</p>
               </div>
             </div>
           </div>
@@ -369,7 +369,7 @@ export default function ProfilePage() {
             <p className="text-xs font-semibold tracking-wide text-emerald-300">Roadmap</p>
             <ol className="space-y-2 text-xs text-slate-300 list-decimal list-inside">
               <li>Strengthen profile evidence (experience + skills).</li>
-              <li>Align CV and applications with target role keywords.</li>
+              <li>Align your application materials with target role keywords.</li>
               <li>Practice interviews and negotiation scenarios.</li>
               <li>Track offers and salary positioning over time.</li>
             </ol>
@@ -427,10 +427,6 @@ export default function ProfilePage() {
             <div className="space-y-2">
               <label htmlFor="linkedinUrl" className="block text-xs text-slate-400">LinkedIn URL</label>
               <input id="linkedinUrl" type="url" value={form.linkedinUrl} onChange={(e) => setForm({ ...form, linkedinUrl: e.target.value })} placeholder="https://linkedin.com/in/yourname" className={inputCls} />
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="cvUrl" className="block text-xs text-slate-400">CV URL</label>
-              <input id="cvUrl" type="url" value={form.cvUrl} onChange={(e) => setForm({ ...form, cvUrl: e.target.value })} placeholder="https://drive.google.com/..." className={inputCls} />
             </div>
           </div>
           <div className="space-y-2 flex flex-col min-h-[12rem]">
@@ -781,9 +777,9 @@ export default function ProfilePage() {
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm">
         <p className="text-slate-400">
-          <span className="text-slate-200">CV and documents</span> — upload and parse in{' '}
+          <span className="text-slate-200">Application materials and documents</span> — upload and parse in{' '}
           <Link to="/documents" className="font-medium text-indigo-400 hover:text-indigo-300">
-            Document Lab
+            Document Hub
           </Link>
           , not on this page.
         </p>
@@ -795,11 +791,11 @@ export default function ProfilePage() {
             className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-400 transition hover:bg-emerald-500/20 disabled:opacity-60"
           >
             {downloadCvMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-            Download CV PDF
+            Download profile PDF
           </button>
         )}
       </div>
-      {downloadCvMutation.isError && <p className="text-sm text-red-400">CV download failed. Please try again.</p>}
+      {downloadCvMutation.isError && <p className="text-sm text-red-400">Profile PDF download failed. Please try again.</p>}
     </div>
   );
 }

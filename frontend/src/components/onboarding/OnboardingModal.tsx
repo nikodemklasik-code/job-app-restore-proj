@@ -120,13 +120,13 @@ const STEPS: Step[] = [
   },
   {
     icon: User,
-    title: 'Step 1 — Set up your CV Studio',
+    title: 'Step 1 — Set up Document Hub',
     description:
-      "Upload your CV (PDF) and we'll auto-fill your profile. Your data powers CV generation, cover letters, and job matching.",
+      "Upload your CV/documents in Document Hub and we'll auto-fill your profile context. This powers document generation, applications, and job matching.",
     aiTip:
-      'The more complete your CV Studio is, the better your job match scores. Even a rough CV is fine — you can refine it later in the editor.',
-    cta: 'Go to CV Studio',
-    route: '/profile',
+      'Document Hub is the canonical intake workspace. Keep your latest files there first, then continue with generation and applications.',
+    cta: 'Open Document Hub',
+    route: '/documents?tab=upload',
   },
   {
     icon: Search,
@@ -175,7 +175,7 @@ export const ONBOARDING_STEP_COUNT = STEPS.length;
 function stepCtaIcon(stepIndex: number, isLast: boolean) {
   if (isLast) return CheckCircle;
   const s = STEPS[stepIndex];
-  if (s.route === '/profile') return FileText;
+  if (s.route === '/documents?tab=upload') return FileText;
   if (s.route === '/jobs') return Search;
   if (s.route === '/applications/board') return LayoutGrid;
   if (s.route === '/interview') return Mic;
@@ -402,7 +402,7 @@ export default function OnboardingModal({ step, onStepChange, onMinimize, onFull
               persistOnboardingSessionMinimized(safeStep);
               onMinimize();
             }}
-            title="Minimize and keep working (e.g. upload a document)"
+            title="Minimize and keep working (e.g. continue in Document Hub)"
             aria-label="Minimize onboarding"
             className="flex h-7 w-7 items-center justify-center rounded-full text-slate-500 transition hover:bg-white/10 hover:text-slate-300"
           >
