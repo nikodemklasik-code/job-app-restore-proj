@@ -15,19 +15,19 @@ const FAQ_ITEMS: FaqItem[] = [
     category: 'Getting Started',
     question: 'How do I get started?',
     answer:
-      "Go to CV Studio (Profile page) and upload your CV as a PDF. The AI will parse it and auto-fill your profile. Once your profile is set up, you can start browsing jobs and get personalised fit scores.",
+      "Start in Document Hub and add your first document there. Then use Import to Profile so your saved profile powers job matching and AI workflows.",
   },
   {
     category: 'Getting Started',
-    question: 'What is CV Studio?',
+    question: 'What is Document Hub?',
     answer:
-      "CV Studio is your document hub. Upload your CV to auto-fill your profile, generate a formatted CV PDF, and prepare cover letters. It's the foundation that powers your job matching and AI tools.",
+      "Document Hub is the single document workspace. Manage uploads, import profile-ready data, and continue in Build for document quality improvements and generation workflows.",
   },
   {
     category: 'Getting Started',
     question: 'Do I need to fill in my profile manually?',
     answer:
-      'No. Upload your existing CV as a PDF and click "Import to Profile". The AI extracts your experience, education, skills, and contact info automatically. You can then review and edit any field.',
+      'Not always. You can import extracted document data from Document Hub, then review and edit profile fields before applying.',
   },
 
   // Jobs & Applications
@@ -61,7 +61,7 @@ const FAQ_ITEMS: FaqItem[] = [
     category: 'AI Features',
     question: 'What AI features are available?',
     answer:
-      'MultivoHub includes: AI Assistant (career Q&A), Interview (6-mode practice with STAR detection), Daily Warmup, Style Studio (CV and cover letter rewriting), CV tools on the Profile page, Negotiation Coach, Skills Lab, Coach, and Job Radar. All AI features use your profile data for personalised results where you use them.',
+      'MultivoHub includes: AI Assistant (career Q&A), Interview (6-mode practice with STAR detection), Daily Warmup, Style Studio (CV and cover letter rewriting), Document Hub for document intake and management, Negotiation Coach, Skills Lab, Coach, and Job Radar. All AI features use your profile data for personalised results where you use them.',
   },
   {
     category: 'AI Features',
@@ -99,7 +99,7 @@ const FAQ_ITEMS: FaqItem[] = [
     category: 'Privacy & Security',
     question: 'Can I delete my data?',
     answer:
-      'Yes. You can edit or remove profile and CV content from the Profile page. Export application records from Reports (JSON/CSV). For full account erasure and formal data-subject requests under UK GDPR, email privacy@multivohub.com from your registered address — see the Privacy Policy for timelines and retention.',
+      'Yes. You can edit profile content in Profile and manage documents in Document Hub. Export application records from Reports (JSON/CSV). For full account erasure and formal data-subject requests under UK GDPR, email privacy@multivohub.com from your registered address — see the Privacy Policy for timelines and retention.',
   },
 
   // Billing & Plans
@@ -107,7 +107,7 @@ const FAQ_ITEMS: FaqItem[] = [
     category: 'Billing & Plans',
     question: 'What is included in the free plan?',
     answer:
-      'The free plan includes limited job searches, basic CV and profile tools, and a lower monthly AI allowance. Upgrade to Pro or Autopilot from the Billing page for higher AI limits and access to paid-only features (exact entitlements are shown in-app and may change).',
+      'The free plan includes limited job searches, basic profile and document tools, and a lower monthly AI allowance. Upgrade to Pro or Autopilot from the Billing page for higher AI limits and access to paid-only features (exact entitlements are shown in-app and may change).',
   },
   {
     category: 'Billing & Plans',
@@ -119,9 +119,9 @@ const FAQ_ITEMS: FaqItem[] = [
   // Technical
   {
     category: 'Technical',
-    question: 'What file format does CV Studio accept?',
+    question: 'What file format does Document Hub accept?',
     answer:
-      'CV Studio accepts PDF files only. For best results, use a text-based PDF (not a scanned image). If your CV is in Word format, save it as PDF first.',
+      'Document Hub accepts PDF files only. For best results, use a text-based PDF (not a scanned image). If your CV is in Word format, save it as PDF first.',
   },
   {
     category: 'Technical',

@@ -6,6 +6,7 @@ export const SETTINGS_TABS = [
   'email',
   'telegram',
   'sources',
+  'auto-apply',
   'readiness',
 ] as const;
 

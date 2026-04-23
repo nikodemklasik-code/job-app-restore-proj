@@ -1,8 +1,0 @@
-ROLE=AGENT_2
-PREVIOUS_TASK=Job Radar bounded parity
-CURRENT_TASK=QC intake for Job Radar bounded parity RFQ
-NEXT_TASK=Job Radar post-DDL smoke after QC verdict
-AUTO_ADVANCE_FROM=READY_FOR_QC
-AUTO_ADVANCE_TO=ASSIGNED
-AUTO_ADVANCE_CONDITION=QC_VERDICT_PRESENT
-NEXT_REPORT=docs/qc-reports/agent-2-job-radar-post-ddl-smoke-ready-for-qc.md
