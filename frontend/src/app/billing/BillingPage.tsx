@@ -31,7 +31,7 @@ const PLANS = [
 // Feature comparison matrix — null = not in plan, true = included, string = note
 const COMPARISON_ROWS: { label: string; free: string | boolean | null; pro: string | boolean | null; autopilot: string | boolean | null }[] = [
   { label: 'Profile builder',            free: true,   pro: true,  autopilot: true  },
-  { label: 'Document Hub workspace access', free: true, pro: true, autopilot: true },
+  { label: 'CV upload',                  free: true,   pro: true,  autopilot: true  },
   { label: 'Job listings',               free: true,   pro: true,  autopilot: true  },
   { label: 'Applications (max)',         free: '10',   pro: '∞',   autopilot: '∞'   },
   { label: 'AI credits / month',         free: '500',  pro: '5 000', autopilot: '∞' },
@@ -40,7 +40,7 @@ const COMPARISON_ROWS: { label: string; free: string | boolean | null; pro: stri
   { label: 'Interview practice',         free: null,   pro: true,  autopilot: true  },
   { label: 'Negotiation',                free: null,   pro: true,  autopilot: true  },
   { label: 'Skills Lab',                 free: null,   pro: true,  autopilot: true  },
-  { label: 'Document Hub advanced generation', free: null, pro: true, autopilot: true },
+  { label: 'Document Lab (style & build)', free: null, pro: true, autopilot: true },
   { label: 'Salary Calculator',          free: null,   pro: true,  autopilot: true  },
   { label: 'Auto-apply to matched jobs', free: null,   pro: null,  autopilot: true  },
   { label: 'Telegram notifications',     free: null,   pro: null,  autopilot: true  },
@@ -395,8 +395,8 @@ export default function BillingPage() {
               </div>
 
               <ul className="flex-1 space-y-2">
-                {(plan.id === 'free' ? ['Basic job matching', 'Profile builder', 'Document Hub workspace access', 'Up to 10 applications'] :
-                  plan.id === 'pro' ? ['Unlimited applications', 'AI-generated documents', 'Interview practice', 'Skills Lab', 'Document Hub advanced generation', 'Salary Calculator'] :
+                {(plan.id === 'free' ? ['Basic job matching', 'Profile builder', 'CV upload', 'Up to 10 applications'] :
+                  plan.id === 'pro' ? ['Unlimited applications', 'AI-generated documents', 'Interview practice', 'Skills Lab', 'Document Lab (style & build)', 'Salary Calculator'] :
                   ['Everything in Pro', 'Auto-apply to matched jobs', 'Telegram notifications', 'Follow-up email copilot']
                 ).map((f) => (
                   <li key={f} className="flex items-center gap-2 text-sm text-slate-400">
