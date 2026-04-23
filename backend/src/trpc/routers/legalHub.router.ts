@@ -79,4 +79,43 @@ export const legalHubRouter = router({
         },
       };
     }),
+
+  // Compatibility alias for frontend contracts expecting `exportPdf`
+  exportPdf: protectedProcedure
+    .input(
+      z.object({
+        query: z.string().min(2).max(500),
+        userId: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const scope = getLegalSearchScopeSummary();
+      const hits = searchLegalHubSources(input.query, 12);
+
+      let spendResult;
+      try {
+        spendResult = await approveSpend({
+          clerkId: ctx.user.clerkId,
+          feature: 'legal_hub_search_pdf',
+          notes: `Legal Hub PDF: ${input.query.slice(0, 120)}`,
+        });
+      } catch (e) {
+        if (e instanceof BillingError) billingToTrpc(e);
+        throw e;
+      }
+
+      const buf = await renderLegalSearchPdfBuffer({
+        query: input.query,
+        hits,
+        scopeLabel: scope.scopeLabel,
+        generatedAtIso: new Date().toISOString(),
+      });
+
+      return {
+        mimeType: 'application/pdf' as const,
+        filename: `legal-hub-search-${new Date().toISOString().slice(0, 10)}.pdf`,
+        base64: buf.toString('base64'),
+        spendEventId: spendResult.spendEventId,
+      };
+    }),
 });

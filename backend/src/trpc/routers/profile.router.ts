@@ -285,6 +285,22 @@ export const profileRouter = router({
       return fetchProfileSnapshot(ctx.user.id, ctx.user.email);
     }),
 
+  // Compatibility alias for frontend contract using getFull.
+  getFull: protectedProcedure
+    .input(z.object({ userId: z.string().optional() }).optional())
+    .query(async ({ ctx }) => {
+      const snapshot = await fetchProfileSnapshot(ctx.user.id, ctx.user.email);
+      return {
+        personalInfo: snapshot.personalInfo,
+        skills: snapshot.skills,
+        workValues: (snapshot.careerGoals?.workValues ?? []).join(', '),
+        careerPath: snapshot.careerGoals?.targetJobTitle ?? '',
+        experiences: snapshot.experiences,
+        educations: snapshot.educations,
+        trainings: snapshot.trainings,
+      };
+    }),
+
   /**
    * Profile-driven match context used by Jobs, Job Radar, Auto-Apply, and
    * Skill Lab surfaces. Exposed so the frontend can render "why was this
@@ -399,6 +415,137 @@ export const profileRouter = router({
 
       const email = input.email ?? ctx.user.email;
       return fetchProfileSnapshot(localUserId, email);
+    }),
+
+  // Compatibility alias for frontend contract using updateFull.
+  updateFull: protectedProcedure
+    .input(
+      z.object({
+        userId: z.string().optional(),
+        fullName: z.string().default(''),
+        email: z.string().email().optional(),
+        phone: z.string().optional(),
+        location: z.string().max(255).optional(),
+        headline: z.string().max(255).optional(),
+        summary: z.string().optional(),
+        linkedinUrl: z.string().url().max(500).optional().or(z.literal('')),
+        skills: z.array(z.string()).default([]),
+        workValues: z.string().optional(),
+        careerPath: z.string().optional(),
+        experiences: z.array(
+          z.object({
+            employerName: z.string().min(1),
+            jobTitle: z.string().min(1),
+            startDate: z.string(),
+            endDate: z.string().nullable().optional(),
+            description: z.string().optional(),
+          }),
+        ).default([]),
+        educations: z.array(
+          z.object({
+            schoolName: z.string().min(1),
+            degree: z.string().min(1),
+            fieldOfStudy: z.string().optional(),
+            startDate: z.string(),
+            endDate: z.string().nullable().optional(),
+          }),
+        ).default([]),
+        trainings: z.array(
+          z.object({
+            title: z.string().min(1),
+            providerName: z.string().min(1),
+            issuedAt: z.string(),
+            expiresAt: z.string().nullable().optional(),
+            credentialUrl: z.string().optional(),
+          }),
+        ).default([]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const localUserId = ctx.user.id;
+      const profileId = await ensureProfileForUser(localUserId);
+
+      if (input.email) {
+        await db.update(users)
+          .set({ email: input.email, updatedAt: new Date() })
+          .where(eq(users.id, localUserId));
+      }
+
+      await db.update(profiles)
+        .set({
+          fullName: input.fullName,
+          phone: input.phone,
+          location: input.location,
+          headline: input.headline,
+          summary: input.summary,
+          linkedinUrl: input.linkedinUrl,
+          updatedAt: new Date(),
+        })
+        .where(eq(profiles.id, profileId));
+
+      await db.delete(skills).where(eq(skills.profileId, profileId));
+      if (input.skills.length > 0) {
+        await db.insert(skills).values(input.skills.map((name) => ({
+          id: randomUUID(),
+          profileId,
+          name,
+        })));
+      }
+
+      await db.delete(experiences).where(eq(experiences.profileId, profileId));
+      if (input.experiences.length > 0) {
+        await db.insert(experiences).values(input.experiences.map((item) => ({
+          id: randomUUID(),
+          profileId,
+          employerName: item.employerName,
+          jobTitle: item.jobTitle,
+          startDate: item.startDate,
+          endDate: item.endDate ?? null,
+          description: item.description ?? '',
+        })));
+      }
+
+      await db.delete(educations).where(eq(educations.profileId, profileId));
+      if (input.educations.length > 0) {
+        await db.insert(educations).values(input.educations.map((item) => ({
+          id: randomUUID(),
+          profileId,
+          schoolName: item.schoolName,
+          degree: item.degree,
+          fieldOfStudy: item.fieldOfStudy ?? '',
+          startDate: item.startDate,
+          endDate: item.endDate ?? null,
+        })));
+      }
+
+      await db.delete(trainings).where(eq(trainings.profileId, profileId));
+      if (input.trainings.length > 0) {
+        await db.insert(trainings).values(input.trainings.map((item) => ({
+          id: randomUUID(),
+          profileId,
+          title: item.title,
+          providerName: item.providerName,
+          issuedAt: item.issuedAt,
+          expiresAt: item.expiresAt ?? null,
+          credentialUrl: item.credentialUrl ?? '',
+        })));
+      }
+
+      await ensureCareerGoalsRow(localUserId);
+      await db.update(careerGoals)
+        .set({
+          workValues: workValuesToDb(
+            (input.workValues ?? '')
+              .split(',')
+              .map((v) => v.trim())
+              .filter(Boolean),
+          ),
+          targetJobTitle: input.careerPath ?? null,
+          updatedAt: new Date(),
+        })
+        .where(eq(careerGoals.userId, localUserId));
+
+      return fetchProfileSnapshot(localUserId, input.email ?? ctx.user.email);
     }),
 
   saveSkills: protectedProcedure

@@ -54,6 +54,21 @@ export const documentsRouter = router({
       .orderBy(documentUploads.createdAt);
   }),
 
+  // Compatibility alias for legacy frontend contracts.
+  getAll: protectedProcedure
+    .input(z.object({ userId: z.string().optional() }).optional())
+    .query(async ({ ctx }) => {
+      const rows = await db.select().from(documentUploads)
+        .where(eq(documentUploads.userId, ctx.user.id))
+        .orderBy(documentUploads.createdAt);
+      return rows.map((row) => ({
+        id: row.id,
+        title: row.originalFilename,
+        uploadedAt: row.createdAt,
+        status: row.isProcessed ? 'ready' : 'processing',
+      }));
+    }),
+
   upload: protectedProcedure
     .input(z.object({
       documentType: z.enum(['cv', 'cover_letter', 'references', 'certificate', 'education', 'portfolio', 'session_memory', 'other']),
@@ -78,6 +93,15 @@ export const documentsRouter = router({
     .mutation(async ({ ctx, input }) => {
       await db.delete(documentUploads)
         .where(and(eq(documentUploads.id, input.id), eq(documentUploads.userId, ctx.user.id)));
+      return { success: true };
+    }),
+
+  // Compatibility alias for legacy frontend contracts.
+  deleteByDocumentId: protectedProcedure
+    .input(z.object({ documentId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await db.delete(documentUploads)
+        .where(and(eq(documentUploads.id, input.documentId), eq(documentUploads.userId, ctx.user.id)));
       return { success: true };
     }),
 

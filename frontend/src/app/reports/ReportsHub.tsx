@@ -509,7 +509,7 @@ export default function ReportsHub() {
           </div>
           <h1 className="text-3xl font-bold text-white">Reports Hub</h1>
         </div>
-        <p className="text-slate-400 ml-14">Analytics and insights across your job search campaign</p>
+        <p className="text-slate-400 ml-14">Recruitment-process analytics for your applications pipeline, response patterns, and conversion flow.</p>
       </div>
 
       {/* Loading / Error states */}
@@ -583,7 +583,7 @@ export default function ReportsHub() {
         <div className="rounded-2xl border border-white/10 bg-white/5 p-12 text-center">
           <BarChart2 className="h-12 w-12 text-slate-600 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-white mb-2">No data yet</h3>
-          <p className="text-slate-400 text-sm">Start applying to jobs and your analytics will appear here.</p>
+          <p className="text-slate-400 text-sm">Start moving real applications through your pipeline (Applied → Interview → Offer) to unlock process analytics.</p>
         </div>
       )}
     </div>
