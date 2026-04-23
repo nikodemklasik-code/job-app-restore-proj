@@ -646,7 +646,7 @@ function SystemReadinessTab({ userId }: { userId: string }) {
   const items = [
     { label: 'Profile', value: profileScore },
     { label: 'Email Integration', value: emailScore },
-    { label: 'Document Hub Intake', value: cvScore },
+    { label: 'Document Hub Workspace', value: cvScore },
     { label: 'Job Sources', value: jobSourcesScore },
   ];
 

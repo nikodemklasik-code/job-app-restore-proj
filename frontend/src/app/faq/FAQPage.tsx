@@ -107,7 +107,7 @@ const FAQ_ITEMS: FaqItem[] = [
     category: 'Billing & Plans',
     question: 'What is included in the free plan?',
     answer:
-      'The free plan includes limited job searches, basic CV and profile tools, and a lower monthly AI allowance. Upgrade to Pro or Autopilot from the Billing page for higher AI limits and access to paid-only features (exact entitlements are shown in-app and may change).',
+      'The free plan includes limited job searches, profile essentials, and Document Hub workspace access with a lower monthly AI allowance. Upgrade to Pro or Autopilot from the Billing page for higher AI limits and access to paid-only features (exact entitlements are shown in-app and may change).',
   },
   {
     category: 'Billing & Plans',

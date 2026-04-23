@@ -122,9 +122,9 @@ const STEPS: Step[] = [
     icon: User,
     title: 'Step 1 — Set up Document Hub',
     description:
-      "Upload your CV/documents in Document Hub and we'll auto-fill your profile context. This powers document generation, applications, and job matching.",
+      "Upload/import your CV and supporting files in Document Hub and we'll auto-fill your profile context. This powers document generation, applications, and job matching.",
     aiTip:
-      'Document Hub is the canonical intake workspace. Keep your latest files there first, then continue with generation and applications.',
+      'Document Hub is the only canonical intake/upload/import/parsing workspace. Keep your latest files there first, then continue with generation and applications.',
     cta: 'Open Document Hub',
     route: '/documents?tab=upload',
   },

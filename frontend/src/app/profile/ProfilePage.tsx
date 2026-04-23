@@ -320,7 +320,7 @@ export default function ProfilePage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-white">Profile</h1>
-        <p className="mt-1 text-slate-400">Edit your details here. Upload/import/parse documents in Document Hub — not on this page.</p>
+        <p className="mt-1 text-slate-400">Edit your profile details here. Document intake/upload/import/parsing happens in Document Hub — not on this page.</p>
       </div>
 
       {/* Error Banner */}

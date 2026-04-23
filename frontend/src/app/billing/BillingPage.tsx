@@ -40,7 +40,7 @@ const COMPARISON_ROWS: { label: string; free: string | boolean | null; pro: stri
   { label: 'Interview practice',         free: null,   pro: true,  autopilot: true  },
   { label: 'Negotiation',                free: null,   pro: true,  autopilot: true  },
   { label: 'Skills Lab',                 free: null,   pro: true,  autopilot: true  },
-  { label: 'Document Hub (style & build)', free: null, pro: true, autopilot: true },
+  { label: 'Document Hub advanced generation', free: null, pro: true, autopilot: true },
   { label: 'Salary Calculator',          free: null,   pro: true,  autopilot: true  },
   { label: 'Auto-apply to matched jobs', free: null,   pro: null,  autopilot: true  },
   { label: 'Telegram notifications',     free: null,   pro: null,  autopilot: true  },
@@ -396,7 +396,7 @@ export default function BillingPage() {
 
               <ul className="flex-1 space-y-2">
                 {(plan.id === 'free' ? ['Basic job matching', 'Profile builder', 'Document Hub workspace access', 'Up to 10 applications'] :
-                  plan.id === 'pro' ? ['Unlimited applications', 'AI-generated documents', 'Interview practice', 'Skills Lab', 'Document Hub (style & build)', 'Salary Calculator'] :
+                  plan.id === 'pro' ? ['Unlimited applications', 'AI-generated documents', 'Interview practice', 'Skills Lab', 'Document Hub advanced generation', 'Salary Calculator'] :
                   ['Everything in Pro', 'Auto-apply to matched jobs', 'Telegram notifications', 'Follow-up email copilot']
                 ).map((f) => (
                   <li key={f} className="flex items-center gap-2 text-sm text-slate-400">
