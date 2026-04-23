@@ -19,6 +19,7 @@ export type AppScreenKey =
   | 'salaryCalculator'
   | 'legal'
   | 'legalSearch'
+  | 'communityCenter'
   | 'settings'
   | 'autoApply'
   | 'billing'
@@ -54,6 +55,7 @@ export const APP_SCREENS: Record<AppScreenKey, AppScreenDefinition> = {
   salaryCalculator: { key: 'salaryCalculator', label: 'Salary Calculator', path: '/salary-calculator', topLevel: false, showInSidebar: false },
   legal: { key: 'legal', label: 'Legal Hub', path: '/legal', topLevel: true, showInSidebar: true },
   legalSearch: { key: 'legalSearch', label: 'Legal Search', path: '/legal/search', topLevel: false, parentKey: 'legal', showInSidebar: false },
+  communityCenter: { key: 'communityCenter', label: 'Community Centre', path: '/community', topLevel: true, showInSidebar: true },
   settings: { key: 'settings', label: 'Settings', path: '/settings', topLevel: true, showInSidebar: true },
   autoApply: { key: 'autoApply', label: 'Auto Apply', path: '/settings/auto-apply', topLevel: false, parentKey: 'settings', showInSidebar: false },
   billing: { key: 'billing', label: 'Billing', path: '/billing', topLevel: true, showInSidebar: true },
@@ -74,6 +76,7 @@ export const SIDEBAR_SCREEN_ORDER: AppScreenKey[] = [
   'skills',
   'reports',
   'legal',
+  'communityCenter',
   'billing',
   'settings',
 ];

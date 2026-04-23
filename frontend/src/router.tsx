@@ -40,6 +40,17 @@ const PageLoader = () => (
   </div>
 );
 
+const CommunityCentrePage = () => (
+  <div className="mx-auto max-w-5xl px-4 py-10">
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+      <h1 className="text-2xl font-bold text-white">Community Centre</h1>
+      <p className="mt-2 text-sm text-slate-400">
+        Community Centre is a dedicated destination for member engagement, events, and shared outcomes.
+      </p>
+    </div>
+  </div>
+);
+
 const withSuspense = (Component: ComponentType) => (
   <Suspense fallback={<PageLoader />}>
     <Component />
@@ -112,6 +123,7 @@ export const router = createBrowserRouter([
       { path: APP_SCREENS.salaryCalculator.path.slice(1), element: withSuspense(UKSalaryCalculator) },
       { path: APP_SCREENS.legal.path.slice(1), element: withSuspense(LegalHub) },
       { path: APP_SCREENS.legalSearch.path.slice(1), element: <Navigate to="/legal#legal-search" replace /> },
+      { path: APP_SCREENS.communityCenter.path.slice(1), element: <CommunityCentrePage /> },
       { path: APP_SCREENS.settings.path.slice(1), element: withSuspense(SettingsHub) },
       { path: APP_SCREENS.autoApply.path.slice(1), element: <Navigate to="/settings?tab=auto-apply" replace /> },
       { path: APP_SCREENS.billing.path.slice(1), element: withSuspense(BillingPage) },

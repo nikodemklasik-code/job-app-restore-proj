@@ -3,7 +3,7 @@ import { useClerk } from '@clerk/clerk-react';
 import {
   LayoutDashboard, User, FolderOpen, Briefcase, ClipboardList, FileText, MessageSquare,
   Flame, Mic, GraduationCap, Handshake, FolderKanban, FlaskConical, BarChart2, Radar,
-  Calculator, Scale, Settings, CreditCard, HelpCircle, Sparkles, LogOut,
+  Calculator, Scale, Users, Settings, CreditCard, HelpCircle, Sparkles, LogOut,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { APP_SCREENS, SIDEBAR_SCREEN_ORDER, type AppScreenKey } from '@/config/appScreens';
@@ -29,6 +29,7 @@ const SCREEN_ICONS: Record<AppScreenKey, React.ComponentType<{ className?: strin
   salaryCalculator: Calculator,
   legal: Scale,
   legalSearch: Scale,
+  communityCenter: Users,
   settings: Settings,
   autoApply: Settings,
   billing: CreditCard,
