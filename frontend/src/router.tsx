@@ -25,7 +25,6 @@ const CookiesPage = lazy(() => import('./app/legal/CookiesPage'));
 const ReportsHub = lazy(() => import('./app/reports/ReportsHub'));
 const SkillsLab = lazy(() => import('./app/skills/SkillsLab'));
 const NegotiationPage = lazy(() => import('./app/negotiation/NegotiationPage'));
-const JobRadarLandingPage = lazy(() => import('./app/job-radar/JobRadarLandingPage'));
 const JobRadarReportPage = lazy(() => import('./app/job-radar/JobRadarReportPage'));
 const JobRadarScanPage = lazy(() => import('./app/job-radar/JobRadarScanPage'));
 const JobRadarAdminComplaintsPage = lazy(() => import('./app/job-radar/admin/JobRadarAdminComplaintsPage'));
@@ -107,7 +106,7 @@ export const router = createBrowserRouter([
       { path: APP_SCREENS.caseStudy.path.slice(1), element: withSuspense(CasePracticePage) },
       { path: APP_SCREENS.skillLab.path.slice(1), element: withSuspense(SkillsLab) },
       { path: APP_SCREENS.reports.path.slice(1), element: withSuspense(ReportsHub) },
-      { path: APP_SCREENS.jobRadar.path.slice(1), element: withSuspense(JobRadarLandingPage) },
+      { path: APP_SCREENS.jobRadar.path.slice(1), element: <Navigate to={APP_SCREENS.jobs.path} replace /> },
       { path: 'job-radar/scan/:scanId', element: withSuspense(JobRadarScanPage) },
       { path: 'job-radar/report/:reportId', element: withSuspense(JobRadarReportPage) },
       { path: 'job-radar/admin/complaints', element: withSuspense(JobRadarAdminComplaintsPage) },

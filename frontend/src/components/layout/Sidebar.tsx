@@ -48,7 +48,7 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto p-3">
         {SIDEBAR_SCREEN_ORDER.map((key) => {
           const screen = APP_SCREENS[key];
-          if (!screen.showInSidebar) return null;
+          if (!screen.topLevel || !screen.showInSidebar) return null;
           const Icon = SCREEN_ICONS[key];
           const to = screen.path;
 
