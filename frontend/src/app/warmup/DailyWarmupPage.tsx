@@ -391,11 +391,11 @@ export default function DailyWarmupPage() {
               eyebrow={
                 <div className="inline-flex items-center gap-2 rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-orange-200">
                   <Flame className="h-3.5 w-3.5" />
-                  Daily training
+                  Daily readiness routine
                 </div>
               }
               title="Daily Warmup"
-              description="Pick a length that fits your day: a free 15-second spark, or longer runs that use 1–3 AI credits for more room to practice. Build a streak with any session you finish. GPT-4o powers scoring and tips."
+              description="A short, repeatable daily-readiness ritual: pick a quick timed run, record one answer, and keep your streak alive. GPT-4o powers scoring and next-step tips."
             />
             <div className="flex shrink-0 flex-col items-stretch gap-3 sm:items-end">
               <PracticeProgressBadge

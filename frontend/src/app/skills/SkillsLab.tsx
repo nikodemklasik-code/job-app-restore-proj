@@ -491,7 +491,7 @@ export default function SkillsLab() {
             <div>
               <h2 className="font-semibold text-white">CV Score &amp; Valuation</h2>
               <p className="text-sm text-slate-400">
-                Run an AI-backed CV score on uploaded documents in Document Lab; use Build for style analysis. Skill Lab focuses on skills and gap analysis from job text.
+                Skills Lab is your capability-development workspace: identify gaps, validate evidence, and plan focused upskilling from role requirements. Document scoring and formatting stay in Document Hub.
               </p>
             </div>
           </div>
@@ -499,7 +499,7 @@ export default function SkillsLab() {
             to="/documents?tab=upload"
             className="mvh-card-glow inline-flex shrink-0 items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
           >
-            Open Document Lab
+            Open Document Hub
           </Link>
         </div>
       </div>
@@ -729,8 +729,7 @@ export default function SkillsLab() {
               <p className="text-sm font-medium text-slate-500">No analysis yet</p>
               <p className="max-w-xs text-xs text-slate-600">
                 Enter a job title or paste a full job description above, then click{' '}
-                <span className="text-indigo-400">"Analyse Gap"</span> to see required skills, gaps, and
-                recommended training resources.
+                <span className="text-indigo-400">"Analyse Gap"</span> to map role requirements to your current capabilities and get targeted development actions.
               </p>
             </div>
           )}
