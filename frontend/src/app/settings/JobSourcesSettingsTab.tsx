@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Plug, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Plug, Loader2, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useJobSourceSettingsStore } from '@/stores/jobSourceSettingsStore';
 
@@ -30,25 +30,44 @@ export function JobSourcesSettingsTab({ userId }: { userId: string }) {
     void load(userId);
   }, [userId, load]);
 
+  const externalProviders = useMemo(
+    () => providers.filter((p) => p.isExternalProvider),
+    [providers],
+  );
+  const productSources = useMemo(
+    () => providers.filter((p) => !p.isExternalProvider),
+    [providers],
+  );
+
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Plug className="h-4 w-4" /> Job Sources
+            <Plug className="h-4 w-4" /> Job Boards & Aggregators
           </CardTitle>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            Full catalogue from the server: each row shows readiness (what blocks search), optional env keys, and
-            whether the source is enabled for your account.
+            Choose the external job sources you want MultivoHub to use. Turning a source on is your consent for
+            that provider to be used in Job Search. Browser/session sources may use a saved session or public web
+            scanning when no direct API is available.
           </p>
+          <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-xs leading-relaxed text-indigo-900 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-200">
+            <div className="flex gap-2">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                Provider selection is consent-based. Disable a source to stop using it for new searches. Indeed and
+                Gumtree still require an active session before they can return personalised/session-based results.
+              </span>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {isLoading && providers.length === 0 ? (
+          {isLoading && externalProviders.length === 0 ? (
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading provider status…
             </div>
           ) : (
-            providers.map((p) => (
+            externalProviders.map((p) => (
               <div
                 key={p.name}
                 className="flex flex-col gap-3 rounded-xl border border-slate-100 p-4 dark:border-slate-800 sm:flex-row sm:items-start sm:justify-between"
@@ -69,7 +88,7 @@ export function JobSourcesSettingsTab({ userId }: { userId: string }) {
                       <span className="font-medium text-slate-700 dark:text-slate-300">Server env:</span>{' '}
                       <code className="rounded bg-slate-100 px-1 py-0.5 text-[11px] dark:bg-slate-900">{p.requiresApiKey}</code>
                       {' — '}
-                      If missing or invalid, this feed is skipped on search (no crash; you see fewer listings).
+                      If missing or invalid, this feed is skipped on search.
                     </p>
                   ) : null}
                   {p.requiresSession ? (
@@ -78,7 +97,7 @@ export function JobSourcesSettingsTab({ userId }: { userId: string }) {
                       <Link to="/jobs" className="font-medium text-indigo-600 underline-offset-2 hover:underline dark:text-indigo-400">
                         Jobs
                       </Link>{' '}
-                      page (Indeed / Gumtree wizard).
+                      page.
                     </p>
                   ) : null}
                   <div className="flex items-center gap-1.5 text-xs">
@@ -98,7 +117,9 @@ export function JobSourcesSettingsTab({ userId }: { userId: string }) {
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2 sm:flex-col sm:items-end">
-                  <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">Enabled</span>
+                  <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                    {p.isEnabled ? 'Consented' : 'Off'}
+                  </span>
                   <Toggle
                     checked={p.isEnabled}
                     onChange={() => void toggle(userId, p.name, !p.isEnabled)}
@@ -110,6 +131,28 @@ export function JobSourcesSettingsTab({ userId }: { userId: string }) {
           )}
         </CardContent>
       </Card>
+
+      {productSources.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Product Sources</CardTitle>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              These are internal product features, not external job board consent switches.
+            </p>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-2">
+            {productSources.map((p) => (
+              <div key={p.name} className="rounded-xl border border-slate-100 p-3 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <span aria-hidden>{p.icon}</span>
+                  <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{p.label}</span>
+                </div>
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">{p.description}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
