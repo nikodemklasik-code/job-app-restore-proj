@@ -12,6 +12,11 @@ import {
   updateKillSwitchDtoSchema,
 } from '../../modules/job-radar/api/job-radar-complaint.dto.js';
 import { JobRadarHttpMapper } from '../../modules/job-radar/api/job-radar.http.mapper.js';
+import {
+  jobRadarEmployerHistorySchema,
+  jobRadarScanAcceptedSchema,
+  jobRadarScanStatusSchema,
+} from '../../prompts/schemas/job-radar-output.schema.js';
 
 function isTrustReviewer(userId: string): boolean {
   const raw = process.env.JOB_RADAR_TRUST_REVIEWER_USER_IDS ?? '';
@@ -93,7 +98,7 @@ export const jobRadarRouter = router({
           idempotencyKey,
           payload,
         });
-        return JobRadarHttpMapper.toScanAcceptedResponse(result);
+        return jobRadarScanAcceptedSchema.parse(JobRadarHttpMapper.toScanAcceptedResponse(result));
       } catch (err) {
         mapHandlerError(err);
       }
@@ -118,7 +123,7 @@ export const jobRadarRouter = router({
         input.employerId,
         input.limit ?? 24,
       );
-      return {
+      return jobRadarEmployerHistorySchema.parse({
         employerId: input.employerId,
         history: history.map((h) => ({
           report_id: h.reportId,
@@ -127,7 +132,7 @@ export const jobRadarRouter = router({
           offer_score: h.offerScore,
           risk_score: h.riskScore,
         })),
-      };
+      });
     }),
 
   rescanReport: protectedProcedure.input(z.object({ reportId: z.string().min(1) })).mutation(async ({ ctx, input }) => {
@@ -152,7 +157,7 @@ export const jobRadarRouter = router({
         idempotencyKey,
         payload,
       });
-      return JobRadarHttpMapper.toScanAcceptedResponse(result);
+      return jobRadarScanAcceptedSchema.parse(JobRadarHttpMapper.toScanAcceptedResponse(result));
     } catch (err) {
       mapHandlerError(err);
     }
@@ -170,7 +175,7 @@ export const jobRadarRouter = router({
         idempotencyKey,
         payload: input,
       });
-      return JobRadarHttpMapper.toScanAcceptedResponse(result);
+      return jobRadarScanAcceptedSchema.parse(JobRadarHttpMapper.toScanAcceptedResponse(result));
     } catch (err) {
       mapHandlerError(err);
     }
@@ -187,7 +192,7 @@ export const jobRadarRouter = router({
           userId: ctx.user.id,
           scanId: input.scanId,
         });
-        return JobRadarHttpMapper.toScanProgressResponseWire(scan);
+        return jobRadarScanStatusSchema.parse(JobRadarHttpMapper.toScanProgressResponseWire(scan));
       } catch (err) {
         mapHandlerError(err);
       }
