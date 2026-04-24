@@ -19,6 +19,18 @@ interface ProfileStore {
   replaceExperiences: (experiences: ProfileExperienceInput[]) => Promise<void>;
   replaceEducations: (educations: ProfileEducationInput[]) => Promise<void>;
   replaceTrainings: (trainings: ProfileTrainingInput[]) => Promise<void>;
+  saveCareerGoals: (data: {
+    currentJobTitle?: string | null;
+    currentSalary?: number | null;
+    targetJobTitle?: string | null;
+    targetSalary?: number | null;
+    targetSalaryMin?: number | null;
+    targetSalaryMax?: number | null;
+    targetSeniority?: string | null;
+    workValues?: string[];
+    autoApplyMinScore?: number;
+    strategy?: Record<string, unknown>;
+  }) => Promise<void>;
   dismissError: () => void;
 }
 
@@ -99,6 +111,18 @@ export const useProfileStore = create<ProfileStore>((set) => ({
       set({ profile: updated });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save trainings' });
+    } finally {
+      set({ isSaving: false });
+    }
+  },
+
+  async saveCareerGoals(data) {
+    set({ isSaving: true, error: null });
+    try {
+      const updated = await trpcClient.profile.saveCareerGoals.mutate(data);
+      set({ profile: updated });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to save career goals' });
     } finally {
       set({ isSaving: false });
     }
