@@ -55,7 +55,7 @@ export default function CasePracticePageCompact() {
                 Defend your position. Win with words.
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
-                No winner is decided in advance. Choose the case, prepare your argument, then start the action with rhetoric, interpersonal skill, and pressure control.
+                No winner is decided in advance. Choose the case, connect the facts, prepare your logic, then start the action with active listening, rhetoric, interpersonal skill, and pressure control.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
@@ -93,7 +93,7 @@ export default function CasePracticePageCompact() {
               <div>
                 <p className="text-sm font-semibold text-white">What decides the outcome?</p>
                 <p className="mt-1 text-sm leading-5 text-slate-300">
-                  Arguments, rhetoric, debate tactics, interpersonal skill, and your ability to hold the line under pressure.
+                  Active listening, connecting facts, clear logic, rhetoric, interpersonal skill, and your ability to stay persuasive under pressure.
                 </p>
                 <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold text-slate-200">
                   <Volume2 className="h-4 w-4 text-indigo-200" />
