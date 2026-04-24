@@ -27,11 +27,13 @@ import { dashboardRouter } from './dashboard.router.js';
 import { legalHubRouter } from './legalHub.router.js';
 import { settingsRouter } from './settings.router.js';
 import { reportsRouter } from './reports.router.js';
+import { communityRouter } from './community.router.js';
 
 export const appRouter = router({
   dashboard: dashboardRouter,
   legalHub: legalHubRouter,
   settings: settingsRouter,
+  community: communityRouter,
   assistant: assistantRouter,
   coach: coachRouter,
   interview: interviewRouter,
