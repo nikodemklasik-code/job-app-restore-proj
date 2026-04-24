@@ -162,7 +162,7 @@ export interface CareerGoalsSnapshot {
   targetSeniority: string | null;
   workValues: string[];
   autoApplyMinScore: number;
-  preferredWorkSetup: PreferredWorkSetup;
+  preferredWorkSetup?: PreferredWorkSetup;
   strategy: ProfileStrategyJson;
 }
 
@@ -186,8 +186,9 @@ export interface ProfileSnapshot {
   experiences: ProfileExperience[];
   educations: ProfileEducation[];
   trainings: ProfileTraining[];
-  languages: ProfileLanguage[];
-  hobbies: ProfileHobby[];
+  /** New dynamic collections are served by profilePreferences during router migration. */
+  languages?: ProfileLanguage[];
+  hobbies?: ProfileHobby[];
   careerGoals?: CareerGoalsSnapshot;
   socialConsents?: SocialConsentsSnapshot;
   preferenceFlags?: UserPreferenceFlagsSnapshot;
