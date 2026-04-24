@@ -18,7 +18,7 @@ const SettingsHub = lazy(() => import('./app/settings/SettingsHub'));
 const SecurityPage = lazy(() => import('./app/settings/SecurityPage'));
 const StyleStudioRedirect = lazy(() => import('./app/style/StyleStudioRedirect'));
 const UKSalaryCalculator = lazy(() => import('./app/salary/UKSalaryCalculator'));
-const LegalHub = lazy(() => import('./app/legal/LegalHub'));
+const LegalHub = lazy(() => import('./app/legal/LegalHubSearchPage'));
 const TermsPage = lazy(() => import('./app/legal/TermsPage'));
 const PrivacyPage = lazy(() => import('./app/legal/PrivacyPage'));
 const CookiesPage = lazy(() => import('./app/legal/CookiesPage'));
