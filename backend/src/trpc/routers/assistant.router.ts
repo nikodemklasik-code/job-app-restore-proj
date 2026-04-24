@@ -13,6 +13,10 @@ import {
 import { getUserPlan, planToPromptBehaviorTier } from '../../services/billingGuard.js';
 import { protectedProcedure, router } from '../trpc.js';
 import { buildAssistantAiProductMeta } from '../../lib/openai/assistant-product-meta.js';
+import {
+  assistantAiMetaSchema,
+  assistantStructuredResponseSchema,
+} from '../../prompts/schemas/assistant-output.schema.js';
 
 async function getOrCreateConversation(userId: string): Promise<string> {
   const existing = await db
@@ -62,19 +66,20 @@ export const assistantRouter = router({
         sourceType,
       });
       const aiProductMeta = buildAssistantAiProductMeta('general');
+      const meta = assistantAiMetaSchema.parse({
+        detectedIntent: baseMeta.detectedIntent,
+        suggestedActions: baseMeta.suggestedActions,
+        routeSuggestions: baseMeta.routeSuggestions,
+        contextRefs: baseMeta.contextRefs,
+        safetyNotes: baseMeta.safetyNotes,
+        nextBestStep: baseMeta.nextBestStep ?? 'Open Coach',
+        complianceFlags: baseMeta.complianceFlags ?? [],
+        aiProductMeta,
+      });
       return {
         ...r,
         createdAt: r.createdAt.toISOString(),
-        meta: {
-          detectedIntent: baseMeta.detectedIntent,
-          suggestedActions: baseMeta.suggestedActions,
-          routeSuggestions: baseMeta.routeSuggestions,
-          contextRefs: baseMeta.contextRefs,
-          safetyNotes: baseMeta.safetyNotes,
-          nextBestStep: baseMeta.nextBestStep ?? 'Open Coach',
-          complianceFlags: baseMeta.complianceFlags ?? [],
-          aiProductMeta,
-        },
+        meta,
       };
     });
   }),
@@ -98,7 +103,6 @@ export const assistantRouter = router({
         sourceType,
       });
 
-      // Insert user message
       const userMsgId = randomUUID();
       await db.insert(assistantMessages).values({
         id: userMsgId,
@@ -115,7 +119,6 @@ export const assistantRouter = router({
         .where(eq(assistantMessages.id, userMsgId))
         .limit(1);
 
-      // Get recent context for AI (most recent 12, then reverse for chronological order)
       const recent = await db
         .select({ role: assistantMessages.role, text: assistantMessages.text })
         .from(assistantMessages)
@@ -146,7 +149,6 @@ export const assistantRouter = router({
         .join('\n');
       const aiTextWithSafety = safetyPrefix ? `${safetyPrefix}\n\n${aiText}` : aiText;
 
-      // Insert AI message
       const aiMsgId = randomUUID();
       await db.insert(assistantMessages).values({
         id: aiMsgId,
@@ -163,7 +165,6 @@ export const assistantRouter = router({
         .where(eq(assistantMessages.id, aiMsgId))
         .limit(1);
 
-      // Update conversation counter
       await db
         .update(assistantConversations)
         .set({
@@ -178,6 +179,24 @@ export const assistantRouter = router({
 
       const nextBestStep = baseMeta.nextBestStep ?? 'Open Coach';
       const aiProductMeta = buildAssistantAiProductMeta(input.mode);
+      const validatedMeta = assistantAiMetaSchema.parse({
+        detectedIntent: baseMeta.detectedIntent,
+        suggestedActions: baseMeta.suggestedActions,
+        routeSuggestions: baseMeta.routeSuggestions,
+        contextRefs: baseMeta.contextRefs,
+        safetyNotes: baseMeta.safetyNotes,
+        nextBestStep,
+        complianceFlags: baseMeta.complianceFlags ?? [],
+        aiProductMeta,
+      });
+      const validatedStructured = assistantStructuredResponseSchema.parse({
+        conversation: aiTextWithSafety,
+        relevantContext: baseMeta.contextRefs,
+        suggestedActions: baseMeta.suggestedActions,
+        nextBestStep,
+        routeSuggestions: baseMeta.routeSuggestions,
+        safetyNotes: baseMeta.safetyNotes,
+      });
 
       return {
         conversationId,
@@ -185,25 +204,9 @@ export const assistantRouter = router({
         aiRecord: {
           ...aiRecord,
           createdAt: aiRecord.createdAt.toISOString(),
-          meta: {
-            detectedIntent: baseMeta.detectedIntent,
-            suggestedActions: baseMeta.suggestedActions,
-            routeSuggestions: baseMeta.routeSuggestions,
-            contextRefs: baseMeta.contextRefs,
-            safetyNotes: baseMeta.safetyNotes,
-            nextBestStep,
-            complianceFlags: baseMeta.complianceFlags ?? [],
-            aiProductMeta,
-          },
+          meta: validatedMeta,
         },
-        structured: {
-          conversation: aiTextWithSafety,
-          relevantContext: baseMeta.contextRefs,
-          suggestedActions: baseMeta.suggestedActions,
-          nextBestStep,
-          routeSuggestions: baseMeta.routeSuggestions,
-          safetyNotes: baseMeta.safetyNotes,
-        },
+        structured: validatedStructured,
       };
     }),
 
