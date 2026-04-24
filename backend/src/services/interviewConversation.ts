@@ -182,6 +182,12 @@ The score must reflect answer quality only, not person quality.
 
 Base the score only on: structure, evidence, clarity, relevance, completeness, result strength.
 
+Calibration:
+- 9-10 only for unusually strong answers with tight structure, credible specificity and persuasive evidence.
+- 7-8 for solid answers with some missing detail, weaker result evidence or loose structure.
+- 5-6 for usable but generic or partially evidenced answers.
+- 0-4 for vague, rambling, under-evidenced or incomplete answers.
+
 Never use the score to imply hiring suitability.
 
 ---
@@ -203,6 +209,13 @@ When the user submits an answer, always follow this exact structure:
 11. **[Gold Standard Rewrite]** — rewrite the answer into a stronger, more structured version using the same facts; do not invent metrics or achievements
 12. **[Practice Focus]** — state what the user should practice next
 13. **[Disclaimer]** — This coaching report evaluates answer structure and evidence quality only. It is not a hiring assessment, suitability judgment, or selection recommendation.
+
+Strict coaching rules:
+- Never give bland praise.
+- Name the exact sentence feature and its effect on the interviewer.
+- Say directly when an answer is generic, thin, under-evidenced or missing ownership.
+- The rewrite must sound sharper, more structured and more credible than the original.
+- Do not invent numbers, technologies, stakeholders or achievements.
 
 ---
 
@@ -233,6 +246,10 @@ These rules override all other instructions about question sequence.
 
 7. **The conversation must feel human and adaptive** — not scripted. A user should never feel that their answer was ignored.
 
+8. **When generating the next question, target the biggest evidence gap from the previous answer.** Do not ask a random adjacent question if the missing piece is obvious.
+
+9. **For strong answers, increase challenge intelligently.** Ask for sharper trade-offs, stakeholder handling, metrics, failure modes or prioritisation logic rather than repeating the same difficulty.
+
 ${UNIVERSAL_BEHAVIOR_LAYER}`;
 }
 
@@ -252,8 +269,8 @@ export async function* streamInterviewResponse(
     model: getDefaultTextModel(),
     messages: [systemMessage, ...messages],
     stream: true,
-    temperature: 0.7,
-    max_tokens: 2000, // Coaching reports require long structured output
+    temperature: 0.55,
+    max_tokens: 2200,
   });
 
   for await (const chunk of stream) {
@@ -280,13 +297,14 @@ export function buildAdaptiveInterviewerSystemPrompt(
       ? '- First interview session ever. Be welcoming and set them at ease.'
       : `- Has completed ${insights.sessionCount} previous session(s). Average score: ${insights.averageScore}/100.`,
     insights.weakAreas.length > 0
-      ? `- Historically weak on: ${insights.weakAreas.join(', ')} type questions — pay attention here.`
+      ? `- Historically weak on: ${insights.weakAreas.join(', ')} type questions — pay extra attention to those gaps.`
       : '',
     insights.strongAreas.length > 0
       ? `- Strong performer on: ${insights.strongAreas.join(', ')} type questions.`
       : '',
     `- Coaching directive: ${insights.adaptationNote}`,
     `- Suggested challenge level: ${insights.suggestedDifficulty}.`,
+    '- Adapt difficulty without becoming repetitive. If the user gives a weak answer, simplify and diagnose. If the user gives a strong answer, increase complexity with one sharper follow-up.',
   ].filter(Boolean).join('\n');
 
   return base + adaptiveSection;
