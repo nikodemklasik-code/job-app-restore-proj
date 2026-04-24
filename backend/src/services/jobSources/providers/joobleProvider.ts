@@ -4,20 +4,79 @@ function norm(v: unknown): string {
   return String(v ?? '').trim();
 }
 
+function stripHtml(value: string): string {
+  return value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function collectStructuredJobs(value: unknown, sink: Record<string, unknown>[]): void {
+  if (!value) return;
+  if (Array.isArray(value)) {
+    for (const item of value) collectStructuredJobs(item, sink);
+    return;
+  }
+  if (typeof value !== 'object') return;
+  const obj = value as Record<string, unknown>;
+  const type = obj['@type'];
+  if (type === 'JobPosting' || (Array.isArray(type) && type.includes('JobPosting'))) sink.push(obj);
+  collectStructuredJobs(obj['@graph'], sink);
+  collectStructuredJobs(obj.itemListElement, sink);
+}
+
+async function searchJoobleWebsite(input: DiscoveryInput): Promise<SourceJob[]> {
+  const url = new URL('https://uk.jooble.org/SearchResult');
+  url.searchParams.set('ukw', input.query);
+  if (input.location) url.searchParams.set('rgns', input.location);
+
+  const res = await fetch(url.toString(), {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'en-GB,en;q=0.9',
+    },
+  });
+  if (!res.ok) throw new Error(`Jooble public ${res.status}`);
+  const html = await res.text();
+
+  const scriptPattern = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  const entries: Record<string, unknown>[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = scriptPattern.exec(html)) !== null) {
+    try { collectStructuredJobs(JSON.parse(match[1]), entries); } catch {}
+  }
+
+  return entries.slice(0, input.limit).map((job) => {
+    const org = job.hiringOrganization as Record<string, unknown> | undefined;
+    const identifier = job.identifier as Record<string, unknown> | undefined;
+    const address = ((job.jobLocation as Record<string, unknown> | undefined)?.address ?? job.jobLocation) as Record<string, unknown> | undefined;
+    return {
+      externalId: norm(identifier?.value ?? job.url ?? job.sameAs),
+      source: 'jooble',
+      title: norm(job.title ?? job.name),
+      company: norm(org?.name ?? 'Unknown company'),
+      location: norm(address?.addressLocality ?? address?.addressRegion ?? address?.addressCountry ?? 'United Kingdom'),
+      description: stripHtml(norm(job.description)),
+      applyUrl: norm(job.url ?? job.sameAs),
+      salaryMin: null,
+      salaryMax: null,
+      workMode: norm(job.employmentType) || null,
+      requirements: [],
+      postedAt: norm(job.datePosted) || new Date().toISOString(),
+    } satisfies SourceJob;
+  }).filter((job) => job.title && job.applyUrl);
+}
+
 export class JoobleProvider implements JobSourceProvider {
   name = 'jooble';
   label = 'Jooble';
 
   async readiness(): Promise<{ ready: boolean; reason?: string }> {
-    if (!process.env.JOOBLE_API_KEY) {
-      return { ready: false, reason: 'JOOBLE_API_KEY not set' };
-    }
-    return { ready: true };
+    if (process.env.JOOBLE_API_KEY) return { ready: true };
+    return { ready: true, reason: 'JOOBLE_API_KEY not set, using public web fallback' };
   }
 
   async discover(input: DiscoveryInput, _context?: ProviderContext): Promise<SourceJob[]> {
     const key = process.env.JOOBLE_API_KEY;
-    if (!key) return [];
+    if (!key) return searchJoobleWebsite(input);
 
     const res = await fetch(`https://jooble.org/api/${key}`, {
       method: 'POST',
