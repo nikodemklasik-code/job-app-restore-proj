@@ -1,0 +1,135 @@
+.theme-soft-dark {
+  --background: 222 34% 10%;
+  --foreground: 215 28% 88%;
+  --card: 222 26% 15%;
+  --card-foreground: 215 28% 88%;
+  --border: 222 18% 27%;
+  --input: 222 20% 18%;
+  --primary: 213 78% 68%;
+  --primary-foreground: 222 35% 9%;
+  --secondary: 222 18% 21%;
+  --secondary-foreground: 215 25% 84%;
+  --muted: 222 18% 21%;
+  --muted-foreground: 215 17% 65%;
+  --accent: 222 20% 25%;
+  --accent-foreground: 215 28% 88%;
+  --destructive: 0 62% 48%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 213 78% 68%;
+  --radius: 0.9rem;
+}
+
+.theme-soft-light {
+  --background: 42 40% 97%;
+  --foreground: 222 26% 16%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 26% 16%;
+  --border: 38 24% 86%;
+  --input: 38 24% 92%;
+  --primary: 224 54% 48%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 40 24% 92%;
+  --secondary-foreground: 222 22% 22%;
+  --muted: 40 24% 92%;
+  --muted-foreground: 220 11% 43%;
+  --accent: 40 28% 89%;
+  --accent-foreground: 222 26% 16%;
+  --destructive: 0 64% 46%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 224 54% 48%;
+  --radius: 0.9rem;
+}
+
+.theme-calm-blue {
+  --background: 211 45% 95%;
+  --foreground: 218 40% 18%;
+  --card: 210 45% 98%;
+  --card-foreground: 218 40% 18%;
+  --border: 211 24% 80%;
+  --input: 211 28% 90%;
+  --primary: 217 54% 45%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 211 32% 89%;
+  --secondary-foreground: 218 34% 20%;
+  --muted: 211 32% 91%;
+  --muted-foreground: 218 16% 43%;
+  --accent: 211 34% 86%;
+  --accent-foreground: 218 40% 18%;
+  --destructive: 0 62% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 217 54% 45%;
+  --radius: 0.85rem;
+}
+
+.theme-sage {
+  --background: 88 22% 94%;
+  --foreground: 108 15% 18%;
+  --card: 85 22% 97%;
+  --card-foreground: 108 15% 18%;
+  --border: 94 15% 78%;
+  --input: 94 18% 89%;
+  --primary: 150 27% 36%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 92 18% 88%;
+  --secondary-foreground: 108 14% 22%;
+  --muted: 92 18% 90%;
+  --muted-foreground: 108 8% 42%;
+  --accent: 94 19% 84%;
+  --accent-foreground: 108 15% 18%;
+  --destructive: 0 58% 44%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 150 27% 36%;
+  --radius: 1rem;
+}
+
+.theme-warm-sand {
+  --background: 38 44% 94%;
+  --foreground: 28 23% 18%;
+  --card: 40 48% 98%;
+  --card-foreground: 28 23% 18%;
+  --border: 34 24% 80%;
+  --input: 36 28% 90%;
+  --primary: 24 44% 43%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 36 32% 88%;
+  --secondary-foreground: 28 20% 22%;
+  --muted: 36 32% 90%;
+  --muted-foreground: 28 12% 43%;
+  --accent: 34 34% 84%;
+  --accent-foreground: 28 23% 18%;
+  --destructive: 0 58% 44%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 24 44% 43%;
+  --radius: 1rem;
+}
+
+.theme-accessible-contrast {
+  --background: 224 20% 9%;
+  --foreground: 210 18% 94%;
+  --card: 224 18% 14%;
+  --card-foreground: 210 18% 94%;
+  --border: 215 14% 38%;
+  --input: 224 16% 18%;
+  --primary: 205 88% 64%;
+  --primary-foreground: 224 24% 8%;
+  --secondary: 224 14% 22%;
+  --secondary-foreground: 210 18% 92%;
+  --muted: 224 14% 22%;
+  --muted-foreground: 210 12% 72%;
+  --accent: 224 16% 26%;
+  --accent-foreground: 210 18% 94%;
+  --destructive: 0 68% 54%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 42 88% 64%;
+  --radius: 0.75rem;
+}
+
+.theme-soft-dark,
+.theme-soft-light,
+.theme-calm-blue,
+.theme-sage,
+.theme-warm-sand,
+.theme-accessible-contrast {
+  line-height: 1.7;
+  letter-spacing: 0.006em;
+}
