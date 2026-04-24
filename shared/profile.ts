@@ -60,10 +60,34 @@ export interface ProfileTrainingInput {
   credentialUrl: string;
 }
 
+export interface ProfileLanguage {
+  id: string;
+  name: string;
+  proficiency: string;
+  certificate?: string | null;
+}
+
+export interface ProfileLanguageInput {
+  name: string;
+  proficiency: string;
+  certificate?: string | null;
+}
+
+export interface ProfileHobby {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
+export interface ProfileHobbyInput {
+  name: string;
+  description?: string | null;
+}
+
 export type JobSearchStatus = 'active' | 'passive' | 'open' | 'not_looking';
 export type WorkModePreference = 'remote' | 'hybrid' | 'onsite';
-export type EmploymentTypePreference = 'full_time' | 'three_quarter' | 'half_time' | 'temporary' | 'occasional';
-export type ContractTypePreference = 'permanent' | 'fixed_term' | 'contract' | 'b2b';
+export type EmploymentTypePreference = 'full_time' | 'part_time' | 'temporary' | 'occasional';
+export type ContractTypePreference = 'employment_contract' | 'b2b' | 'self_employed' | 'fixed_term' | 'contract';
 export type RoadmapMilestoneStatus = 'not_started' | 'in_progress' | 'done';
 
 export interface ProfileRoadmapMilestone {
@@ -75,6 +99,14 @@ export interface ProfileRoadmapMilestone {
   status?: RoadmapMilestoneStatus;
 }
 
+export interface PreferredWorkSetup {
+  workModePreferences: WorkModePreference[];
+  employmentTypePreferences: EmploymentTypePreference[];
+  contractPreferences: ContractTypePreference[];
+  preferredHoursPerWeek?: number | null;
+  preferredWorkRatio?: number | null;
+}
+
 export interface DreamJobProfile {
   targetRole?: string | null;
   targetSeniority?: string | null;
@@ -82,6 +114,8 @@ export interface DreamJobProfile {
   workModePreferences?: WorkModePreference[];
   employmentTypePreferences?: EmploymentTypePreference[];
   contractPreferences?: ContractTypePreference[];
+  preferredHoursPerWeek?: number | null;
+  preferredWorkRatio?: number | null;
   jobSearchStatus?: JobSearchStatus | null;
 }
 
@@ -99,8 +133,12 @@ export interface ProfileStrategyJson {
   workModePreferences?: WorkModePreference[];
   employmentTypePreferences?: EmploymentTypePreference[];
   contractPreferences?: ContractTypePreference[];
+  preferredHoursPerWeek?: number | null;
+  preferredWorkRatio?: number | null;
   targetIndustries?: string[];
   jobSearchStatus?: JobSearchStatus;
+  languages?: ProfileLanguageInput[];
+  hobbies?: ProfileHobbyInput[];
   dreamJob?: DreamJobProfile;
   potentialLearningPath?: Array<{
     id: string;
@@ -124,6 +162,7 @@ export interface CareerGoalsSnapshot {
   targetSeniority: string | null;
   workValues: string[];
   autoApplyMinScore: number;
+  preferredWorkSetup: PreferredWorkSetup;
   strategy: ProfileStrategyJson;
 }
 
@@ -147,6 +186,8 @@ export interface ProfileSnapshot {
   experiences: ProfileExperience[];
   educations: ProfileEducation[];
   trainings: ProfileTraining[];
+  languages: ProfileLanguage[];
+  hobbies: ProfileHobby[];
   careerGoals?: CareerGoalsSnapshot;
   socialConsents?: SocialConsentsSnapshot;
   preferenceFlags?: UserPreferenceFlagsSnapshot;
