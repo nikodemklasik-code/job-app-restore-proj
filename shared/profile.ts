@@ -60,7 +60,59 @@ export interface ProfileTrainingInput {
   credentialUrl: string;
 }
 
-export type ProfileStrategyJson = Record<string, unknown>;
+export type JobSearchStatus = 'active' | 'passive' | 'open' | 'not_looking';
+export type WorkModePreference = 'remote' | 'hybrid' | 'onsite';
+export type EmploymentTypePreference = 'full_time' | 'three_quarter' | 'half_time' | 'temporary' | 'occasional';
+export type ContractTypePreference = 'permanent' | 'fixed_term' | 'contract' | 'b2b';
+export type RoadmapMilestoneStatus = 'not_started' | 'in_progress' | 'done';
+
+export interface ProfileRoadmapMilestone {
+  id: string;
+  title: string;
+  description?: string;
+  requiredSkills?: string[];
+  evidenceTarget?: string;
+  status?: RoadmapMilestoneStatus;
+}
+
+export interface DreamJobProfile {
+  targetRole?: string | null;
+  targetSeniority?: string | null;
+  targetIndustries?: string[];
+  workModePreferences?: WorkModePreference[];
+  employmentTypePreferences?: EmploymentTypePreference[];
+  contractPreferences?: ContractTypePreference[];
+  jobSearchStatus?: JobSearchStatus | null;
+}
+
+export interface ProfileStrategyJson {
+  growthPlan?: string[];
+  roadmap?: ProfileRoadmapMilestone[];
+  skillCourseLinks?: Array<{
+    skillName: string;
+    courseId?: string;
+    note?: string;
+  }>;
+  practiceAreas?: string[];
+  blockedAreas?: string[];
+  highImpactImprovements?: string[];
+  workModePreferences?: WorkModePreference[];
+  employmentTypePreferences?: EmploymentTypePreference[];
+  contractPreferences?: ContractTypePreference[];
+  targetIndustries?: string[];
+  jobSearchStatus?: JobSearchStatus;
+  dreamJob?: DreamJobProfile;
+  potentialLearningPath?: Array<{
+    id: string;
+    title: string;
+    whyItMatters?: string;
+    relatedSkills?: string[];
+    suggestedCourses?: string[];
+    evidenceTarget?: string;
+    status?: RoadmapMilestoneStatus;
+  }>;
+  [key: string]: unknown;
+}
 
 export interface CareerGoalsSnapshot {
   currentJobTitle: string | null;
