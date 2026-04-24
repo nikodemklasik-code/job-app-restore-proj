@@ -60,6 +60,11 @@ export default function Sidebar() {
             >
               <Icon className="h-4 w-4 shrink-0" />
               <span className="truncate">{screen.label}</span>
+              {screen.comingSoon ? (
+                <span className="ml-auto inline-flex shrink-0 items-center rounded-full border border-orange-300/60 bg-orange-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-orange-700 dark:border-orange-400/30 dark:bg-orange-500/10 dark:text-orange-300">
+                  Soon
+                </span>
+              ) : null}
             </NavLink>
           );
         })}
