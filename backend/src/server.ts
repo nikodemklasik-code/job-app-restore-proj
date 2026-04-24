@@ -15,11 +15,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });        // dist/ 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });            // local dev fallback
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-// ─── Fail-fast ENV validation ─────────────────────────────────────────────────
-// Skip in test environment to allow partial ENV in unit tests
 if (process.env.NODE_ENV !== 'test') {
-  // Path resolves correctly at runtime from dist/backend/src/ → repo root
-  // (compile-time path differs from runtime path due to rootDir: ".." in tsconfig)
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   const { requireValidEnv } = await import('../../../../lib/envSchema.mjs');
@@ -38,19 +34,18 @@ import { resolveExpressTrustProxy } from './runtime/express-trust-proxy.js';
 const app = express();
 app.set('trust proxy', resolveExpressTrustProxy());
 
-app.use(helmet({ contentSecurityPolicy: false })); // CSP disabled — frontend is separate
+app.use(helmet({ contentSecurityPolicy: false }));
 
 const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 min
+  windowMs: 15 * 60 * 1000,
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
 });
 
-// Tighter limiter for AI-heavy endpoints (interview, negotiation, assistant)
 const aiLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 min
+  windowMs: 60 * 1000,
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
@@ -66,7 +61,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
 }));
 
-// Stripe webhook — MUST be before express.json() and before global rate limit (Stripe retries / bursts).
 app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -119,13 +113,11 @@ app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (r
 app.use(express.json());
 app.use(generalLimiter);
 
-// Job Radar OpenAPI v1.1 literal REST paths (same handlers as `jobRadar` tRPC router)
 app.use('/job-radar', createJobRadarOpenApiRouter());
 
-// Strict rate limit for AI-heavy endpoints (streaming, TTS, STT, negotiation, assistant)
 app.use('/api/interview', aiLimiter);
 app.use('/api/negotiation', aiLimiter);
-// tRPC assistant.sendMessage — path is /trpc/assistant.sendMessage or /trpc/assistant.getHistory
+app.use('/api/case-practice', aiLimiter);
 app.use('/trpc/assistant.sendMessage', aiLimiter);
 
 app.use('/trpc', createExpressMiddleware({ router: appRouter, createContext }));
@@ -144,7 +136,6 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Interview conversation SSE stream
 app.post('/api/interview/stream', async (req, res) => {
   const { messages, job, userId, mode } = req.body as {
     messages: Array<{ role: string; content: string }>;
@@ -179,13 +170,11 @@ app.post('/api/interview/stream', async (req, res) => {
       .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 
     if (userId) {
-      // Build adaptive prompt based on candidate history
       const { buildCandidateInsights } = await import('./services/adaptiveInterviewer.js');
       const { buildAdaptiveInterviewerSystemPrompt } = await import('./services/interviewConversation.js');
       const insights = await buildCandidateInsights(userId);
       const systemPrompt = buildAdaptiveInterviewerSystemPrompt(job, insights, mode);
 
-      // Send insights metadata as first SSE event
       res.write(`data: ${JSON.stringify({ type: 'insights', ...insights })}\n\n`);
 
       const openai = getOpenAiClient();
@@ -215,7 +204,6 @@ app.post('/api/interview/stream', async (req, res) => {
   }
 });
 
-// TTS — UK English product default via model + instructions (override with OPENAI_TTS_MODEL=tts-1 if needed)
 const TTS_LEGACY_VOICES = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'] as const;
 const TTS_MINI_EXTRA_VOICES = ['ash', 'ballad', 'coral', 'sage', 'verse', 'marin', 'cedar'] as const;
 const TTS_MINI_VOICE_SET = new Set<string>([...TTS_LEGACY_VOICES, ...TTS_MINI_EXTRA_VOICES]);
@@ -281,7 +269,6 @@ app.post('/api/interview/tts', async (req, res) => {
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-// Whisper STT — transcribe audio from browser MediaRecorder
 app.post('/api/interview/transcribe', upload.single('audio'), async (req, res) => {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey?.trim()) {
@@ -313,7 +300,6 @@ app.post('/api/interview/transcribe', upload.single('audio'), async (req, res) =
   }
 });
 
-// ─── Negotiation coaching stream ──────────────────────────────────────────────
 app.post('/api/negotiation/stream', async (req, res) => {
   const { messages } = req.body as {
     messages: Array<{ role: string; content: string }>;
@@ -403,13 +389,38 @@ app.post('/api/negotiation/simulate', async (req, res) => {
   }
 });
 
+app.post('/api/case-practice/generate', async (req, res) => {
+  const { scenario } = req.body as {
+    scenario?: {
+      title: string;
+      summary: string;
+      roleBrief: string;
+      prep: string[];
+      mode: 'solo' | 'joint-call' | 'private-session' | 'tomorrow';
+      includePushback?: boolean;
+    };
+  };
+
+  if (!scenario?.title || !scenario.summary || !scenario.roleBrief || !Array.isArray(scenario.prep)) {
+    res.status(400).json({ error: 'Missing scenario data' });
+    return;
+  }
+
+  try {
+    const { generateCasePracticePack } = await import('./services/casePractice.service.js');
+    const pack = await generateCasePracticePack(scenario);
+    res.json(pack);
+  } catch (err) {
+    console.error('[Case Practice Generate]', err);
+    res.status(500).json({ error: 'Case practice generation failed' });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Backend running on http://localhost:${port}`);
   console.log(`tRPC available at http://localhost:${port}/trpc`);
   console.log(`REST prefix /api (e.g. health at /api/health)`);
 });
 
-// Run retention job daily (24h interval)
 setInterval(() => { void runRetentionJob(); }, 24 * 60 * 60 * 1000);
-// Also run once on startup after 30s (give DB time to connect)
 setTimeout(() => { void runRetentionJob(); }, 30_000);
