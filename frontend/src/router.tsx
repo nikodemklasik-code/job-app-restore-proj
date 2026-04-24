@@ -23,7 +23,7 @@ const TermsPage = lazy(() => import('./app/legal/TermsPage'));
 const PrivacyPage = lazy(() => import('./app/legal/PrivacyPage'));
 const CookiesPage = lazy(() => import('./app/legal/CookiesPage'));
 const ReportsHub = lazy(() => import('./app/reports/ReportsHub'));
-const SkillsLab = lazy(() => import('./app/skills/SkillsLab'));
+const SkillsLab = lazy(() => import('./app/skills/SkillsLabSuccessFirst'));
 const NegotiationPage = lazy(() => import('./app/negotiation/NegotiationPage'));
 const JobRadar = lazy(() => import('./app/radar/JobRadar'));
 const JobRadarLandingPage = lazy(() => import('./app/job-radar/JobRadarLandingPage'));
