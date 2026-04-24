@@ -1,12 +1,61 @@
 import { create } from 'zustand';
 import { trpcClient } from '@/lib/api';
 import type {
-  ProfileSnapshot,
+  ContractTypePreference,
+  EmploymentTypePreference,
   PersonalInfo,
-  ProfileExperienceInput,
+  PreferredWorkSetup,
   ProfileEducationInput,
+  ProfileExperienceInput,
+  ProfileHobbyInput,
+  ProfileLanguageInput,
+  ProfileSnapshot,
   ProfileTrainingInput,
+  WorkModePreference,
 } from '../../../shared/profile';
+
+const EMPTY_WORK_SETUP: PreferredWorkSetup = {
+  workModePreferences: [],
+  employmentTypePreferences: [],
+  contractPreferences: [],
+  preferredHoursPerWeek: null,
+  preferredWorkRatio: null,
+};
+
+type ProfilePreferencesSnapshot = {
+  preferredWorkSetup?: PreferredWorkSetup;
+  languages?: ProfileLanguageInput[];
+  hobbies?: ProfileHobbyInput[];
+};
+
+function mergeProfilePreferences(
+  profile: ProfileSnapshot,
+  preferences?: ProfilePreferencesSnapshot,
+): ProfileSnapshot {
+  const preferredWorkSetup =
+    preferences?.preferredWorkSetup ?? profile.careerGoals?.preferredWorkSetup ?? EMPTY_WORK_SETUP;
+
+  return {
+    ...profile,
+    languages: (preferences?.languages ?? profile.languages ?? []).map((language, index) => ({
+      id: `${language.name}:${language.proficiency}:${index}`,
+      name: language.name,
+      proficiency: language.proficiency,
+      certificate: language.certificate ?? null,
+    })),
+    hobbies: (preferences?.hobbies ?? profile.hobbies ?? []).map((hobby, index) => ({
+      id: `${hobby.name}:${index}`,
+      name: hobby.name,
+      description: hobby.description ?? null,
+    })),
+    careerGoals: profile.careerGoals
+      ? {
+          ...profile.careerGoals,
+          preferredWorkSetup,
+        }
+      : profile.careerGoals,
+  };
+}
 
 interface ProfileStore {
   profile: ProfileSnapshot | null;
@@ -31,10 +80,19 @@ interface ProfileStore {
     autoApplyMinScore?: number;
     strategy?: Record<string, unknown>;
   }) => Promise<void>;
+  saveWorkSetup: (data: {
+    workModePreferences: WorkModePreference[];
+    employmentTypePreferences: EmploymentTypePreference[];
+    contractPreferences: ContractTypePreference[];
+    preferredHoursPerWeek?: number | null;
+    preferredWorkRatio?: number | null;
+  }) => Promise<void>;
+  replaceLanguages: (languages: ProfileLanguageInput[]) => Promise<void>;
+  replaceHobbies: (hobbies: ProfileHobbyInput[]) => Promise<void>;
   dismissError: () => void;
 }
 
-export const useProfileStore = create<ProfileStore>((set) => ({
+export const useProfileStore = create<ProfileStore>((set, get) => ({
   profile: null,
   isLoadingProfile: false,
   isSaving: false,
@@ -47,8 +105,11 @@ export const useProfileStore = create<ProfileStore>((set) => ({
   async loadProfile() {
     set({ isLoadingProfile: true, error: null });
     try {
-      const data = await trpcClient.profile.getProfile.query();
-      if (data) set({ profile: data });
+      const [profile, preferences] = await Promise.all([
+        trpcClient.profile.getProfile.query(),
+        trpcClient.profilePreferences.getPreferences.query(),
+      ]);
+      if (profile) set({ profile: mergeProfilePreferences(profile, preferences) });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to load profile' });
     } finally {
@@ -60,7 +121,7 @@ export const useProfileStore = create<ProfileStore>((set) => ({
     set({ isSaving: true, error: null });
     try {
       const updated = await trpcClient.profile.savePersonalInfo.mutate(data);
-      set({ profile: updated });
+      set({ profile: mergeProfilePreferences(updated, get().profile ?? undefined) });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save personal info' });
     } finally {
@@ -72,7 +133,7 @@ export const useProfileStore = create<ProfileStore>((set) => ({
     set({ isSaving: true, error: null });
     try {
       const updated = await trpcClient.profile.saveSkills.mutate({ skills });
-      set({ profile: updated });
+      set({ profile: mergeProfilePreferences(updated, get().profile ?? undefined) });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save skills' });
     } finally {
@@ -84,7 +145,7 @@ export const useProfileStore = create<ProfileStore>((set) => ({
     set({ isSaving: true, error: null });
     try {
       const updated = await trpcClient.profile.replaceExperiences.mutate({ experiences });
-      set({ profile: updated });
+      set({ profile: mergeProfilePreferences(updated, get().profile ?? undefined) });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save experiences' });
     } finally {
@@ -96,7 +157,7 @@ export const useProfileStore = create<ProfileStore>((set) => ({
     set({ isSaving: true, error: null });
     try {
       const updated = await trpcClient.profile.replaceEducations.mutate({ educations });
-      set({ profile: updated });
+      set({ profile: mergeProfilePreferences(updated, get().profile ?? undefined) });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save educations' });
     } finally {
@@ -108,7 +169,7 @@ export const useProfileStore = create<ProfileStore>((set) => ({
     set({ isSaving: true, error: null });
     try {
       const updated = await trpcClient.profile.replaceTrainings.mutate({ trainings });
-      set({ profile: updated });
+      set({ profile: mergeProfilePreferences(updated, get().profile ?? undefined) });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save trainings' });
     } finally {
@@ -120,9 +181,54 @@ export const useProfileStore = create<ProfileStore>((set) => ({
     set({ isSaving: true, error: null });
     try {
       const updated = await trpcClient.profile.saveCareerGoals.mutate(data);
-      set({ profile: updated });
+      set({ profile: mergeProfilePreferences(updated, get().profile ?? undefined) });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save career goals' });
+    } finally {
+      set({ isSaving: false });
+    }
+  },
+
+  async saveWorkSetup(data) {
+    set({ isSaving: true, error: null });
+    try {
+      const preferredWorkSetup = await trpcClient.profilePreferences.saveWorkSetup.mutate(data);
+      const current = get().profile;
+      if (current) {
+        set({ profile: mergeProfilePreferences(current, { preferredWorkSetup }) });
+      }
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to save work preferences' });
+    } finally {
+      set({ isSaving: false });
+    }
+  },
+
+  async replaceLanguages(languages) {
+    set({ isSaving: true, error: null });
+    try {
+      const updatedLanguages = await trpcClient.profilePreferences.replaceLanguages.mutate({ languages });
+      const current = get().profile;
+      if (current) {
+        set({ profile: mergeProfilePreferences(current, { languages: updatedLanguages }) });
+      }
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to save languages' });
+    } finally {
+      set({ isSaving: false });
+    }
+  },
+
+  async replaceHobbies(hobbies) {
+    set({ isSaving: true, error: null });
+    try {
+      const updatedHobbies = await trpcClient.profilePreferences.replaceHobbies.mutate({ hobbies });
+      const current = get().profile;
+      if (current) {
+        set({ profile: mergeProfilePreferences(current, { hobbies: updatedHobbies }) });
+      }
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to save hobbies' });
     } finally {
       set({ isSaving: false });
     }
