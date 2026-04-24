@@ -74,4 +74,33 @@ describe('mergeQueueWithJobs', () => {
     expect(result[1].relatedJob?.title).toBe('Product Manager');
     expect(result[2].relatedJob).toBeNull();
   });
+
+  it('marks active listing and recommends follow-up after 10 silence days', () => {
+    const app = { ...baseApp, jobId: 'job-1', silenceDays: 10 };
+    const result = mergeQueueWithJobs([app], [baseJob]);
+    expect(result[0].listingStatus).toBe('active');
+    expect(result[0].recommendedAction).toBe('follow_up');
+    expect(result[0].recommendationReasons).toContain('10 days have passed without a fresh status update.');
+  });
+
+  it('marks inactive listing and recommends close after 21 silence days', () => {
+    const app = { ...baseApp, jobId: 'job-1', silenceDays: 21 };
+    const inactiveJob = { ...baseJob, isActive: false };
+    const result = mergeQueueWithJobs([app], [inactiveJob]);
+    expect(result[0].listingStatus).toBe('inactive');
+    expect(result[0].recommendedAction).toBe('close_application');
+    expect(result[0].recommendationReasons).toContain('The original listing no longer appears active.');
+  });
+
+  it('keeps interview-stage applications on wait recommendation', () => {
+    const app = { ...baseApp, status: 'interview' as const, jobId: 'job-1', silenceDays: 30 };
+    const result = mergeQueueWithJobs([app], [baseJob]);
+    expect(result[0].recommendedAction).toBe('wait');
+    expect(result[0].listingStatus).toBe('active');
+  });
+
+  it('returns unknown listing status when related job is absent', () => {
+    const result = mergeQueueWithJobs([baseApp], []);
+    expect(result[0].listingStatus).toBe('unknown');
+  });
 });
