@@ -18,7 +18,6 @@ import {
   Moon,
   Glasses,
   Leaf,
-  Clapperboard,
   Sparkles,
   Contrast,
   PanelLeftClose,
@@ -720,14 +719,13 @@ function SystemReadinessTab({ userId }: { userId: string }) {
 // Accessibility Tab
 // ---------------------------------------------------------------------------
 
-const THEME_ICONS: Record<ThemeId, typeof Sun> = {
-  dark: Moon,
-  light: Sun,
-  'visually-impaired': Glasses,
-  overstimulated: Leaf,
-  'gray-safe': Contrast,
-  noir: Clapperboard,
-  elegant: Sparkles,
+const THEME_ICONS: Record<ThemeId, typeof Moon> = {
+  'soft-dark': Moon,
+  'soft-light': Sun,
+  'calm-blue': Contrast,
+  sage: Leaf,
+  'warm-sand': Sparkles,
+  'accessible-contrast': Glasses,
 };
 
 function AccessibilityTab() {

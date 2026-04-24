@@ -8,7 +8,6 @@ import {
   Sun,
   Glasses,
   Leaf,
-  Clapperboard,
   Sparkles,
   Contrast,
 } from 'lucide-react';
@@ -19,17 +18,16 @@ import { api } from '@/lib/api';
 import { pageTitleForPath } from '@/lib/navigationCopy';
 
 const THEME_ICONS: Record<ThemeId, typeof Moon> = {
-  dark: Moon,
-  light: Sun,
-  'visually-impaired': Glasses,
-  overstimulated: Leaf,
-  'gray-safe': Contrast,
-  noir: Clapperboard,
-  elegant: Sparkles,
+  'soft-dark': Moon,
+  'soft-light': Sun,
+  'calm-blue': Contrast,
+  sage: Leaf,
+  'warm-sand': Sparkles,
+  'accessible-contrast': Glasses,
 };
 
 /** Light / low-chroma themes — header chrome uses slate instead of indigo accents. */
-const NEUTRAL_HEADER_THEMES: ThemeId[] = ['gray-safe', 'light', 'overstimulated', 'elegant'];
+const NEUTRAL_HEADER_THEMES: ThemeId[] = ['soft-light', 'calm-blue', 'sage', 'warm-sand'];
 
 export default function Header() {
   const { pathname, search } = useLocation();
