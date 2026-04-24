@@ -2,33 +2,55 @@ import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { protectedProcedure, router } from '../trpc.js';
 
-const communityEventSchema = z.object({
+const communityCardSchema = z.object({
   id: z.string(),
   title: z.string(),
-  startsAtLabel: z.string(),
+  category: z.string(),
   description: z.string(),
   ctaLabel: z.string(),
 });
 
-const memberOutcomeSchema = z.object({
+const experiencePostSchema = z.object({
   id: z.string(),
-  memberName: z.string(),
-  outcome: z.string(),
-  proofSignal: z.string(),
+  authorLabel: z.string(),
+  topic: z.string(),
+  lesson: z.string(),
+  moduleHint: z.string(),
+});
+
+const supportOptionSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  description: z.string(),
+  ctaLabel: z.string(),
 });
 
 const communitySnapshotSchema = z.object({
   referralLink: z.string(),
   primaryAction: z.string(),
   emptyStatePrompt: z.string(),
-  events: z.array(communityEventSchema),
-  featuredOutcomes: z.array(memberOutcomeSchema),
-  trending: z.array(z.string()),
+  announcements: z.array(communityCardSchema),
+  contests: z.array(communityCardSchema),
+  productNews: z.array(communityCardSchema),
+  experienceExchange: z.array(experiencePostSchema),
+  openSpacePrompts: z.array(z.string()),
+  patronageOptions: z.array(supportOptionSchema),
+  volunteeringOptions: z.array(supportOptionSchema),
   generatedAt: z.string(),
 });
 
 const trackCommunityActionInputSchema = z.object({
-  action: z.enum(['copy_referral_link', 'view_event_details', 'open_community_feed', 'become_patron']),
+  action: z.enum([
+    'copy_referral_link',
+    'open_announcement',
+    'open_contest',
+    'open_product_news',
+    'share_experience',
+    'open_open_space',
+    'become_patron',
+    'buy_credits_for_someone',
+    'volunteer',
+  ]),
 });
 
 const trackCommunityActionOutputSchema = z.object({
@@ -49,55 +71,97 @@ export function buildCommunityReferralLink(userId: string, baseUrl = getBaseUrl(
 export function buildCommunitySnapshot(userId: string, now = new Date()) {
   return {
     referralLink: buildCommunityReferralLink(userId),
-    primaryAction: 'Invite one peer and share one verified outcome.',
-    emptyStatePrompt: 'Invite one peer, join one event, and return here after your first community action.',
-    events: [
+    primaryAction: 'Read announcements, share one useful lesson, or support someone with credits.',
+    emptyStatePrompt: 'When there are no posts yet, show one prompt: share an experience, post an announcement, or join volunteering.',
+    announcements: [
       {
-        id: 'interview-rehearsal-sprint',
-        title: 'Interview Rehearsal Sprint',
-        startsAtLabel: 'Thursday',
-        description: 'Practice concise answers, pressure handling, and follow-up framing.',
-        ctaLabel: 'View event details',
+        id: 'community-rules-board',
+        title: 'Community board is for practical career help',
+        category: 'Announcement',
+        description: 'Use this space for job-search notices, useful resources, requests for feedback, and member opportunities.',
+        ctaLabel: 'Open announcement',
       },
       {
-        id: 'negotiation-language-lab',
-        title: 'Negotiation Language Lab',
-        startsAtLabel: 'Saturday',
-        description: 'Work on compensation boundaries, counter-offers, and value framing.',
-        ctaLabel: 'View event details',
-      },
-      {
-        id: 'skill-value-positioning',
-        title: 'Skill Value Positioning Q&A',
-        startsAtLabel: 'Tuesday',
-        description: 'Connect skill proof, market value, and stronger application positioning.',
-        ctaLabel: 'View event details',
+        id: 'mentor-office-hours',
+        title: 'Open office hours for application review',
+        category: 'Open Space',
+        description: 'Members can bring one application, one follow-up message, or one interview concern for peer review.',
+        ctaLabel: 'Join open space',
       },
     ],
-    featuredOutcomes: [
+    contests: [
       {
-        id: 'elena-warmup-confidence',
-        memberName: 'Elena',
-        outcome: 'Improved interview confidence score after a Daily Warmup streak.',
-        proofSignal: 'Practice Activity',
+        id: 'best-follow-up-template',
+        title: 'Best follow-up template challenge',
+        category: 'Contest',
+        description: 'Submit a concise follow-up message. The winning template becomes a community example and earns credits.',
+        ctaLabel: 'Open contest',
       },
       {
-        id: 'marcus-report-replies',
-        memberName: 'Marcus',
-        outcome: 'Converted report insights into stronger application replies.',
-        proofSignal: 'Reports',
-      },
-      {
-        id: 'priya-negotiation-framing',
-        memberName: 'Priya',
-        outcome: 'Negotiated compensation band with clearer value framing.',
-        proofSignal: 'Negotiation',
+        id: 'warmup-streak-week',
+        title: 'Daily Warmup streak week',
+        category: 'Contest',
+        description: 'Complete short warmups across the week and share one lesson from the practice loop.',
+        ctaLabel: 'View challenge',
       },
     ],
-    trending: [
-      'Follow-up strategy after 7+ days of silence.',
-      'Compensation boundary response draft.',
-      '10-minute Daily Warmup challenge.',
+    productNews: [
+      {
+        id: 'applications-review-refresh',
+        title: 'Applications Review now shows listing status and silence days',
+        category: 'Product News',
+        description: 'The review queue now explains why follow-up, wait, or close is recommended instead of making users interpret stale data alone.',
+        ctaLabel: 'Read update',
+      },
+    ],
+    experienceExchange: [
+      {
+        id: 'experience-follow-up-after-silence',
+        authorLabel: 'Member story',
+        topic: 'Following up after silence',
+        lesson: 'A short message after 10+ days worked better than a long explanation of motivation.',
+        moduleHint: 'Applications Review',
+      },
+      {
+        id: 'experience-salary-boundary',
+        authorLabel: 'Member lesson',
+        topic: 'Salary boundary wording',
+        lesson: 'Naming a clear range helped keep the conversation practical instead of apologetic.',
+        moduleHint: 'Negotiation',
+      },
+    ],
+    openSpacePrompts: [
+      'Ask for feedback on a follow-up email.',
+      'Share what worked in an interview or screening call.',
+      'Post a useful job-search resource with context, not just a naked link like some digital cave painting.',
+    ],
+    patronageOptions: [
+      {
+        id: 'gift-credits',
+        title: 'Buy credits for someone else',
+        description: 'Sponsor credits for a member who is in a harder life situation and needs access to paid practice or document help.',
+        ctaLabel: 'Gift credits',
+      },
+      {
+        id: 'community-patron',
+        title: 'Become a patron',
+        description: 'Support the shared pool that helps members access credits when money is the blocker, because apparently survival still has pricing tiers.',
+        ctaLabel: 'Become a patron',
+      },
+    ],
+    volunteeringOptions: [
+      {
+        id: 'volunteer-cv-review',
+        title: 'Volunteer: CV and profile feedback',
+        description: 'Offer limited peer feedback slots for members who need a second pair of eyes.',
+        ctaLabel: 'Volunteer for reviews',
+      },
+      {
+        id: 'volunteer-mock-interview',
+        title: 'Volunteer: mock interview partner',
+        description: 'Help another member rehearse answers, pressure, and follow-up language.',
+        ctaLabel: 'Volunteer for practice',
+      },
     ],
     generatedAt: now.toISOString(),
   };
