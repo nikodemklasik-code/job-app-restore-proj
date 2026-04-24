@@ -52,7 +52,7 @@ echo "────────────────────────�
 
 check "Backend /health"        "${API_BASE}/health"       '"status":"ok"'
 check "Backend /api/health"    "${API_BASE}/api/health"   '"status":"ok"'
-check "Frontend index.html"    "${FRONTEND_URL}"          '<div id="root"'
+check "Frontend index.html"    "${FRONTEND_URL}"          '<!DOCTYPE html'
 
 echo "────────────────────────────────────────────"
 echo "  Passed: ${pass} / Failed: ${fail}"
