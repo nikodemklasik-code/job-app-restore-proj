@@ -1,6 +1,14 @@
 import { Link } from 'react-router-dom';
 import type { DashboardSnapshot as DashboardSnapshotDto } from '@/types/dashboard';
 
+function formatCurrency(cents: number, currency: string): string {
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 2,
+  }).format(cents / 100);
+}
+
 function formatDate(date: string | null): string {
   if (!date) return 'No completed sessions yet';
   return new Date(date).toLocaleString('en-GB', {
@@ -84,9 +92,12 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
           subtitle={`${applications.needsReviewCount} need review`}
         />
         <StatCard
-          title="Spendable (billing engine)"
-          value={billing.availableBalanceCents.toLocaleString()}
-          subtitle="Credit-style units from account state (GBP ledger where enabled)"
+          title="Available balance"
+          value={formatCurrency(billing.availableBalanceCents, billing.currency)}
+          subtitle={`${formatCurrency(billing.postedNetCents, billing.currency)} posted, ${formatCurrency(
+            billing.pendingNetCents,
+            billing.currency,
+          )} pending`}
         />
         <StatCard
           title="Interview practice"
@@ -140,7 +151,7 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
                         <StatusBadge status={application.status} />
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-400">
-                        {new Date(application.updatedAt).toLocaleDateString()}
+                        {new Date(application.updatedAt).toLocaleDateString('en-GB')}
                       </td>
                     </tr>
                   ))}
