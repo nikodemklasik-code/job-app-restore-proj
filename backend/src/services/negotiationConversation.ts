@@ -175,6 +175,12 @@ The score must reflect the quality of the negotiation move only, not the quality
 
 Base the score only on: strategic logic, value creation, clarity, structure of concessions, strength of framing, leverage logic, implementation awareness.
 
+Calibration:
+- 9-10 only for unusually strong, explicit and well-sequenced negotiation language.
+- 7-8 for solid, commercially credible moves with some gaps.
+- 5-6 for usable but underpowered moves.
+- 0-4 for weak, vague or strategically exposed moves.
+
 Never use the score to imply hiring suitability or human worth.
 
 ---
@@ -196,6 +202,13 @@ When the user submits a negotiation move or transcript, always follow this exact
 11. **[Refined Negotiation Response]** — a stronger version of the negotiation turn using the same core intent; do not invent leverage or fallback options
 12. **[Strategic Blueprint]** — specify what to do next in the negotiation
 13. **[Disclaimer]** — This analysis evaluates negotiation strategy and communication quality only. It is not a hiring assessment, suitability judgment, or selection recommendation.
+
+Strict coaching rules:
+- Never give bland praise.
+- Name the exact move and its effect.
+- Identify where the user gave away value for free, softened the ask, failed to set a condition, or missed package-building.
+- The refined response must sound commercially realistic and firmer than the original.
+- Do not invent facts not present in the source text.
 
 ---
 
@@ -224,7 +237,7 @@ export async function* streamNegotiationResponse(
     model: getDefaultTextModel(),
     messages: [systemMessage, ...messages],
     stream: true,
-    temperature: 0.7,
+    temperature: 0.55,
     max_tokens: 2000,
   });
 
@@ -233,8 +246,6 @@ export async function* streamNegotiationResponse(
     if (content) yield content;
   }
 }
-
-// ── Negotiation Simulator ────────────────────────────────────────────────────
 
 export interface SimulatorOffer {
   role: string;
@@ -249,7 +260,9 @@ export interface SimulatorOffer {
 export function buildNegotiationSimulatorPrompt(offer: SimulatorOffer): string {
   const { role, company, offeredSalary, currency, targetSalary, marketRate, benefits } = offer;
   const sym = currency === 'GBP' ? '£' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency;
-  return `You are an HR representative at ${company} conducting a real-time salary negotiation with a job candidate for the role of ${role}.
+  const stepLow = Math.max(250, Math.round(offeredSalary * 0.02));
+  const stepHigh = Math.max(stepLow + 250, Math.round(offeredSalary * 0.04));
+  return `You are an HR representative at ${company} conducting a realistic salary negotiation with a job candidate for the role of ${role}.
 
 ## YOUR OPENING OFFER
 You have offered: ${sym}${offeredSalary.toLocaleString()} per year${benefits ? ` plus ${benefits}` : ''}.
@@ -258,21 +271,28 @@ ${marketRate ? `Market rate for this role: ${sym}${marketRate.toLocaleString()}.
 
 ## YOUR ROLE
 - Play a realistic but fair HR representative.
-- Start the simulation by delivering the offer naturally (one paragraph).
-- After each candidate response, respond as HR would: acknowledge their point, hold your position, make small concessions only when the candidate makes a strong case. You can move up in increments of ${sym}${Math.round(offeredSalary * 0.02).toLocaleString()}–${sym}${Math.round(offeredSalary * 0.04).toLocaleString()} when justified.
+- Start the simulation by delivering the offer naturally in one short paragraph.
+- After each candidate response, reply as HR would: acknowledge their point, test the strength of their reasoning, and only move when they justify it.
+- Concessions should be gradual and conditional. Typical movement range: ${sym}${stepLow.toLocaleString()} to ${sym}${stepHigh.toLocaleString()} when genuinely warranted.
+- Push back on weak arguments such as "I just want more", generic market claims with no support, or vague mentions of experience.
+- Respond better to strong logic: scoped achievements, market anchoring, competing demand, role fit, or package trade-offs.
+- You may also negotiate on bonus, title review, sign-on support, review timing, flexibility or other package elements if salary movement is limited.
 - Track the negotiation internally. When the candidate signals acceptance or after 6 rounds, end the simulation with: **[SIMULATION COMPLETE]** followed by a debrief that includes:
-  1. **Final agreed salary** — what was accepted
+  1. **Final agreed package**
   2. **Money left on the table** — difference between what they accepted and the target (${sym}${targetSalary.toLocaleString()})
   3. **What worked** — 2-3 specific negotiation moves the candidate used well
-  4. **What was missed** — 1-2 opportunities or stronger arguments they could have made
-  5. **Next time** — one concrete tip for their next negotiation
+  4. **What was missed** — 1-2 missed leverage, package, or sequencing opportunities
+  5. **Next time** — one concrete negotiation upgrade
 
 ## RULES
 - Do NOT break character during the simulation to give coaching advice.
 - Do NOT reveal the candidate's target salary unless they mention it.
-- Respond in English. Keep responses concise (2-4 sentences during the simulation).
-- Be realistic: do not instantly agree to any number without pushback.
-- After the debrief, return to normal coaching mode if the user has further questions.
+- Respond in English.
+- Keep live negotiation replies concise: 2-4 sentences.
+- Be realistic: do not instantly agree to any number without justification.
+- If the candidate gives a weak move, hold the line.
+- If the candidate makes a strong multi-variable proposal, respond like a real HR partner rather than a brick wall.
+- After the debrief, return to normal coaching mode if the user asks follow-up questions.
 
 ${UNIVERSAL_BEHAVIOR_LAYER}`;
 }
@@ -292,8 +312,8 @@ export async function* streamNegotiationSimulation(
     model: getDefaultTextModel(),
     messages: [systemMessage, ...messages],
     stream: true,
-    temperature: 0.75,
-    max_tokens: 800,
+    temperature: 0.7,
+    max_tokens: 900,
   });
 
   for await (const chunk of stream) {
