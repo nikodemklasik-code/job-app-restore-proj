@@ -87,7 +87,7 @@ export default function CasePracticePageCompact() {
 
               <button
                 type="button"
-                className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border text-current shadow-sm transition hover:scale-[1.02] mvh-play-button sm:h-18 sm:w-18"
+                className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border text-current shadow-sm transition hover:scale-[1.02] mvh-play-button"
                 aria-label="Intro preview"
               >
                 <PlayCircle className="h-10 w-10" />
