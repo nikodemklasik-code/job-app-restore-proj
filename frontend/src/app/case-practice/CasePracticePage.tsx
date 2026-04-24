@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Clock3,
   Headphones,
+  History,
   Loader2,
   Lock,
   MessageSquareWarning,
@@ -29,6 +30,18 @@ interface GeneratedCasePack {
   verdict: string;
   reflection: string;
 }
+
+interface CaseHistoryEntry {
+  id: string;
+  caseId: string;
+  caseTitle: string;
+  mode: PracticeMode;
+  includePushback: boolean;
+  createdAt: string;
+  pack: GeneratedCasePack;
+}
+
+const CASE_HISTORY_STORAGE_KEY = 'mvh-case-practice-history-v1';
 
 const CASES = [
   {
@@ -80,6 +93,23 @@ const CASES = [
     ],
   },
 ];
+
+function readCaseHistory(): CaseHistoryEntry[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(CASE_HISTORY_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as CaseHistoryEntry[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeCaseHistory(entries: CaseHistoryEntry[]) {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(CASE_HISTORY_STORAGE_KEY, JSON.stringify(entries.slice(0, 8)));
+}
 
 function useWarmListenAlong() {
   const [speaking, setSpeaking] = useState(false);
@@ -146,12 +176,17 @@ export default function CasePracticePage() {
   const [activePanel, setActivePanel] = useState<'scenario' | 'verdict' | 'reflection'>('scenario');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const [history, setHistory] = useState<CaseHistoryEntry[]>([]);
   const { speak, stop, speaking, prefersReducedMotion, canSpeak } = useWarmListenAlong();
 
   const selectedCase = useMemo(
     () => CASES.find((item) => item.id === selectedCaseId) ?? CASES[0],
     [selectedCaseId],
   );
+
+  useEffect(() => {
+    setHistory(readCaseHistory());
+  }, []);
 
   const modeLabel =
     mode === 'joint-call'
@@ -185,6 +220,32 @@ export default function CasePracticePage() {
     resetGeneratedState();
   }, [selectedCaseId, mode, showPushbackRound, resetGeneratedState]);
 
+  const saveHistoryEntry = useCallback((pack: GeneratedCasePack) => {
+    if (!selectedCase) return;
+    const nextEntry: CaseHistoryEntry = {
+      id: `${selectedCase.id}-${Date.now()}`,
+      caseId: selectedCase.id,
+      caseTitle: selectedCase.title,
+      mode,
+      includePushback: showPushbackRound,
+      createdAt: new Date().toISOString(),
+      pack,
+    };
+    const next = [nextEntry, ...history.filter((entry) => !(entry.caseId === nextEntry.caseId && entry.mode === nextEntry.mode && entry.includePushback === nextEntry.includePushback))].slice(0, 8);
+    setHistory(next);
+    writeCaseHistory(next);
+  }, [history, mode, selectedCase, showPushbackRound]);
+
+  const restoreHistoryEntry = useCallback((entry: CaseHistoryEntry) => {
+    setSelectedCaseId(entry.caseId);
+    setMode(entry.mode);
+    setShowPushbackRound(entry.includePushback);
+    setGeneratedPack(entry.pack);
+    setActivePanel('scenario');
+    setGenerationError(null);
+    setState('populated');
+  }, []);
+
   const generateCasePack = useCallback(async (panel: 'scenario' | 'verdict' | 'reflection') => {
     if (!selectedCase) return;
     setActivePanel(panel);
@@ -204,12 +265,13 @@ export default function CasePracticePage() {
         },
       });
       setGeneratedPack(response);
+      saveHistoryEntry(response);
     } catch {
       setGenerationError('Could not generate case guidance right now. Try again in a moment.');
     } finally {
       setIsGenerating(false);
     }
-  }, [generatedPack, mode, selectedCase, showPushbackRound]);
+  }, [generatedPack, mode, saveHistoryEntry, selectedCase, showPushbackRound]);
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -419,6 +481,29 @@ export default function CasePracticePage() {
                   <p className="mt-1 text-[11px] text-slate-400">{item.timeWindow}</p>
                 </button>
               ))}
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-300">
+                <History className="h-3.5 w-3.5 text-indigo-300" />
+                Recent sessions
+              </div>
+              {history.length === 0 ? (
+                <p className="mt-2 text-xs text-slate-500">Generated packs you create here stay available in this browser for quick return.</p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {history.map((entry) => (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      onClick={() => restoreHistoryEntry(entry)}
+                      className="w-full rounded-lg border border-white/10 bg-slate-950/40 px-3 py-2 text-left transition hover:border-indigo-400/30 hover:bg-indigo-500/10"
+                    >
+                      <p className="text-xs font-semibold text-white">{entry.caseTitle}</p>
+                      <p className="mt-1 text-[11px] text-slate-400">{entry.mode} · {entry.includePushback ? 'pushback' : 'standard'}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </aside>
 
