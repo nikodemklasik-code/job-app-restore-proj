@@ -89,3 +89,58 @@
   color: var(--mvh-text-strong, hsl(var(--foreground))) !important;
   border-color: color-mix(in oklab, var(--mvh-border, hsl(var(--border))) 82%, transparent) !important;
 }
+
+/* #26 / #27 Case Practice fast UX pass.
+ * Keeps preview states compact and makes generation pacing feel intentional.
+ */
+.case-study-compact .case-study-engine section:has(> div p:first-child:is([class*="text-"][class*="uppercase"])) {
+  scroll-margin-top: 6rem;
+}
+
+.case-study-compact .case-study-engine section:has(p:first-child[class*="Shell preview"]),
+.case-study-compact .case-study-engine section:has(p[class*="Shell preview"]),
+.case-study-compact .case-study-engine section:has(button:first-of-type:last-child) {
+  border-style: solid !important;
+}
+
+.case-study-compact .case-study-engine section:has(button:nth-of-type(4)) {
+  padding: 0.75rem !important;
+}
+
+.case-study-compact .case-study-engine section:has(button:nth-of-type(4)) > div {
+  gap: 0.75rem !important;
+}
+
+.case-study-compact .case-study-engine section:has(button:nth-of-type(4)) button {
+  min-height: 2.4rem !important;
+  min-width: 6rem !important;
+  padding: 0.45rem 0.65rem !important;
+  border-radius: 0.75rem !important;
+}
+
+.case-study-compact .case-study-engine section:has(button:nth-of-type(4)) button span:first-child {
+  font-size: 0.75rem !important;
+}
+
+.case-study-compact .case-study-engine section:has(button:nth-of-type(4)) button span:last-child {
+  font-size: 0.58rem !important;
+}
+
+.case-study-compact .case-study-engine section:has(.animate-spin) .animate-spin + *,
+.case-study-compact .case-study-engine section:has(.animate-spin) div:has(.animate-spin) {
+  line-height: 1.45 !important;
+}
+
+.case-study-compact .case-study-engine section:has(.animate-spin) div:has(.animate-spin)::after {
+  content: "We are structuring the scenario, response, verdict and reflection. This can take a few seconds.";
+  display: block;
+  margin-top: 0.45rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--mvh-text-muted, hsl(var(--muted-foreground)));
+}
+
+.case-study-compact .case-study-engine section:has(.animate-spin) {
+  border-color: color-mix(in oklab, var(--mvh-primary, hsl(var(--primary))) 36%, var(--mvh-border, hsl(var(--border)))) !important;
+  background: color-mix(in oklab, var(--mvh-surface-raised, hsl(var(--card))) 90%, var(--mvh-primary, hsl(var(--primary))) 10%) !important;
+}
