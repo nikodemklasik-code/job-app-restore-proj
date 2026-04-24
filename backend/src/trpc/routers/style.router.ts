@@ -24,6 +24,78 @@ async function universalLayerForClerk(clerkId: string): Promise<string> {
   return buildUniversalBehaviorLayer(planToPromptBehaviorTier(plan));
 }
 
+function cleanText(value?: string | null): string {
+  return String(value ?? '').replace(/\s+/g, ' ').trim();
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values.map((value) => cleanText(value)).filter(Boolean))];
+}
+
+function extractJobSignals(jobDescription?: string): string[] {
+  const description = cleanText(jobDescription);
+  const keywords = description.match(/\b(?:react|typescript|javascript|node(?:\.js)?|python|java|aws|azure|gcp|sql|postgres(?:ql)?|docker|kubernetes|figma|product management|stakeholder management|project management|data analysis|communication|leadership|testing|automation|ci\/cd|rest api|graphql)\b/gi) ?? [];
+  const bullets = description
+    .split(/(?:\u2022|•|\n|- )/)
+    .map((chunk) => cleanText(chunk))
+    .filter((chunk) => chunk.length >= 12 && chunk.length <= 120)
+    .filter((chunk) => /(experience|knowledge|ability|skilled|proficient|strong|familiar|background|understanding)/i.test(chunk));
+  return uniqueStrings([...keywords, ...bullets]).slice(0, 10);
+}
+
+function buildFallbackCvText(input: {
+  jobTitle: string;
+  company?: string;
+  profileSummary?: string;
+  skills?: string[];
+  jobDescription?: string;
+}): string {
+  const roleLine = `${input.jobTitle}${input.company ? ` at ${input.company}` : ''}`;
+  const skills = uniqueStrings(input.skills ?? []).slice(0, 8);
+  const jobSignals = extractJobSignals(input.jobDescription);
+  const matched = skills.filter((skill) => jobSignals.some((signal) => signal.toLowerCase().includes(skill.toLowerCase()) || skill.toLowerCase().includes(signal.toLowerCase()))).slice(0, 5);
+  const summary = cleanText(input.profileSummary);
+
+  const paragraphOne = matched.length > 0
+    ? `Profile aligned to ${roleLine}, with relevant strength across ${matched.join(', ')}.`
+    : `Profile aligned to ${roleLine}, with a practical foundation in ${skills.slice(0, 4).join(', ') || 'relevant cross-functional delivery'}.`;
+  const paragraphTwo = summary
+    ? `${summary.replace(/\.$/, '')}.`
+    : `Brings clear communication, organised execution and role-relevant problem solving, with emphasis on the strongest overlaps with the target brief.`;
+  const paragraphThree = jobSignals[0]
+    ? `Priority fit areas include ${jobSignals.slice(0, 3).join(', ')}.`
+    : `Tailored towards the priorities implied by the target job description.`;
+
+  return `${paragraphOne}\n\n${paragraphTwo}\n\nCore strengths: ${skills.join(', ') || 'Relevant transferable skills'}.\n\n${paragraphThree}`;
+}
+
+function buildFallbackCoverLetterText(input: {
+  jobTitle: string;
+  company?: string;
+  profileSummary?: string;
+  skills?: string[];
+  senderName?: string;
+  jobDescription?: string;
+}): string {
+  const roleLine = `${input.jobTitle}${input.company ? ` at ${input.company}` : ''}`;
+  const skills = uniqueStrings(input.skills ?? []).slice(0, 8);
+  const jobSignals = extractJobSignals(input.jobDescription);
+  const matched = skills.filter((skill) => jobSignals.some((signal) => signal.toLowerCase().includes(skill.toLowerCase()) || skill.toLowerCase().includes(signal.toLowerCase()))).slice(0, 4);
+  const summary = cleanText(input.profileSummary);
+
+  const p1 = matched.length > 0
+    ? `The ${roleLine} opportunity is a strong match for my background, particularly in ${matched.join(', ')}.`
+    : `The ${roleLine} opportunity is a strong match for my background and the way I approach delivery, communication and problem solving.`;
+  const p2 = summary
+    ? `My background includes ${summary.charAt(0).toLowerCase() + summary.slice(1).replace(/\.$/, '')}, and I would bring that same practical focus to the role.`
+    : `My experience has given me a solid base in ${skills.slice(0, 4).join(', ') || 'relevant role-based work'}, and I would bring that same practical focus to the role.`;
+  const p3 = jobSignals[0]
+    ? `I would welcome the chance to discuss how I could contribute to your priorities around ${jobSignals[0].replace(/\.$/, '')}.\n\nYours sincerely,\n${input.senderName ?? 'Applicant'}`
+    : `I would welcome the chance to discuss how I could contribute to the role.\n\nYours sincerely,\n${input.senderName ?? 'Applicant'}`;
+
+  return `${p1}\n\n${p2}\n\n${p3}`;
+}
+
 const STYLE_ANALYZE_DEBIT =
   FEATURE_COSTS.style_analyze_document.kind === 'estimated'
     ? FEATURE_COSTS.style_analyze_document.maxCost
@@ -166,35 +238,82 @@ export const styleRouter = router({
     .mutation(async ({ input }) => {
       const openai = tryGetOpenAiClient();
 
-      const skillList = (input.skills ?? []).slice(0, 15).join(', ');
+      const skillList = uniqueStrings(input.skills ?? []).slice(0, 15);
+      const jobSignals = extractJobSignals(input.jobDescription);
+      const matchedSkills = skillList.filter((skill) => jobSignals.some((signal) => signal.toLowerCase().includes(skill.toLowerCase()) || skill.toLowerCase().includes(signal.toLowerCase()))).slice(0, 8);
       const profileContext = [
-        input.profileSummary ? `Professional summary: ${input.profileSummary}` : '',
-        skillList ? `Key skills: ${skillList}` : '',
+        input.profileSummary ? `Professional summary: ${cleanText(input.profileSummary)}` : '',
+        skillList.length > 0 ? `Key skills: ${skillList.join(', ')}` : '',
+        matchedSkills.length > 0 ? `Strong role overlaps: ${matchedSkills.join(', ')}` : '',
+        jobSignals.length > 0 ? `Priority job signals: ${jobSignals.join(' | ')}` : '',
       ].filter(Boolean).join('\n');
 
       if (!openai) {
-        // Heuristic fallback
-        if (input.type === 'cv') {
-          return {
-            text: `PROFESSIONAL SUMMARY\n${input.profileSummary ?? 'Experienced professional seeking new challenges.'}\n\nKEY SKILLS\n${skillList}\n\nTailored for: ${input.jobTitle}${input.company ? ` at ${input.company}` : ''}\n`,
-          };
-        }
         return {
-          text: `Dear Hiring Team,\n\nI am writing to apply for the ${input.jobTitle} position${input.company ? ` at ${input.company}` : ''}. With my background in ${skillList || 'relevant technologies'}, I am confident in my ability to contribute effectively.\n\nI look forward to discussing this opportunity further.\n\nYours sincerely,\n${input.senderName ?? 'Applicant'}`,
+          text: input.type === 'cv'
+            ? buildFallbackCvText(input)
+            : buildFallbackCoverLetterText(input),
         };
       }
 
       const universalLayer = await universalLayerForClerk(input.userId);
 
       const baseSystem = input.type === 'cv'
-        ? `You are an expert UK CV writer. Generate a professional, tailored CV summary and skills section (no template headings, pure prose sections ready to paste). Tailor it specifically to the job description provided. Use British English.`
-        : `You are an expert UK cover letter writer. Write a concise, compelling cover letter (3 paragraphs, no placeholders, ready to send). Match the tone to the company and role. Use British English.`;
+        ? `You are an expert UK CV writer. Produce targeted CV copy that is ready to paste into a CV. Focus on precision, relevance and credibility.`
+        : `You are an expert UK cover letter writer. Produce a concise, credible cover letter that sounds tailored and commercially aware.`;
 
-      const systemPrompt = `${baseSystem}\n\n${universalLayer}`;
+      const systemPrompt = `${baseSystem}
+
+${universalLayer}
+
+Hard rules:
+- British English only.
+- No placeholders.
+- No fabricated metrics, employers, certifications or years of experience.
+- No generic filler such as "results-driven professional", "dynamic team", "excited to apply" unless directly justified.
+- Emphasise the strongest overlap between profile and role.
+- Keep tone sharp, modern and believable.`;
 
       const userPrompt = input.type === 'cv'
-        ? `Job: ${input.jobTitle}${input.company ? ` at ${input.company}` : ''}\nJob description: ${input.jobDescription ?? 'Not provided'}\n\nCandidate profile:\n${profileContext}\n\nWrite a tailored CV professional summary section and highlight the most relevant skills.`
-        : `Job: ${input.jobTitle}${input.company ? ` at ${input.company}` : ''}\nJob description: ${input.jobDescription ?? 'Not provided'}\n\nCandidate profile:\n${profileContext}\nApplicant name: ${input.senderName ?? 'Applicant'}\n\nWrite a compelling cover letter.`;
+        ? `Create tailored CV copy for this role.
+
+Job: ${input.jobTitle}${input.company ? ` at ${input.company}` : ''}
+Job description: ${cleanText(input.jobDescription).slice(0, 2000) || 'Not provided'}
+Candidate profile:
+${profileContext || 'No candidate profile context provided'}
+
+Return valid JSON only in this shape:
+{
+  "summary": "2-3 sentence professional summary, 70-110 words",
+  "highlightSkills": ["skill 1", "skill 2", "skill 3", "skill 4", "skill 5"],
+  "evidenceBullets": ["bullet 1", "bullet 2", "bullet 3"]
+}
+
+Rules for bullets:
+- one line each
+- action + capability + outcome style
+- do not invent numbers or achievements`
+        : `Create a tailored cover letter for this role.
+
+Job: ${input.jobTitle}${input.company ? ` at ${input.company}` : ''}
+Job description: ${cleanText(input.jobDescription).slice(0, 2000) || 'Not provided'}
+Candidate profile:
+${profileContext || 'No candidate profile context provided'}
+Applicant name: ${input.senderName ?? 'Applicant'}
+
+Return valid JSON only in this shape:
+{
+  "opening": "paragraph 1",
+  "body": "paragraph 2",
+  "closing": "paragraph 3 before sign-off",
+  "signoff": "Yours sincerely,\\nName"
+}
+
+Rules:
+- 3 compact paragraphs total
+- under 260 words total
+- specific, restrained, credible
+- no clichés or empty enthusiasm`;
 
       try {
         const resp = await openai.chat.completions.create({
@@ -203,12 +322,46 @@ export const styleRouter = router({
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },
           ],
-          max_tokens: 800,
+          response_format: { type: 'json_object' },
+          temperature: 0.35,
+          max_tokens: 900,
         });
-        const text = resp.choices[0]?.message?.content ?? '';
-        return { text };
+        const raw = JSON.parse(resp.choices[0]?.message?.content ?? '{}') as {
+          summary?: string;
+          highlightSkills?: string[];
+          evidenceBullets?: string[];
+          opening?: string;
+          body?: string;
+          closing?: string;
+          signoff?: string;
+        };
+
+        if (input.type === 'cv') {
+          const text = [
+            cleanText(raw.summary),
+            raw.highlightSkills && raw.highlightSkills.length > 0
+              ? `Core strengths: ${uniqueStrings(raw.highlightSkills).slice(0, 6).join(', ')}.`
+              : '',
+            raw.evidenceBullets && raw.evidenceBullets.length > 0
+              ? uniqueStrings(raw.evidenceBullets).slice(0, 3).map((bullet) => `• ${bullet}`).join('\n')
+              : '',
+          ].filter(Boolean).join('\n\n');
+          return { text: text || buildFallbackCvText(input) };
+        }
+
+        const coverLetter = [
+          cleanText(raw.opening),
+          cleanText(raw.body),
+          cleanText(raw.closing),
+          cleanText(raw.signoff) || `Yours sincerely,\n${input.senderName ?? 'Applicant'}`,
+        ].filter(Boolean).join('\n\n');
+        return { text: coverLetter || buildFallbackCoverLetterText(input) };
       } catch {
-        return { text: '' };
+        return {
+          text: input.type === 'cv'
+            ? buildFallbackCvText(input)
+            : buildFallbackCoverLetterText(input),
+        };
       }
     }),
 });
