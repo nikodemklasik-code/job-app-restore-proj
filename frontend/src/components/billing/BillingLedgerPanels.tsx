@@ -1,9 +1,39 @@
-import { Loader2 } from 'lucide-react';
+import { Loader2, DatabaseZap } from 'lucide-react';
 import { api } from '@/lib/api';
 import { LedgerView } from '@/components/billing/LedgerView';
 import { PendingSpend } from '@/components/billing/PendingSpend';
 
 type Props = { enabled: boolean };
+
+function isLedgerInactive(data: {
+  entries: Array<unknown>;
+  charges: Array<unknown>;
+  ledgerSummary: {
+    postedDebitCents: number;
+    postedCreditCents: number;
+    postedNetCents: number;
+    postedCount: number;
+  };
+  pendingSummary: {
+    pendingDebitCents: number;
+    pendingNetCents: number;
+    pendingCount: number;
+    availableBalanceCents: number;
+  };
+}) {
+  return (
+    data.entries.length === 0 &&
+    data.charges.length === 0 &&
+    data.ledgerSummary.postedDebitCents === 0 &&
+    data.ledgerSummary.postedCreditCents === 0 &&
+    data.ledgerSummary.postedNetCents === 0 &&
+    data.ledgerSummary.postedCount === 0 &&
+    data.pendingSummary.pendingDebitCents === 0 &&
+    data.pendingSummary.pendingNetCents === 0 &&
+    data.pendingSummary.pendingCount === 0 &&
+    data.pendingSummary.availableBalanceCents === 0
+  );
+}
 
 export function BillingLedgerPanels({ enabled }: Props) {
   const ledgerQuery = api.billing.getLedger.useQuery(
@@ -39,6 +69,32 @@ export function BillingLedgerPanels({ enabled }: Props) {
   }
 
   if (!ledgerQuery.data || !pendingQuery.data) return null;
+
+  const ledgerInactive = isLedgerInactive({
+    entries: ledgerQuery.data.entries,
+    charges: pendingQuery.data.charges,
+    ledgerSummary: ledgerQuery.data.summary,
+    pendingSummary: pendingQuery.data.summary,
+  });
+
+  if (ledgerInactive) {
+    return (
+      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-50">
+        <div className="flex items-start gap-3">
+          <DatabaseZap className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
+          <div>
+            <p className="font-semibold text-white">Ledger not active yet</p>
+            <p className="mt-1 text-amber-100/90">
+              We are not showing fake zero balances here. This area needs posted ledger data or the SQL-backed billing tables to be enabled first.
+            </p>
+            <p className="mt-2 text-amber-100/80">
+              Until then, treat this as <strong>setup required</strong>, not as a real account balance of zero.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
