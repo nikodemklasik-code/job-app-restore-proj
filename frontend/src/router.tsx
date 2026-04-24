@@ -35,7 +35,7 @@ const CoachPage = lazy(() => import('./app/coach/CoachPage'));
 const FAQPage = lazy(() => import('./app/faq/FAQPage'));
 const ProfileDocumentsScreen = lazy(() => import('./app/documents/ProfileDocumentsScreen'));
 const DocumentLab = lazy(() => import('./app/documents/DocumentLab'));
-const CasePracticePage = lazy(() => import('./app/case-practice/CasePracticePage'));
+const CasePracticePage = lazy(() => import('./app/case-practice/CasePracticePageCompact'));
 const CommunityCenterPage = lazy(() => import('./app/community/CommunityCentrePage'));
 
 const PageLoader = () => (
