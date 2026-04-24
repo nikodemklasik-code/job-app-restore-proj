@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ElementType, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import {
@@ -27,7 +27,7 @@ type SettingsSnapshot = {
   autoSaveDocuments: boolean;
   darkMode: boolean;
   themeMode: 'system' | 'light' | 'dark';
-  assistantTone: 'balanced' | 'direct' | 'encouraging';
+  assistantTone: 'balanced' | 'concise' | 'supportive';
   timezone: string;
   language: string;
   privacyMode: boolean;
@@ -51,7 +51,7 @@ const DEFAULT_SETTINGS: SettingsSnapshot = {
   blockedCompanyDomains: [],
 };
 
-const TABS: Array<{ id: SettingsTab; label: string; icon: React.ElementType; purpose: string }> = [
+const TABS: Array<{ id: SettingsTab; label: string; icon: ElementType; purpose: string }> = [
   { id: 'account', label: 'Account', icon: User, purpose: 'Identity, locale, and account entry points.' },
   { id: 'notifications', label: 'Notifications', icon: Bell, purpose: 'Email, push, digest, and marketing preferences.' },
   { id: 'email', label: 'Email', icon: Mail, purpose: 'Outgoing email behaviour and SMTP setup entry.' },
@@ -76,6 +76,7 @@ const TAB_ALIASES: Record<string, SettingsTab> = {
   jobsources: 'job-sources',
   security: 'security',
   passkeys: 'security',
+  'auto-apply': 'job-sources',
 };
 
 function normalizeTab(value: string | null): SettingsTab {
@@ -97,7 +98,7 @@ function Toggle({ checked, disabled, onChange }: { checked: boolean; disabled?: 
   );
 }
 
-function FieldRow({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+function FieldRow({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
@@ -377,8 +378,8 @@ export default function SettingsHubCanonical() {
                   className="rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-sm text-white outline-none"
                 >
                   <option value="balanced">Balanced</option>
-                  <option value="direct">Direct</option>
-                  <option value="encouraging">Encouraging</option>
+                  <option value="concise">Concise</option>
+                  <option value="supportive">Supportive</option>
                 </select>
               </FieldRow>
               <FieldRow title="Theme mode" description="Server-backed theme preference. Local theme rendering may still sync separately in the shell.">
