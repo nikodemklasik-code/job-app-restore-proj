@@ -19,6 +19,51 @@ interface Job {
   requirements?: string[];
 }
 
+function cleanText(value?: string | null): string {
+  return String(value ?? '').replace(/\s+/g, ' ').trim();
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values.map((value) => cleanText(value)).filter(Boolean))];
+}
+
+function extractJobSignals(job: Job): { requirements: string[]; keywords: string[] } {
+  const description = cleanText(job.description);
+  const seededRequirements = uniqueStrings(job.requirements ?? []).slice(0, 8);
+  const keywordPatterns = [
+    /\b(?:react|typescript|javascript|node(?:\.js)?|python|java|aws|azure|gcp|sql|postgres(?:ql)?|docker|kubernetes|figma|salesforce|excel|power bi|tableau|product management|stakeholder management|project management|data analysis|communication|leadership|mentoring|testing|automation|ci\/cd|rest api|graphql)\b/gi,
+  ];
+  const extractedKeywords = keywordPatterns.flatMap((pattern) => description.match(pattern) ?? []);
+  const bulletRequirements = description
+    .split(/(?:\u2022|•|\n|- )/)
+    .map((chunk) => cleanText(chunk))
+    .filter((chunk) => chunk.length >= 12 && chunk.length <= 120)
+    .filter((chunk) => /(experience|knowledge|ability|skilled|proficient|strong|familiar|background|understanding)/i.test(chunk))
+    .slice(0, 6);
+
+  return {
+    requirements: uniqueStrings([...seededRequirements, ...bulletRequirements]).slice(0, 8),
+    keywords: uniqueStrings(extractedKeywords).slice(0, 10),
+  };
+}
+
+function buildEvidenceLines(profile: Profile, job: Job): string[] {
+  const skills = uniqueStrings(profile.skills ?? []).slice(0, 10);
+  const summary = cleanText(profile.summary);
+  const { keywords, requirements } = extractJobSignals(job);
+  const matchedSkills = skills.filter((skill) => {
+    const lower = skill.toLowerCase();
+    return keywords.some((keyword) => keyword.toLowerCase() === lower)
+      || requirements.some((requirement) => requirement.toLowerCase().includes(lower));
+  });
+
+  return uniqueStrings([
+    ...matchedSkills.map((skill) => `Direct match: ${skill}`),
+    ...skills.slice(0, 5).map((skill) => `Candidate skill: ${skill}`),
+    summary ? `Candidate summary: ${summary}` : '',
+  ]).slice(0, 8);
+}
+
 export async function generateCoverLetter(
   profile: Profile,
   job: Job,
@@ -27,66 +72,111 @@ export async function generateCoverLetter(
   const signalHint = learnedSignals.length
     ? `\nSuccessful signals from past applications: ${learnedSignals.slice(0, 5).join(', ')}.`
     : '';
+  const extracted = extractJobSignals(job);
+  const evidenceLines = buildEvidenceLines(profile, job);
 
-  const prompt = `Write a professional, concise cover letter (max 3 paragraphs) for:
+  const prompt = `Write a tailored UK cover letter for this role.
+
 Role: ${job.title} at ${job.company}
 ${job.location ? `Location: ${job.location}` : ''}
-${job.description ? `Job description excerpt: ${job.description.slice(0, 500)}` : ''}
+Job description excerpt: ${cleanText(job.description).slice(0, 900) || 'Not provided'}
+Top requirements / signals: ${[...extracted.keywords, ...extracted.requirements].slice(0, 10).join(', ') || 'Not provided'}
 
 Candidate profile:
 Name: ${profile.fullName ?? 'Candidate'}
-Summary: ${profile.summary ?? ''}
-Key skills: ${(profile.skills ?? []).slice(0, 8).join(', ')}
-${signalHint}
+Summary: ${cleanText(profile.summary) || 'Not provided'}
+Key skills: ${uniqueStrings(profile.skills ?? []).slice(0, 10).join(', ') || 'Not provided'}
+Evidence lines: ${evidenceLines.join(' | ') || 'No explicit evidence lines'}${signalHint}
 
-Write in first person. Tone: professional, confident, UK English. No generic filler. End with "Yours sincerely,\n${profile.fullName ?? 'Candidate'}".`;
+Rules:
+- British English only.
+- 3 short paragraphs plus a concise sign-off.
+- Sound specific and credible, not gushy.
+- Do not invent achievements, employers, numbers, tools, certifications or sector experience.
+- Avoid generic filler such as "I am excited", "I am writing to apply", "dynamic team", "fast-paced environment" unless the wording is needed.
+- Anchor the letter in the strongest overlaps between profile and role.
+- Keep it under 260 words.
+- End with exactly: "Yours sincerely,\n${profile.fullName ?? 'Candidate'}".`;
 
   const client = tryGetOpenAiClient();
   if (!client) {
     return fallbackCoverLetter(profile, job);
   }
-  const resp = await client.chat.completions.create({
-    model: getDefaultTextModel(),
-    max_tokens: 600,
-    messages: [
-      { role: 'system', content: 'You write tailored UK job application cover letters. Be specific, concise, and compelling.' },
-      { role: 'user', content: prompt },
-    ],
-  });
+  try {
+    const resp = await client.chat.completions.create({
+      model: getDefaultTextModel(),
+      max_tokens: 650,
+      temperature: 0.4,
+      messages: [
+        { role: 'system', content: 'You write sharp, tailored UK job application cover letters. Be concrete, restrained and credible.' },
+        { role: 'user', content: prompt },
+      ],
+    });
 
-  return resp.choices[0]?.message?.content?.trim() ?? fallbackCoverLetter(profile, job);
+    return resp.choices[0]?.message?.content?.trim() ?? fallbackCoverLetter(profile, job);
+  } catch {
+    return fallbackCoverLetter(profile, job);
+  }
 }
 
 function fallbackCoverLetter(profile: Profile, job: Job): string {
-  return `Dear Hiring Manager,
+  const summary = cleanText(profile.summary);
+  const extracted = extractJobSignals(job);
+  const skills = uniqueStrings(profile.skills ?? []);
+  const matchedSkills = skills.filter((skill) => extracted.keywords.some((keyword) => keyword.toLowerCase() === skill.toLowerCase())).slice(0, 3);
+  const opening = matchedSkills.length > 0
+    ? `Your ${job.title} role at ${job.company} stands out because it aligns closely with my background in ${matchedSkills.join(', ')}.`
+    : `I would bring relevant experience and a practical, delivery-focused approach to the ${job.title} role at ${job.company}.`;
+  const middle = summary
+    ? `My background includes ${summary.charAt(0).toLowerCase() + summary.slice(1)}.`
+    : `My experience includes ${skills.slice(0, 4).join(', ') || 'relevant delivery, communication and problem-solving skills'}.`;
+  const close = extracted.requirements[0]
+    ? `I would be keen to discuss how my experience can support your priorities around ${extracted.requirements[0].replace(/\.$/, '')}.`
+    : 'I would welcome the chance to discuss how I could contribute in the role.';
 
-I am writing to apply for the ${job.title} position at ${job.company}. ${profile.summary ?? ''}
-
-My key skills include ${(profile.skills ?? []).slice(0, 4).join(', ')}, which I believe align well with your requirements.
-
-I would welcome the opportunity to discuss how I can contribute to your team.
-
-Yours sincerely,
-${profile.fullName ?? 'Candidate'}`;
+  return `${opening}\n\n${middle} ${close}\n\nYours sincerely,\n${profile.fullName ?? 'Candidate'}`;
 }
 
 export async function generateCvSummary(profile: Profile, job: Job): Promise<string> {
   const client = tryGetOpenAiClient();
+  const extracted = extractJobSignals(job);
+  const skills = uniqueStrings(profile.skills ?? []).slice(0, 10);
+  const matchedSkills = skills.filter((skill) => extracted.keywords.some((keyword) => keyword.toLowerCase() === skill.toLowerCase())).slice(0, 5);
+
   if (!client) {
-    return profile.summary ?? '';
+    return fallbackCvSummary(profile, job);
   }
-  const resp = await client.chat.completions.create({
-    model: getDefaultTextModel(),
-    max_tokens: 150,
-    messages: [
-      { role: 'system', content: 'Write a 2-sentence professional summary tailored to a specific role. UK English.' },
-      {
-        role: 'user',
-        content: `Role: ${job.title} at ${job.company}\nCandidate: ${profile.fullName}\nCurrent summary: ${profile.summary}\nSkills: ${(profile.skills ?? []).slice(0, 6).join(', ')}`,
-      },
-    ],
-  });
-  return resp.choices[0]?.message?.content?.trim() ?? profile.summary ?? '';
+  try {
+    const resp = await client.chat.completions.create({
+      model: getDefaultTextModel(),
+      max_tokens: 220,
+      temperature: 0.3,
+      messages: [
+        { role: 'system', content: 'Write a targeted UK CV profile summary. Produce 2-3 sentences, polished but factual, with no bullet points.' },
+        {
+          role: 'user',
+          content: `Target role: ${job.title} at ${job.company}\nJob description excerpt: ${cleanText(job.description).slice(0, 700) || 'Not provided'}\nPriority skills / requirements: ${[...matchedSkills, ...extracted.requirements].slice(0, 8).join(', ') || 'Not provided'}\nCandidate summary: ${cleanText(profile.summary) || 'Not provided'}\nCandidate skills: ${skills.join(', ') || 'Not provided'}\n\nRules:\n- British English.\n- 2-3 sentences, 70-110 words total.\n- Focus on role fit, strongest relevant capabilities and credible value.\n- Do not invent years of experience, sector history or achievements.\n- Avoid first-person pronouns and avoid clichés such as "results-driven" unless justified by the evidence.`,
+        },
+      ],
+    });
+    return resp.choices[0]?.message?.content?.trim() ?? fallbackCvSummary(profile, job);
+  } catch {
+    return fallbackCvSummary(profile, job);
+  }
+}
+
+function fallbackCvSummary(profile: Profile, job: Job): string {
+  const skills = uniqueStrings(profile.skills ?? []).slice(0, 6);
+  const extracted = extractJobSignals(job);
+  const matchedSkills = skills.filter((skill) => extracted.keywords.some((keyword) => keyword.toLowerCase() === skill.toLowerCase())).slice(0, 4);
+  const summary = cleanText(profile.summary);
+  const firstSentence = matchedSkills.length > 0
+    ? `Candidate aligned to ${job.title} opportunities, with relevant capability across ${matchedSkills.join(', ')}.`
+    : `Candidate aligned to ${job.title} opportunities, bringing a strong foundation in ${skills.slice(0, 4).join(', ') || 'relevant cross-functional delivery'}.`;
+  const secondSentence = summary
+    ? `${summary.replace(/^[A-Z]/, (letter) => letter.toLowerCase()).replace(/\.$/, '')}.`
+    : `Able to support ${job.company} with practical execution, clear communication and role-relevant problem solving.`;
+  return `${firstSentence} ${secondSentence}`;
 }
 
 export async function scoreJobFit(
