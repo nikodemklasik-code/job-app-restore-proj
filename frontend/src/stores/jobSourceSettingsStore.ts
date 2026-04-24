@@ -12,6 +12,7 @@ export interface ProviderStatus {
   requiresSession: boolean;
   requiresApiKey: string | null;
   isAiPowered: boolean;
+  isExternalProvider: boolean;
 }
 
 interface JobSourceSettingsStore {
@@ -41,6 +42,7 @@ export const useJobSourceSettingsStore = create<JobSourceSettingsStore>((set, _g
           requiresSession: p.requiresSession,
           requiresApiKey: p.requiresApiKey,
           isAiPowered: p.isAiPowered,
+          isExternalProvider: p.isExternalProvider !== false,
         })),
       });
     } catch (err) {
@@ -51,7 +53,6 @@ export const useJobSourceSettingsStore = create<JobSourceSettingsStore>((set, _g
   },
 
   async toggle(userId: string, providerName: string, isEnabled: boolean) {
-    // Optimistic update
     set((state) => ({
       providers: state.providers.map((p) =>
         p.name === providerName ? { ...p, isEnabled } : p,
@@ -61,7 +62,6 @@ export const useJobSourceSettingsStore = create<JobSourceSettingsStore>((set, _g
       await trpcClient.jobSources.update.mutate({ userId, providerName, isEnabled });
     } catch (err) {
       console.error('[jobSourceSettingsStore] Failed to update:', err);
-      // Revert on failure
       set((state) => ({
         providers: state.providers.map((p) =>
           p.name === providerName ? { ...p, isEnabled: !isEnabled } : p,
