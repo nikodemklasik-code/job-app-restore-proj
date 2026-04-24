@@ -1,0 +1,89 @@
+/* Theme hierarchy bridge. Imported after neuro-friendly-themes.css. */
+
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) {
+  --mvh-page-bg: hsl(var(--background));
+  --mvh-surface: hsl(var(--mh-surface));
+  --mvh-surface-raised: hsl(var(--mh-surface-raised));
+  --mvh-surface-muted: hsl(var(--mh-surface-muted));
+  --mvh-border: hsl(var(--mh-border-strong));
+  --mvh-text-strong: hsl(var(--mh-text-strong));
+  --mvh-text-muted: hsl(var(--mh-text-muted));
+  --mvh-text-soft: hsl(var(--mh-text-soft));
+  --mvh-primary: hsl(var(--primary));
+}
+
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .mvh-app-root {
+  background: var(--mvh-page-bg) !important;
+  color: var(--mvh-text-strong) !important;
+}
+
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .mvh-module-hero {
+  background:
+    radial-gradient(circle at 84% 18%, color-mix(in oklab, var(--mvh-primary) 18%, transparent), transparent 32%),
+    linear-gradient(135deg, var(--mvh-surface) 0%, var(--mvh-surface-raised) 100%) !important;
+  border-color: color-mix(in oklab, var(--mvh-border) 78%, transparent) !important;
+  color: var(--mvh-text-strong) !important;
+}
+
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .mvh-video-card,
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .mvh-step-card {
+  background: color-mix(in oklab, var(--mvh-surface-raised) 88%, var(--mvh-primary) 12%) !important;
+  border-color: color-mix(in oklab, var(--mvh-border) 72%, transparent) !important;
+  color: var(--mvh-text-strong) !important;
+}
+
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .mvh-video-card,
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .mvh-step-card {
+  box-shadow: 0 16px 40px color-mix(in oklab, var(--mvh-border) 28%, transparent);
+}
+
+:where(.theme-soft-dark, .theme-accessible-contrast) .mvh-video-card,
+:where(.theme-soft-dark, .theme-accessible-contrast) .mvh-step-card {
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.24);
+}
+
+.mvh-text-strong { color: var(--mvh-text-strong, hsl(var(--foreground))) !important; }
+.mvh-text-muted { color: var(--mvh-text-muted, hsl(var(--muted-foreground))) !important; }
+.mvh-text-soft { color: var(--mvh-text-soft, hsl(var(--muted-foreground))) !important; }
+
+.mvh-chip-primary {
+  background: color-mix(in oklab, var(--mvh-primary, hsl(var(--primary))) 16%, transparent) !important;
+  border-color: color-mix(in oklab, var(--mvh-primary, hsl(var(--primary))) 42%, transparent) !important;
+  color: var(--mvh-primary, hsl(var(--primary))) !important;
+}
+
+.mvh-chip-muted {
+  background: color-mix(in oklab, var(--mvh-surface-muted, hsl(var(--muted))) 78%, transparent) !important;
+  border-color: color-mix(in oklab, var(--mvh-border, hsl(var(--border))) 68%, transparent) !important;
+  color: var(--mvh-text-muted, hsl(var(--muted-foreground))) !important;
+}
+
+.mvh-chip-success {
+  background: color-mix(in oklab, #10b981 18%, transparent) !important;
+  border-color: color-mix(in oklab, #10b981 42%, transparent) !important;
+  color: color-mix(in oklab, #10b981 72%, var(--mvh-text-strong, white)) !important;
+}
+
+.mvh-play-button {
+  background: color-mix(in oklab, var(--mvh-primary, hsl(var(--primary))) 18%, var(--mvh-surface-raised, hsl(var(--card)))) !important;
+  border-color: color-mix(in oklab, var(--mvh-primary, hsl(var(--primary))) 52%, transparent) !important;
+  color: var(--mvh-primary, hsl(var(--primary))) !important;
+}
+
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .case-study-compact [class*="bg-slate-950"],
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .case-study-compact [class*="bg-slate-900"],
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .case-study-compact [class*="bg-black"] {
+  background-color: var(--mvh-surface-raised) !important;
+  color: var(--mvh-text-strong) !important;
+}
+
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .case-study-compact [class*="text-white"],
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .case-study-compact [class*="text-slate-100"],
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .case-study-compact [class*="text-slate-200"],
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .case-study-compact [class*="text-slate-300"] {
+  color: var(--mvh-text-strong) !important;
+}
+
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .case-study-compact [class*="border-white"] {
+  border-color: var(--mvh-border) !important;
+}
