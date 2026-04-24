@@ -52,24 +52,24 @@ export default function CasePracticePageCompact() {
             </div>
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-                Rehearse the moment before it becomes real.
+                Defend your position. Win with words.
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
-                Pick a workplace scenario, understand the pressure, practise a calm response, then generate a tighter opening, pushback answer, verdict, or reflection.
+                No winner is decided in advance. Choose the case, prepare your argument, then start the action with rhetoric, interpersonal skill, and pressure control.
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Step 1</p>
-                <p className="mt-1 text-sm font-semibold text-white">Choose Case</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Step One</p>
+                <p className="mt-1 text-sm font-semibold text-white">Make your choice.</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Step 2</p>
-                <p className="mt-1 text-sm font-semibold text-white">Practise Response</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Step Two</p>
+                <p className="mt-1 text-sm font-semibold text-white">Prepare to win.</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Step 3</p>
-                <p className="mt-1 text-sm font-semibold text-white">Review Output</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Step Three</p>
+                <p className="mt-1 text-sm font-semibold text-white">Start the action.</p>
               </div>
             </div>
           </div>
@@ -80,7 +80,7 @@ export default function CasePracticePageCompact() {
               <div className="flex items-center justify-between">
                 <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">60 sec intro</span>
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-200">
-                  <Sparkles className="h-3.5 w-3.5" /> Guided
+                  <Sparkles className="h-3.5 w-3.5" /> Interactive
                 </span>
               </div>
               <button
@@ -91,9 +91,9 @@ export default function CasePracticePageCompact() {
                 <PlayCircle className="h-12 w-12" />
               </button>
               <div>
-                <p className="text-sm font-semibold text-white">What happens here?</p>
+                <p className="text-sm font-semibold text-white">What decides the outcome?</p>
                 <p className="mt-1 text-sm leading-5 text-slate-300">
-                  You get a tense workplace case, prepare the response, then pressure-test it with AI guidance.
+                  Arguments, rhetoric, debate tactics, interpersonal skill, and your ability to hold the line under pressure.
                 </p>
                 <div className="mt-3 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-semibold text-slate-200">
                   <Volume2 className="h-4 w-4 text-indigo-200" />
