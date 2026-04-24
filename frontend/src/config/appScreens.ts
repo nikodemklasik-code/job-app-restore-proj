@@ -32,6 +32,7 @@ export interface AppScreenDefinition {
   topLevel: boolean;
   parentKey?: AppScreenKey;
   showInSidebar: boolean;
+  comingSoon?: boolean;
 }
 
 export const APP_SCREENS: Record<AppScreenKey, AppScreenDefinition> = {
@@ -55,7 +56,7 @@ export const APP_SCREENS: Record<AppScreenKey, AppScreenDefinition> = {
   salaryCalculator: { key: 'salaryCalculator', label: 'Salary Calculator', path: '/salary-calculator', topLevel: true, showInSidebar: true },
   legalHub: { key: 'legalHub', label: 'Legal Hub', path: '/legal', topLevel: true, showInSidebar: true },
   legalSearch: { key: 'legalSearch', label: 'Legal Search', path: '/legal/search', topLevel: false, parentKey: 'legalHub', showInSidebar: false },
-  communityCenter: { key: 'communityCenter', label: 'Community Center', path: '/community', topLevel: true, showInSidebar: true },
+  communityCenter: { key: 'communityCenter', label: 'Community Center', path: '/community', topLevel: true, showInSidebar: true, comingSoon: true },
   settings: { key: 'settings', label: 'Settings', path: '/settings', topLevel: true, showInSidebar: true },
   autoApply: { key: 'autoApply', label: 'Auto Apply', path: '/settings/auto-apply', topLevel: false, parentKey: 'settings', showInSidebar: false },
   billing: { key: 'billing', label: 'Billing', path: '/billing', topLevel: true, showInSidebar: true },
