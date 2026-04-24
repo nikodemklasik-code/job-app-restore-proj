@@ -45,7 +45,7 @@ function extractStructuredJobs(html: string): SourceJob[] {
   }
 
   return entries
-    .map((job) => {
+    .map((job): SourceJob | null => {
       const title = norm(job.title ?? job.name);
       const applyUrl = norm(job.url ?? job.sameAs);
       if (!title || !applyUrl) return null;
@@ -65,9 +65,9 @@ function extractStructuredJobs(html: string): SourceJob[] {
         workMode: norm(job.employmentType) || null,
         requirements: [],
         postedAt: norm(job.datePosted) || new Date().toISOString(),
-      } satisfies SourceJob;
+      };
     })
-    .filter((job): job is SourceJob => Boolean(job));
+    .filter((job): job is SourceJob => job !== null);
 }
 
 async function searchAdzunaWebsite(input: DiscoveryInput): Promise<SourceJob[]> {
