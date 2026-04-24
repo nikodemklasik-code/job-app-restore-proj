@@ -5,9 +5,14 @@ import { trySynthesizeLegalCatalogHits } from '../../modules/legal-hub-search/le
 import { renderLegalSearchPdfBuffer } from '../../modules/legal-hub-search/legal-hub-search.pdf.js';
 import { approveSpend, BillingError } from '../../services/creditsBilling.js';
 import { billingToTrpc } from './_shared.js';
+import {
+  legalSearchPdfExportSchema,
+  legalSearchResponseSchema,
+  legalSearchScopeSummarySchema,
+} from '../../prompts/schemas/legal-search-output.schema.js';
 
 export const legalHubRouter = router({
-  scopeSummary: publicProcedure.query(() => getLegalSearchScopeSummary()),
+  scopeSummary: publicProcedure.query(() => legalSearchScopeSummarySchema.parse(getLegalSearchScopeSummary())),
 
   search: publicProcedure
     .input(
@@ -25,11 +30,11 @@ export const legalHubRouter = router({
         input.includeGroundedSummary && hits.length > 0
           ? await trySynthesizeLegalCatalogHits(input.query, hits)
           : null;
-      return {
+      return legalSearchResponseSchema.parse({
         scope,
         hits,
         groundedSummary,
-      };
+      });
     }),
 
   /**
@@ -65,7 +70,7 @@ export const legalHubRouter = router({
         generatedAtIso: new Date().toISOString(),
       });
 
-      return {
+      return legalSearchPdfExportSchema.parse({
         mimeType: 'application/pdf' as const,
         filename: `legal-hub-search-${new Date().toISOString().slice(0, 10)}.pdf`,
         base64: buf.toString('base64'),
@@ -77,7 +82,7 @@ export const legalHubRouter = router({
           allowanceLimit: spendResult.balances.allowance.limit,
           spendableTotal: spendResult.balances.spendableTotal,
         },
-      };
+      });
     }),
 
   // Compatibility alias for frontend contracts expecting `exportPdf`
@@ -111,11 +116,11 @@ export const legalHubRouter = router({
         generatedAtIso: new Date().toISOString(),
       });
 
-      return {
+      return legalSearchPdfExportSchema.parse({
         mimeType: 'application/pdf' as const,
         filename: `legal-hub-search-${new Date().toISOString().slice(0, 10)}.pdf`,
         base64: buf.toString('base64'),
         spendEventId: spendResult.spendEventId,
-      };
+      });
     }),
 });
