@@ -56,24 +56,23 @@ function CaseStudyPromo() {
             Featured practice game
           </div>
           <h2 className="mt-4 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            Play A Case Study
+            Defend your position. Win with words.
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-            Train difficult work situations as short scenarios: read the case, choose your response angle, handle pressure,
-            and get a sharper version you can reuse in real conversations.
+            No winner is decided in advance. Your result depends on the strength of your argument, the clarity of your rhetoric, your interpersonal skill, and how well you hold your position under pressure.
           </p>
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-violet-200">Learn</p>
-              <p className="mt-1 text-sm text-slate-300">Structure hard moments faster.</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-200">Step One</p>
+              <p className="mt-1 text-sm font-semibold text-white">Make your choice.</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-violet-200">Practise</p>
-              <p className="mt-1 text-sm text-slate-300">Try workplace pressure safely.</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-200">Step Two</p>
+              <p className="mt-1 text-sm font-semibold text-white">Prepare to win.</p>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-violet-200">Improve</p>
-              <p className="mt-1 text-sm text-slate-300">Turn answers into stronger scripts.</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-200">Step Three</p>
+              <p className="mt-1 text-sm font-semibold text-white">Start the action.</p>
             </div>
           </div>
           <div className="mt-5 flex flex-wrap gap-3">
@@ -106,7 +105,7 @@ function CaseStudyPromo() {
             <div>
               <p className="text-sm font-semibold text-white">Example: Fair Treatment Concern</p>
               <p className="mt-1 text-sm leading-5 text-slate-300">
-                Practise raising a sensitive workplace issue with evidence, boundaries, and a clear next step.
+                Use evidence, rhetoric, and calm pressure control to make your case without losing your ground.
               </p>
             </div>
           </div>
