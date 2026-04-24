@@ -12,7 +12,7 @@ const ApplicationsPipeline = lazy(() => import('./app/applications/ApplicationsP
 const ReviewQueue = lazy(() => import('./app/review/ReviewQueue'));
 const AssistantPage = lazy(() => import('./app/assistant/AssistantPage'));
 const InterviewPractice = lazy(() => import('./app/interview/InterviewPractice'));
-const ProfilePage = lazy(() => import('./app/profile/ProfileScreen'));
+const ProfilePage = lazy(() => import('./app/profile/ProfileScreenV2'));
 const BillingPage = lazy(() => import('./app/billing/BillingPage'));
 const SettingsHub = lazy(() => import('./app/settings/SettingsHub'));
 const SecurityPage = lazy(() => import('./app/settings/SecurityPage'));
