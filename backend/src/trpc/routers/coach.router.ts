@@ -84,7 +84,7 @@ export const coachRouter = router({
 
 Candidate's answer:
 """
-${input.answer.slice(0, 2000)}
+${input.answer.slice(0, 2400)}
 """
 
 Evaluate this answer and return ONLY valid JSON matching this exact schema:
@@ -93,17 +93,25 @@ Evaluate this answer and return ONLY valid JSON matching this exact schema:
   "label": "<Excellent|Good|Developing|Needs work>",
   "whatWorked": ["<specific observation>", ...],
   "toImprove": ["<specific actionable advice>", ...],
-  "expertInsight": "<2-3 sentence expert coaching insight specific to this category and question — what separates a good answer from a great one for this exact question>",
-  "interviewTip": "<1-2 sentence tactical tip: how to use or improve this answer in a real interview situation>"
+  "expertInsight": "<2-3 sentence expert coaching insight specific to this category and question>",
+  "interviewTip": "<1-2 sentence tactical tip for using or improving this answer in a live interview>"
 }
 
-STRICT LANGUAGE RULES — these override everything:
-- NEVER use generic praise phrases: "That was great!", "Good job!", "Well done!", "That was a good answer", "Nice work"
-- Every observation must name the specific element, explain why it works or doesn't, and what effect it has on the interviewer
-- Format: "Your answer [describes specific element] — this [explains the effect/impact]. [Optional: alternatively, consider…]"
-- toImprove items must give a concrete reframe, example phrasing, or perspective shift — not just "add more detail"
-- expertInsight must offer a professional lens the candidate hasn't considered, not a summary of what they already said
-- If the answer is blank or very short, all scores should be low and feedback should explain exactly what is missing and why it matters`;
+SCORING CALIBRATION:
+- 90-100 only for answers that are unusually strong, specific, well-structured and commercially or technically convincing.
+- 75-89 for solid answers with a few gaps.
+- 55-74 for answers that are usable but generic, thin or partially structured.
+- Below 55 when the answer is vague, under-evidenced, rambling or missing key logic.
+
+STRICT LANGUAGE RULES:
+- Never use generic praise such as "Good job", "Well done", "Strong answer" without evidence.
+- Every point must identify the specific feature, explain why it helps or hurts, and what effect it has on the interviewer.
+- Prefer formulas like: "Your answer does X — this helps because Y." and "The answer misses X — this leaves the interviewer without Y."
+- toImprove items must include a concrete reframe, sharper wording, or a missing layer of evidence.
+- expertInsight must explain what separates an average answer from a persuasive one for this exact question type.
+- interviewTip must sound practical and field-ready, not motivational.
+- If the answer is short, generic or under-evidenced, say so directly.
+- Do not invent metrics, projects, technologies or achievements not present in the answer.`;
 
       try {
         const resp = await openai.chat.completions.create({
@@ -113,8 +121,8 @@ STRICT LANGUAGE RULES — these override everything:
             { role: 'user', content: userPrompt },
           ],
           response_format: { type: 'json_object' },
-          max_tokens: 600,
-          temperature: 0.4,
+          max_tokens: 700,
+          temperature: 0.35,
         });
 
         const raw = JSON.parse(resp.choices[0]?.message?.content ?? '{}') as {
@@ -152,47 +160,53 @@ STRICT LANGUAGE RULES — these override everything:
   }),
 });
 
-// ── Heuristic fallback (no OpenAI) ────────────────────────────────────────────
-
 function buildHeuristicFeedback(category: string, answer: string) {
   const t = answer.trim().toLowerCase();
-  const words = t.split(/\s+/).length;
-  const hasSituation = /\b(when|during|at my|in my previous|back in)\b/.test(t);
-  const hasAction = /\b(i (did|led|built|created|implemented|decided|introduced))\b/.test(t);
-  const hasResult = /\b(result|outcome|achiev|improv|reduc|increas|saved|delivered|launched)\b/.test(t);
+  const words = t ? t.split(/\s+/).length : 0;
+  const hasSituation = /\b(when|during|at my|in my previous|back in|in that role)\b/.test(t);
+  const hasAction = /\b(i (did|led|built|created|implemented|decided|introduced|owned|designed|fixed))\b/.test(t);
+  const hasResult = /\b(result|outcome|achiev|improv|reduc|increas|saved|delivered|launched|grew)\b/.test(t);
+  const hasMetric = /\b\d+\s?(%|percent|users|clients|days|weeks|months|hours|k|m|million|thousand)?\b/.test(t);
 
-  let score = 50;
-  if (words >= 80) score += 15;
-  else if (words < 20) score -= 15;
+  let score = 48;
+  if (words >= 110) score += 16;
+  else if (words >= 60) score += 8;
+  else if (words < 20) score -= 18;
   if (hasSituation) score += 8;
-  if (hasAction) score += 10;
+  if (hasAction) score += 12;
   if (hasResult) score += 12;
+  if (hasMetric) score += 8;
   score = Math.max(20, Math.min(100, Math.round(score)));
 
-  const label = score >= 85 ? 'Excellent' : score >= 70 ? 'Good' : score >= 55 ? 'Developing' : 'Needs work';
+  const label = score >= 88 ? 'Excellent' : score >= 72 ? 'Good' : score >= 55 ? 'Developing' : 'Needs work';
 
   const INSIGHTS: Record<string, string> = {
     behavioural:
-      'The strongest behavioural answers use the full STAR structure and close with a specific, measurable result. Interviewers are trained to listen for all four components.',
+      'Strong behavioural answers do not just tell a story. They make personal ownership unmistakable and close with a result the interviewer can trust.',
     technical:
-      'Expert technical answers explain not just what you did, but why you chose that approach over alternatives — demonstrating judgement, not just knowledge.',
+      'Technical answers become persuasive when they expose judgement: why this design, what trade-off was accepted, and what risk was deliberately managed.',
     motivation:
-      'The best motivation answers are specific to the role and company. Generic answers ("I want to grow") are easy to spot; specific ones ("I want to work on distributed systems at scale") signal genuine interest.',
+      'Motivation answers land better when they sound role-specific and earned, not aspirational by default. The interviewer needs a believable reason, not a polished slogan.',
     situational:
-      'Strong situational answers show structured thinking: identify the problem, consider options, choose a path, and explain the reasoning — not just what you would do, but why.',
+      'Situational answers are strongest when the reasoning chain is visible: what you would assess first, what you would prioritise, and how you would sequence action under constraint.',
   };
 
   return {
     score,
     label,
-    whatWorked: hasSituation ? ['You provided context — the interviewer can follow the story.'] : [],
+    whatWorked: [
+      hasSituation ? 'Your answer sets some context — this gives the interviewer a situation to anchor to.' : '',
+      hasAction ? 'Your wording shows some personal action — this makes your contribution easier to attribute.' : '',
+      hasResult ? 'You point to an outcome — this helps the interviewer judge impact rather than effort alone.' : '',
+    ].filter(Boolean).slice(0, 3),
     toImprove: [
-      !hasSituation ? 'Open with a clear context: "At my previous company…" or "In my last role…"' : '',
-      !hasAction ? 'Make your personal contribution explicit: "I decided…", "I built…", "I led…"' : '',
-      !hasResult ? 'Close with the outcome: "As a result…", "This led to…". Add a number if possible.' : '',
-    ].filter(Boolean),
+      !hasSituation ? 'Open with one crisp context line so the interviewer knows what problem or moment you are describing.' : '',
+      !hasAction ? 'Replace passive wording with direct ownership, for example: "I led...", "I decided...", or "I introduced...".' : '',
+      !hasResult ? 'End with the outcome and why it mattered. Without that, the answer sounds unfinished.' : '',
+      !hasMetric ? 'Add one concrete number, timeframe or scale marker so the impact feels credible rather than generic.' : '',
+    ].filter(Boolean).slice(0, 3),
     expertInsight: INSIGHTS[category] ?? INSIGHTS.behavioural,
     interviewTip:
-      'Prepare 3-5 strong stories before any interview. Each story should cover all four STAR elements and include at least one number.',
+      'Before your next interview, rewrite this answer into four lines: context, responsibility, action, result. Then practise saying it out loud without filler phrasing.',
   };
 }
