@@ -550,7 +550,7 @@ export default function NegotiationPage() {
           {appMode === 'coach' && (
             <button onClick={() => setShowScenarios((v) => !v)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors">
               <Lightbulb className="h-3.5 w-3.5" />
-              Practice
+              Scenarios
               {showScenarios ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </button>
           )}
@@ -579,15 +579,15 @@ export default function NegotiationPage() {
           </div>
           <PracticeCostCard cost={selectedNegotiationMode.cost} />
           <PracticeSessionPanel title="Negotiation flow">
-            Choose Strategy for drafting or Simulator for a live counter-offer conversation.
+            Use Strategy mode to shape your position and language, or Simulator mode for live offer/counter-offer conversation planning.
           </PracticeSessionPanel>
         </div>
       </div>
 
-      {/* Practice scenarios (coach mode only) */}
+      {/* Negotiation scenarios (strategy mode only) */}
       {showScenarios && appMode === 'coach' && (
         <div className="mvh-card-glow px-6 py-3 border-b border-slate-800 bg-slate-900/60 shrink-0">
-          <p className="mb-2 text-xs font-medium text-slate-400">Select a scenario to practice:</p>
+          <p className="mb-2 text-xs font-medium text-slate-400">Select a negotiation scenario:</p>
           <div className="flex flex-wrap gap-2">
             {PRACTICE_SCENARIOS.map((s) => (
               <button key={s.label} onClick={() => { setShowScenarios(false); void handleSend(s.text); }}
@@ -623,10 +623,10 @@ export default function NegotiationPage() {
                   <Scale style={{ width: 28, height: 28, color: '#818cf8' }} />
                 </div>
                 <div>
-                  <p className="text-base font-semibold text-slate-200 mb-1">Welcome to Negotiation practice</p>
-                  <p className="text-sm text-slate-400 max-w-md">Share a negotiation message, proposal, or transcript and receive a full strategic analysis with a Tactical Score, position vs interest breakdown, and a refined response.</p>
+                  <p className="text-base font-semibold text-slate-200 mb-1">Welcome to Negotiation</p>
+                  <p className="text-sm text-slate-400 max-w-md">Prepare offer/salary conversations with strategy-first analysis: tactical score, position-vs-interest breakdown, and a refined counter-response.</p>
                 </div>
-                <p className="text-xs text-slate-500 max-w-sm">Paste your negotiation text below — or use a practice scenario to get started.</p>
+                <p className="text-xs text-slate-500 max-w-sm">Paste your negotiation text below — or use a scenario to start planning.</p>
               </div>
             )}
 
