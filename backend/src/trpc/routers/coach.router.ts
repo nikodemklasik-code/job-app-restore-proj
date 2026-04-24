@@ -11,6 +11,7 @@ import {
   settleSpendFailure,
   settleSpendSuccess,
 } from './_shared.js';
+import { coachEvaluationSchema } from '../../prompts/schemas/coach-evaluation.schema.js';
 
 const coachSessionCfg = FEATURE_COSTS.coach_session;
 const COACH_SESSION_DEBIT =
@@ -59,6 +60,7 @@ export const coachRouter = router({
       expertInsight: string;
       interviewTip: string;
     }) => {
+      const validated = coachEvaluationSchema.parse(out);
       try {
         await settleSpendSuccess(ctx, COACH_SESSION_DEBIT, 'Coach evaluateAnswer completed');
         spendFinalized = true;
@@ -68,7 +70,7 @@ export const coachRouter = router({
         if (e instanceof BillingError) billingToTrpc(e);
         throw e;
       }
-      return { ...out, creditsUsed: COACH_SESSION_DEBIT };
+      return { ...validated, creditsUsed: COACH_SESSION_DEBIT };
     };
 
     try {
@@ -125,23 +127,16 @@ STRICT LANGUAGE RULES:
           temperature: 0.35,
         });
 
-        const raw = JSON.parse(resp.choices[0]?.message?.content ?? '{}') as {
-          score?: number;
-          label?: string;
-          whatWorked?: string[];
-          toImprove?: string[];
-          expertInsight?: string;
-          interviewTip?: string;
-        };
+        const raw = JSON.parse(resp.choices[0]?.message?.content ?? '{}');
 
-        const out = {
+        const out = coachEvaluationSchema.parse({
           score: typeof raw.score === 'number' ? Math.min(100, Math.max(0, raw.score)) : 50,
-          label: raw.label ?? 'Developing',
+          label: typeof raw.label === 'string' ? raw.label : 'Developing',
           whatWorked: Array.isArray(raw.whatWorked) ? raw.whatWorked.slice(0, 3) : [],
           toImprove: Array.isArray(raw.toImprove) ? raw.toImprove.slice(0, 3) : [],
-          expertInsight: raw.expertInsight ?? '',
-          interviewTip: raw.interviewTip ?? '',
-        };
+          expertInsight: typeof raw.expertInsight === 'string' ? raw.expertInsight : '',
+          interviewTip: typeof raw.interviewTip === 'string' ? raw.interviewTip : '',
+        });
         return commitAndReturn(out);
       } catch {
         return commitAndReturn(buildHeuristicFeedback(input.category, input.answer));
@@ -191,7 +186,7 @@ function buildHeuristicFeedback(category: string, answer: string) {
       'Situational answers are strongest when the reasoning chain is visible: what you would assess first, what you would prioritise, and how you would sequence action under constraint.',
   };
 
-  return {
+  return coachEvaluationSchema.parse({
     score,
     label,
     whatWorked: [
@@ -208,5 +203,5 @@ function buildHeuristicFeedback(category: string, answer: string) {
     expertInsight: INSIGHTS[category] ?? INSIGHTS.behavioural,
     interviewTip:
       'Before your next interview, rewrite this answer into four lines: context, responsibility, action, result. Then practise saying it out loud without filler phrasing.',
-  };
+  });
 }
