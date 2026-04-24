@@ -40,6 +40,7 @@ export default function Header() {
     { enabled: !!user?.id, staleTime: 60_000 },
   );
   const credits = creditsQuery.data?.credits ?? null;
+  const creditsLabel = credits === null ? null : credits > 0 ? `${credits.toLocaleString()} credits` : 'Credits syncing';
 
   const title = pageTitleForPath(pathname, search);
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -63,7 +64,6 @@ export default function Header() {
       )}
     >
       <div className="flex items-center gap-3">
-        {/* Focus mode sidebar toggle */}
         <button
           onClick={() => setFocusMode(!focusMode)}
           title={focusMode ? 'Show sidebar' : 'Focus mode — hide sidebar'}
@@ -85,8 +85,7 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Credits pill */}
-        {credits !== null && (
+        {creditsLabel && (
           <div
             className={clsx(
               'rounded-full px-3 py-1 text-xs font-semibold',
@@ -95,7 +94,7 @@ export default function Header() {
                 : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400',
             )}
           >
-            {credits.toLocaleString()} credits
+            {creditsLabel}
           </div>
         )}
 
@@ -155,7 +154,6 @@ export default function Header() {
           </span>
         ) : null}
 
-        {/* Avatar */}
         {user?.imageUrl ? (
           <img
             src={user.imageUrl}
