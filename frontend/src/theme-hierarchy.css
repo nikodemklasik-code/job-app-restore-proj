@@ -17,34 +17,22 @@
   color: var(--mvh-text-strong) !important;
 }
 
-:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .mvh-module-hero {
-  background:
-    radial-gradient(circle at 84% 18%, color-mix(in oklab, var(--mvh-primary) 18%, transparent), transparent 32%),
-    linear-gradient(135deg, var(--mvh-surface) 0%, var(--mvh-surface-raised) 100%) !important;
-  border-color: color-mix(in oklab, var(--mvh-border) 78%, transparent) !important;
-  color: var(--mvh-text-strong) !important;
-}
-
-:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .mvh-video-card,
-:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .mvh-step-card {
-  background: color-mix(in oklab, var(--mvh-surface-raised) 88%, var(--mvh-primary) 12%) !important;
-  border-color: color-mix(in oklab, var(--mvh-border) 72%, transparent) !important;
-  color: var(--mvh-text-strong) !important;
-}
-
-:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .mvh-video-card,
-:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .mvh-step-card {
-  box-shadow: 0 16px 40px color-mix(in oklab, var(--mvh-border) 28%, transparent);
-}
-
-:where(.theme-soft-dark, .theme-accessible-contrast) .mvh-video-card,
-:where(.theme-soft-dark, .theme-accessible-contrast) .mvh-step-card {
-  box-shadow: 0 18px 50px rgb(0 0 0 / 0.24);
-}
-
 .mvh-text-strong { color: var(--mvh-text-strong, hsl(var(--foreground))) !important; }
 .mvh-text-muted { color: var(--mvh-text-muted, hsl(var(--muted-foreground))) !important; }
 .mvh-text-soft { color: var(--mvh-text-soft, hsl(var(--muted-foreground))) !important; }
+
+.mvh-module-hero {
+  background: linear-gradient(135deg, var(--mvh-surface, hsl(var(--card))), var(--mvh-surface-raised, hsl(var(--card)))) !important;
+  border-color: color-mix(in oklab, var(--mvh-border, hsl(var(--border))) 78%, transparent) !important;
+  color: var(--mvh-text-strong, hsl(var(--foreground))) !important;
+}
+
+.mvh-video-card,
+.mvh-step-card {
+  background: color-mix(in oklab, var(--mvh-surface-raised, hsl(var(--card))) 88%, var(--mvh-primary, hsl(var(--primary))) 12%) !important;
+  border-color: color-mix(in oklab, var(--mvh-border, hsl(var(--border))) 72%, transparent) !important;
+  color: var(--mvh-text-strong, hsl(var(--foreground))) !important;
+}
 
 .mvh-chip-primary {
   background: color-mix(in oklab, var(--mvh-primary, hsl(var(--primary))) 16%, transparent) !important;
@@ -70,20 +58,34 @@
   color: var(--mvh-primary, hsl(var(--primary))) !important;
 }
 
-:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .case-study-compact [class*="bg-slate-950"],
-:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .case-study-compact [class*="bg-slate-900"],
-:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .case-study-compact [class*="bg-black"] {
-  background-color: var(--mvh-surface-raised) !important;
-  color: var(--mvh-text-strong) !important;
+/* Fast unblock for Profile and other legacy dark-form screens in light themes. */
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .mvh-app-root [class*="bg-white/"] {
+  background-color: color-mix(in oklab, var(--mvh-surface, hsl(var(--card))) 86%, var(--mvh-primary, hsl(var(--primary))) 14%) !important;
+  color: var(--mvh-text-strong, hsl(var(--foreground))) !important;
 }
 
-:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .case-study-compact [class*="text-white"],
-:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .case-study-compact [class*="text-slate-100"],
-:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .case-study-compact [class*="text-slate-200"],
-:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .case-study-compact [class*="text-slate-300"] {
-  color: var(--mvh-text-strong) !important;
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .mvh-app-root [class*="bg-black/"] {
+  background-color: color-mix(in oklab, var(--mvh-surface-raised, hsl(var(--card))) 92%, var(--mvh-primary, hsl(var(--primary))) 8%) !important;
+  color: var(--mvh-text-strong, hsl(var(--foreground))) !important;
 }
 
-:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .case-study-compact [class*="border-white"] {
-  border-color: var(--mvh-border) !important;
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .mvh-app-root [class*="border-white/"] {
+  border-color: color-mix(in oklab, var(--mvh-border, hsl(var(--border))) 76%, transparent) !important;
+}
+
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .mvh-app-root [class*="text-white"] {
+  color: var(--mvh-text-strong, hsl(var(--foreground))) !important;
+}
+
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .mvh-app-root [class*="text-slate-300"],
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .mvh-app-root [class*="text-slate-400"] {
+  color: var(--mvh-text-muted, hsl(var(--muted-foreground))) !important;
+}
+
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .mvh-app-root input,
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .mvh-app-root textarea,
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .mvh-app-root select {
+  background-color: var(--mvh-surface-raised, hsl(var(--card))) !important;
+  color: var(--mvh-text-strong, hsl(var(--foreground))) !important;
+  border-color: color-mix(in oklab, var(--mvh-border, hsl(var(--border))) 82%, transparent) !important;
 }
