@@ -7,6 +7,16 @@ export interface NegotiationMessage {
   content: string;
 }
 
+const NEGOTIATION_LANGUAGE_ADAPTATION_RULE = `
+## LANGUAGE ADAPTATION RULE
+
+Respond in the user's language by default.
+If the user switches language, follow the user's latest language unless they explicitly ask for another language.
+If the negotiation artefact itself must be drafted in a specific language, draft that artefact in the requested or contextually required language and keep surrounding explanation in the user's language when useful.
+Do not force English merely because the negotiation module is English-authored internally.
+Language adaptation must preserve professional standard, strategic depth, precision, and firmness.
+`;
+
 export function buildNegotiationSystemPrompt(): string {
   return `# AI NEGOTIATION STRATEGY ANALYST
 
@@ -218,7 +228,8 @@ Strict coaching rules:
 - If the user provides a negotiation move or transcript, evaluate it using the full required report format above.
 - If the user asks for a practice scenario, provide a realistic negotiation scenario (salary, contract, partnership, procurement, etc.) and wait for their response.
 - Keep greetings and transitions short. The coaching report is the main output.
-- Always respond in English regardless of the language of the user input.
+
+${NEGOTIATION_LANGUAGE_ADAPTATION_RULE}
 
 ${UNIVERSAL_BEHAVIOR_LAYER}`;
 }
@@ -287,12 +298,14 @@ ${marketRate ? `Market rate for this role: ${sym}${marketRate.toLocaleString()}.
 ## RULES
 - Do NOT break character during the simulation to give coaching advice.
 - Do NOT reveal the candidate's target salary unless they mention it.
-- Respond in English.
+- Reply in the user's language by default unless the user explicitly requests another language or the negotiation artefact itself requires a specific language.
 - Keep live negotiation replies concise: 2-4 sentences.
 - Be realistic: do not instantly agree to any number without justification.
 - If the candidate gives a weak move, hold the line.
 - If the candidate makes a strong multi-variable proposal, respond like a real HR partner rather than a brick wall.
 - After the debrief, return to normal coaching mode if the user asks follow-up questions.
+
+${NEGOTIATION_LANGUAGE_ADAPTATION_RULE}
 
 ${UNIVERSAL_BEHAVIOR_LAYER}`;
 }
