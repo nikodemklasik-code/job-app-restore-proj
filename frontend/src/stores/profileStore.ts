@@ -24,6 +24,7 @@ const EMPTY_WORK_SETUP: PreferredWorkSetup = {
 
 type ProfilePreferencesSnapshot = {
   preferredWorkSetup?: PreferredWorkSetup;
+  careerGoals?: ProfileSnapshot['careerGoals'];
   languages?: ProfileLanguageInput[];
   hobbies?: ProfileHobbyInput[];
 };
@@ -33,7 +34,10 @@ function mergeProfilePreferences(
   preferences?: ProfilePreferencesSnapshot,
 ): ProfileSnapshot {
   const preferredWorkSetup =
-    preferences?.preferredWorkSetup ?? profile.careerGoals?.preferredWorkSetup ?? EMPTY_WORK_SETUP;
+    preferences?.preferredWorkSetup
+    ?? preferences?.careerGoals?.preferredWorkSetup
+    ?? profile.careerGoals?.preferredWorkSetup
+    ?? EMPTY_WORK_SETUP;
 
   return {
     ...profile,
