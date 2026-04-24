@@ -5,15 +5,18 @@ import { protectedProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
 import {
   applications,
+  billingLedger,
   careerGoals,
   documentUploads,
   experiences,
   interviewSessions,
+  pendingCharges,
   profiles,
   skills,
   users,
 } from '../../db/schema.js';
 import { getAccountState as getAccountStateService } from '../../services/creditsBilling.js';
+import { computeBillingSummary } from './billing.router.js';
 import {
   dashboardApplicationStatuses,
   mapApplicationStatusToDashboard,
@@ -289,15 +292,43 @@ export const dashboardRouter = router({
       .from(interviewSessions)
       .where(eq(interviewSessions.userId, userId));
 
-    const accountState = await getAccountStateService(ctx.user.clerkId).catch(() => null);
+    const [postedEntries, pendingRows, accountState] = await Promise.all([
+      db
+        .select({
+          direction: billingLedger.direction,
+          amountCents: billingLedger.amountCents,
+          currency: billingLedger.currency,
+        })
+        .from(billingLedger)
+        .where(eq(billingLedger.userId, userId)),
+      db
+        .select({
+          amountCents: pendingCharges.amountCents,
+          currency: pendingCharges.currency,
+        })
+        .from(pendingCharges)
+        .where(
+          and(
+            eq(pendingCharges.userId, userId),
+            inArray(pendingCharges.status, ['queued', 'authorized']),
+          ),
+        ),
+      getAccountStateService(ctx.user.clerkId).catch(() => null),
+    ]);
+
+    const billingSummary = computeBillingSummary({
+      posted: postedEntries.map((entry) => ({
+        direction: entry.direction as 'debit' | 'credit',
+        amountCents: entry.amountCents,
+        currency: entry.currency,
+      })),
+      pending: pendingRows.map((row) => ({
+        amountCents: row.amountCents,
+        currency: row.currency,
+      })),
+    });
     const spendable = Math.round(accountState?.spendableTotal ?? 0);
-    const postedDebitCents = 0;
-    const postedCreditCents = 0;
-    const pendingDebitCents = 0;
-    const pendingCreditCents = 0;
-    const postedNetCents = postedCreditCents - postedDebitCents;
-    const pendingNetCents = pendingCreditCents - pendingDebitCents;
-    const availableBalanceCents = postedNetCents + pendingNetCents + spendable;
+    const availableBalanceCents = billingSummary.availableBalanceCents + spendable;
 
     const totalSessions = Number(practiceSummary?.totalSessions ?? 0);
     const completedSessions = Number(practiceSummary?.completedSessions ?? 0);
@@ -330,12 +361,12 @@ export const dashboardRouter = router({
       },
       billing: {
         currency: 'GBP' as const,
-        postedDebitCents,
-        postedCreditCents,
-        postedNetCents,
-        pendingDebitCents,
-        pendingCreditCents,
-        pendingNetCents,
+        postedDebitCents: billingSummary.postedDebitCents,
+        postedCreditCents: billingSummary.postedCreditCents,
+        postedNetCents: billingSummary.postedNetCents,
+        pendingDebitCents: billingSummary.pendingDebitCents,
+        pendingCreditCents: billingSummary.pendingCreditCents,
+        pendingNetCents: billingSummary.pendingNetCents,
         availableBalanceCents,
       },
       practice: {
