@@ -10,19 +10,9 @@
 #     2. Via DEPLOY_TOKEN env var:          DEPLOY_TOKEN=mytoken bash scripts/deploy.sh
 #     3. Interactive prompt (if neither above is set)
 #
-#   Set the expected token on the VPS:
-#     echo 'export DEPLOY_TOKEN="mytoken"' >> ~/.bashrc
-#   Keep it in a local .env file (never commit):
-#     echo 'DEPLOY_TOKEN=mytoken' >> .env.local
-#
 # Required env (or ~/.ssh config):
 #   DEPLOY_HOST   e.g. root@147.93.86.209   (default: root@147.93.86.209)
 #   DEPLOY_USER   (optional, overrides user in DEPLOY_HOST)
-#
-# Canonical targets: .canonical-repo-key (integrity marker, not a secret).
-# Policy: docs/policies/canonical-repo-deploy-lock-policy-v1.0.md
-# Overrides (dangerous): DEPLOY_BYPASS_CANONICAL_REMOTE, DEPLOY_SKIP_LOCAL_REPO_PATH,
-#   DEPLOY_SKIP_BRANCH_GUARD, DEPLOY_SKIP_DNS_GUARD — see scripts/lib/canonical-deploy-guards.sh
 #
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -118,15 +108,18 @@ rsync -avz --delete \
   --exclude='node_modules' \
   "$ROOT/backend/dist/" "${HOST}:${REMOTE_BASE}/dist/backend/"
 
-# Package manifests needed so npm ci can install/update node_modules on the server
-rsync -avz \
-  "$ROOT/backend/package.json" \
-  "$ROOT/backend/package-lock.json" \
-  "${HOST}:${REMOTE_BASE}/backend/"
+# Package manifests needed so the server can install/update backend node_modules.
+# This repo uses a root workspace lockfile, not backend/package-lock.json, so do
+# not unconditionally rsync a backend lockfile that does not exist.
+rsync -avz "$ROOT/backend/package.json" "${HOST}:${REMOTE_BASE}/backend/"
+if [[ -f "$ROOT/backend/package-lock.json" ]]; then
+  rsync -avz "$ROOT/backend/package-lock.json" "${HOST}:${REMOTE_BASE}/backend/"
+else
+  echo "      backend/package-lock.json not present; remote install will use npm install --omit=dev --prefix backend"
+fi
 
 rsync -avz "$ROOT/infra/ecosystem.config.cjs" "${HOST}:${REMOTE_BASE}/infra/"
 rsync -avz "$ROOT/lib/envSchema.mjs" "${HOST}:${REMOTE_BASE}/lib/"
-
 rsync -avz "$ROOT/scripts/" "${HOST}:${REMOTE_BASE}/scripts/"
 
 # Job Radar contract + docs (OpenAPI v1.1 SSoT — same paths as CI/tests read from repo)
@@ -138,7 +131,11 @@ echo "[5/6] Installing backend deps + reloading PM2 on VPS…"
 ssh "${HOST}" '
   set -e
   cd '"${REMOTE_BASE}"'
-  npm ci --omit=dev --prefix backend
+  if [ -f backend/package-lock.json ]; then
+    npm ci --omit=dev --prefix backend
+  else
+    npm install --omit=dev --prefix backend
+  fi
   pm2 reload infra/ecosystem.config.cjs --update-env \
     || pm2 start infra/ecosystem.config.cjs
   pm2 save
