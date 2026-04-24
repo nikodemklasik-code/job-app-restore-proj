@@ -5,7 +5,7 @@ import { publicProcedure, protectedProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
 import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions, savedJobs } from '../../db/schema.js';
 import { JobDiscoveryService } from '../../services/jobSources/jobDiscoveryService.js';
-import { scoreJobFit, explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.js';
+import { explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.js';
 import { assessJobScamRisk } from '../../services/jobProtection.js';
 import { buildCandidateInsights } from '../../services/adaptiveInterviewer.js';
 

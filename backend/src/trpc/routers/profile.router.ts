@@ -673,7 +673,19 @@ export const profileRouter = router({
 
       const [row] = await db.select().from(careerGoals).where(eq(careerGoals.userId, localUserId)).limit(1);
       const prevStrategy = row ? normalizeStrategy(row.strategyJson) : {};
-      const nextStrategy: ProfileStrategyJson = input.strategy ? { ...prevStrategy, ...input.strategy } : prevStrategy;
+      const normalizedStrategyPatch: ProfileStrategyJson | undefined = input.strategy
+        ? {
+            ...input.strategy,
+            roadmap: Array.isArray(input.strategy.roadmap)
+              ? input.strategy.roadmap.map((item) => ({
+                  id: randomUUID(),
+                  title: item.title,
+                  status: item.done ? 'done' : 'not_started',
+                }))
+              : undefined,
+          }
+        : undefined;
+      const nextStrategy: ProfileStrategyJson = normalizedStrategyPatch ? { ...prevStrategy, ...normalizedStrategyPatch } : prevStrategy;
 
       await db
         .update(careerGoals)

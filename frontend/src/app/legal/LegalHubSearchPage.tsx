@@ -218,7 +218,7 @@ export default function LegalHubSearchPage() {
                 <Sparkles className="h-4 w-4 text-emerald-300" />
                 Grounded summary
               </div>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-emerald-50/95">{groundedSummary}</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-emerald-50/95">{groundedSummary.text}</p>
             </div>
           ) : null}
 
@@ -234,11 +234,11 @@ export default function LegalHubSearchPage() {
 
           <div className="space-y-3">
             {hits.map((hit) => (
-              <article key={`${hit.sourceTitle}-${hit.url}-${hit.rank}`} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
+              <article key={`${hit.title}-${hit.url}-${hit.score}`} className="rounded-2xl border border-white/10 bg-white/[0.04] p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-white">{hit.title}</p>
-                    <p className="mt-1 text-xs text-slate-500">{hit.sourceTitle}</p>
+                    <p className="mt-1 text-xs text-slate-500">{hit.tier === 'core' ? 'Core legal source' : 'Optional legal source'}</p>
                   </div>
                   <a
                     href={hit.url}
@@ -250,7 +250,7 @@ export default function LegalHubSearchPage() {
                     <ExternalLink className="h-3.5 w-3.5" />
                   </a>
                 </div>
-                <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-300">{hit.excerpt}</p>
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-300">{hit.snippet}</p>
               </article>
             ))}
           </div>
