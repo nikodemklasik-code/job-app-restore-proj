@@ -4,10 +4,17 @@ import { eq, and, desc, like, or, inArray } from 'drizzle-orm';
 import { publicProcedure, protectedProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
 import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions, savedJobs } from '../../db/schema.js';
-import { searchAllProviders } from '../../services/jobProviders.js';
+import { JobDiscoveryService } from '../../services/jobSources/jobDiscoveryService.js';
 import { scoreJobFit, explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.js';
 import { assessJobScamRisk } from '../../services/jobProtection.js';
 import { buildCandidateInsights } from '../../services/adaptiveInterviewer.js';
+
+function mapRequestedProviders(sources: string[]): string[] {
+  return sources.map((source) => {
+    if (source === 'indeed') return 'indeed-browser';
+    return source;
+  });
+}
 
 export const jobsRouter = router({
   search: publicProcedure
@@ -20,7 +27,6 @@ export const jobsRouter = router({
     }))
     .query(async ({ input }) => {
       try {
-        // Fetch session cookies for Indeed/Gumtree if user is signed in
         let sessionCookies: { indeed?: string; gumtree?: string } | undefined;
         if (input.userId) {
           const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
@@ -38,28 +44,19 @@ export const jobsRouter = router({
           }
         }
 
-        const listings = await searchAllProviders(input.query, input.location, input.limit, input.sources, sessionCookies);
+        const discovery = await JobDiscoveryService.discover(
+          {
+            query: input.query,
+            location: input.location,
+            limit: input.limit,
+            userId: input.userId,
+            providers: mapRequestedProviders(input.sources),
+          },
+          { sessionCookies, userId: input.userId },
+        );
 
-        let profileForScoring: { summary?: string; skills?: string[] } = {};
-        if (input.userId) {
-          const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
-          if (userRecord[0]) {
-            const profileRecord = await db.select({ id: profiles.id, summary: profiles.summary })
-              .from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1);
-            if (profileRecord[0]) {
-              const skillRecords = await db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profileRecord[0].id));
-              profileForScoring = { summary: profileRecord[0].summary ?? '', skills: skillRecords.map((s) => s.name) };
-            }
-          }
-        }
-
-        const result = await Promise.all(listings.map(async (job) => {
-          let fitScore = 60;
-          if (Object.keys(profileForScoring).length > 0) {
-            const scored = await scoreJobFit(profileForScoring, job);
-            fitScore = scored.score;
-          }
-
+        const result = await Promise.all(discovery.jobs.map(async (job) => {
+          const fitScore = job.fitScore ?? 60;
           const scamAnalysis = assessJobScamRisk({
             title: job.title,
             company: job.company,
@@ -72,22 +69,29 @@ export const jobsRouter = router({
           const existing = await db.select({ id: jobs.id }).from(jobs)
             .where(and(eq(jobs.externalId, job.externalId), eq(jobs.source, job.source))).limit(1);
 
-          const jobId = existing[0]?.id ?? job.id;
+          const jobId = existing[0]?.id ?? randomUUID();
           if (existing.length === 0) {
             await db.insert(jobs).values({
-              id: job.id, externalId: job.externalId, source: job.source,
-              title: job.title, company: job.company, location: job.location,
-              description: job.description, applyUrl: job.applyUrl,
+              id: jobId,
+              externalId: job.externalId,
+              source: job.source,
+              title: job.title,
+              company: job.company,
+              location: job.location,
+              description: job.description,
+              applyUrl: job.applyUrl,
               salaryMin: job.salaryMin ? String(job.salaryMin) : undefined,
               salaryMax: job.salaryMax ? String(job.salaryMax) : undefined,
-              workMode: job.workMode ?? undefined, fitScore,
+              workMode: job.workMode ?? undefined,
+              fitScore,
+              requirements: job.requirements,
             });
           }
 
           return { ...job, fitScore, id: jobId, scamAnalysis };
         }));
 
-        return result.sort((a, b) => b.fitScore - a.fitScore);
+        return result.sort((a, b) => b.fitScore - a.fitScore).slice(0, input.limit);
       } catch (err) {
         console.error('[jobs.search]', err);
         const cached = await db.select().from(jobs).orderBy(desc(jobs.createdAt)).limit(input.limit);
@@ -180,7 +184,6 @@ export const jobsRouter = router({
             skills: skillRecords.map((s) => s.name),
           };
         }
-        // Facultatively incorporate interview performance data
         if (sessionCount.length > 0) {
           const insights = await buildCandidateInsights(userRecord[0].id);
           if (insights.sessionCount > 0) {
@@ -213,7 +216,6 @@ export const jobsRouter = router({
         })),
       ]);
 
-      // Save extracted requirements back to DB if the job has none yet
       if (fit.extractedRequirements && fit.extractedRequirements.length > 0 &&
           ((job.requirements as string[]) ?? []).length === 0) {
         await db.update(jobs)
