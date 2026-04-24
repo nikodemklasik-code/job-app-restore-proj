@@ -16,9 +16,10 @@ export const legalSearchHitSchema = z.object({
 });
 
 export const legalGroundedSummarySchema = z.object({
-  summary: z.string().trim().min(1).max(5000),
-  grounded: z.boolean().optional(),
-  citations: z.array(z.string().trim().min(1).max(500)).max(20).optional(),
+  text: z.string().trim().min(1).max(5000),
+  modelTier: z.string().trim().min(1).max(120),
+  sourceCount: z.number().int().min(0),
+  synthesisLabel: z.string().trim().min(1).max(200),
 }).passthrough();
 
 export const legalSearchResponseSchema = z.object({
