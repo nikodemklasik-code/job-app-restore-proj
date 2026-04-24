@@ -1,43 +1,56 @@
 /**
  * English labels for shell chrome (header title; sidebar uses the same strings where listed).
- * One source of truth — keep in sync with `router.tsx` paths.
+ * One source of truth — keep in sync with canonical routes in `router.tsx` and `appScreens.ts`.
  */
 export const SHELL_PAGE_TITLE: Record<string, string> = {
   '/dashboard': 'Dashboard',
+  '/profile': 'Profile',
+  '/documents': 'Profile Documents',
+  '/documents/upload': 'Document Intake',
+  '/documents/style-studio': 'Style Studio',
   '/jobs': 'Jobs',
   '/applications': 'Applications',
   '/applications/board': 'Applications Board',
-  /** Short label — avoids “Applications Rew…” truncation in narrow shell chrome. */
-  '/review': 'Review queue',
-  '/assistant': 'Assistant',
+  '/applications-review': 'Applications Review',
+  '/assistant': 'AI Assistant',
+  '/warmup': 'Daily Warm-up',
   '/interview': 'Interview',
-  '/warmup': 'Daily Warmup',
   '/coach': 'Coach',
   '/negotiation': 'Negotiation',
-  '/profile': 'Profile',
-  '/style-studio': 'Style Studio',
-  '/settings': 'Settings',
-  '/settings/community': 'Community Centre',
-  '/security': 'Security, passkeys & 2FA',
-  '/billing': 'Billing',
+  '/case-study': 'Case Practice',
   '/skills': 'Skill Lab',
-  '/radar': 'Job Radar',
   '/job-radar': 'Job Radar',
+  '/radar': 'Job Radar',
+  '/reports': 'Reports',
+  '/salary-calculator': 'Salary Calculator',
   '/salary': 'Salary Calculator',
   '/legal': 'Legal Hub',
-  '/reports': 'Reports',
-  '/auto-apply': 'Auto Apply',
-  '/documents': 'Documents Upload',
+  '/legal/search': 'Legal Search',
+  '/community': 'Community Center',
+  '/settings': 'Settings',
+  '/settings/auto-apply': 'Auto Apply',
+  '/security': 'Security, passkeys & 2FA',
+  '/billing': 'Billing',
   '/faq': 'FAQ',
-  '/ai-analysis': 'AI Analysis',
+  '/ai-analysis': 'Reports',
   '/case-practice': 'Case Practice',
+  '/style-studio': 'Style Studio',
+  '/auto-apply': 'Auto Apply',
+  '/review': 'Applications Review',
 };
 
 export function pageTitleForPath(pathname: string, search = ''): string {
   const pathOnly = pathname.split('?')[0] ?? pathname;
   const q = search.startsWith('?') ? search : search ? `?${search}` : '';
   const hasTab = (s: string) => new URLSearchParams(s.startsWith('?') ? s : `?${s}`).get('tab');
-  if (pathOnly === '/settings' && hasTab(q) === 'privacy') return 'Community Centre';
+
+  if (pathOnly === '/documents') {
+    const tab = hasTab(q);
+    if (tab === 'build') return 'Style Studio';
+    return 'Profile Documents';
+  }
+
+  if (pathOnly === '/settings' && hasTab(q) === 'auto-apply') return 'Auto Apply';
   if (SHELL_PAGE_TITLE[pathOnly]) return SHELL_PAGE_TITLE[pathOnly];
   if (pathOnly.startsWith('/job-radar/scan/')) return 'Job Radar Scan';
   if (pathOnly.startsWith('/job-radar/report/')) return 'Job Radar Report';
