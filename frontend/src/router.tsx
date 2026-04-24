@@ -33,6 +33,7 @@ const JobRadarAdminComplaintsPage = lazy(() => import('./app/job-radar/admin/Job
 const DailyWarmupPage = lazy(() => import('./app/warmup/DailyWarmupPage'));
 const CoachPage = lazy(() => import('./app/coach/CoachPage'));
 const FAQPage = lazy(() => import('./app/faq/FAQPage'));
+const ProfileDocumentsScreen = lazy(() => import('./app/documents/ProfileDocumentsScreen'));
 const DocumentLab = lazy(() => import('./app/documents/DocumentLab'));
 const CasePracticePage = lazy(() => import('./app/case-practice/CasePracticePage'));
 const CommunityCenterPage = lazy(() => import('./app/community/CommunityCentrePage'));
@@ -93,8 +94,8 @@ export const router = createBrowserRouter([
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: APP_SCREENS.dashboard.path.slice(1), element: withSuspense(DashboardPage) },
       { path: APP_SCREENS.profile.path.slice(1), element: withSuspense(ProfilePage) },
-      { path: APP_SCREENS.documentHub.path.slice(1), element: withSuspense(DocumentLab) },
-      { path: APP_SCREENS.documentUpload.path.slice(1), element: <Navigate to="/documents?tab=upload" replace /> },
+      { path: APP_SCREENS.documentHub.path.slice(1), element: withSuspense(ProfileDocumentsScreen) },
+      { path: APP_SCREENS.documentUpload.path.slice(1), element: withSuspense(DocumentLab) },
       { path: APP_SCREENS.styleStudio.path.slice(1), element: withSuspense(StyleStudioRedirect) },
       { path: APP_SCREENS.jobs.path.slice(1), element: withSuspense(JobsDiscovery) },
       { path: APP_SCREENS.applications.path.slice(1), element: withSuspense(ApplicationsPage) },
