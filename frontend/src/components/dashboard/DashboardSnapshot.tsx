@@ -47,6 +47,75 @@ function StatusBadge({ status }: { status: DashboardSnapshotDto['applications'][
   );
 }
 
+function CaseStudyPromo() {
+  return (
+    <section className="mvh-card-glow overflow-hidden rounded-3xl border border-violet-400/25 bg-gradient-to-br from-violet-600/20 via-indigo-600/10 to-slate-950 p-0 shadow-2xl shadow-black/20">
+      <div className="grid gap-0 lg:grid-cols-[1.12fr_0.88fr]">
+        <div className="p-5 sm:p-6">
+          <div className="inline-flex items-center gap-2 rounded-full border border-violet-300/25 bg-violet-400/10 px-3 py-1 text-xs font-semibold text-violet-100">
+            Featured practice game
+          </div>
+          <h2 className="mt-4 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+            Play A Case Study
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+            Train difficult work situations as short scenarios: read the case, choose your response angle, handle pressure,
+            and get a sharper version you can reuse in real conversations.
+          </p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-200">Learn</p>
+              <p className="mt-1 text-sm text-slate-300">Structure hard moments faster.</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-200">Practise</p>
+              <p className="mt-1 text-sm text-slate-300">Try workplace pressure safely.</p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-200">Improve</p>
+              <p className="mt-1 text-sm text-slate-300">Turn answers into stronger scripts.</p>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link
+              to="/case-study"
+              className="inline-flex items-center justify-center rounded-xl bg-violet-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-violet-400"
+            >
+              Play Case Study
+            </Link>
+            <Link
+              to="/coach"
+              className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10"
+            >
+              Practise With Coach
+            </Link>
+          </div>
+        </div>
+        <div className="relative min-h-[220px] border-t border-white/10 bg-black/25 p-5 lg:border-l lg:border-t-0">
+          <div className="absolute inset-0 opacity-50 [background-image:radial-gradient(circle_at_30%_30%,rgba(167,139,250,0.5),transparent_30%),radial-gradient(circle_at_75%_70%,rgba(79,70,229,0.35),transparent_35%)]" />
+          <div className="relative flex h-full min-h-[190px] flex-col justify-between rounded-3xl border border-white/15 bg-slate-950/60 p-5">
+            <div className="flex items-center justify-between">
+              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">Scenario preview</span>
+              <span className="rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-200">Interactive</span>
+            </div>
+            <div className="py-5">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-white/25 bg-white/15 text-2xl text-white">
+                ▶
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-white">Example: Fair Treatment Concern</p>
+              <p className="mt-1 text-sm leading-5 text-slate-300">
+                Practise raising a sensitive workplace issue with evidence, boundaries, and a clear next step.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto }) {
   const { profile, applications, billing, practice, nextAction } = snapshot;
 
@@ -69,14 +138,16 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
               {nextAction.label}
             </Link>
             <Link
-              to="/review"
-              className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+              to="/case-study"
+              className="inline-flex items-center justify-center rounded-xl bg-violet-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-400"
             >
-              Review queue
+              Play Case Study
             </Link>
           </div>
         </div>
       </section>
+
+      <CaseStudyPromo />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
