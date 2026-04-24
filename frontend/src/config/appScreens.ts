@@ -52,7 +52,7 @@ export const APP_SCREENS: Record<AppScreenKey, AppScreenDefinition> = {
   skillLab: { key: 'skillLab', label: 'Skill Lab', path: '/skills', topLevel: true, showInSidebar: true },
   reports: { key: 'reports', label: 'Reports', path: '/reports', topLevel: true, showInSidebar: true },
   jobRadar: { key: 'jobRadar', label: 'Job Radar', path: '/job-radar', topLevel: true, showInSidebar: true },
-  salaryCalculator: { key: 'salaryCalculator', label: 'Salary Search', path: '/salary-calculator', topLevel: true, showInSidebar: true },
+  salaryCalculator: { key: 'salaryCalculator', label: 'UK Salary Calculator', path: '/salary-calculator', topLevel: true, showInSidebar: true },
   legalHub: { key: 'legalHub', label: 'Legal Hub', path: '/legal', topLevel: true, showInSidebar: true },
   legalSearch: { key: 'legalSearch', label: 'Legal Search', path: '/legal/search', topLevel: false, parentKey: 'legalHub', showInSidebar: false },
   communityCenter: { key: 'communityCenter', label: 'Community Center', path: '/community', topLevel: true, showInSidebar: true },
