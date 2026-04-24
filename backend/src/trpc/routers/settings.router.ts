@@ -179,6 +179,59 @@ async function ensureSettingsRow(userId: string) {
 }
 
 export const settingsRouter = router({
+  // Compatibility alias for legacy frontend contracts:
+  // api.settings.get.query({ userId }) -> { emailNotifications, marketingConsent, dataSharing, aiSuggestions }
+  get: protectedProcedure
+    .input(
+      z
+        .object({
+          userId: z.string().optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx }) => {
+      const row = await ensureSettingsRow(ctx.user.id);
+      const dto = toSettingsDto(row);
+      return {
+        emailNotifications: dto.emailNotifications,
+        marketingConsent: dto.marketingEmails,
+        dataSharing: dto.shareProfileAnalytics,
+        aiSuggestions: true,
+      };
+    }),
+
+  // Compatibility alias for legacy frontend contracts:
+  // api.settings.update.mutate({ userId, emailNotifications, marketingConsent, dataSharing, aiSuggestions })
+  update: protectedProcedure
+    .input(
+      z.object({
+        userId: z.string().optional(),
+        emailNotifications: z.boolean(),
+        marketingConsent: z.boolean(),
+        dataSharing: z.boolean(),
+        aiSuggestions: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const current = await ensureSettingsRow(ctx.user.id);
+      await db
+        .update(userSettings)
+        .set({
+          emailNotifications: input.emailNotifications,
+          marketingEmails: input.marketingConsent,
+          shareProfileAnalytics: input.dataSharing,
+          updatedAt: new Date(),
+        })
+        .where(eq(userSettings.id, current.id));
+
+      return {
+        emailNotifications: input.emailNotifications,
+        marketingConsent: input.marketingConsent,
+        dataSharing: input.dataSharing,
+        aiSuggestions: input.aiSuggestions,
+      };
+    }),
+
   getSettings: protectedProcedure.output(settingsOutputSchema).query(async ({ ctx }) => {
     const userId = ctx.user.id;
     try {

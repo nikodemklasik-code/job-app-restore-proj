@@ -525,7 +525,7 @@ export default function CoachPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-white">Coach</h1>
-            <p className="text-xs text-slate-400">Structured practice · choose a category · work through questions</p>
+            <p className="text-xs text-slate-400">Dedicated coaching workspace: diagnose answer quality, identify weak patterns, and build an improvement strategy.</p>
             <p className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-500">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden />
               GPT-4o · online

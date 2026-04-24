@@ -1061,8 +1061,8 @@ export default function InterviewPractice() {
                 <Briefcase style={{ width: 22, height: 22, color: '#fff' }} />
               </div>
               <div>
-                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>AI Interview Coach</h1>
-                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Share your answers — get structured coaching reports</p>
+                <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Interview Workspace</h1>
+                <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Run dedicated interview sessions with follow-ups, turn-level feedback, and session summaries.</p>
                 <p style={{ fontSize: 12, color: '#94a3b8', margin: '6px 0 0', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#34d399', boxShadow: '0 0 6px #34d399' }} />
                   GPT-4o · online
@@ -1104,20 +1104,10 @@ export default function InterviewPractice() {
             </div>
 
             <div style={{ background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 8 }}>WHERE TO PICK INTERVIEW STYLE</p>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 8 }}>INTERVIEW OWNERSHIP</p>
               <p style={{ fontSize: 12, color: '#94a3b8', margin: 0, lineHeight: 1.55 }}>
-                This page is the <strong style={{ color: '#e2e8f0' }}>voice mock interview</strong> (use <strong style={{ color: '#e2e8f0' }}>Live Interview</strong> vs <strong style={{ color: '#e2e8f0' }}>Coaching Mode</strong> below). There is no behavioural/technical mode menu here — the voice session uses a fixed behavioural-style interviewer prompt in code.
+                This page owns interview sessions only: join a live interview flow, answer interviewer prompts, and review interview-specific feedback.
               </p>
-              <ul style={{ margin: '10px 0 0', paddingLeft: 18, fontSize: 12, color: '#94a3b8', lineHeight: 1.55 }}>
-                <li>
-                  <strong style={{ color: '#e2e8f0' }}>AI Career Assistant</strong> — set reply mode to <strong style={{ color: '#e2e8f0' }}>Interview</strong> (right column on large screens) or tap <strong style={{ color: '#e2e8f0' }}>Interview Prep</strong> in topics:{' '}
-                  <Link to="/assistant" style={{ color: '#a5b4fc', fontWeight: 600 }}>Open Assistant →</Link>
-                </li>
-                <li style={{ marginTop: 6 }}>
-                  <strong style={{ color: '#e2e8f0' }}>Daily Warmup</strong> — short timed drills with category choice:{' '}
-                  <Link to="/warmup" style={{ color: '#a5b4fc', fontWeight: 600 }}>Open Warmup →</Link>
-                </li>
-              </ul>
             </div>
 
             {/* Jobs list */}

@@ -1,5 +1,4 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import { APP_SCREENS } from '@/config/appScreens';
@@ -492,7 +491,6 @@ function SectionCard({ section }: { section: Section }) {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function LegalHub() {
-  const navigate = useNavigate();
   const { isSignedIn } = useUser();
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -520,7 +518,7 @@ export default function LegalHub() {
   );
 
   // Local topic match — helps the user see which section is most relevant
-  // before they fire an AI question. This is pure filtering over our curated
+  // before they run Legal Search. This is pure filtering over our curated
   // content; it does NOT pretend to give legal advice.
   const matchedSections = useMemo(() => {
     if (trimmedQuery.length < 2) return [] as Array<{ sectionId: string; sectionTitle: string; question: string }>;
@@ -541,20 +539,6 @@ export default function LegalHub() {
     return hits.slice(0, 6);
   }, [trimmedQuery]);
 
-  const handleAskAi = (raw: string) => {
-    const text = raw.trim();
-    if (!text) return;
-    const prompt = [
-      `UK employment law question: ${text}.`,
-      'Answer as a career coach for UK job seekers. Be concise and practical.',
-      'Cite the relevant statute, ACAS code or GOV.UK page where possible.',
-      'Remind me to verify current figures on GOV.UK / ACAS / HMRC and that this is guidance, not legal advice.',
-    ].join(' ');
-    navigate('/assistant', {
-      state: { prefill: { text: prompt, mode: 'general' as const, autoSend: true } },
-    });
-  };
-
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -565,7 +549,7 @@ export default function LegalHub() {
           </div>
           <h1 className="text-3xl font-bold text-white">{APP_SCREENS.legalHub.label}</h1>
         </div>
-        <p className="text-slate-400 ml-14">UK employment law reference for job seekers — verify current rates on GOV.UK</p>
+        <p className="text-slate-400 ml-14">Legal Hub is your parent legal workspace; use Legal Search below for grounded, approved-source research.</p>
       </div>
 
       {/* Legal disclaimer — collapsible (same pattern as other AI modules) */}
@@ -603,7 +587,7 @@ export default function LegalHub() {
         )}
       </div>
 
-      {/* AI topic search — AI-only Q&A, not local answer generation */}
+      {/* Legal Search — internal research layer inside Legal Hub */}
       <section
         id="legal-search"
         aria-labelledby="legal-hub-search-heading"
@@ -615,11 +599,11 @@ export default function LegalHub() {
           </div>
           <div className="flex-1">
             <h2 id="legal-hub-search-heading" className="text-base font-semibold text-white">
-              Ask the AI Coach about UK employment law
+              Legal Search (inside Legal Hub)
             </h2>
             <p className="mt-1 text-sm text-slate-300">
-              Type a topic or a full question — we&apos;ll send it to the <span className="text-indigo-300">AI Coach</span> for a plain-English
-              answer with pointers to the relevant ACAS / GOV.UK / HMRC pages. The sections below remain unchanged.
+              Search the curated legal catalogue first, then optionally generate a grounded summary from those approved references.
+              Sources remain visible (GOV.UK / ACAS / HMRC) so you can verify each point.
             </p>
           </div>
         </div>
@@ -627,7 +611,6 @@ export default function LegalHub() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            handleAskAi(searchQuery);
           }}
           className="mt-4 flex flex-col gap-2 sm:flex-row"
           role="search"
@@ -664,7 +647,7 @@ export default function LegalHub() {
             className="mvh-card-glow inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Sparkles className="h-4 w-4" aria-hidden />
-            Ask AI Coach
+            Search legal sources
           </button>
         </form>
 
@@ -684,7 +667,6 @@ export default function LegalHub() {
               type="button"
               onClick={() => {
                 setSearchQuery(topic);
-                handleAskAi(topic);
               }}
               className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] text-slate-300 transition hover:border-indigo-400/40 hover:bg-indigo-500/15 hover:text-white"
             >
@@ -791,7 +773,7 @@ export default function LegalHub() {
               ))}
             </ul>
             <p className="mt-2 text-[11px] text-slate-500">
-              Tip: AI Coach answers your exact question; the curated sections below are a fixed reference.
+              Tip: use Legal Search for grounded references first; use the fixed Legal Hub sections as your baseline reference.
             </p>
           </div>
         )}
