@@ -1,127 +1,175 @@
 .theme-soft-dark {
   --background: 222 34% 10%;
-  --foreground: 215 28% 88%;
-  --card: 222 26% 15%;
-  --card-foreground: 215 28% 88%;
-  --border: 222 18% 27%;
-  --input: 222 20% 18%;
-  --primary: 213 78% 68%;
+  --foreground: 215 30% 91%;
+  --card: 222 25% 15%;
+  --card-foreground: 215 30% 91%;
+  --border: 222 18% 32%;
+  --input: 222 20% 19%;
+  --primary: 213 78% 70%;
   --primary-foreground: 222 35% 9%;
-  --secondary: 222 18% 21%;
-  --secondary-foreground: 215 25% 84%;
-  --muted: 222 18% 21%;
-  --muted-foreground: 215 17% 65%;
-  --accent: 222 20% 25%;
-  --accent-foreground: 215 28% 88%;
-  --destructive: 0 62% 48%;
+  --secondary: 222 18% 23%;
+  --secondary-foreground: 215 25% 88%;
+  --muted: 222 18% 23%;
+  --muted-foreground: 215 18% 74%;
+  --accent: 222 20% 27%;
+  --accent-foreground: 215 30% 91%;
+  --destructive: 0 62% 50%;
   --destructive-foreground: 0 0% 100%;
-  --ring: 213 78% 68%;
+  --ring: 213 78% 70%;
   --radius: 0.9rem;
+
+  --mh-surface: 222 25% 15%;
+  --mh-surface-raised: 222 24% 18%;
+  --mh-surface-muted: 222 18% 23%;
+  --mh-border-strong: 222 18% 36%;
+  --mh-text-strong: 215 30% 93%;
+  --mh-text-muted: 215 18% 76%;
+  --mh-text-soft: 215 14% 68%;
 }
 
 .theme-soft-light {
-  --background: 42 40% 97%;
-  --foreground: 222 26% 16%;
-  --card: 0 0% 100%;
-  --card-foreground: 222 26% 16%;
-  --border: 38 24% 86%;
-  --input: 38 24% 92%;
-  --primary: 224 54% 48%;
+  --background: 38 34% 92%;
+  --foreground: 222 30% 13%;
+  --card: 42 36% 97%;
+  --card-foreground: 222 30% 13%;
+  --border: 36 24% 72%;
+  --input: 38 28% 84%;
+  --primary: 224 58% 42%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 40 24% 92%;
-  --secondary-foreground: 222 22% 22%;
-  --muted: 40 24% 92%;
-  --muted-foreground: 220 11% 43%;
-  --accent: 40 28% 89%;
-  --accent-foreground: 222 26% 16%;
-  --destructive: 0 64% 46%;
+  --secondary: 39 28% 84%;
+  --secondary-foreground: 222 24% 16%;
+  --muted: 39 28% 86%;
+  --muted-foreground: 222 16% 30%;
+  --accent: 38 30% 80%;
+  --accent-foreground: 222 30% 13%;
+  --destructive: 0 64% 42%;
   --destructive-foreground: 0 0% 100%;
-  --ring: 224 54% 48%;
+  --ring: 224 58% 42%;
   --radius: 0.9rem;
+
+  --mh-surface: 42 36% 97%;
+  --mh-surface-raised: 40 34% 94%;
+  --mh-surface-muted: 39 28% 86%;
+  --mh-border-strong: 36 20% 66%;
+  --mh-text-strong: 222 30% 12%;
+  --mh-text-muted: 222 16% 30%;
+  --mh-text-soft: 222 14% 38%;
 }
 
 .theme-calm-blue {
-  --background: 211 45% 95%;
-  --foreground: 218 40% 18%;
-  --card: 210 45% 98%;
-  --card-foreground: 218 40% 18%;
-  --border: 211 24% 80%;
-  --input: 211 28% 90%;
-  --primary: 217 54% 45%;
+  --background: 211 36% 90%;
+  --foreground: 218 42% 14%;
+  --card: 210 38% 96%;
+  --card-foreground: 218 42% 14%;
+  --border: 211 24% 70%;
+  --input: 211 28% 82%;
+  --primary: 217 58% 39%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 211 32% 89%;
-  --secondary-foreground: 218 34% 20%;
-  --muted: 211 32% 91%;
-  --muted-foreground: 218 16% 43%;
-  --accent: 211 34% 86%;
-  --accent-foreground: 218 40% 18%;
-  --destructive: 0 62% 45%;
+  --secondary: 211 30% 82%;
+  --secondary-foreground: 218 34% 16%;
+  --muted: 211 30% 84%;
+  --muted-foreground: 218 18% 30%;
+  --accent: 211 32% 78%;
+  --accent-foreground: 218 42% 14%;
+  --destructive: 0 62% 42%;
   --destructive-foreground: 0 0% 100%;
-  --ring: 217 54% 45%;
+  --ring: 217 58% 39%;
   --radius: 0.85rem;
+
+  --mh-surface: 210 38% 96%;
+  --mh-surface-raised: 211 35% 93%;
+  --mh-surface-muted: 211 30% 84%;
+  --mh-border-strong: 211 22% 64%;
+  --mh-text-strong: 218 42% 13%;
+  --mh-text-muted: 218 18% 30%;
+  --mh-text-soft: 218 14% 38%;
 }
 
 .theme-sage {
-  --background: 88 22% 94%;
-  --foreground: 108 15% 18%;
-  --card: 85 22% 97%;
-  --card-foreground: 108 15% 18%;
-  --border: 94 15% 78%;
-  --input: 94 18% 89%;
-  --primary: 150 27% 36%;
+  --background: 88 18% 89%;
+  --foreground: 112 18% 13%;
+  --card: 84 20% 96%;
+  --card-foreground: 112 18% 13%;
+  --border: 94 15% 66%;
+  --input: 94 18% 80%;
+  --primary: 150 32% 31%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 92 18% 88%;
-  --secondary-foreground: 108 14% 22%;
-  --muted: 92 18% 90%;
-  --muted-foreground: 108 8% 42%;
-  --accent: 94 19% 84%;
-  --accent-foreground: 108 15% 18%;
-  --destructive: 0 58% 44%;
+  --secondary: 92 17% 80%;
+  --secondary-foreground: 112 16% 16%;
+  --muted: 92 17% 82%;
+  --muted-foreground: 112 11% 29%;
+  --accent: 94 18% 76%;
+  --accent-foreground: 112 18% 13%;
+  --destructive: 0 58% 40%;
   --destructive-foreground: 0 0% 100%;
-  --ring: 150 27% 36%;
+  --ring: 150 32% 31%;
   --radius: 1rem;
+
+  --mh-surface: 84 20% 96%;
+  --mh-surface-raised: 86 19% 93%;
+  --mh-surface-muted: 92 17% 82%;
+  --mh-border-strong: 94 15% 60%;
+  --mh-text-strong: 112 18% 12%;
+  --mh-text-muted: 112 11% 29%;
+  --mh-text-soft: 112 9% 36%;
 }
 
 .theme-warm-sand {
-  --background: 38 44% 94%;
-  --foreground: 28 23% 18%;
-  --card: 40 48% 98%;
-  --card-foreground: 28 23% 18%;
-  --border: 34 24% 80%;
-  --input: 36 28% 90%;
-  --primary: 24 44% 43%;
+  --background: 36 36% 89%;
+  --foreground: 28 28% 13%;
+  --card: 40 38% 96%;
+  --card-foreground: 28 28% 13%;
+  --border: 34 24% 68%;
+  --input: 36 28% 80%;
+  --primary: 24 48% 36%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 36 32% 88%;
-  --secondary-foreground: 28 20% 22%;
-  --muted: 36 32% 90%;
-  --muted-foreground: 28 12% 43%;
-  --accent: 34 34% 84%;
-  --accent-foreground: 28 23% 18%;
-  --destructive: 0 58% 44%;
+  --secondary: 36 30% 80%;
+  --secondary-foreground: 28 24% 16%;
+  --muted: 36 30% 82%;
+  --muted-foreground: 28 16% 30%;
+  --accent: 34 32% 76%;
+  --accent-foreground: 28 28% 13%;
+  --destructive: 0 58% 40%;
   --destructive-foreground: 0 0% 100%;
-  --ring: 24 44% 43%;
+  --ring: 24 48% 36%;
   --radius: 1rem;
+
+  --mh-surface: 40 38% 96%;
+  --mh-surface-raised: 38 35% 93%;
+  --mh-surface-muted: 36 30% 82%;
+  --mh-border-strong: 34 22% 60%;
+  --mh-text-strong: 28 28% 12%;
+  --mh-text-muted: 28 16% 30%;
+  --mh-text-soft: 28 13% 38%;
 }
 
 .theme-accessible-contrast {
   --background: 224 20% 9%;
-  --foreground: 210 18% 94%;
+  --foreground: 210 18% 96%;
   --card: 224 18% 14%;
-  --card-foreground: 210 18% 94%;
-  --border: 215 14% 38%;
+  --card-foreground: 210 18% 96%;
+  --border: 215 14% 42%;
   --input: 224 16% 18%;
-  --primary: 205 88% 64%;
+  --primary: 205 88% 66%;
   --primary-foreground: 224 24% 8%;
-  --secondary: 224 14% 22%;
-  --secondary-foreground: 210 18% 92%;
-  --muted: 224 14% 22%;
-  --muted-foreground: 210 12% 72%;
-  --accent: 224 16% 26%;
-  --accent-foreground: 210 18% 94%;
-  --destructive: 0 68% 54%;
+  --secondary: 224 14% 23%;
+  --secondary-foreground: 210 18% 94%;
+  --muted: 224 14% 23%;
+  --muted-foreground: 210 12% 76%;
+  --accent: 224 16% 28%;
+  --accent-foreground: 210 18% 96%;
+  --destructive: 0 68% 56%;
   --destructive-foreground: 0 0% 100%;
   --ring: 42 88% 64%;
   --radius: 0.75rem;
+
+  --mh-surface: 224 18% 14%;
+  --mh-surface-raised: 224 17% 18%;
+  --mh-surface-muted: 224 14% 23%;
+  --mh-border-strong: 215 14% 48%;
+  --mh-text-strong: 210 18% 98%;
+  --mh-text-muted: 210 12% 78%;
+  --mh-text-soft: 210 10% 70%;
 }
 
 .theme-soft-dark,
@@ -132,4 +180,80 @@
 .theme-accessible-contrast {
   line-height: 1.7;
   letter-spacing: 0.006em;
+}
+
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .bg-white,
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .bg-card {
+  background-color: hsl(var(--mh-surface)) !important;
+  color: hsl(var(--mh-text-strong)) !important;
+}
+
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .bg-slate-50,
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .bg-slate-100,
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .bg-background\/60,
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .bg-background\/80 {
+  background-color: hsl(var(--mh-surface-muted)) !important;
+}
+
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .text-slate-950,
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .text-slate-900,
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .text-slate-800,
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .text-foreground {
+  color: hsl(var(--mh-text-strong)) !important;
+}
+
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .text-slate-700,
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .text-slate-600,
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .text-muted-foreground {
+  color: hsl(var(--mh-text-muted)) !important;
+}
+
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .text-slate-500,
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .text-slate-400 {
+  color: hsl(var(--mh-text-soft)) !important;
+}
+
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .border-slate-100,
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .border-slate-200,
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .border-slate-300,
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) .border-border {
+  border-color: hsl(var(--mh-border-strong)) !important;
+}
+
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) input,
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) textarea,
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) select {
+  background-color: hsl(var(--input)) !important;
+  color: hsl(var(--mh-text-strong)) !important;
+  border-color: hsl(var(--mh-border-strong)) !important;
+}
+
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) input::placeholder,
+:where(.theme-soft-dark, .theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand, .theme-accessible-contrast) textarea::placeholder {
+  color: hsl(var(--mh-text-soft)) !important;
+  opacity: 1;
+}
+
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .bg-amber-50,
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .bg-yellow-50 {
+  background-color: hsl(42 70% 84%) !important;
+  color: hsl(32 40% 18%) !important;
+  border-color: hsl(38 58% 62%) !important;
+}
+
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .text-amber-700,
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .text-yellow-700 {
+  color: hsl(30 55% 22%) !important;
+}
+
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .bg-purple-50,
+:where(.theme-soft-light, .theme-calm-blue, .theme-sage, .theme-warm-sand) .bg-violet-50 {
+  background-color: hsl(255 50% 88%) !important;
+  color: hsl(258 42% 22%) !important;
+  border-color: hsl(255 36% 66%) !important;
 }
