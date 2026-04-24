@@ -10,11 +10,12 @@ This directory contains active prompt logic used by the AI system.
 - `coach/` = Coach prompts
 - `negotiation/` = Negotiation prompts
 - `personas/` = persona prompt overlays
-- `schemas/` = structured output contracts
+- `schemas/` = structured output contracts used to validate AI-shaped outputs before they leave the backend
 
 ## Rule
 Docs describe the rules.
 Prompts implement the rules.
+Schemas enforce the rules at runtime.
 
 ## Current universal AI baseline
 The shared behaviour layer now explicitly enforces:
@@ -23,3 +24,8 @@ The shared behaviour layer now explicitly enforces:
 - module role integrity so Interview, Coach, Negotiation, Assistant, Warmup, and Case Practice do not blur into one another;
 - feedback style integrity so the AI strengthens without flattering dishonestly or shaming the user;
 - capacity adaptation, skill growth, positive motivation, and neurodiversity-aware coaching support.
+
+## Current canonical schemas
+- `schemas/assistant-output.schema.ts` = assistant meta + structured reply contract
+- `schemas/coach-evaluation.schema.ts` = coach evaluation contract
+- `schemas/negotiation-analysis.schema.ts` = negotiation analysis contract for deeper structured negotiation outputs
