@@ -8,6 +8,19 @@ function stripHtml(value: string): string {
   return value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+function dedupeJobs(jobs: SourceJob[], limit: number): SourceJob[] {
+  const seen = new Set<string>();
+  const out: SourceJob[] = [];
+  for (const job of jobs) {
+    const key = `${job.externalId || job.applyUrl}|${job.source}`.toLowerCase().trim();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(job);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 function collectStructuredJobs(value: unknown, sink: Record<string, unknown>[]): void {
   if (!value) return;
   if (Array.isArray(value)) {
@@ -65,40 +78,62 @@ async function searchJoobleWebsite(input: DiscoveryInput): Promise<SourceJob[]> 
   }).filter((job) => job.title && job.applyUrl);
 }
 
+async function searchJoobleApi(input: DiscoveryInput): Promise<SourceJob[]> {
+  const key = process.env.JOOBLE_API_KEY;
+  if (!key) return [];
+
+  const res = await fetch(`https://jooble.org/api/${key}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ keywords: input.query, location: input.location, page: '1' }),
+  });
+  if (!res.ok) throw new Error(`Jooble ${res.status}`);
+  const data = await res.json() as { jobs?: Record<string, unknown>[] };
+
+  return (data.jobs ?? []).slice(0, input.limit).map((j) => ({
+    externalId: norm(j.id ?? j.link),
+    source: 'jooble',
+    title: norm(j.title),
+    company: norm(j.company),
+    location: norm(j.location),
+    description: norm(j.snippet),
+    applyUrl: norm(j.link),
+    salaryMin: null,
+    salaryMax: null,
+    workMode: norm(j.type) || null,
+    requirements: [],
+    postedAt: new Date().toISOString(),
+  }));
+}
+
 export class JoobleProvider implements JobSourceProvider {
   name = 'jooble';
   label = 'Jooble';
 
   async readiness(): Promise<{ ready: boolean; reason?: string }> {
-    if (process.env.JOOBLE_API_KEY) return { ready: true };
-    return { ready: true, reason: 'JOOBLE_API_KEY not set, using public web fallback' };
+    if (process.env.JOOBLE_API_KEY) return { ready: true, reason: 'JOOBLE API key set; API + public www discovery enabled' };
+    return { ready: true, reason: 'JOOBLE_API_KEY not set, using public www discovery' };
   }
 
   async discover(input: DiscoveryInput, _context?: ProviderContext): Promise<SourceJob[]> {
-    const key = process.env.JOOBLE_API_KEY;
-    if (!key) return searchJoobleWebsite(input);
+    const settled = await Promise.allSettled([
+      searchJoobleApi(input),
+      searchJoobleWebsite(input),
+    ]);
 
-    const res = await fetch(`https://jooble.org/api/${key}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keywords: input.query, location: input.location, page: '1' }),
-    });
-    if (!res.ok) throw new Error(`Jooble ${res.status}`);
-    const data = await res.json() as { jobs?: Record<string, unknown>[] };
+    const jobs: SourceJob[] = [];
+    for (const result of settled) {
+      if (result.status === 'fulfilled') jobs.push(...result.value);
+      else console.error('[JoobleProvider] discovery branch failed:', result.reason);
+    }
 
-    return (data.jobs ?? []).slice(0, input.limit).map((j) => ({
-      externalId: norm(j.id ?? j.link),
-      source: 'jooble',
-      title: norm(j.title),
-      company: norm(j.company),
-      location: norm(j.location),
-      description: norm(j.snippet),
-      applyUrl: norm(j.link),
-      salaryMin: null,
-      salaryMax: null,
-      workMode: norm(j.type) || null,
-      requirements: [],
-      postedAt: new Date().toISOString(),
-    }));
+    if (jobs.length === 0) {
+      const errors = settled
+        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+        .map((result) => result.reason instanceof Error ? result.reason.message : String(result.reason));
+      if (errors.length > 0) throw new Error(`Jooble discovery failed: ${errors.join('; ')}`);
+    }
+
+    return dedupeJobs(jobs, input.limit);
   }
 }
