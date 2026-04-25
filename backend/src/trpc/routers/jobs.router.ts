@@ -10,11 +10,39 @@ import { explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.
 import { assessJobScamRisk } from '../../services/jobProtection.js';
 import { buildCandidateInsights } from '../../services/adaptiveInterviewer.js';
 
+const PUBLIC_JOB_PROVIDERS = ['reed', 'adzuna', 'jooble'];
+
 function mapRequestedProviders(sources: string[]): string[] {
   return sources.map((source) => {
     if (source === 'indeed') return 'indeed-browser';
     return source;
   });
+}
+
+function isBroadUkLocation(location: string): boolean {
+  const value = location.trim().toLowerCase();
+  return [
+    '',
+    'england',
+    'all england',
+    'whole england',
+    'cała anglia',
+    'cala anglia',
+    'uk',
+    'united kingdom',
+    'great britain',
+    'gb',
+    'anywhere',
+    'remote',
+  ].includes(value);
+}
+
+function broadLocationFallbacks(location: string): string[] {
+  const original = location.trim();
+  const fallbacks = isBroadUkLocation(original)
+    ? [original, 'United Kingdom', 'England', '']
+    : [original];
+  return Array.from(new Set(fallbacks.filter((value) => value !== undefined)));
 }
 
 export const jobsRouter = router({
@@ -46,6 +74,7 @@ export const jobsRouter = router({
         }
 
         const trimmedQuery = input.query.trim();
+        const providerContext = { sessionCookies, userId: input.userId };
         const discoveryInput = {
           query: trimmedQuery,
           location: input.location,
@@ -54,12 +83,27 @@ export const jobsRouter = router({
           providers: mapRequestedProviders(input.sources),
         };
 
-        const discoveryJobs = input.userId && trimmedQuery.length === 0
-          ? await discoverJobsForProfile(discoveryInput, { sessionCookies, userId: input.userId })
-          : (await JobDiscoveryService.discover(
-              discoveryInput,
-              { sessionCookies, userId: input.userId },
-            )).jobs;
+        let discoveryJobs = input.userId && trimmedQuery.length === 0
+          ? await discoverJobsForProfile(discoveryInput, providerContext)
+          : (await JobDiscoveryService.discover(discoveryInput, providerContext)).jobs;
+
+        // Broad locations like "England" are surprisingly easy to make provider
+        // adapters interpret too narrowly. If a manual query returns no jobs,
+        // retry public providers with UK-wide variants before showing emptiness.
+        if (discoveryJobs.length === 0 && trimmedQuery.length > 0) {
+          for (const location of broadLocationFallbacks(input.location)) {
+            const retry = await JobDiscoveryService.discover(
+              {
+                ...discoveryInput,
+                location,
+                providers: Array.from(new Set([...mapRequestedProviders(input.sources), ...PUBLIC_JOB_PROVIDERS])),
+              },
+              providerContext,
+            );
+            discoveryJobs = retry.jobs;
+            if (discoveryJobs.length > 0) break;
+          }
+        }
 
         const result = await Promise.all(discoveryJobs.map(async (job) => {
           const fitScore = job.fitScore ?? 60;
