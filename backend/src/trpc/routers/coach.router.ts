@@ -5,6 +5,7 @@ import { tryGetOpenAiClient } from '../../lib/openai/openai.client.js';
 import { getDefaultTextModel } from '../../lib/openai/model-registry.js';
 import { BillingError } from '../../services/creditsBilling.js';
 import { FEATURE_COSTS } from '../../services/creditsConfig.js';
+import { checkAiProfileGate } from '../../services/profileCompletionGate.service.js';
 import {
   billingToTrpc,
   requireSpendApproval,
@@ -70,10 +71,17 @@ export const coachRouter = router({
         if (e instanceof BillingError) billingToTrpc(e);
         throw e;
       }
-      return { ...validated, creditsUsed: COACH_SESSION_DEBIT };
+      return { status: 'ok' as const, ...validated, creditsUsed: COACH_SESSION_DEBIT };
     };
 
     try {
+      const profileGate = await checkAiProfileGate(ctx.user);
+      if (!profileGate.allowed) {
+        await settleSpendFailure(ctx, 'incomplete_profile');
+        spendFinalized = true;
+        return profileGate.incompleteProfile;
+      }
+
       const openai = tryGetOpenAiClient();
 
       if (!openai) {
