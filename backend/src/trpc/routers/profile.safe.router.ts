@@ -5,6 +5,7 @@ import { protectedProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
 import { careerGoals, educations, experiences, profiles, skills, trainings, users } from '../../db/schema.js';
 import { profileRouter as legacyProfileRouter } from './profile.router.js';
+import { fetchProfileSnapshotWithCompletion } from '../../services/profileSnapshot.service.js';
 
 function workValuesToDb(values: string[]): string | null {
   const trimmed = values.map((value) => value.trim()).filter(Boolean);
@@ -195,10 +196,21 @@ const safeUpdateFull = protectedProcedure.input(updateFullInputSchema).mutation(
       .where(eq(careerGoals.userId, localUserId));
   }
 
-  return legacyProfileRouter.createCaller(ctx).getProfile();
+  return fetchProfileSnapshotWithCompletion({ userId: localUserId, email: input.email ?? ctx.user.email });
+});
+
+const getSnapshot = protectedProcedure.query(async ({ ctx }) => {
+  return fetchProfileSnapshotWithCompletion({ userId: ctx.user.id, email: ctx.user.email });
+});
+
+const getCompletion = protectedProcedure.query(async ({ ctx }) => {
+  const snapshot = await fetchProfileSnapshotWithCompletion({ userId: ctx.user.id, email: ctx.user.email });
+  return snapshot.profileCompletion;
 });
 
 export const profileSafeRouter = router({
   ...legacyProfileRouter._def.procedures,
+  getSnapshot,
+  getCompletion,
   updateFull: safeUpdateFull,
 });
