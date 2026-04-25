@@ -17,6 +17,12 @@ function formatDate(date: string | null): string {
   });
 }
 
+function firstName(fullName: string | null): string | null {
+  const trimmed = fullName?.trim();
+  if (!trimmed) return null;
+  return trimmed.split(/\s+/)[0] ?? trimmed;
+}
+
 function StatCard(props: { title: string; value: string; subtitle: string }) {
   return (
     <div className="mvh-card-glow rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -39,52 +45,51 @@ function StatusBadge({ status }: { status: DashboardSnapshotDto['applications'][
   };
 
   return (
-    <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${statusClasses[status]}`}
-    >
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${statusClasses[status]}`}>
       {status}
     </span>
   );
 }
 
 function CaseStudyPromo() {
+  const steps = [
+    ['01', 'Make your choice.', 'Pick the pressure situation you want to practise.'],
+    ['02', 'Prepare to win.', 'Build your position before the challenge starts.'],
+    ['03', 'Start the action.', 'Defend your answer and respond under pressure.'],
+  ] as const;
+
   return (
-    <section className="mvh-card-glow overflow-hidden rounded-3xl border border-violet-400/25 bg-gradient-to-br from-violet-600/20 via-indigo-600/10 to-slate-950 p-0 shadow-2xl shadow-black/20">
+    <section className="mvh-card-glow overflow-hidden rounded-3xl border border-violet-400/25 bg-gradient-to-br from-violet-600/25 via-indigo-600/15 to-slate-950 p-0 shadow-2xl shadow-black/20">
       <div className="grid gap-0 lg:grid-cols-[1.12fr_0.88fr]">
         <div className="p-5 sm:p-6">
           <div className="inline-flex items-center gap-2 rounded-full border border-violet-300/25 bg-violet-400/10 px-3 py-1 text-xs font-semibold text-violet-100">
-            Featured practice game
+            Featured practice
           </div>
           <h2 className="mt-4 text-2xl font-bold tracking-tight text-white sm:text-3xl">
             Defend your position. Win with words.
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-            No winner is decided in advance. Your result depends on the strength of your argument, the clarity of your rhetoric, your interpersonal skill, and how well you hold your position under pressure.
+            No winner is decided in advance. Your result depends on argument quality, clear rhetoric, interpersonal skill, and how well you hold your ground under pressure.
           </p>
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-violet-200">Step One</p>
-              <p className="mt-1 text-sm font-semibold text-white">Make your choice.</p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-violet-200">Step Two</p>
-              <p className="mt-1 text-sm font-semibold text-white">Prepare to win.</p>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-violet-200">Step Three</p>
-              <p className="mt-1 text-sm font-semibold text-white">Start the action.</p>
-            </div>
+            {steps.map(([number, title, detail]) => (
+              <div key={number} className="rounded-2xl border border-white/10 bg-white/[0.06] p-3 shadow-inner shadow-white/5">
+                <p className="text-xs font-bold uppercase tracking-wide text-violet-200">Step {number}</p>
+                <p className="mt-1 text-sm font-semibold text-white">{title}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-400">{detail}</p>
+              </div>
+            ))}
           </div>
           <div className="mt-5 flex flex-wrap gap-3">
             <Link
               to="/case-study"
-              className="inline-flex items-center justify-center rounded-xl bg-violet-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-violet-400"
+              className="inline-flex min-w-[170px] items-center justify-center rounded-xl bg-violet-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-violet-400"
             >
               Play Case Study
             </Link>
             <Link
               to="/coach"
-              className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10"
+              className="inline-flex min-w-[170px] items-center justify-center rounded-xl border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10"
             >
               Practise With Coach
             </Link>
@@ -117,33 +122,41 @@ function CaseStudyPromo() {
 
 export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto }) {
   const { profile, applications, billing, practice, nextAction } = snapshot;
+  const displayName = firstName(profile.fullName);
 
   return (
     <div className="space-y-8">
-      <section className="mvh-card-glow rounded-3xl border border-white/10 bg-white/5 p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <section className="mvh-card-glow rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.08] via-white/[0.04] to-indigo-500/[0.08] p-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-400">Dashboard</p>
-            <h1 className="mt-1 text-3xl font-bold tracking-tight text-white">
-              {profile.fullName ? `Welcome back, ${profile.fullName}` : 'Welcome back'}
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-indigo-200">WELCOME BACK</p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              {displayName ? `Welcome back, ${displayName}` : 'Welcome back'}
             </h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-400">{nextAction.reason}</p>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
+              Start from the next useful action, practise a case, or review your current career workspace.
+            </p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Link
               to={nextAction.href}
-              className="inline-flex items-center justify-center rounded-xl bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-400"
+              className="inline-flex min-w-[170px] items-center justify-center rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-400"
             >
               {nextAction.label}
             </Link>
             <Link
               to="/case-study"
-              className="inline-flex items-center justify-center rounded-xl bg-violet-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-violet-400"
+              className="inline-flex min-w-[170px] items-center justify-center rounded-xl bg-violet-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-400"
             >
               Play Case Study
             </Link>
           </div>
         </div>
+        {nextAction.reason ? (
+          <div className="mt-5 rounded-2xl border border-white/10 bg-black/15 px-4 py-3 text-xs leading-5 text-slate-400">
+            Workspace status: {nextAction.reason}
+          </div>
+        ) : null}
       </section>
 
       <CaseStudyPromo />
@@ -152,15 +165,9 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
         <StatCard
           title="Profile completeness"
           value={`${profile.completeness}%`}
-          subtitle={
-            profile.targetRole ? `Target role: ${profile.targetRole}` : 'Add your target role in Profile & goals'
-          }
+          subtitle={profile.targetRole ? `Target role: ${profile.targetRole}` : 'Add your target role in Profile & goals'}
         />
-        <StatCard
-          title="Applications"
-          value={String(applications.total)}
-          subtitle={`${applications.needsReviewCount} need review`}
-        />
+        <StatCard title="Applications" value={String(applications.total)} subtitle={`${applications.needsReviewCount} need review`} />
         <StatCard
           title="Available balance"
           value={formatCurrency(billing.availableBalanceCents, billing.currency)}
@@ -172,11 +179,7 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
         <StatCard
           title="Interview practice"
           value={String(practice.totalSessions)}
-          subtitle={
-            practice.averageScore === null
-              ? 'No scored sessions yet'
-              : `Average score ${practice.averageScore}`
-          }
+          subtitle={practice.averageScore === null ? 'No scored sessions yet' : `Average score ${practice.averageScore}`}
         />
       </section>
 
@@ -198,18 +201,10 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
               <table className="min-w-full divide-y divide-white/10">
                 <thead className="bg-white/5">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Company
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Role
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
-                      Updated
-                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">Company</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">Role</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-400">Updated</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 bg-black/10">
@@ -236,10 +231,7 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
             <h2 className="text-lg font-semibold text-white">Pipeline by status</h2>
             <div className="mt-4 space-y-3">
               {Object.entries(applications.byStatus).map(([status, count]) => (
-                <div
-                  key={status}
-                  className="flex items-center justify-between rounded-xl bg-black/20 px-4 py-3"
-                >
+                <div key={status} className="flex items-center justify-between rounded-xl bg-black/20 px-4 py-3">
                   <span className="text-sm font-medium capitalize text-slate-300">{status}</span>
                   <span className="text-sm font-semibold text-white">{count}</span>
                 </div>
@@ -254,10 +246,7 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
             ) : (
               <ul className="mt-4 space-y-2">
                 {profile.missingCriticalFields.map((field) => (
-                  <li
-                    key={field}
-                    className="rounded-xl bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-100"
-                  >
+                  <li key={field} className="rounded-xl bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-100">
                     {field}
                   </li>
                 ))}
@@ -274,9 +263,7 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
               </div>
               <div className="flex items-center justify-between">
                 <span>Average score</span>
-                <span className="font-semibold text-white">
-                  {practice.averageScore === null ? 'N/A' : practice.averageScore}
-                </span>
+                <span className="font-semibold text-white">{practice.averageScore === null ? 'N/A' : practice.averageScore}</span>
               </div>
               <div>
                 <span className="block text-slate-500">Last completed</span>
