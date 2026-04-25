@@ -24,6 +24,8 @@ A screen or feature is `Done` only when all items below are true:
 14. Backend confirms: `Backend contract implemented and tested.`
 15. Frontend confirms: `Frontend integrated with real backend contract and tested.`
 16. QC confirms: `Done.`
+17. Stage summary is consolidated into one report when the stage closes.
+18. Temporary reports, screenshots and agent scratch notes are removed or archived according to the repo hygiene rule.
 
 ## Automatic rejection rules
 
@@ -40,7 +42,8 @@ QC must reject the task if any of these are present:
 - backend ignores persistence errors silently,
 - migration is required but missing,
 - tests are skipped without a blocking follow-up,
-- PR description says Done without evidence.
+- PR description says Done without evidence,
+- PR adds multiple throwaway reports/screenshots without a cleanup or consolidation plan.
 
 ## Evidence required in PRs
 
@@ -57,6 +60,35 @@ Each PR must include:
 - known limitations.
 
 If a known limitation affects required screen behaviour, the PR is not ready.
+
+## Repo hygiene rule
+
+Repo documentation must stay useful, not become a landfill of agent output.
+
+During active work, short handoff notes and temporary QC findings are allowed. When an implementation stage closes, agents must consolidate the stage into one summary report and remove or archive redundant scratch files.
+
+Preferred pattern:
+
+- One current coordination file per active task.
+- One final summary report per completed stage.
+- No piles of duplicate reports for the same slice.
+- No committed local screenshots unless they are product-critical evidence.
+- No generated agent state, debug snapshots, random logs, or temporary dumps.
+- If screenshots are required, keep only the minimal final evidence and name it clearly.
+- If a report is superseded, either delete it or move it to an archive with a short index.
+
+Stage summary must include:
+
+- what was completed,
+- what changed in backend,
+- what changed in frontend,
+- tests and smoke checks run,
+- blockers resolved,
+- blockers still open,
+- links to final PRs/issues,
+- cleanup performed.
+
+A stage is not fully closed if it leaves behind a pile of outdated reports that future agents have to excavate with a shovel.
 
 ## Agent communication protocol
 
@@ -77,6 +109,7 @@ QC posts one of:
 - `Rejected: data-loss risk.`
 - `Rejected: placeholder or fake functionality.`
 - `Rejected: tests or smoke evidence missing.`
+- `Rejected: repo hygiene failure.`
 
 ## Current high-priority blockers
 
@@ -93,5 +126,7 @@ QC posts one of:
 ## Final rule
 
 No screen is complete until it works as one product surface: database, backend, API contract, frontend, UI behaviour, tests and smoke path together.
+
+No stage is closed until its documentation is consolidated and redundant artefacts are removed or archived.
 
 Anything less is not a finished task. It is just code with ambition.
