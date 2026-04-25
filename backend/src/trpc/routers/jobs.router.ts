@@ -5,6 +5,7 @@ import { publicProcedure, protectedProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
 import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions, savedJobs } from '../../db/schema.js';
 import { JobDiscoveryService } from '../../services/jobSources/jobDiscoveryService.js';
+import { discoverJobsForProfile } from '../../services/jobSources/profileDrivenDiscovery.js';
 import { explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.js';
 import { assessJobScamRisk } from '../../services/jobProtection.js';
 import { buildCandidateInsights } from '../../services/adaptiveInterviewer.js';
@@ -44,18 +45,23 @@ export const jobsRouter = router({
           }
         }
 
-        const discovery = await JobDiscoveryService.discover(
-          {
-            query: input.query,
-            location: input.location,
-            limit: input.limit,
-            userId: input.userId,
-            providers: mapRequestedProviders(input.sources),
-          },
-          { sessionCookies, userId: input.userId },
-        );
+        const trimmedQuery = input.query.trim();
+        const discoveryInput = {
+          query: trimmedQuery,
+          location: input.location,
+          limit: input.limit,
+          userId: input.userId,
+          providers: mapRequestedProviders(input.sources),
+        };
 
-        const result = await Promise.all(discovery.jobs.map(async (job) => {
+        const discoveryJobs = input.userId && trimmedQuery.length === 0
+          ? await discoverJobsForProfile(discoveryInput, { sessionCookies, userId: input.userId })
+          : (await JobDiscoveryService.discover(
+              discoveryInput,
+              { sessionCookies, userId: input.userId },
+            )).jobs;
+
+        const result = await Promise.all(discoveryJobs.map(async (job) => {
           const fitScore = job.fitScore ?? 60;
           const scamAnalysis = assessJobScamRisk({
             title: job.title,
