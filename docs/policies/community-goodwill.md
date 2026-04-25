@@ -125,6 +125,42 @@ Use neutral internal labels where needed:
 
 Avoid labels such as poverty score, desperation score, hardship rank or vulnerable user.
 
+## Community Opportunity Rule
+
+Community may include announcements, NGO opportunities, foundation posts, volunteering, internships, work placements, traineeships and practical experience offers.
+
+Unpaid participation is allowed only when it is genuine volunteering.
+
+Allowed unpaid categories:
+
+- genuine volunteering;
+- charity volunteering;
+- NGO volunteering;
+- community support role;
+- non-commercial community project.
+
+Not eligible if unpaid:
+
+- commercial internship;
+- unpaid work placement for a business;
+- unpaid trial shift;
+- unpaid practical work where an employer earns from the output;
+- unpaid role disguised as learning while replacing paid labour.
+
+If a business commercially benefits from the work, the person must be paid.
+
+Community must not dress exploitation as experience.
+
+Required UI labels:
+
+- Paid;
+- Unpaid volunteer;
+- Not eligible if unpaid.
+
+Required warning:
+
+> This appears to be unpaid work for a commercial organisation. MultivoHub does not promote unpaid commercial labour. If a business benefits from the work, the person should be paid.
+
 ## Cost Coverage Rule
 
 Community Goodwill covers product usage costs for eligible actions.
