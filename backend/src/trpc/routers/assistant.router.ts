@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { allowedAssistantSourceTypes, assistantModes } from '../../../../shared/assistant.js';
+import { buildIncompleteProfileResponse } from '../../../../shared/profileCompletion.js';
 import { assistantConversations, assistantMessages, applications, documents, profiles } from '../../db/schema.js';
 import { db } from '../../db/index.js';
 import {
@@ -11,6 +12,7 @@ import {
   redactSensitiveText,
 } from '../../services/openai.js';
 import { getUserPlan, planToPromptBehaviorTier } from '../../services/billingGuard.js';
+import { fetchProfileSnapshotWithCompletion } from '../../services/profileSnapshot.service.js';
 import { protectedProcedure, router } from '../trpc.js';
 import { buildAssistantAiProductMeta } from '../../lib/openai/assistant-product-meta.js';
 import {
@@ -95,6 +97,11 @@ export const assistantRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       const userId = ctx.user.id;
+      const profileSnapshot = await fetchProfileSnapshotWithCompletion({ userId, email: ctx.user.email });
+      if (!profileSnapshot.profileCompletion.isComplete) {
+        return buildIncompleteProfileResponse(profileSnapshot.profileCompletion, false);
+      }
+
       const sourceType = assertAllowedAssistantSourceType(input.sourceType);
       const conversationId = await getOrCreateConversation(userId);
       const baseMeta = buildAssistantResponseMeta({
@@ -199,6 +206,8 @@ export const assistantRouter = router({
       });
 
       return {
+        status: 'ok' as const,
+        profileSnapshot,
         conversationId,
         userRecord: { ...userRecord, createdAt: userRecord.createdAt.toISOString() },
         aiRecord: {
@@ -213,6 +222,7 @@ export const assistantRouter = router({
   resolveContext: protectedProcedure.query(async ({ ctx }) => {
     const [profile] = await db.select().from(profiles)
       .where(eq(profiles.userId, ctx.user.id)).limit(1);
+    const profileSnapshot = await fetchProfileSnapshotWithCompletion({ userId: ctx.user.id, email: ctx.user.email });
     const recentApplications = await db.select().from(applications)
       .where(eq(applications.userId, ctx.user.id))
       .orderBy(desc(applications.updatedAt)).limit(5);
@@ -221,6 +231,9 @@ export const assistantRouter = router({
       .orderBy(desc(documents.updatedAt)).limit(3);
     return {
       profile: profile ?? null,
+      profileSnapshot,
+      profileCompletion: profileSnapshot.profileCompletion,
+      missingCriticalFields: profileSnapshot.missingCriticalFields,
       recentApplications,
       recentDocuments,
     };
