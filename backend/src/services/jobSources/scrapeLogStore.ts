@@ -1,12 +1,17 @@
-interface ScrapeEvent {
+export interface ScrapeEvent {
   ts: Date;
   provider: string;
   query: string;
   count: number;
+  location?: string;
+  durationMs?: number;
+  rawCount?: number;
+  dedupedCount?: number;
+  traceId?: string;
   error?: string;
 }
 
-const BUFFER_SIZE = 100;
+const BUFFER_SIZE = 250;
 const _log: ScrapeEvent[] = [];
 
 export function logScrape(event: ScrapeEvent): void {
