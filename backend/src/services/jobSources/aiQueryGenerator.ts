@@ -5,10 +5,53 @@ interface ProfileInput {
   skills?: string[];
   experiences?: Array<{ jobTitle: string }>;
   targetRole?: string;
+  currentJobTitle?: string | null;
   targetSeniority?: string | null;
+  summary?: string | null;
   workValues?: string[];
   practiceAreas?: string[];
   blockedAreas?: string[];
+}
+
+function compact(value: string | null | undefined): string | null {
+  const trimmed = String(value ?? '').trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function uniqueQueries(values: string[], count: number): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const value of values) {
+    const normalized = value.replace(/\s+/g, ' ').trim();
+    if (!normalized) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(normalized);
+    if (out.length >= count) break;
+  }
+  return out;
+}
+
+function inferRoleFromSummary(summary: string | null | undefined): string | null {
+  const text = compact(summary);
+  if (!text) return null;
+
+  const patterns = [
+    /(?:want|wants|looking|seeking|targeting|interested)\s+(?:to\s+work\s+as\s+|as\s+|for\s+)?(?:an?\s+)?([a-z][a-z0-9 /+-]{2,80})/i,
+    /(?:chc[eę]|szukam|celuj[eę]|interesuje mnie|chcialbym|chciałbym)\s+(?:pracowa[cć]\s+jako\s+|jako\s+|w\s+)?([a-ząćęłńóśźż0-9 /+-]{2,80})/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern)?.[1];
+    if (!match) continue;
+    return match
+      .split(/[.,;\n]/)[0]
+      .replace(/\b(remote|hybrid|full[- ]?time|part[- ]?time|zdalnie|hybrydowo)\b/gi, '')
+      .trim() || null;
+  }
+
+  return null;
 }
 
 export async function generateJobQueries(
@@ -20,12 +63,16 @@ export async function generateJobQueries(
     try {
       const profileSummary = [
         profile.targetRole ? `Target role: ${profile.targetRole}` : '',
+        profile.currentJobTitle ? `Current job title: ${profile.currentJobTitle}` : '',
+        profile.targetSeniority ? `Target seniority: ${profile.targetSeniority}` : '',
         profile.experiences?.length
           ? `Recent job title: ${profile.experiences[0].jobTitle}`
           : '',
         profile.skills?.length
           ? `Skills: ${profile.skills.slice(0, 10).join(', ')}`
           : '',
+        profile.summary ? `Profile summary / user intent: ${profile.summary.slice(0, 900)}` : '',
+        profile.workValues?.length ? `Work values: ${profile.workValues.slice(0, 6).join(', ')}` : '',
       ]
         .filter(Boolean)
         .join('. ');
@@ -36,7 +83,7 @@ export async function generateJobQueries(
           {
             role: 'system',
             content:
-              'You generate varied job search query strings. Return only a JSON array of strings, no explanation.',
+              'You generate varied UK job search query strings. Return only a JSON array of short strings. Prefer the candidate target role and explicit user intent over old job history. Do not include explanations.',
           },
           {
             role: 'user',
@@ -50,7 +97,7 @@ export async function generateJobQueries(
       const content = response.choices[0]?.message?.content ?? '[]';
       const parsed = JSON.parse(content) as string[];
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed.slice(0, count);
+        return uniqueQueries(parsed, count);
       }
     } catch (err) {
       console.error('[aiQueryGenerator] OpenAI error, using fallback query generation based on profile data:', err);
@@ -62,32 +109,36 @@ export async function generateJobQueries(
 
 function buildHeuristicQueries(profile: ProfileInput, count: number): string[] {
   const queries: string[] = [];
+  const recentTitle = compact(profile.experiences?.[0]?.jobTitle);
+  const inferredFromSummary = inferRoleFromSummary(profile.summary);
+  const baseRole = compact(profile.targetRole) ?? compact(profile.currentJobTitle) ?? recentTitle ?? inferredFromSummary;
 
-  if (profile.targetRole) {
+  if (baseRole) {
     queries.push(
-      profile.targetSeniority ? `${profile.targetRole} (${profile.targetSeniority})` : profile.targetRole,
+      profile.targetSeniority ? `${baseRole} ${profile.targetSeniority}` : baseRole,
     );
   }
 
   for (const area of profile.practiceAreas?.slice(0, 2) ?? []) {
-    if (queries.length >= count) break;
-    queries.push(`${profile.targetRole ?? profile.experiences?.[0]?.jobTitle ?? 'jobs'} ${area}`.trim());
+    queries.push(`${baseRole ?? recentTitle ?? 'jobs'} ${area}`.trim());
   }
 
-  const recentTitle = profile.experiences?.[0]?.jobTitle;
-  if (recentTitle) {
+  if (recentTitle && recentTitle.toLowerCase() !== baseRole?.toLowerCase()) {
     queries.push(recentTitle);
   }
 
   const skills = profile.skills ?? [];
-  for (const skill of skills.slice(0, 3)) {
-    if (queries.length >= count) break;
-    queries.push(`${recentTitle ?? profile.targetRole ?? 'developer'} ${skill}`);
+  for (const skill of skills.slice(0, 4)) {
+    queries.push(`${baseRole ?? recentTitle ?? 'developer'} ${skill}`);
+  }
+
+  if (profile.workValues?.some((value) => /remote|zdal/i.test(value)) && baseRole) {
+    queries.push(`${baseRole} remote`);
   }
 
   if (queries.length === 0) {
     queries.push('software developer', 'software engineer', 'full stack developer');
   }
 
-  return queries.slice(0, count);
+  return uniqueQueries(queries, count);
 }
