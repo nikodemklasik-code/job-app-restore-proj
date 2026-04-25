@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { eq, and, desc, like, or, inArray } from 'drizzle-orm';
 import { publicProcedure, protectedProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
-import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions, savedJobs } from '../../db/schema.js';
+import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions, savedJobs, careerGoals } from '../../db/schema.js';
 import { JobDiscoveryService } from '../../services/jobSources/jobDiscoveryService.js';
 import { discoverJobsForProfile } from '../../services/jobSources/profileDrivenDiscovery.js';
 import { explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.js';
@@ -11,6 +11,31 @@ import { assessJobScamRisk } from '../../services/jobProtection.js';
 import { buildCandidateInsights } from '../../services/adaptiveInterviewer.js';
 
 const PUBLIC_JOB_PROVIDERS = ['reed', 'adzuna', 'jooble'];
+const DEFAULT_JOBS_MIN_FIT_SCORE = 0;
+
+function normaliseFitThreshold(value: number): number {
+  return Number.isFinite(value) ? Math.min(100, Math.max(0, Math.round(value))) : DEFAULT_JOBS_MIN_FIT_SCORE;
+}
+
+async function ensureCareerGoalsRow(userId: string): Promise<void> {
+  const existing = await db.select({ id: careerGoals.id }).from(careerGoals).where(eq(careerGoals.userId, userId)).limit(1);
+  if (existing[0]) return;
+  await db.insert(careerGoals).values({
+    id: randomUUID(),
+    userId,
+    autoApplyMinScore: DEFAULT_JOBS_MIN_FIT_SCORE,
+  });
+}
+
+async function getJobsMinFitScore(userId: string): Promise<number> {
+  const [row] = await db
+    .select({ autoApplyMinScore: careerGoals.autoApplyMinScore })
+    .from(careerGoals)
+    .where(eq(careerGoals.userId, userId))
+    .limit(1);
+
+  return normaliseFitThreshold(row?.autoApplyMinScore ?? DEFAULT_JOBS_MIN_FIT_SCORE);
+}
 
 function mapRequestedProviders(sources: string[]): string[] {
   return sources.map((source) => {
@@ -96,6 +121,25 @@ async function runManualDiscoveryWithFallbacks(input: {
 }
 
 export const jobsRouter = router({
+  getFitThreshold: protectedProcedure
+    .output(z.object({ minFitScore: z.number().int().min(0).max(100), source: z.literal('server') }))
+    .query(async ({ ctx }) => {
+      return { minFitScore: await getJobsMinFitScore(ctx.user.id), source: 'server' as const };
+    }),
+
+  updateFitThreshold: protectedProcedure
+    .input(z.object({ minFitScore: z.number().int().min(0).max(100) }))
+    .output(z.object({ minFitScore: z.number().int().min(0).max(100), source: z.literal('server') }))
+    .mutation(async ({ ctx, input }) => {
+      const minFitScore = normaliseFitThreshold(input.minFitScore);
+      await ensureCareerGoalsRow(ctx.user.id);
+      await db
+        .update(careerGoals)
+        .set({ autoApplyMinScore: minFitScore, updatedAt: new Date() })
+        .where(eq(careerGoals.userId, ctx.user.id));
+      return { minFitScore, source: 'server' as const };
+    }),
+
   search: publicProcedure
     .input(z.object({
       query: z.string().default(''),
@@ -137,9 +181,6 @@ export const jobsRouter = router({
           ? await discoverJobsForProfile(discoveryInput, providerContext)
           : (await JobDiscoveryService.discover(discoveryInput, providerContext)).jobs;
 
-        // If a manual search returns zero, retry with public suppliers, location
-        // variants and role synonyms before showing emptiness. This is especially
-        // important for hospitality queries such as "waiter" in Manchester.
         if (discoveryJobs.length === 0 && trimmedQuery.length > 0) {
           discoveryJobs = await runManualDiscoveryWithFallbacks(discoveryInput, providerContext);
         }
