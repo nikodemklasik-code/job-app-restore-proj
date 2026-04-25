@@ -15,6 +15,19 @@ function stripHtml(value: string): string {
     .trim();
 }
 
+function dedupeJobs(jobs: SourceJob[], limit: number): SourceJob[] {
+  const seen = new Set<string>();
+  const out: SourceJob[] = [];
+  for (const job of jobs) {
+    const key = `${job.externalId || job.applyUrl}|${job.source}`.toLowerCase().trim();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(job);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 function collectStructuredJobs(value: unknown, sink: Record<string, unknown>[]): void {
   if (!value) return;
   if (Array.isArray(value)) {
@@ -110,50 +123,72 @@ async function searchAdzunaWebsite(input: DiscoveryInput): Promise<SourceJob[]> 
   return results;
 }
 
+async function searchAdzunaApi(input: DiscoveryInput): Promise<SourceJob[]> {
+  const appId = process.env.ADZUNA_APP_ID;
+  const appKey = process.env.ADZUNA_APP_KEY;
+  if (!appId || !appKey) return [];
+
+  const url = new URL('https://api.adzuna.com/v1/api/jobs/gb/search/1');
+  url.searchParams.set('app_id', appId);
+  url.searchParams.set('app_key', appKey);
+  url.searchParams.set('what', input.query);
+  url.searchParams.set('results_per_page', String(input.limit));
+  if (input.location) url.searchParams.set('where', input.location);
+
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`Adzuna ${res.status}`);
+  const data = await res.json() as { results?: Record<string, unknown>[] };
+
+  return (data.results ?? []).map((j) => {
+    const loc = j.location as Record<string, unknown> | undefined;
+    const company = j.company as Record<string, unknown> | undefined;
+    return {
+      externalId: norm(j.id),
+      source: 'adzuna',
+      title: norm(j.title),
+      company: norm(company?.display_name),
+      location: norm(loc?.display_name),
+      description: norm(j.description),
+      applyUrl: norm(j.redirect_url),
+      salaryMin: typeof j.salary_min === 'number' ? j.salary_min : null,
+      salaryMax: typeof j.salary_max === 'number' ? j.salary_max : null,
+      workMode: norm(j.contract_time) || null,
+      requirements: [],
+      postedAt: new Date().toISOString(),
+    };
+  });
+}
+
 export class AdzunaProvider implements JobSourceProvider {
   name = 'adzuna';
   label = 'Adzuna';
 
   async readiness(): Promise<{ ready: boolean; reason?: string }> {
     if (process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY) {
-      return { ready: true };
+      return { ready: true, reason: 'ADZUNA API keys set; API + public www discovery enabled' };
     }
-    return { ready: true, reason: 'ADZUNA API keys not set, using public web fallback' };
+    return { ready: true, reason: 'ADZUNA API keys not set, using public www discovery' };
   }
 
   async discover(input: DiscoveryInput, _context?: ProviderContext): Promise<SourceJob[]> {
-    const appId = process.env.ADZUNA_APP_ID;
-    const appKey = process.env.ADZUNA_APP_KEY;
-    if (!appId || !appKey) return searchAdzunaWebsite(input);
+    const settled = await Promise.allSettled([
+      searchAdzunaApi(input),
+      searchAdzunaWebsite(input),
+    ]);
 
-    const url = new URL('https://api.adzuna.com/v1/api/jobs/gb/search/1');
-    url.searchParams.set('app_id', appId);
-    url.searchParams.set('app_key', appKey);
-    url.searchParams.set('what', input.query);
-    url.searchParams.set('results_per_page', String(input.limit));
-    if (input.location) url.searchParams.set('where', input.location);
+    const jobs: SourceJob[] = [];
+    for (const result of settled) {
+      if (result.status === 'fulfilled') jobs.push(...result.value);
+      else console.error('[AdzunaProvider] discovery branch failed:', result.reason);
+    }
 
-    const res = await fetch(url.toString());
-    if (!res.ok) throw new Error(`Adzuna ${res.status}`);
-    const data = await res.json() as { results?: Record<string, unknown>[] };
+    if (jobs.length === 0) {
+      const errors = settled
+        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+        .map((result) => result.reason instanceof Error ? result.reason.message : String(result.reason));
+      if (errors.length > 0) throw new Error(`Adzuna discovery failed: ${errors.join('; ')}`);
+    }
 
-    return (data.results ?? []).map((j) => {
-      const loc = j.location as Record<string, unknown> | undefined;
-      const company = j.company as Record<string, unknown> | undefined;
-      return {
-        externalId: norm(j.id),
-        source: 'adzuna',
-        title: norm(j.title),
-        company: norm(company?.display_name),
-        location: norm(loc?.display_name),
-        description: norm(j.description),
-        applyUrl: norm(j.redirect_url),
-        salaryMin: typeof j.salary_min === 'number' ? j.salary_min : null,
-        salaryMax: typeof j.salary_max === 'number' ? j.salary_max : null,
-        workMode: norm(j.contract_time) || null,
-        requirements: [],
-        postedAt: new Date().toISOString(),
-      };
-    });
+    return dedupeJobs(jobs, input.limit);
   }
 }

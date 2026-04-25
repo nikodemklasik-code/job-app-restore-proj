@@ -5,15 +5,94 @@ import { publicProcedure, protectedProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
 import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions, savedJobs } from '../../db/schema.js';
 import { JobDiscoveryService } from '../../services/jobSources/jobDiscoveryService.js';
+import { discoverJobsForProfile } from '../../services/jobSources/profileDrivenDiscovery.js';
 import { explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.js';
 import { assessJobScamRisk } from '../../services/jobProtection.js';
 import { buildCandidateInsights } from '../../services/adaptiveInterviewer.js';
+
+const PUBLIC_JOB_PROVIDERS = ['reed', 'adzuna', 'jooble'];
 
 function mapRequestedProviders(sources: string[]): string[] {
   return sources.map((source) => {
     if (source === 'indeed') return 'indeed-browser';
     return source;
   });
+}
+
+function isBroadUkLocation(location: string): boolean {
+  const value = location.trim().toLowerCase();
+  return [
+    '',
+    'england',
+    'all england',
+    'whole england',
+    'cała anglia',
+    'cala anglia',
+    'uk',
+    'united kingdom',
+    'great britain',
+    'gb',
+    'anywhere',
+    'remote',
+  ].includes(value);
+}
+
+function locationFallbacks(location: string): string[] {
+  const original = location.trim();
+  const value = original.toLowerCase();
+  const fallbacks = isBroadUkLocation(original)
+    ? [original, 'United Kingdom', 'England', '']
+    : value === 'manchester'
+      ? [original, 'Manchester', 'Greater Manchester', '']
+      : [original];
+  return Array.from(new Set(fallbacks));
+}
+
+function queryFallbacks(query: string): string[] {
+  const original = query.trim();
+  const value = original.toLowerCase();
+  const fallbackTerms: string[] = [original];
+
+  if (/\bwaiter\b|\bwaitress\b|\bserver\b/.test(value)) {
+    fallbackTerms.push(
+      'waiter waitress',
+      'restaurant waiter',
+      'front of house',
+      'bar staff',
+      'hospitality assistant',
+      'restaurant staff',
+      'cafe assistant',
+    );
+  }
+
+  return Array.from(new Set(fallbackTerms.filter(Boolean)));
+}
+
+async function runManualDiscoveryWithFallbacks(input: {
+  query: string;
+  location: string;
+  limit: number;
+  userId?: string;
+  providers: string[];
+}, providerContext: { sessionCookies?: { indeed?: string; gumtree?: string }; userId?: string }): Promise<Awaited<ReturnType<typeof JobDiscoveryService.discover>>['jobs']> {
+  const providers = Array.from(new Set([...input.providers, ...PUBLIC_JOB_PROVIDERS]));
+  const attempts: Array<{ query: string; location: string }> = [];
+
+  for (const query of queryFallbacks(input.query)) {
+    for (const location of locationFallbacks(input.location)) {
+      attempts.push({ query, location });
+    }
+  }
+
+  for (const attempt of attempts) {
+    const result = await JobDiscoveryService.discover(
+      { ...input, query: attempt.query, location: attempt.location, providers },
+      providerContext,
+    );
+    if (result.jobs.length > 0) return result.jobs;
+  }
+
+  return [];
 }
 
 export const jobsRouter = router({
@@ -44,18 +123,28 @@ export const jobsRouter = router({
           }
         }
 
-        const discovery = await JobDiscoveryService.discover(
-          {
-            query: input.query,
-            location: input.location,
-            limit: input.limit,
-            userId: input.userId,
-            providers: mapRequestedProviders(input.sources),
-          },
-          { sessionCookies, userId: input.userId },
-        );
+        const trimmedQuery = input.query.trim();
+        const providerContext = { sessionCookies, userId: input.userId };
+        const discoveryInput = {
+          query: trimmedQuery,
+          location: input.location,
+          limit: input.limit,
+          userId: input.userId,
+          providers: mapRequestedProviders(input.sources),
+        };
 
-        const result = await Promise.all(discovery.jobs.map(async (job) => {
+        let discoveryJobs = input.userId && trimmedQuery.length === 0
+          ? await discoverJobsForProfile(discoveryInput, providerContext)
+          : (await JobDiscoveryService.discover(discoveryInput, providerContext)).jobs;
+
+        // If a manual search returns zero, retry with public suppliers, location
+        // variants and role synonyms before showing emptiness. This is especially
+        // important for hospitality queries such as "waiter" in Manchester.
+        if (discoveryJobs.length === 0 && trimmedQuery.length > 0) {
+          discoveryJobs = await runManualDiscoveryWithFallbacks(discoveryInput, providerContext);
+        }
+
+        const result = await Promise.all(discoveryJobs.map(async (job) => {
           const fitScore = job.fitScore ?? 60;
           const scamAnalysis = assessJobScamRisk({
             title: job.title,

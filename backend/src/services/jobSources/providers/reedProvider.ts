@@ -23,6 +23,19 @@ function stripHtml(value: string): string {
     .trim();
 }
 
+function dedupeJobs(jobs: SourceJob[], limit: number): SourceJob[] {
+  const seen = new Set<string>();
+  const out: SourceJob[] = [];
+  for (const job of jobs) {
+    const key = `${job.externalId || job.applyUrl}|${job.source}`.toLowerCase().trim();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(job);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 function collectStructuredJobs(value: unknown, sink: Record<string, unknown>[]): void {
   if (!value) return;
   if (Array.isArray(value)) {
@@ -115,45 +128,67 @@ async function searchReedWebsite(input: DiscoveryInput): Promise<SourceJob[]> {
   return results;
 }
 
+async function searchReedApi(input: DiscoveryInput): Promise<SourceJob[]> {
+  const key = process.env.REED_API_KEY;
+  if (!key) return [];
+
+  const url = new URL('https://www.reed.co.uk/api/1.0/search');
+  url.searchParams.set('keywords', input.query);
+  if (input.location) url.searchParams.set('locationName', input.location);
+  url.searchParams.set('resultsToTake', String(input.limit));
+
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Basic ${Buffer.from(`${key}:`).toString('base64')}` },
+  });
+  if (!res.ok) throw new Error(`Reed ${res.status}`);
+  const data = await res.json() as { results?: Record<string, unknown>[] };
+
+  return (data.results ?? []).map((j) => ({
+    externalId: norm(j.jobId),
+    source: 'reed',
+    title: norm(j.jobTitle),
+    company: norm(j.employerName),
+    location: norm(j.locationName),
+    description: norm(j.jobDescription),
+    applyUrl: norm(j.jobUrl),
+    salaryMin: typeof j.minimumSalary === 'number' ? j.minimumSalary : null,
+    salaryMax: typeof j.maximumSalary === 'number' ? j.maximumSalary : null,
+    workMode: null,
+    requirements: [],
+    postedAt: new Date().toISOString(),
+  }));
+}
+
 export class ReedProvider implements JobSourceProvider {
   name = 'reed';
   label = 'Reed';
 
   async readiness(): Promise<{ ready: boolean; reason?: string }> {
     if (process.env.REED_API_KEY) {
-      return { ready: true };
+      return { ready: true, reason: 'REED API key set; API + public www discovery enabled' };
     }
-    return { ready: true, reason: 'REED_API_KEY not set, using public web fallback' };
+    return { ready: true, reason: 'REED_API_KEY not set, using public www discovery' };
   }
 
   async discover(input: DiscoveryInput, _context?: ProviderContext): Promise<SourceJob[]> {
-    const key = process.env.REED_API_KEY;
-    if (!key) return searchReedWebsite(input);
+    const settled = await Promise.allSettled([
+      searchReedApi(input),
+      searchReedWebsite(input),
+    ]);
 
-    const url = new URL('https://www.reed.co.uk/api/1.0/search');
-    url.searchParams.set('keywords', input.query);
-    if (input.location) url.searchParams.set('locationName', input.location);
-    url.searchParams.set('resultsToTake', String(input.limit));
+    const jobs: SourceJob[] = [];
+    for (const result of settled) {
+      if (result.status === 'fulfilled') jobs.push(...result.value);
+      else console.error('[ReedProvider] discovery branch failed:', result.reason);
+    }
 
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: `Basic ${Buffer.from(`${key}:`).toString('base64')}` },
-    });
-    if (!res.ok) throw new Error(`Reed ${res.status}`);
-    const data = await res.json() as { results?: Record<string, unknown>[] };
+    if (jobs.length === 0) {
+      const errors = settled
+        .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+        .map((result) => result.reason instanceof Error ? result.reason.message : String(result.reason));
+      if (errors.length > 0) throw new Error(`Reed discovery failed: ${errors.join('; ')}`);
+    }
 
-    return (data.results ?? []).map((j) => ({
-      externalId: norm(j.jobId),
-      source: 'reed',
-      title: norm(j.jobTitle),
-      company: norm(j.employerName),
-      location: norm(j.locationName),
-      description: norm(j.jobDescription),
-      applyUrl: norm(j.jobUrl),
-      salaryMin: typeof j.minimumSalary === 'number' ? j.minimumSalary : null,
-      salaryMax: typeof j.maximumSalary === 'number' ? j.maximumSalary : null,
-      workMode: null,
-      requirements: [],
-      postedAt: new Date().toISOString(),
-    }));
+    return dedupeJobs(jobs, input.limit);
   }
 }
