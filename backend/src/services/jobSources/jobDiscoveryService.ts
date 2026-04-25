@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { scoreJobFit } from '../aiPersonalizer.js';
 import { logScrape } from './scrapeLogStore.js';
 import { getProviders } from './providerRegistry.js';
-import type { DiscoveryInput, DiscoveryResult, ProviderContext, SourceJob } from './types.js';
+import type { DiscoveryInput, DiscoveryResult, ProviderContext, ProviderDiagnostic, SourceJob } from './types.js';
 
 function elapsedMs(startedAt: number): number {
   return Math.max(0, Date.now() - startedAt);
@@ -15,21 +15,24 @@ export class JobDiscoveryService {
     enabledProviders?: string[],
   ): Promise<DiscoveryResult> {
     const startedAt = Date.now();
+    const startedAtIso = new Date(startedAt).toISOString();
     const traceId = randomUUID();
     const allProviders = getProviders();
 
     // Determine which providers to run
     const targetNames = input.providers ?? enabledProviders ?? allProviders.map((p) => p.name);
     const selected = allProviders.filter((p) => targetNames.includes(p.name));
+    const selectedProviderNames = selected.map((provider) => provider.name);
 
     const rawJobs: SourceJob[] = [];
     const failures: Array<{ provider: string; error: string }> = [];
+    const providerDiagnostics: ProviderDiagnostic[] = [];
 
     console.info('[JobDiscoveryService] discovery started', {
       traceId,
       query: input.query,
       location: input.location,
-      providers: selected.map((provider) => provider.name),
+      providers: selectedProviderNames,
       limit: input.limit,
       userIdPresent: Boolean(input.userId),
     });
@@ -52,6 +55,13 @@ export class JobDiscoveryService {
       const provider = selected[i];
       if (result.status === 'fulfilled') {
         rawJobs.push(...result.value.jobs);
+        providerDiagnostics.push({
+          provider: provider.name,
+          query: input.query,
+          location: input.location,
+          count: result.value.jobs.length,
+          durationMs: result.value.durationMs,
+        });
         logScrape({
           ts: new Date(),
           provider: provider.name,
@@ -72,6 +82,14 @@ export class JobDiscoveryService {
       } else {
         const errorMsg = result.reason instanceof Error ? result.reason.message : String(result.reason);
         failures.push({ provider: provider.name, error: errorMsg });
+        providerDiagnostics.push({
+          provider: provider.name,
+          query: input.query,
+          location: input.location,
+          count: 0,
+          durationMs: null,
+          error: errorMsg,
+        });
         logScrape({
           ts: new Date(),
           provider: provider.name,
@@ -92,7 +110,8 @@ export class JobDiscoveryService {
       }
     }
 
-    // Deduplicate by externalId + source
+    // Deduplicate by externalId + source. Do not synthesize missing ads here.
+    // If providers return nothing, the correct result is zero ready listings plus diagnostics.
     const seen = new Set<string>();
     const dedupedJobs = rawJobs.filter((job) => {
       const key = `${job.externalId.toLowerCase().trim()}|${job.source.toLowerCase().trim()}`;
@@ -101,7 +120,7 @@ export class JobDiscoveryService {
       return true;
     });
 
-    // Score fit if userId present
+    // Score fit if userId present. Scoring annotates real provider ads only.
     let finalJobs = dedupedJobs;
     if (input.userId && dedupedJobs.length > 0) {
       const scoringStartedAt = Date.now();
@@ -158,6 +177,22 @@ export class JobDiscoveryService {
     }
 
     const totalDurationMs = elapsedMs(startedAt);
+    const finishedAtIso = new Date().toISOString();
+    const diagnostics = {
+      traceId,
+      query: input.query,
+      location: input.location,
+      providers: selectedProviderNames,
+      startedAt: startedAtIso,
+      finishedAt: finishedAtIso,
+      durationMs: totalDurationMs,
+      rawCount: rawJobs.length,
+      dedupedCount: dedupedJobs.length,
+      finalCount: finalJobs.length,
+      failures,
+      providerDiagnostics,
+    };
+
     logScrape({
       ts: new Date(),
       provider: '__session__',
@@ -170,22 +205,14 @@ export class JobDiscoveryService {
       traceId,
       error: failures.length > 0 ? failures.map((failure) => `${failure.provider}: ${failure.error}`).join('; ') : undefined,
     });
-    console.info('[JobDiscoveryService] discovery completed', {
-      traceId,
-      query: input.query,
-      location: input.location,
-      rawCount: rawJobs.length,
-      dedupedCount: dedupedJobs.length,
-      finalCount: finalJobs.length,
-      failures,
-      durationMs: totalDurationMs,
-    });
+    console.info('[JobDiscoveryService] discovery completed', diagnostics);
 
     return {
       jobs: finalJobs,
       failures,
       totalRaw: rawJobs.length,
       deduped: dedupedJobs.length,
+      diagnostics,
     };
   }
 }
