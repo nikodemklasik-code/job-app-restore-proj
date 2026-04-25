@@ -11,6 +11,8 @@
 
 import {
   FEATURE_COSTS,
+  type CreditActionTier,
+  type CreditModelTier,
   type FeatureCost,
   type FeatureKey,
 } from './creditsConfig.js';
@@ -24,6 +26,16 @@ export interface EstimateResult {
   readonly minCost: number;
   readonly maxCost: number;
   readonly suggestedApprovedMaxCost: number;
+  /** Credit strategy tier used by UI/QC/model routing. */
+  readonly tier: CreditActionTier;
+  /** Default model tier allowed for this action without explicit escalation. */
+  readonly modelTier: CreditModelTier;
+  /** Margin guardrail expected for this action class. */
+  readonly minGrossMarginMultiplier: number;
+  /** True when the product must show an approval cap before running. */
+  readonly requiresDynamicApproval: boolean;
+  readonly maxInputTokens?: number;
+  readonly maxOutputTokens?: number;
 }
 
 export interface DebitPlan {
@@ -81,26 +93,39 @@ export function planDebit(
   return { fromAllowance, fromCredits, totalDebited: cost };
 }
 
+function withEconomics(feature: FeatureKey, base: Omit<EstimateResult, 'tier' | 'modelTier' | 'minGrossMarginMultiplier' | 'requiresDynamicApproval' | 'maxInputTokens' | 'maxOutputTokens'>): EstimateResult {
+  const economics = FEATURE_COSTS[feature].economics;
+  return {
+    ...base,
+    tier: economics.tier,
+    modelTier: economics.modelTier,
+    minGrossMarginMultiplier: economics.minGrossMarginMultiplier,
+    requiresDynamicApproval: economics.requiresDynamicApproval,
+    maxInputTokens: economics.maxInputTokens,
+    maxOutputTokens: economics.maxOutputTokens,
+  };
+}
+
 export function estimateCostFor(feature: FeatureKey): EstimateResult {
   const cfg = FEATURE_COSTS[feature];
   if (cfg.kind === 'fixed') {
-    return {
+    return withEconomics(feature, {
       feature,
       kind: 'fixed',
       productLabel: cfg.productLabel,
       minCost: cfg.cost,
       maxCost: cfg.cost,
       suggestedApprovedMaxCost: cfg.cost,
-    };
+    });
   }
-  return {
+  return withEconomics(feature, {
     feature,
     kind: 'estimated',
     productLabel: cfg.productLabel,
     minCost: cfg.minCost,
     maxCost: cfg.maxCost,
     suggestedApprovedMaxCost: cfg.maxCost,
-  };
+  });
 }
 
 /**
@@ -148,9 +173,10 @@ export function startOfMonthUTC(reference: Date): Date {
  * the spend event.
  *
  * Rule: for estimated actions, caller may request a LARGER cap than the
- * default config max (e.g. "I'll accept up to 25 credits for a deeper
- * answer"), but never a smaller cap — that would let the backend silently
- * clip the user's approval below what the feature actually needs.
+ * default config max (e.g. "I'll accept up to 12 credits for a deeper answer"),
+ * but never a smaller cap — that would let the backend silently clip approval
+ * below the feature's required product cap. Yes, this is tedious. So are
+ * chargebacks.
  */
 export function resolveApprovalCosts(
   cfg: FeatureCost,
