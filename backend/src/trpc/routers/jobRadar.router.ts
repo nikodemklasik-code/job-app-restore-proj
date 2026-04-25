@@ -17,6 +17,7 @@ import {
   jobRadarScanAcceptedSchema,
   jobRadarScanStatusSchema,
 } from '../../prompts/schemas/job-radar-output.schema.js';
+import { checkAiProfileGate } from '../../services/profileCompletionGate.service.js';
 
 function isTrustReviewer(userId: string): boolean {
   const raw = process.env.JOB_RADAR_TRUST_REVIEWER_USER_IDS ?? '';
@@ -64,6 +65,9 @@ export const jobRadarRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const profileGate = await checkAiProfileGate(ctx.user);
+      if (!profileGate.allowed) return profileGate.incompleteProfile;
+
       const {
         handlers: { startScanHandler },
       } = getJobRadarModule();
@@ -136,6 +140,9 @@ export const jobRadarRouter = router({
     }),
 
   rescanReport: protectedProcedure.input(z.object({ reportId: z.string().min(1) })).mutation(async ({ ctx, input }) => {
+    const profileGate = await checkAiProfileGate(ctx.user);
+    if (!profileGate.allowed) return profileGate.incompleteProfile;
+
     const {
       handlers: { startScanHandler },
       repositories: { reportRepository, scanRepository },
@@ -164,6 +171,9 @@ export const jobRadarRouter = router({
   }),
 
   startScan: protectedProcedure.input(startScanDtoSchema).mutation(async ({ ctx, input }) => {
+    const profileGate = await checkAiProfileGate(ctx.user);
+    if (!profileGate.allowed) return profileGate.incompleteProfile;
+
     const {
       handlers: { startScanHandler },
     } = getJobRadarModule();
