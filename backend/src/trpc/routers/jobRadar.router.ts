@@ -17,6 +17,7 @@ import {
   jobRadarScanAcceptedSchema,
   jobRadarScanStatusSchema,
 } from '../../prompts/schemas/job-radar-output.schema.js';
+import { checkAiProfileGate } from '../../services/profileCompletionGate.service.js';
 
 function isTrustReviewer(userId: string): boolean {
   const raw = process.env.JOB_RADAR_TRUST_REVIEWER_USER_IDS ?? '';
@@ -53,9 +54,6 @@ function mapHandlerError(err: unknown): never {
 }
 
 export const jobRadarRouter = router({
-  /**
-   * OpenAPI `POST /job-radar/scan/from-saved-job` intent: start a scan from a user’s saved application row.
-   */
   startScanFromSavedJob: protectedProcedure
     .input(
       z.object({
@@ -64,6 +62,9 @@ export const jobRadarRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const profileGate = await checkAiProfileGate(ctx.user);
+      if (!profileGate.allowed) return profileGate.incompleteProfile;
+
       const {
         handlers: { startScanHandler },
       } = getJobRadarModule();
@@ -104,9 +105,6 @@ export const jobRadarRouter = router({
       }
     }),
 
-  /**
-   * OpenAPI `GET /job-radar/employers/{employer_id}/history` intent: prior reports for the same stable employer id.
-   */
   getEmployerHistory: protectedProcedure
     .input(
       z.object({
@@ -118,11 +116,7 @@ export const jobRadarRouter = router({
       const {
         repositories: { reportRepository },
       } = getJobRadarModule();
-      const history = await reportRepository.listEmployerHistoryForUser(
-        ctx.user.id,
-        input.employerId,
-        input.limit ?? 24,
-      );
+      const history = await reportRepository.listEmployerHistoryForUser(ctx.user.id, input.employerId, input.limit ?? 24);
       return jobRadarEmployerHistorySchema.parse({
         employerId: input.employerId,
         history: history.map((h) => ({
@@ -136,6 +130,9 @@ export const jobRadarRouter = router({
     }),
 
   rescanReport: protectedProcedure.input(z.object({ reportId: z.string().min(1) })).mutation(async ({ ctx, input }) => {
+    const profileGate = await checkAiProfileGate(ctx.user);
+    if (!profileGate.allowed) return profileGate.incompleteProfile;
+
     const {
       handlers: { startScanHandler },
       repositories: { reportRepository, scanRepository },
@@ -164,6 +161,9 @@ export const jobRadarRouter = router({
   }),
 
   startScan: protectedProcedure.input(startScanDtoSchema).mutation(async ({ ctx, input }) => {
+    const profileGate = await checkAiProfileGate(ctx.user);
+    if (!profileGate.allowed) return profileGate.incompleteProfile;
+
     const {
       handlers: { startScanHandler },
     } = getJobRadarModule();
@@ -188,10 +188,7 @@ export const jobRadarRouter = router({
         handlers: { getScanStatusHandler },
       } = getJobRadarModule();
       try {
-        const scan = await getScanStatusHandler.execute({
-          userId: ctx.user.id,
-          scanId: input.scanId,
-        });
+        const scan = await getScanStatusHandler.execute({ userId: ctx.user.id, scanId: input.scanId });
         return jobRadarScanStatusSchema.parse(JobRadarHttpMapper.toScanProgressResponseWire(scan));
       } catch (err) {
         mapHandlerError(err);
@@ -205,10 +202,7 @@ export const jobRadarRouter = router({
         handlers: { getReportHandler },
       } = getJobRadarModule();
       try {
-        return await getReportHandler.execute({
-          userId: ctx.user.id,
-          reportId: input.reportId,
-        });
+        return await getReportHandler.execute({ userId: ctx.user.id, reportId: input.reportId });
       } catch (err) {
         mapHandlerError(err);
       }
@@ -242,37 +236,27 @@ export const jobRadarRouter = router({
   }),
 
   adminListComplaints: trustProcedure
-    .input(
-      z.object({
-        status: z.enum(['open', 'under_review', 'resolved', 'rejected']).optional(),
-        scanId: z.string().optional(),
-      }),
-    )
+    .input(z.object({ status: z.enum(['open', 'under_review', 'resolved', 'rejected']).optional(), scanId: z.string().optional() }))
     .query(async ({ input }) => {
       const {
         handlers: { listComplaintsHandler },
       } = getJobRadarModule();
       try {
-        const items = await listComplaintsHandler.execute({
-          status: input.status,
-          scanId: input.scanId,
-        });
+        const items = await listComplaintsHandler.execute({ status: input.status, scanId: input.scanId });
         return { items };
       } catch (err) {
         mapHandlerError(err);
       }
     }),
 
-  adminGetComplaint: trustProcedure
-    .input(z.object({ complaintId: z.string().min(1) }))
-    .query(async ({ input }) => {
-      const {
-        repositories: { complaintRepository },
-      } = getJobRadarModule();
-      const row = await complaintRepository.findById(input.complaintId);
-      if (!row) throw new TRPCError({ code: 'NOT_FOUND', message: 'COMPLAINT_NOT_FOUND' });
-      return row;
-    }),
+  adminGetComplaint: trustProcedure.input(z.object({ complaintId: z.string().min(1) })).query(async ({ input }) => {
+    const {
+      repositories: { complaintRepository },
+    } = getJobRadarModule();
+    const row = await complaintRepository.findById(input.complaintId);
+    if (!row) throw new TRPCError({ code: 'NOT_FOUND', message: 'COMPLAINT_NOT_FOUND' });
+    return row;
+  }),
 
   adminReviewFinding: trustProcedure.input(reviewFindingDtoSchema).mutation(async ({ ctx, input }) => {
     const {
