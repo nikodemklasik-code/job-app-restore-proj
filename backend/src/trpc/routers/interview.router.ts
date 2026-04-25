@@ -22,6 +22,7 @@ import {
 } from '../../../../shared/interview.js';
 import { approveSpend, commitSpend, rejectSpend, BillingError } from '../../services/creditsBilling.js';
 import { FEATURE_COSTS, isKnownFeature, type FeatureKey } from '../../services/creditsConfig.js';
+import { checkAiProfileGate } from '../../services/profileCompletionGate.service.js';
 import { billingToTrpc } from './_shared.js';
 
 function legacyInterviewFeatureForMode(mode: InterviewMode): FeatureKey {
@@ -76,6 +77,9 @@ export const interviewRouter = router({
       }),
     )
     .mutation(async ({ input, ctx }) => {
+      const profileGate = await checkAiProfileGate(ctx.user);
+      if (!profileGate.allowed) return profileGate.incompleteProfile;
+
       const userId = ctx.user.id;
 
       const sessionId = randomUUID();
@@ -107,7 +111,7 @@ export const interviewRouter = router({
 
       try {
         const questions = buildInterviewQuestions(input.mode, input.questionCount);
-        return { sessionId, questions };
+        return { status: 'ok' as const, sessionId, questions, profileSnapshot: profileGate.profileSnapshot };
       } catch (e) {
         if (approvedSpendEventId) {
           try {
