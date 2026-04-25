@@ -2,7 +2,7 @@ import { router } from '../trpc.js';
 import { assistantRouter } from './assistant.router.js';
 import { liveInterviewRouter } from './liveInterview.router.js';
 import { interviewRouter } from './interview.router.js';
-import { profileRouter } from './profile.router.js';
+import { profileSafeRouter } from './profile.safe.router.js';
 import { profilePreferencesRouter } from './profilePreferences.router.js';
 import { billingRouter } from './billing.router.js';
 import { securityRouter } from './security.router.js';
@@ -36,7 +36,7 @@ export const appRouter = router({
   coach: coachRouter,
   interview: interviewRouter,
   liveInterview: liveInterviewRouter,
-  profile: profileRouter,
+  profile: profileSafeRouter,
   profilePreferences: profilePreferencesRouter,
   billing: billingRouter,
   security: securityRouter,
