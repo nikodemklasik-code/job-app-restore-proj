@@ -63,11 +63,18 @@ Recommended transcript behaviour:
 - allow retry/edit where practical;
 - then continue to AI processing.
 
-## Tier 1 modules: Interview and AI Coach
+## Tier 1 modules: premium AI conversation
 
-Interview and AI Coach are premium, high-value conversation modules.
+The highest interaction tier applies to every premium AI conversation module:
 
-They must use the highest quality conversational experience available in the product.
+- AI Assistant;
+- Interview;
+- AI Coach;
+- Negotiation.
+
+These modules must use the same high-quality conversational standard.
+
+They are expected to feel like normal interactive conversation with a live interlocutor, not like a recorder, form or delayed processing queue.
 
 Required standard:
 
@@ -79,24 +86,10 @@ Required standard:
 - minimal waiting copy;
 - streamed response where possible;
 - no recorder-style main flow;
-- no long silent processing state without explanation.
+- no long silent processing state without explanation;
+- consistent interaction quality across AI Assistant, Interview, AI Coach and Negotiation.
 
-Interview and AI Coach should feel like a normal interactive conversation.
-
-## Tier 2 module: Negotiation
-
-Negotiation should use the same shared voice conversation engine where possible.
-
-It may have strategy and simulator-specific framing, but the voice flow should remain conversational:
-
-- listen;
-- detect speech;
-- transcribe;
-- send transcript;
-- stream response;
-- continue the turn loop.
-
-## Tier 3 modules: Daily Wrap / Daily Warmup
+## Tier 2 modules: reflective AI routines
 
 Daily Wrap and Daily Warmup may use a slower, more reflective rhythm.
 
@@ -111,7 +104,7 @@ They still must show:
 - AI response status;
 - clear completion or next-step state.
 
-Daily Wrap can be calmer than Interview or Coach, but it should not be confusing.
+Daily Wrap can be calmer than Interview, Coach, Negotiation or AI Assistant, but it should not be confusing.
 
 ## Shared implementation direction
 
@@ -151,7 +144,7 @@ Interview Practice already has core building blocks:
 - conversation phases such as AI speaking, user turn and processing;
 - voice activity related refs.
 
-Negotiation already has a stronger VAD-style flow:
+Negotiation already has a strong VAD-style flow:
 
 - voice mode;
 - speech threshold;
@@ -163,10 +156,14 @@ Coach currently has recording, transcription and TTS, but the main experience is
 
 Coach must be upgraded to the Tier 1 conversation standard.
 
+AI Assistant must also share the same premium conversation interaction standard where voice mode is available.
+
 Case Practice currently has listen-along and generation, but it is not yet a full voice conversation loop.
 
 ## Product rule
 
 If it is an AI conversation screen, it must behave like a conversation.
+
+AI Assistant, Interview, AI Coach and Negotiation must share the same high-quality interaction level.
 
 If the product cannot support a real conversation loop for a screen, the screen should not be presented as a live AI conversation.
