@@ -27,11 +27,38 @@ export interface ProviderFailure {
   error: string;
 }
 
+export interface ProviderDiagnostic {
+  provider: string;
+  query: string;
+  location: string;
+  count: number;
+  durationMs: number | null;
+  error?: string;
+}
+
+export interface DiscoveryDiagnostics {
+  traceId: string;
+  query: string;
+  location: string;
+  providers: string[];
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
+  rawCount: number;
+  dedupedCount: number;
+  finalCount: number;
+  failures: ProviderFailure[];
+  providerDiagnostics: ProviderDiagnostic[];
+}
+
 export interface DiscoveryResult {
+  /** Ready job ads returned by real providers. Never AI-generated synthetic listings. */
   jobs: SourceJob[];
   failures: ProviderFailure[];
   totalRaw: number;
   deduped: number;
+  /** Debug metadata for tracing empty searches. This is not the product result. */
+  diagnostics?: DiscoveryDiagnostics;
 }
 
 export interface JobSourceProvider {
