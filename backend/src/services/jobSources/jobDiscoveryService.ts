@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { scoreJobFit } from '../aiPersonalizer.js';
 import { logScrape } from './scrapeLogStore.js';
 import { getProviders } from './providerRegistry.js';
+import { keywordScoreJobs } from './jobKeywordMatcher.js';
 import type { DiscoveryInput, DiscoveryResult, ProviderContext, ProviderDiagnostic, SourceJob } from './types.js';
 
 function elapsedMs(startedAt: number): number {
@@ -120,9 +121,13 @@ export class JobDiscoveryService {
       return true;
     });
 
-    // Score fit if userId present. Scoring annotates real provider ads only.
-    let finalJobs = dedupedJobs;
-    if (input.userId && dedupedJobs.length > 0) {
+    // Deterministic keyword scoring first: this is enough for basic role matching
+    // such as waiter/waitress/server/front-of-house. AI can refine, but it should
+    // not be required for the product to understand obvious words like "waiter".
+    let finalJobs = keywordScoreJobs(dedupedJobs, input.query);
+
+    // Optional AI fit scoring if userId present. Scoring annotates real provider ads only.
+    if (input.userId && finalJobs.length > 0) {
       const scoringStartedAt = Date.now();
       try {
         const { db } = await import('../../db/index.js');
@@ -154,10 +159,10 @@ export class JobDiscoveryService {
             };
 
             finalJobs = await Promise.all(
-              dedupedJobs.map(async (job) => {
+              finalJobs.map(async (job) => {
                 try {
                   const { score } = await scoreJobFit(profileForScoring, job);
-                  return { ...job, fitScore: score };
+                  return { ...job, fitScore: Math.max(job.fitScore ?? 0, score) };
                 } catch {
                   return job;
                 }
@@ -170,7 +175,7 @@ export class JobDiscoveryService {
       } finally {
         console.info('[JobDiscoveryService] fit scoring completed', {
           traceId,
-          jobs: dedupedJobs.length,
+          jobs: finalJobs.length,
           durationMs: elapsedMs(scoringStartedAt),
         });
       }
