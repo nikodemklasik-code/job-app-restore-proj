@@ -61,6 +61,15 @@ function mergeProfilePreferences(
   };
 }
 
+async function loadOptionalProfilePreferences(): Promise<ProfilePreferencesSnapshot | undefined> {
+  try {
+    return await trpcClient.profilePreferences.getPreferences.query();
+  } catch (error) {
+    console.warn('[profile] Optional profile preferences failed to load', error);
+    return undefined;
+  }
+}
+
 interface ProfileStore {
   profile: ProfileSnapshot | null;
   isLoadingProfile: boolean;
@@ -109,11 +118,9 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   async loadProfile() {
     set({ isLoadingProfile: true, error: null });
     try {
-      const [profile, preferences] = await Promise.all([
-        trpcClient.profile.getProfile.query(),
-        trpcClient.profilePreferences.getPreferences.query(),
-      ]);
-      if (profile) set({ profile: mergeProfilePreferences(profile, preferences) });
+      const profile = await trpcClient.profile.getProfile.query();
+      const preferences = await loadOptionalProfilePreferences();
+      set({ profile: mergeProfilePreferences(profile, preferences) });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to load profile' });
     } finally {
