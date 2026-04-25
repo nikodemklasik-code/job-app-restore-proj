@@ -1,4 +1,4 @@
-import { CalendarDays, Handshake, HeartHandshake, Megaphone, Sparkles, Star, Users } from 'lucide-react';
+import { BriefcaseBusiness, CalendarDays, Handshake, HeartHandshake, Megaphone, Sparkles, Star, Users } from 'lucide-react';
 
 const SECTION_CARD =
   'rounded-2xl border border-white/10 bg-white/5 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]';
@@ -56,6 +56,46 @@ export default function CommunityCentrePage() {
         <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-emerald-50/85">
           Community Goodwill should not require personal stories, gratitude performance or proof of moral worth.
         </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <article className={SECTION_CARD}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-slate-400">Community board</p>
+              <h2 className="mt-1 text-lg font-semibold text-white">Give, receive, look for, offer</h2>
+            </div>
+            <Megaphone className="h-5 w-5 text-fuchsia-300" />
+          </div>
+          <div className="mt-3 grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
+            <p className="rounded-xl border border-white/10 bg-white/5 p-3">Oddam / I can give</p>
+            <p className="rounded-xl border border-white/10 bg-white/5 p-3">Przyjmę / I can receive</p>
+            <p className="rounded-xl border border-white/10 bg-white/5 p-3">Poszukuję / I am looking for</p>
+            <p className="rounded-xl border border-white/10 bg-white/5 p-3">Oferuję / I can offer</p>
+          </div>
+          <p className="mt-3 text-xs leading-5 text-slate-400">
+            Board posts should stay practical, respectful and clear. No personal pressure, no private-data requests, no hidden recruitment traps.
+          </p>
+        </article>
+
+        <article className={SECTION_CARD}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-slate-400">NGO, volunteering and fair placements</p>
+              <h2 className="mt-1 text-lg font-semibold text-white">Useful opportunities without exploitation</h2>
+            </div>
+            <BriefcaseBusiness className="h-5 w-5 text-cyan-300" />
+          </div>
+          <ul className="mt-3 space-y-2 text-sm text-slate-300">
+            <li>• NGO and foundation announcements.</li>
+            <li>• Volunteering with clear scope, time and expectations.</li>
+            <li>• Paid internships, paid placements and paid traineeships.</li>
+            <li>• Unpaid roles must be clearly marked and cannot replace real work that should be paid.</li>
+          </ul>
+          <p className="mt-3 text-xs leading-5 text-slate-400">
+            Community can show opportunity. It must not dress exploitation as experience. Fancy wording, same old unpaid labour circus, no thanks.
+          </p>
+        </article>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
