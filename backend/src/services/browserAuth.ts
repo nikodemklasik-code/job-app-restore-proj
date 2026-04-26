@@ -34,7 +34,7 @@ function cleanup() {
     if (v.expiresAt < now) {
       const s = v.state;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (s.browser as any)?.close?.().catch(() => {});
+      (s.browser as any)?.close?.().catch(() => { });
       pendingLogins.delete(k);
     }
   }
@@ -111,7 +111,7 @@ async function fillFirst(
         await el.fill(value, { timeout: 3000 });
         return true;
       }
-    } catch {}
+    } catch { }
   }
   return false;
 }
@@ -125,7 +125,7 @@ async function clickFirst(page: any, selectors: string[]): Promise<boolean> {
         await el.click({ timeout: 3000 });
         return true;
       }
-    } catch {}
+    } catch { }
   }
   return false;
 }
@@ -168,7 +168,7 @@ export async function startIndeedLogin(
       'button[id*="onetrust-accept"]',
       'button:has-text("Accept all")',
       'button:has-text("Accept cookies")',
-    ]).catch(() => {});
+    ]).catch(() => { });
     await humanDelay(400, 800);
 
     // Find email field — Indeed sometimes renders it inside an iframe
@@ -196,7 +196,7 @@ export async function startIndeedLogin(
     }
 
     if (!emailFilled) {
-      await browser.close().catch(() => {});
+      await browser.close().catch(() => { });
       return { requiresCode: false, error: 'Could not find email field on Indeed login page' };
     }
 
@@ -254,7 +254,7 @@ export async function startIndeedLogin(
       content.includes('verify you are human') ||
       content.includes('unusual activity');
     if (hasCaptcha) {
-      await browser.close().catch(() => {});
+      await browser.close().catch(() => { });
       return { requiresCode: false, error: 'Indeed is showing a CAPTCHA — try again later or use a different network' };
     }
 
@@ -265,7 +265,7 @@ export async function startIndeedLogin(
       !url.includes('secure.indeed.com/auth');
     if (isLoggedIn) {
       const storageState = await context.storageState();
-      await browser.close().catch(() => {});
+      await browser.close().catch(() => { });
       return { requiresCode: false, storageState } as unknown as { requiresCode: boolean };
     }
 
@@ -297,7 +297,7 @@ export async function startIndeedLogin(
     }
 
     // Not logged in, not asking for code — something went wrong
-    await browser.close().catch(() => {});
+    await browser.close().catch(() => { });
     return { requiresCode: false, error: 'Login did not progress — check credentials or try again' };
   } catch (err) {
     return { requiresCode: false, error: String(err) };
@@ -345,7 +345,7 @@ export async function submitIndeedCode(
     }
 
     if (!codeFilled) {
-      await browser.close().catch(() => {});
+      await browser.close().catch(() => { });
       return { success: false, error: 'Could not find code input field' };
     }
 
@@ -360,7 +360,7 @@ export async function submitIndeedCode(
 
     // Wait for redirect away from auth pages
     await Promise.race([
-      page.waitForURL((url: string) => !url.includes('/auth') && !url.includes('secure.indeed.com/auth'), { timeout: 20000 }).catch(() => {}),
+      page.waitForURL((url: string) => !url.includes('/auth') && !url.includes('secure.indeed.com/auth'), { timeout: 20000 }).catch(() => { }),
       sleep(12000),
     ]);
 
@@ -372,21 +372,21 @@ export async function submitIndeedCode(
 
     if (isLoggedIn) {
       const storageState = await context.storageState();
-      await browser.close().catch(() => {});
+      await browser.close().catch(() => { });
       return { success: true, storageState };
     }
 
     // Check if code was wrong
     const content = (await page.content()).toLowerCase();
     if (content.includes('incorrect') || content.includes('invalid') || content.includes('expired')) {
-      await browser.close().catch(() => {});
+      await browser.close().catch(() => { });
       return { success: false, error: 'Verification code was incorrect or expired' };
     }
 
-    await browser.close().catch(() => {});
+    await browser.close().catch(() => { });
     return { success: false, error: 'Code accepted but login did not complete — try again' };
   } catch (err) {
-    await browser.close().catch(() => {});
+    await browser.close().catch(() => { });
     return { success: false, error: String(err) };
   }
 }
@@ -415,7 +415,7 @@ export async function loginGumtree(
       'button:has-text("Accept all")',
       'button:has-text("Accept cookies")',
       'button:has-text("Agree")',
-    ]).catch(() => {});
+    ]).catch(() => { });
     await sleep(500);
 
     // Fill email
@@ -452,7 +452,7 @@ export async function loginGumtree(
     // If on gumtree.com and not on login page → success
     if (url.includes('gumtree.com') && !url.includes('/login') && !url.includes('/register')) {
       const storageState = await context.storageState();
-      await browser.close().catch(() => {});
+      await browser.close().catch(() => { });
       return { success: true, storageState };
     }
 
@@ -466,7 +466,7 @@ export async function loginGumtree(
       return { success: false, requiresCode: true, codeSentTo: email };
     }
 
-    await browser.close().catch(() => {});
+    await browser.close().catch(() => { });
     return { success: false, error: 'Login did not complete — check credentials' };
   } catch (err) {
     return { success: false, error: String(err) };
@@ -499,13 +499,13 @@ export async function submitGumtreeCode(
     const url = page.url() as string;
     if (url.includes('gumtree.com') && !url.includes('/login')) {
       const storageState = await context.storageState();
-      await browser.close().catch(() => {});
+      await browser.close().catch(() => { });
       return { success: true, storageState };
     }
-    await browser.close().catch(() => {});
+    await browser.close().catch(() => { });
     return { success: false, error: 'Verification did not complete' };
   } catch (err) {
-    await browser.close().catch(() => {});
+    await browser.close().catch(() => { });
     return { success: false, error: String(err) };
   }
 }
@@ -526,5 +526,3 @@ export function storageStateToCookieString(storageState: unknown): string {
 export function storageStateToJson(storageState: unknown): string {
   return JSON.stringify(storageState);
 }
-
-export { randomUUID };

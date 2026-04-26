@@ -10,8 +10,6 @@
  * - Session memory management
  */
 
-import { randomUUID } from 'crypto';
-import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { getOpenAiClient } from '../lib/openai/openai.client.js';
 import { getDefaultTextModel } from '../lib/openai/model-registry.js';
 import { UNIVERSAL_BEHAVIOR_LAYER } from '../prompts/shared/universal-behavior-layer.js';
@@ -156,7 +154,7 @@ Return JSON:
     };
 
     const overallScore = Math.round(
-      (analysis.contentQuality ?? 50 + analysis.reasoningQuality ?? 50 + analysis.communicationQuality ?? 50 + analysis.confidenceLevel ?? 50) / 4,
+      ((analysis.contentQuality ?? 50) + (analysis.reasoningQuality ?? 50) + (analysis.communicationQuality ?? 50) + (analysis.confidenceLevel ?? 50)) / 4,
     );
 
     return {

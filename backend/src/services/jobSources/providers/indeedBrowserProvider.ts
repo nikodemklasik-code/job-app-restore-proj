@@ -117,7 +117,7 @@ function extractRequirements(description: string): string[] {
 function parseIndeedHtml(html: string): SourceJob[] {
   const results: SourceJob[] = [];
 
-  // Strategy 1: Extract window.mosaic.providerData JSON — most reliable
+  // Strategy 1: Extract mosaic.providerData JSON — most reliable
   // Indeed embeds job data as a large JSON blob in the page
   const mosaicPatterns = [
     // Standard pattern

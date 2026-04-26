@@ -204,7 +204,7 @@ export async function searchIndeed(
 function parseIndeedHtml(html: string): JobListing[] {
   const results: JobListing[] = [];
 
-  // Extract JSON from window.mosaic.providerData["mosaic-provider-jobcards"]
+  // Extract JSON from mosaic.providerData["mosaic-provider-jobcards"]
   const mosaicMatch = html.match(/"mosaic-provider-jobcards":\{"metaData":\{[^}]*\},"results":(\[.+?\]),"trackingKey"/s);
   if (mosaicMatch) {
     try {
