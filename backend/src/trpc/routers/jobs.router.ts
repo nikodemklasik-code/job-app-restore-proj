@@ -9,19 +9,9 @@ import { discoverJobsForProfile } from '../../services/jobSources/profileDrivenD
 import { explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.js';
 import { assessJobScamRisk } from '../../services/jobProtection.js';
 import { buildCandidateInsights } from '../../services/adaptiveInterviewer.js';
+import { DEFAULT_JOBS_MIN_FIT_SCORE, decideJobFit, normaliseFitPercent } from '../../services/jobFitDecisionPolicy.js';
 
 const PUBLIC_JOB_PROVIDERS = ['reed', 'adzuna', 'jooble'];
-const DEFAULT_JOBS_MIN_FIT_SCORE = 0;
-
-type JobActionMode = 'auto_candidate' | 'manual_review';
-
-function normaliseFitThreshold(value: number): number {
-  return Number.isFinite(value) ? Math.min(100, Math.max(0, Math.round(value))) : DEFAULT_JOBS_MIN_FIT_SCORE;
-}
-
-function getJobActionMode(fitScore: number, minFitScore: number): JobActionMode {
-  return fitScore >= minFitScore ? 'auto_candidate' : 'manual_review';
-}
 
 async function ensureCareerGoalsRow(userId: string): Promise<void> {
   const existing = await db.select({ id: careerGoals.id }).from(careerGoals).where(eq(careerGoals.userId, userId)).limit(1);
@@ -40,7 +30,7 @@ async function getJobsMinFitScore(userId: string): Promise<number> {
     .where(eq(careerGoals.userId, userId))
     .limit(1);
 
-  return normaliseFitThreshold(row?.autoApplyMinScore ?? DEFAULT_JOBS_MIN_FIT_SCORE);
+  return normaliseFitPercent(row?.autoApplyMinScore, DEFAULT_JOBS_MIN_FIT_SCORE);
 }
 
 function mapRequestedProviders(sources: string[]): string[] {
@@ -137,7 +127,7 @@ export const jobsRouter = router({
     .input(z.object({ minFitScore: z.number().int().min(0).max(100) }))
     .output(z.object({ minFitScore: z.number().int().min(0).max(100), source: z.literal('server') }))
     .mutation(async ({ ctx, input }) => {
-      const minFitScore = normaliseFitThreshold(input.minFitScore);
+      const minFitScore = normaliseFitPercent(input.minFitScore, DEFAULT_JOBS_MIN_FIT_SCORE);
       await ensureCareerGoalsRow(ctx.user.id);
       await db
         .update(careerGoals)
@@ -197,8 +187,7 @@ export const jobsRouter = router({
         }
 
         const result = await Promise.all(discoveryJobs.map(async (job) => {
-          const fitScore = job.fitScore ?? 60;
-          const actionMode = getJobActionMode(fitScore, serverMinFitScore);
+          const decision = decideJobFit({ fitScore: job.fitScore, minFitScore: serverMinFitScore });
           const scamAnalysis = assessJobScamRisk({
             title: job.title,
             company: job.company,
@@ -225,30 +214,30 @@ export const jobsRouter = router({
               salaryMin: job.salaryMin ? String(job.salaryMin) : undefined,
               salaryMax: job.salaryMax ? String(job.salaryMax) : undefined,
               workMode: job.workMode ?? undefined,
-              fitScore,
+              fitScore: decision.fitScore,
               requirements: job.requirements,
             });
           }
 
           return {
             ...job,
-            fitScore,
+            fitScore: decision.fitScore,
             id: jobId,
             scamAnalysis,
-            minFitScore: serverMinFitScore,
-            actionMode,
-            autoEligible: actionMode === 'auto_candidate',
+            minFitScore: decision.minFitScore,
+            actionMode: decision.actionMode,
+            autoEligible: decision.autoEligible,
           };
         }));
 
         // Return every real listing that matched the candidate/search scope.
-        // The threshold only annotates auto vs manual handling; it must not hide listings.
+        // The DOP threshold only annotates auto vs manual handling; it must not hide listings.
         return result.sort((a, b) => b.fitScore - a.fitScore).slice(0, input.limit);
       } catch (err) {
         console.error('[jobs.search]', err);
         const cached = await db.select().from(jobs).orderBy(desc(jobs.createdAt)).limit(input.limit);
         return cached.map((j) => {
-          const fitScore = j.fitScore ?? 60;
+          const decision = decideJobFit({ fitScore: j.fitScore, minFitScore: DEFAULT_JOBS_MIN_FIT_SCORE });
           return {
             id: j.id, externalId: j.externalId ?? '', source: j.source,
             title: j.title, company: j.company, location: j.location ?? '',
@@ -256,10 +245,10 @@ export const jobsRouter = router({
             salaryMin: j.salaryMin ? Number(j.salaryMin) : null,
             salaryMax: j.salaryMax ? Number(j.salaryMax) : null,
             workMode: j.workMode, requirements: (j.requirements as string[]) ?? [],
-            postedAt: j.createdAt.toISOString(), fitScore,
-            minFitScore: DEFAULT_JOBS_MIN_FIT_SCORE,
-            actionMode: getJobActionMode(fitScore, DEFAULT_JOBS_MIN_FIT_SCORE),
-            autoEligible: getJobActionMode(fitScore, DEFAULT_JOBS_MIN_FIT_SCORE) === 'auto_candidate',
+            postedAt: j.createdAt.toISOString(), fitScore: decision.fitScore,
+            minFitScore: decision.minFitScore,
+            actionMode: decision.actionMode,
+            autoEligible: decision.autoEligible,
             scamAnalysis: assessJobScamRisk({
               title: j.title,
               company: j.company,
