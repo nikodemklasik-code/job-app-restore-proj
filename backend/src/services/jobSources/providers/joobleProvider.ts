@@ -21,6 +21,44 @@ function dedupeJobs(jobs: SourceJob[], limit: number): SourceJob[] {
   return out;
 }
 
+/** Extract salary from Jooble format */
+function parseSalary(raw: string | null | undefined): { min: number | null; max: number | null } {
+  if (!raw) return { min: null, max: null };
+  const nums = raw.replace(/[£,]/g, '').match(/\d+(?:\.\d+)?/g);
+  if (!nums) return { min: null, max: null };
+  const values = nums.map(Number).filter((n) => n >= 1000);
+  if (values.length === 0) return { min: null, max: null };
+  const isHourly = /hour|hr/i.test(raw);
+  const isDaily = /day|daily/i.test(raw);
+  const factor = isHourly ? 2080 : isDaily ? 260 : 1;
+  return {
+    min: Math.round(values[0] * factor),
+    max: values.length > 1 ? Math.round(values[values.length - 1] * factor) : null,
+  };
+}
+
+/** Extract work mode from description */
+function parseWorkMode(description: string): string | null {
+  const text = description.toLowerCase();
+  if (/\bremote\b/.test(text)) return 'remote';
+  if (/hybrid/.test(text)) return 'hybrid';
+  if (/on.?site|in.?office|on.?premises/.test(text)) return 'on-site';
+  return null;
+}
+
+/** Extract requirements from description */
+function extractRequirements(description: string): string[] {
+  if (!description) return [];
+  return description
+    .split(/[\n•\-\*]/)
+    .map((line) => line.trim())
+    .filter((line) => line.length >= 15 && line.length <= 150)
+    .filter((line) =>
+      /(experience|knowledge|ability|skilled|proficient|strong|familiar|background|understanding|degree|qualification|required|must have)/i.test(line),
+    )
+    .slice(0, 8);
+}
+
 function collectStructuredJobs(value: unknown, sink: Record<string, unknown>[]): void {
   if (!value) return;
   if (Array.isArray(value)) {
@@ -90,20 +128,25 @@ async function searchJoobleApi(input: DiscoveryInput): Promise<SourceJob[]> {
   if (!res.ok) throw new Error(`Jooble ${res.status}`);
   const data = await res.json() as { jobs?: Record<string, unknown>[] };
 
-  return (data.jobs ?? []).slice(0, input.limit).map((j) => ({
-    externalId: norm(j.id ?? j.link),
-    source: 'jooble',
-    title: norm(j.title),
-    company: norm(j.company),
-    location: norm(j.location),
-    description: norm(j.snippet),
-    applyUrl: norm(j.link),
-    salaryMin: null,
-    salaryMax: null,
-    workMode: norm(j.type) || null,
-    requirements: [],
-    postedAt: new Date().toISOString(),
-  }));
+  return (data.jobs ?? []).slice(0, input.limit).map((j) => {
+    const description = String(j.snippet ?? j.description ?? '');
+    const salaryRaw = String(j.salary ?? '');
+    const { min: salaryMin, max: salaryMax } = parseSalary(salaryRaw);
+    return {
+      externalId: norm(j.id ?? j.link),
+      source: 'jooble',
+      title: norm(j.title),
+      company: norm(j.company),
+      location: norm(j.location),
+      description,
+      applyUrl: norm(j.link),
+      salaryMin,
+      salaryMax,
+      workMode: parseWorkMode(description),
+      requirements: extractRequirements(description),
+      postedAt: new Date().toISOString(),
+    };
+  });
 }
 
 export class JoobleProvider implements JobSourceProvider {

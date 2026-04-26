@@ -45,29 +45,45 @@ function collectCvKeywordHints(input: {
     JSON.stringify(input.parsedStructure ?? {}),
   ].join(' ');
 
-  for (const token of [
-    'react',
-    'typescript',
-    'javascript',
-    'node',
-    'python',
-    'sql',
-    'aws',
-    'azure',
-    'devops',
-    'frontend',
-    'backend',
-    'full stack',
-    'project manager',
-    'product manager',
-    'data analyst',
-    'customer support',
-    'sales',
-  ]) {
-    if (raw.toLowerCase().includes(token)) hints.add(token);
+  // Common tech/skill keywords to look for
+  const commonKeywords = [
+    // Languages
+    'react', 'typescript', 'javascript', 'node', 'python', 'java', 'go', 'rust', 'c#', 'c++', 'php', 'ruby', 'kotlin',
+    // Databases
+    'sql', 'postgres', 'mongodb', 'redis', 'elasticsearch', 'cassandra', 'dynamodb',
+    // Cloud/DevOps
+    'aws', 'azure', 'gcp', 'docker', 'kubernetes', 'terraform', 'devops', 'ci/cd', 'jenkins', 'gitlab',
+    // Frontend
+    'vue', 'angular', 'next.js', 'nuxt', 'tailwind', 'figma', 'ui', 'ux', 'responsive',
+    // Roles/Domains
+    'frontend', 'backend', 'full stack', 'full-stack', 'project manager', 'product manager', 'data analyst',
+    'customer support', 'sales', 'marketing', 'hr', 'finance', 'accounting', 'nurse', 'teacher',
+    // Soft skills
+    'leadership', 'communication', 'mentoring', 'agile', 'scrum', 'testing', 'automation',
+    // Other
+    'rest api', 'graphql', 'microservices', 'saas', 'b2b', 'b2c', 'crm', 'salesforce', 'hubspot',
+  ];
+
+  const rawLower = raw.toLowerCase();
+  for (const keyword of commonKeywords) {
+    if (rawLower.includes(keyword)) {
+      hints.add(keyword);
+    }
   }
 
-  return Array.from(hints).slice(0, 8);
+  // Also extract capitalized words that might be skills (e.g., "React", "Python", "AWS")
+  const capitalizedWords = raw.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g) ?? [];
+  for (const word of capitalizedWords) {
+    const lower = word.toLowerCase();
+    // Only add if it looks like a skill (not a common name)
+    if (
+      /^(react|vue|angular|python|java|javascript|typescript|node|aws|azure|gcp|docker|kubernetes|figma|salesforce|hubspot|jira|slack|notion)$/i.test(lower)
+    ) {
+      hints.add(lower);
+    }
+  }
+
+  return Array.from(hints).slice(0, 12);
 }
 
 export async function discoverJobsForProfile(
@@ -175,8 +191,14 @@ export async function discoverJobsForProfile(
   const allJobs: SourceJob[] = [];
   for (const query of queries) {
     try {
+      // Enhance query with seniority if available
+      let enhancedQuery = query;
+      if (profileData.targetSeniority && !query.toLowerCase().includes(profileData.targetSeniority.toLowerCase())) {
+        enhancedQuery = `${query} ${profileData.targetSeniority}`;
+      }
+
       const result = await JobDiscoveryService.discover(
-        { ...input, query, providers: DELEGATE_NAMES },
+        { ...input, query: enhancedQuery, providers: DELEGATE_NAMES },
         context,
       );
       allJobs.push(...result.jobs);

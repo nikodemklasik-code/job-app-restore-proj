@@ -183,28 +183,83 @@ export async function scoreJobFit(
   profile: Profile,
   job: Job,
 ): Promise<{ score: number; reasons: string[] }> {
-  const skills = (profile.skills ?? []).map((s) => s.toLowerCase());
+  const skills = (profile.skills ?? []).map((s) => s.toLowerCase().trim()).filter(Boolean);
   const desc = (job.description ?? '').toLowerCase();
   const req = (job.requirements ?? []).map((r) => r.toLowerCase());
   const title = job.title.toLowerCase();
+  const summaryLower = (profile.summary ?? '').toLowerCase();
 
-  // Fast heuristic score (no API call needed for basic scoring)
-  let score = 50;
+  let score = 40; // lower baseline — earn points rather than start high
   const reasons: string[] = [];
 
+  // ── 1. Skill matching (up to 35 pts) ──────────────────────────────────────
   const matchedSkills = skills.filter(
-    (s) => desc.includes(s) || req.some((r) => r.includes(s)),
+    (s) => desc.includes(s) || req.some((r) => r.includes(s)) || title.includes(s),
   );
-  if (matchedSkills.length >= 4) { score += 20; reasons.push(`${matchedSkills.length} skills match`); }
-  else if (matchedSkills.length >= 2) { score += 10; reasons.push(`${matchedSkills.length} skills match`); }
+  const skillRatio = skills.length > 0 ? matchedSkills.length / skills.length : 0;
 
+  if (matchedSkills.length >= 6) {
+    score += 35;
+    reasons.push(`${matchedSkills.length} skills match (${matchedSkills.slice(0, 3).join(', ')}…)`);
+  } else if (matchedSkills.length >= 4) {
+    score += 25;
+    reasons.push(`${matchedSkills.length} skills match (${matchedSkills.slice(0, 3).join(', ')})`);
+  } else if (matchedSkills.length >= 2) {
+    score += 15;
+    reasons.push(`${matchedSkills.length} skills match`);
+  } else if (matchedSkills.length === 1) {
+    score += 7;
+    reasons.push(`1 skill match: ${matchedSkills[0]}`);
+  }
+
+  // Bonus for high skill coverage ratio
+  if (skillRatio >= 0.6 && matchedSkills.length >= 3) {
+    score += 5;
+    reasons.push('Strong skill coverage');
+  }
+
+  // ── 2. Title alignment (up to 20 pts) ─────────────────────────────────────
   const titleWords = title.split(/\s+/).filter((w) => w.length > 3);
-  const summaryLower = (profile.summary ?? '').toLowerCase();
-  const titleMatchCount = titleWords.filter((w) => summaryLower.includes(w)).length;
-  if (titleMatchCount >= 2) { score += 15; reasons.push('Title aligns with profile'); }
+  const titleMatchInSummary = titleWords.filter((w) => summaryLower.includes(w)).length;
+  const titleMatchInSkills = titleWords.filter((w) => skills.some((s) => s.includes(w))).length;
 
+  if (titleMatchInSummary >= 2 || titleMatchInSkills >= 2) {
+    score += 20;
+    reasons.push('Job title aligns with profile');
+  } else if (titleMatchInSummary >= 1 || titleMatchInSkills >= 1) {
+    score += 10;
+    reasons.push('Partial title alignment');
+  }
+
+  // ── 3. Seniority alignment (up to 10 pts) ─────────────────────────────────
+  const seniorityTerms = ['senior', 'lead', 'principal', 'staff', 'head of', 'director', 'vp', 'junior', 'graduate', 'entry'];
+  const jobSeniority = seniorityTerms.find((t) => title.includes(t));
+  const profileSeniority = seniorityTerms.find((t) => summaryLower.includes(t));
+  if (jobSeniority && profileSeniority && jobSeniority === profileSeniority) {
+    score += 10;
+    reasons.push('Seniority level matches');
+  } else if (!jobSeniority) {
+    // No seniority specified in job — neutral
+    score += 3;
+  }
+
+  // ── 4. Work mode preference (up to 5 pts) ─────────────────────────────────
+  const jobWorkMode = (job as Job & { workMode?: string }).workMode?.toLowerCase() ?? '';
+  const prefersRemote = /remote|zdal/i.test(summaryLower);
+  if (prefersRemote && jobWorkMode.includes('remote')) {
+    score += 5;
+    reasons.push('Remote work preference matched');
+  }
+
+  // ── 5. Penalty for obvious mismatches ─────────────────────────────────────
+  if (skills.length > 0 && matchedSkills.length === 0) {
+    score -= 10;
+    reasons.push('No skill overlap found');
+  }
+
+  // Cap and floor
   if (score > 90) score = 90 + Math.floor(Math.random() * 8);
-  score = Math.min(99, Math.max(20, score));
+  score = Math.min(99, Math.max(10, score));
 
   if (reasons.length === 0) reasons.push('General profile match');
 

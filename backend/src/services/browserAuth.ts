@@ -41,18 +41,56 @@ function cleanup() {
 }
 setInterval(cleanup, 60_000);
 
+// Rotate through realistic user agents to reduce bot detection
+const USER_AGENTS = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 Edg/123.0.0.0',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15',
+];
+
+function pickUserAgent(): string {
+  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
+
 async function launchBrowser() {
   // Dynamic import so the module loads even if playwright isn't installed
   const { chromium } = await import('playwright');
   const browser = await chromium.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-blink-features=AutomationControlled',
+      '--disable-features=IsolateOrigins,site-per-process',
+    ],
   });
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
-    userAgent:
-      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    userAgent: pickUserAgent(),
+    locale: 'en-GB',
+    timezoneId: 'Europe/London',
+    // Mask automation signals
+    extraHTTPHeaders: {
+      'Accept-Language': 'en-GB,en;q=0.9',
+      'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"Windows"',
+    },
   });
+
+  // Patch navigator.webdriver to undefined so Indeed doesn't detect headless
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Array;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Promise;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).cdc_adoQpoasnfa76pfcZLmcfl_Symbol;
+  });
+
   return { browser, context };
 }
 
@@ -94,6 +132,20 @@ async function clickFirst(page: any, selectors: string[]): Promise<boolean> {
 
 // ── Indeed ────────────────────────────────────────────────────────────────────
 
+/** Human-like random delay between min and max ms */
+function humanDelay(minMs = 600, maxMs = 1800): Promise<void> {
+  return sleep(minMs + Math.floor(Math.random() * (maxMs - minMs)));
+}
+
+/** Type text character by character to mimic human typing */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function humanType(page: any, selector: string, text: string): Promise<void> {
+  await page.locator(selector).first().click({ timeout: 5000 });
+  for (const char of text) {
+    await page.keyboard.type(char, { delay: 40 + Math.floor(Math.random() * 80) });
+  }
+}
+
 export async function startIndeedLogin(
   userId: string,
   email: string,
@@ -104,26 +156,51 @@ export async function startIndeedLogin(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const page: any = await context.newPage();
 
-    await page.goto('https://secure.indeed.com/auth', {
-      waitUntil: 'domcontentloaded',
+    // Navigate to Indeed UK login — use the UK domain to avoid geo-redirects
+    await page.goto('https://secure.indeed.com/auth?hl=en_GB&co=GB', {
+      waitUntil: 'networkidle',
       timeout: 45000,
     });
-    await sleep(1500);
+    await humanDelay(1200, 2500);
 
-    // Enter email
-    const emailFilled = await fillFirst(page, [
+    // Accept cookie banner if present
+    await clickFirst(page, [
+      'button[id*="onetrust-accept"]',
+      'button:has-text("Accept all")',
+      'button:has-text("Accept cookies")',
+    ]).catch(() => {});
+    await humanDelay(400, 800);
+
+    // Find email field — Indeed sometimes renders it inside an iframe
+    let emailFilled = false;
+    const emailSelectors = [
       'input[type="email"]',
       'input[name="__email"]',
       'input[name="email"]',
       'input[id*="email"]',
-    ], email);
+      '#ifl-InputFormField-3',
+    ];
+
+    // Try direct fill first
+    for (const sel of emailSelectors) {
+      try {
+        const el = page.locator(sel).first();
+        if ((await el.count()) > 0) {
+          await el.click({ timeout: 3000 });
+          await humanDelay(200, 500);
+          await humanType(page, sel, email);
+          emailFilled = true;
+          break;
+        }
+      } catch { /* try next */ }
+    }
 
     if (!emailFilled) {
       await browser.close().catch(() => {});
       return { requiresCode: false, error: 'Could not find email field on Indeed login page' };
     }
 
-    await sleep(500);
+    await humanDelay(500, 1000);
     await clickFirst(page, [
       'button[type="submit"]',
       'input[type="submit"]',
@@ -131,25 +208,38 @@ export async function startIndeedLogin(
       'button:has-text("Sign in")',
       'button:has-text("Next")',
     ]);
-    await sleep(2000);
+    await humanDelay(2000, 3500);
 
     // Enter password if provided and visible
     if (password) {
-      const pwFilled = await fillFirst(page, [
+      const pwSelectors = [
         'input[type="password"]',
         'input[name="password"]',
         'input[name="__password"]',
-      ], password);
+      ];
+      let pwFilled = false;
+      for (const sel of pwSelectors) {
+        try {
+          const el = page.locator(sel).first();
+          if ((await el.count()) > 0) {
+            await el.click({ timeout: 3000 });
+            await humanDelay(200, 400);
+            await humanType(page, sel, password);
+            pwFilled = true;
+            break;
+          }
+        } catch { /* try next */ }
+      }
 
       if (pwFilled) {
-        await sleep(400);
+        await humanDelay(400, 800);
         await clickFirst(page, [
           'button[type="submit"]',
           'input[type="submit"]',
           'button:has-text("Sign in")',
           'button:has-text("Continue")',
         ]);
-        await sleep(2000);
+        await humanDelay(2500, 4000);
       }
     }
 
@@ -157,8 +247,23 @@ export async function startIndeedLogin(
     const content = (await page.content()).toLowerCase();
     const url = page.url() as string;
 
+    // Check for CAPTCHA / bot detection
+    const hasCaptcha =
+      content.includes('captcha') ||
+      content.includes('robot') ||
+      content.includes('verify you are human') ||
+      content.includes('unusual activity');
+    if (hasCaptcha) {
+      await browser.close().catch(() => {});
+      return { requiresCode: false, error: 'Indeed is showing a CAPTCHA — try again later or use a different network' };
+    }
+
     // Already logged in?
-    if (url.includes('indeed.co.uk') && !url.includes('/auth') && !url.includes('secure.indeed')) {
+    const isLoggedIn =
+      (url.includes('indeed.co.uk') || url.includes('indeed.com')) &&
+      !url.includes('/auth') &&
+      !url.includes('secure.indeed.com/auth');
+    if (isLoggedIn) {
       const storageState = await context.storageState();
       await browser.close().catch(() => {});
       return { requiresCode: false, storageState } as unknown as { requiresCode: boolean };
@@ -172,6 +277,7 @@ export async function startIndeedLogin(
       content.includes('we sent a text to') ||
       content.includes('enter code') ||
       content.includes('one-time code') ||
+      content.includes('verification code') ||
       (await page.locator('input[autocomplete="one-time-code"], input[inputmode="numeric"]').count()) > 0;
 
     // Parse where code was sent
@@ -182,7 +288,7 @@ export async function startIndeedLogin(
     else if (emailMatch?.[1]) codeSentTo = emailMatch[1].trim();
 
     if (requiresCode) {
-      // Keep browser open
+      // Keep browser open for OTP submission
       pendingLogins.set(expiringKey(userId), {
         state: { storageState: null, page, browser, context },
         expiresAt: Date.now() + 10 * 60 * 1000,
@@ -192,7 +298,7 @@ export async function startIndeedLogin(
 
     // Not logged in, not asking for code — something went wrong
     await browser.close().catch(() => {});
-    return { requiresCode: false, error: 'Login did not progress — check credentials' };
+    return { requiresCode: false, error: 'Login did not progress — check credentials or try again' };
   } catch (err) {
     return { requiresCode: false, error: String(err) };
   }
@@ -212,21 +318,38 @@ export async function submitIndeedCode(
   pendingLogins.delete(expiringKey(userId));
 
   try {
-    const codeFilled = await fillFirst(page, [
+    const codeSelectors = [
       'input[autocomplete="one-time-code"]',
       'input[inputmode="numeric"]',
       'input[name*="otp"]',
       'input[name*="code"]',
       'input[id*="code"]',
       'input[type="tel"]',
-    ], code);
+    ];
+
+    let codeFilled = false;
+    for (const sel of codeSelectors) {
+      try {
+        const el = page.locator(sel).first();
+        if ((await el.count()) > 0) {
+          await el.click({ timeout: 3000 });
+          await humanDelay(200, 400);
+          // Type code digit by digit
+          for (const char of code.trim()) {
+            await page.keyboard.type(char, { delay: 60 + Math.floor(Math.random() * 60) });
+          }
+          codeFilled = true;
+          break;
+        }
+      } catch { /* try next */ }
+    }
 
     if (!codeFilled) {
       await browser.close().catch(() => {});
       return { success: false, error: 'Could not find code input field' };
     }
 
-    await sleep(400);
+    await humanDelay(500, 900);
     await clickFirst(page, [
       'button[type="submit"]',
       'button:has-text("Continue")',
@@ -237,21 +360,31 @@ export async function submitIndeedCode(
 
     // Wait for redirect away from auth pages
     await Promise.race([
-      page.waitForURL('**/indeed.co.uk/**', { timeout: 15000 }).catch(() => {}),
-      sleep(8000),
+      page.waitForURL((url: string) => !url.includes('/auth') && !url.includes('secure.indeed.com/auth'), { timeout: 20000 }).catch(() => {}),
+      sleep(12000),
     ]);
 
     const url = page.url() as string;
-    const isLoggedIn = !url.includes('/auth') && !url.includes('secure.indeed.com');
+    const isLoggedIn =
+      !url.includes('/auth') &&
+      !url.includes('secure.indeed.com/auth') &&
+      (url.includes('indeed.co.uk') || url.includes('indeed.com'));
 
-    if (isLoggedIn || url.includes('indeed')) {
+    if (isLoggedIn) {
       const storageState = await context.storageState();
       await browser.close().catch(() => {});
       return { success: true, storageState };
     }
 
+    // Check if code was wrong
+    const content = (await page.content()).toLowerCase();
+    if (content.includes('incorrect') || content.includes('invalid') || content.includes('expired')) {
+      await browser.close().catch(() => {});
+      return { success: false, error: 'Verification code was incorrect or expired' };
+    }
+
     await browser.close().catch(() => {});
-    return { success: false, error: 'Code accepted but login did not complete' };
+    return { success: false, error: 'Code accepted but login did not complete — try again' };
   } catch (err) {
     await browser.close().catch(() => {});
     return { success: false, error: String(err) };

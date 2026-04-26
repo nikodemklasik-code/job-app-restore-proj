@@ -131,7 +131,7 @@ export class JobDiscoveryService {
       const scoringStartedAt = Date.now();
       try {
         const { db } = await import('../../db/index.js');
-        const { users, profiles, skills: skillsTable } = await import('../../db/schema.js');
+        const { users, profiles, skills: skillsTable, careerGoals } = await import('../../db/schema.js');
         const { eq } = await import('drizzle-orm');
 
         const userRows = await db
@@ -141,11 +141,18 @@ export class JobDiscoveryService {
           .limit(1);
 
         if (userRows[0]) {
-          const profileRows = await db
-            .select({ id: profiles.id, summary: profiles.summary })
-            .from(profiles)
-            .where(eq(profiles.userId, userRows[0].id))
-            .limit(1);
+          const [profileRows, goalRows] = await Promise.all([
+            db
+              .select({ id: profiles.id, summary: profiles.summary })
+              .from(profiles)
+              .where(eq(profiles.userId, userRows[0].id))
+              .limit(1),
+            db
+              .select({ targetJobTitle: careerGoals.targetJobTitle, targetSeniority: careerGoals.targetSeniority })
+              .from(careerGoals)
+              .where(eq(careerGoals.userId, userRows[0].id))
+              .limit(1),
+          ]);
 
           if (profileRows[0]) {
             const skillRows = await db
@@ -156,8 +163,11 @@ export class JobDiscoveryService {
             const profileForScoring = {
               summary: profileRows[0].summary ?? '',
               skills: skillRows.map((s) => s.name),
+              targetRole: goalRows[0]?.targetJobTitle ?? undefined,
+              targetSeniority: goalRows[0]?.targetSeniority ?? undefined,
             };
 
+            // Apply heuristic scoring to all jobs
             finalJobs = await Promise.all(
               finalJobs.map(async (job) => {
                 try {
@@ -168,6 +178,17 @@ export class JobDiscoveryService {
                 }
               }),
             );
+
+            // Optionally enhance top 5 jobs with AI scoring if available
+            try {
+              const { enhanceJobsWithAI } = await import('./jobFitEnhancer.js');
+              const topJobs = finalJobs.slice(0, 5);
+              const enhanced = await enhanceJobsWithAI(profileForScoring, topJobs, 5);
+              const enhancedMap = new Map(enhanced.map((j) => [j.externalId, j]));
+              finalJobs = finalJobs.map((j) => enhancedMap.get(j.externalId) ?? j);
+            } catch (err) {
+              console.debug('[JobDiscoveryService] AI enhancement skipped:', err);
+            }
           }
         }
       } catch (err) {

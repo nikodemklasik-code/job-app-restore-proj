@@ -15,6 +15,28 @@ function stripHtml(value: string): string {
     .trim();
 }
 
+/** Extract work mode from description */
+function parseWorkMode(description: string): string | null {
+  const text = description.toLowerCase();
+  if (/\bremote\b/.test(text)) return 'remote';
+  if (/hybrid/.test(text)) return 'hybrid';
+  if (/on.?site|in.?office|on.?premises/.test(text)) return 'on-site';
+  return null;
+}
+
+/** Extract requirements from description */
+function extractRequirements(description: string): string[] {
+  if (!description) return [];
+  return description
+    .split(/[\n•\-\*]/)
+    .map((line) => line.trim())
+    .filter((line) => line.length >= 15 && line.length <= 150)
+    .filter((line) =>
+      /(experience|knowledge|ability|skilled|proficient|strong|familiar|background|understanding|degree|qualification|required|must have)/i.test(line),
+    )
+    .slice(0, 8);
+}
+
 function dedupeJobs(jobs: SourceJob[], limit: number): SourceJob[] {
   const seen = new Set<string>();
   const out: SourceJob[] = [];
@@ -65,18 +87,19 @@ function extractStructuredJobs(html: string): SourceJob[] {
       const org = job.hiringOrganization as Record<string, unknown> | undefined;
       const identifier = job.identifier as Record<string, unknown> | undefined;
       const address = ((job.jobLocation as Record<string, unknown> | undefined)?.address ?? job.jobLocation) as Record<string, unknown> | undefined;
+      const description = stripHtml(norm(job.description));
       return {
         externalId: norm(identifier?.value ?? applyUrl),
         source: 'adzuna',
         title,
         company: norm(org?.name ?? 'Unknown company'),
         location: norm(address?.addressLocality ?? address?.addressRegion ?? address?.addressCountry ?? 'United Kingdom'),
-        description: stripHtml(norm(job.description)),
+        description,
         applyUrl,
         salaryMin: null,
         salaryMax: null,
-        workMode: norm(job.employmentType) || null,
-        requirements: [],
+        workMode: parseWorkMode(description),
+        requirements: extractRequirements(description),
         postedAt: norm(job.datePosted) || new Date().toISOString(),
       };
     })
