@@ -13,8 +13,14 @@ import { buildCandidateInsights } from '../../services/adaptiveInterviewer.js';
 const PUBLIC_JOB_PROVIDERS = ['reed', 'adzuna', 'jooble'];
 const DEFAULT_JOBS_MIN_FIT_SCORE = 0;
 
+type JobActionMode = 'auto_candidate' | 'manual_review';
+
 function normaliseFitThreshold(value: number): number {
   return Number.isFinite(value) ? Math.min(100, Math.max(0, Math.round(value))) : DEFAULT_JOBS_MIN_FIT_SCORE;
+}
+
+function getJobActionMode(fitScore: number, minFitScore: number): JobActionMode {
+  return fitScore >= minFitScore ? 'auto_candidate' : 'manual_review';
 }
 
 async function ensureCareerGoalsRow(userId: string): Promise<void> {
@@ -151,12 +157,17 @@ export const jobsRouter = router({
     .query(async ({ input }) => {
       try {
         let sessionCookies: { indeed?: string; gumtree?: string } | undefined;
+        let localUserId: string | undefined;
+        let serverMinFitScore = DEFAULT_JOBS_MIN_FIT_SCORE;
+
         if (input.userId) {
           const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
           if (userRecord[0]) {
+            localUserId = userRecord[0].id;
+            serverMinFitScore = await getJobsMinFitScore(localUserId);
             const sessions = await db.select({ provider: userJobSessions.provider, cookies: userJobSessions.cookies })
               .from(userJobSessions)
-              .where(and(eq(userJobSessions.userId, userRecord[0].id), eq(userJobSessions.isActive, true)));
+              .where(and(eq(userJobSessions.userId, localUserId), eq(userJobSessions.isActive, true)));
             if (sessions.length > 0) {
               sessionCookies = {};
               for (const s of sessions) {
@@ -187,6 +198,7 @@ export const jobsRouter = router({
 
         const result = await Promise.all(discoveryJobs.map(async (job) => {
           const fitScore = job.fitScore ?? 60;
+          const actionMode = getJobActionMode(fitScore, serverMinFitScore);
           const scamAnalysis = assessJobScamRisk({
             title: job.title,
             company: job.company,
@@ -218,30 +230,46 @@ export const jobsRouter = router({
             });
           }
 
-          return { ...job, fitScore, id: jobId, scamAnalysis };
+          return {
+            ...job,
+            fitScore,
+            id: jobId,
+            scamAnalysis,
+            minFitScore: serverMinFitScore,
+            actionMode,
+            autoEligible: actionMode === 'auto_candidate',
+          };
         }));
 
+        // Return every real listing that matched the candidate/search scope.
+        // The threshold only annotates auto vs manual handling; it must not hide listings.
         return result.sort((a, b) => b.fitScore - a.fitScore).slice(0, input.limit);
       } catch (err) {
         console.error('[jobs.search]', err);
         const cached = await db.select().from(jobs).orderBy(desc(jobs.createdAt)).limit(input.limit);
-        return cached.map((j) => ({
-          id: j.id, externalId: j.externalId ?? '', source: j.source,
-          title: j.title, company: j.company, location: j.location ?? '',
-          description: j.description ?? '', applyUrl: j.applyUrl ?? '',
-          salaryMin: j.salaryMin ? Number(j.salaryMin) : null,
-          salaryMax: j.salaryMax ? Number(j.salaryMax) : null,
-          workMode: j.workMode, requirements: (j.requirements as string[]) ?? [],
-          postedAt: j.createdAt.toISOString(), fitScore: j.fitScore ?? 60,
-          scamAnalysis: assessJobScamRisk({
-            title: j.title,
-            company: j.company,
-            description: j.description ?? '',
-            applyUrl: j.applyUrl ?? '',
+        return cached.map((j) => {
+          const fitScore = j.fitScore ?? 60;
+          return {
+            id: j.id, externalId: j.externalId ?? '', source: j.source,
+            title: j.title, company: j.company, location: j.location ?? '',
+            description: j.description ?? '', applyUrl: j.applyUrl ?? '',
             salaryMin: j.salaryMin ? Number(j.salaryMin) : null,
             salaryMax: j.salaryMax ? Number(j.salaryMax) : null,
-          }),
-        }));
+            workMode: j.workMode, requirements: (j.requirements as string[]) ?? [],
+            postedAt: j.createdAt.toISOString(), fitScore,
+            minFitScore: DEFAULT_JOBS_MIN_FIT_SCORE,
+            actionMode: getJobActionMode(fitScore, DEFAULT_JOBS_MIN_FIT_SCORE),
+            autoEligible: getJobActionMode(fitScore, DEFAULT_JOBS_MIN_FIT_SCORE) === 'auto_candidate',
+            scamAnalysis: assessJobScamRisk({
+              title: j.title,
+              company: j.company,
+              description: j.description ?? '',
+              applyUrl: j.applyUrl ?? '',
+              salaryMin: j.salaryMin ? Number(j.salaryMin) : null,
+              salaryMax: j.salaryMax ? Number(j.salaryMax) : null,
+            }),
+          };
+        });
       }
     }),
 
