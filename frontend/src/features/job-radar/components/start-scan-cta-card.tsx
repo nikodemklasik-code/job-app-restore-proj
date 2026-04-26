@@ -13,6 +13,12 @@ type Props = {
 
 const terminal = new Set(['ready', 'partial_report', 'sources_blocked']);
 
+type JobRadarScanResult = Awaited<ReturnType<ReturnType<typeof useStartJobRadarScan>['mutateAsync']>>;
+
+function isIncompleteProfile(result: JobRadarScanResult): result is Extract<JobRadarScanResult, { status: 'incomplete_profile' }> {
+  return result.status === 'incomplete_profile';
+}
+
 export function StartScanCtaCard(props: Props) {
   const navigate = useNavigate();
   const mutation = useStartJobRadarScan();
@@ -28,7 +34,12 @@ export function StartScanCtaCard(props: Props) {
       forceRescan: false,
     });
 
-    if (result.report_id && result.status && terminal.has(result.status)) {
+    if (isIncompleteProfile(result)) {
+      navigate('/profile');
+      return;
+    }
+
+    if (result.report_id && terminal.has(result.status)) {
       navigate(`/job-radar/report/${result.report_id}`);
       return;
     }
