@@ -5,6 +5,12 @@ import { useRescanJobRadarReport } from '../hooks/use-rescan-job-radar-report';
 
 const terminal = new Set(['ready', 'partial_report', 'sources_blocked']);
 
+type JobRadarScanResult = Awaited<ReturnType<ReturnType<typeof useRescanJobRadarReport>['mutateAsync']>>;
+
+function isIncompleteProfile(result: JobRadarScanResult): result is Extract<JobRadarScanResult, { status: 'incomplete_profile' }> {
+  return result.status === 'incomplete_profile';
+}
+
 export function RescanReportButton({ reportId }: { reportId: string }) {
   const navigate = useNavigate();
   const mutation = useRescanJobRadarReport();
@@ -12,7 +18,12 @@ export function RescanReportButton({ reportId }: { reportId: string }) {
   async function handleClick() {
     const result = await mutation.mutateAsync({ reportId });
 
-    if (result.report_id && result.status && terminal.has(result.status)) {
+    if (isIncompleteProfile(result)) {
+      navigate('/profile');
+      return;
+    }
+
+    if (result.report_id && terminal.has(result.status)) {
       navigate(`/job-radar/report/${result.report_id}`);
       return;
     }
