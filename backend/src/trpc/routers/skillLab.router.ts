@@ -9,6 +9,7 @@ import {
   analyzeCareerDocumentText,
   type AnalyzeDocumentResult,
 } from '../../services/styleDocumentAnalysis.service.js';
+import { checkAiProfileGate } from '../../services/profileCompletionGate.service.js';
 import {
   billingToTrpc,
   requireSpendApproval,
@@ -59,6 +60,9 @@ export const skillLabRouter = router({
    * No fabricated salaries — qualitative tiers only.
    */
   coreSignals: protectedProcedure.query(async ({ ctx }) => {
+    const profileGate = await checkAiProfileGate(ctx.user);
+    if (!profileGate.allowed) return profileGate.incompleteProfile;
+
     const profileId = await resolveProfileId(ctx.user.id);
 
     const claimRows = await db
@@ -114,7 +118,7 @@ export const skillLabRouter = router({
       };
     }
 
-    return buildSkillLabCoreSignals({ profile: profileSlice, claims });
+    return { status: 'ok' as const, ...buildSkillLabCoreSignals({ profile: profileSlice, claims }) };
   }),
 
   /**
@@ -139,10 +143,17 @@ export const skillLabRouter = router({
           if (e instanceof BillingError) billingToTrpc(e);
           throw e;
         }
-        return out;
+        return { status: 'ok' as const, ...out };
       };
 
       try {
+        const profileGate = await checkAiProfileGate(user);
+        if (!profileGate.allowed) {
+          await settleSpendFailure(ctx, 'incomplete_profile');
+          spendFinalized = true;
+          return profileGate.incompleteProfile;
+        }
+
         const result: AnalyzeDocumentResult = await analyzeCareerDocumentText({
           clerkId: user.clerkId,
           text: input.text,
