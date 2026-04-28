@@ -3,14 +3,35 @@ import { z } from 'zod';
 import { eq, and, desc, like, or, inArray } from 'drizzle-orm';
 import { publicProcedure, protectedProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
-import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions, savedJobs } from '../../db/schema.js';
+import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions, savedJobs, careerGoals } from '../../db/schema.js';
 import { JobDiscoveryService } from '../../services/jobSources/jobDiscoveryService.js';
 import { discoverJobsForProfile } from '../../services/jobSources/profileDrivenDiscovery.js';
 import { explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.js';
 import { assessJobScamRisk } from '../../services/jobProtection.js';
 import { buildCandidateInsights } from '../../services/adaptiveInterviewer.js';
+import { DEFAULT_JOBS_MIN_FIT_SCORE, decideJobFit, normaliseFitPercent } from '../../services/jobFitDecisionPolicy.js';
 
 const PUBLIC_JOB_PROVIDERS = ['reed', 'adzuna', 'jooble'];
+
+async function ensureCareerGoalsRow(userId: string): Promise<void> {
+  const existing = await db.select({ id: careerGoals.id }).from(careerGoals).where(eq(careerGoals.userId, userId)).limit(1);
+  if (existing[0]) return;
+  await db.insert(careerGoals).values({
+    id: randomUUID(),
+    userId,
+    autoApplyMinScore: DEFAULT_JOBS_MIN_FIT_SCORE,
+  });
+}
+
+async function getJobsMinFitScore(userId: string): Promise<number> {
+  const [row] = await db
+    .select({ autoApplyMinScore: careerGoals.autoApplyMinScore })
+    .from(careerGoals)
+    .where(eq(careerGoals.userId, userId))
+    .limit(1);
+
+  return normaliseFitPercent(row?.autoApplyMinScore, DEFAULT_JOBS_MIN_FIT_SCORE);
+}
 
 function mapRequestedProviders(sources: string[]): string[] {
   return sources.map((source) => {
@@ -96,6 +117,25 @@ async function runManualDiscoveryWithFallbacks(input: {
 }
 
 export const jobsRouter = router({
+  getFitThreshold: protectedProcedure
+    .output(z.object({ minFitScore: z.number().int().min(0).max(100), source: z.literal('server') }))
+    .query(async ({ ctx }) => {
+      return { minFitScore: await getJobsMinFitScore(ctx.user.id), source: 'server' as const };
+    }),
+
+  updateFitThreshold: protectedProcedure
+    .input(z.object({ minFitScore: z.number().int().min(0).max(100) }))
+    .output(z.object({ minFitScore: z.number().int().min(0).max(100), source: z.literal('server') }))
+    .mutation(async ({ ctx, input }) => {
+      const minFitScore = normaliseFitPercent(input.minFitScore, DEFAULT_JOBS_MIN_FIT_SCORE);
+      await ensureCareerGoalsRow(ctx.user.id);
+      await db
+        .update(careerGoals)
+        .set({ autoApplyMinScore: minFitScore, updatedAt: new Date() })
+        .where(eq(careerGoals.userId, ctx.user.id));
+      return { minFitScore, source: 'server' as const };
+    }),
+
   search: publicProcedure
     .input(z.object({
       query: z.string().default(''),
@@ -107,12 +147,17 @@ export const jobsRouter = router({
     .query(async ({ input }) => {
       try {
         let sessionCookies: { indeed?: string; gumtree?: string } | undefined;
+        let localUserId: string | undefined;
+        let serverMinFitScore = DEFAULT_JOBS_MIN_FIT_SCORE;
+
         if (input.userId) {
           const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
           if (userRecord[0]) {
+            localUserId = userRecord[0].id;
+            serverMinFitScore = await getJobsMinFitScore(localUserId);
             const sessions = await db.select({ provider: userJobSessions.provider, cookies: userJobSessions.cookies })
               .from(userJobSessions)
-              .where(and(eq(userJobSessions.userId, userRecord[0].id), eq(userJobSessions.isActive, true)));
+              .where(and(eq(userJobSessions.userId, localUserId), eq(userJobSessions.isActive, true)));
             if (sessions.length > 0) {
               sessionCookies = {};
               for (const s of sessions) {
@@ -137,15 +182,12 @@ export const jobsRouter = router({
           ? await discoverJobsForProfile(discoveryInput, providerContext)
           : (await JobDiscoveryService.discover(discoveryInput, providerContext)).jobs;
 
-        // If a manual search returns zero, retry with public suppliers, location
-        // variants and role synonyms before showing emptiness. This is especially
-        // important for hospitality queries such as "waiter" in Manchester.
         if (discoveryJobs.length === 0 && trimmedQuery.length > 0) {
           discoveryJobs = await runManualDiscoveryWithFallbacks(discoveryInput, providerContext);
         }
 
         const result = await Promise.all(discoveryJobs.map(async (job) => {
-          const fitScore = job.fitScore ?? 60;
+          const decision = decideJobFit({ fitScore: job.fitScore, minFitScore: serverMinFitScore });
           const scamAnalysis = assessJobScamRisk({
             title: job.title,
             company: job.company,
@@ -172,35 +214,51 @@ export const jobsRouter = router({
               salaryMin: job.salaryMin ? String(job.salaryMin) : undefined,
               salaryMax: job.salaryMax ? String(job.salaryMax) : undefined,
               workMode: job.workMode ?? undefined,
-              fitScore,
+              fitScore: decision.fitScore,
               requirements: job.requirements,
             });
           }
 
-          return { ...job, fitScore, id: jobId, scamAnalysis };
+          return {
+            ...job,
+            fitScore: decision.fitScore,
+            id: jobId,
+            scamAnalysis,
+            minFitScore: decision.minFitScore,
+            actionMode: decision.actionMode,
+            autoEligible: decision.autoEligible,
+          };
         }));
 
+        // Return every real listing that matched the candidate/search scope.
+        // The DOP threshold only annotates auto vs manual handling; it must not hide listings.
         return result.sort((a, b) => b.fitScore - a.fitScore).slice(0, input.limit);
       } catch (err) {
         console.error('[jobs.search]', err);
         const cached = await db.select().from(jobs).orderBy(desc(jobs.createdAt)).limit(input.limit);
-        return cached.map((j) => ({
-          id: j.id, externalId: j.externalId ?? '', source: j.source,
-          title: j.title, company: j.company, location: j.location ?? '',
-          description: j.description ?? '', applyUrl: j.applyUrl ?? '',
-          salaryMin: j.salaryMin ? Number(j.salaryMin) : null,
-          salaryMax: j.salaryMax ? Number(j.salaryMax) : null,
-          workMode: j.workMode, requirements: (j.requirements as string[]) ?? [],
-          postedAt: j.createdAt.toISOString(), fitScore: j.fitScore ?? 60,
-          scamAnalysis: assessJobScamRisk({
-            title: j.title,
-            company: j.company,
-            description: j.description ?? '',
-            applyUrl: j.applyUrl ?? '',
+        return cached.map((j) => {
+          const decision = decideJobFit({ fitScore: j.fitScore, minFitScore: DEFAULT_JOBS_MIN_FIT_SCORE });
+          return {
+            id: j.id, externalId: j.externalId ?? '', source: j.source,
+            title: j.title, company: j.company, location: j.location ?? '',
+            description: j.description ?? '', applyUrl: j.applyUrl ?? '',
             salaryMin: j.salaryMin ? Number(j.salaryMin) : null,
             salaryMax: j.salaryMax ? Number(j.salaryMax) : null,
-          }),
-        }));
+            workMode: j.workMode, requirements: (j.requirements as string[]) ?? [],
+            postedAt: j.createdAt.toISOString(), fitScore: decision.fitScore,
+            minFitScore: decision.minFitScore,
+            actionMode: decision.actionMode,
+            autoEligible: decision.autoEligible,
+            scamAnalysis: assessJobScamRisk({
+              title: j.title,
+              company: j.company,
+              description: j.description ?? '',
+              applyUrl: j.applyUrl ?? '',
+              salaryMin: j.salaryMin ? Number(j.salaryMin) : null,
+              salaryMax: j.salaryMax ? Number(j.salaryMax) : null,
+            }),
+          };
+        });
       }
     }),
 

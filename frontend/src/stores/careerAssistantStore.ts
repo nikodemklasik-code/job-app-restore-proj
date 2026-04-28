@@ -20,6 +20,12 @@ interface CareerAssistantStore {
   clearMessages: () => void;
 }
 
+type AssistantSendResponse = Awaited<ReturnType<typeof trpcClient.assistant.sendMessage.mutate>>;
+
+function isIncompleteProfileResponse(resp: AssistantSendResponse): resp is Extract<AssistantSendResponse, { status: 'incomplete_profile' }> {
+  return resp.status === 'incomplete_profile';
+}
+
 function sortAsc(msgs: AssistantHistoryMessage[]): AssistantHistoryMessage[] {
   return [...msgs].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
@@ -85,6 +91,16 @@ export const useCareerAssistantStore = create<CareerAssistantStore>((set, get) =
         sourceType: 'manual_user_input',
         jobId: get().selectedJobId,
       });
+
+      if (isIncompleteProfileResponse(resp)) {
+        set((s) => ({
+          messages: s.messages.filter((m) => m.id !== optimistic.id),
+          status: 'error',
+          error: resp.message,
+        }));
+        return;
+      }
+
       set((s) => ({
         conversationId: resp.conversationId,
         messages: sortAsc([
