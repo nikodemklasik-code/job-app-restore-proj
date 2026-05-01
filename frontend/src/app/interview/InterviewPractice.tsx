@@ -828,16 +828,7 @@ export default function InterviewPractice() {
     [getJob, userId, stopCamera, selectedMode],
   );
 
-  const joinCall = useCallback(async () => {
-    setMessages([]);
-    setExchangeCount(0);
-    setCallSeconds(0);
-    setError(null);
-    setTurnFeedback(null);
-    setSessionNotes('');
-    setShowNotesSaved(false);
-    setLiveInterviewSummary(null);
-    liveSessionIdRef.current = null;
+  const proceedFromSetup = useCallback(async () => {
     setPhase('connecting');
     setAvatarState('thinking');
     await new Promise((r) => setTimeout(r, 1800));
@@ -876,6 +867,23 @@ export default function InterviewPractice() {
       await runAITurn([]);
     }
   }, [runAITurn, useLiveMode, getJob, selectedMode]);
+
+  const joinCall = useCallback(async () => {
+    setMessages([]);
+    setExchangeCount(0);
+    setCallSeconds(0);
+    setError(null);
+    setTurnFeedback(null);
+    setSessionNotes('');
+    setShowNotesSaved(false);
+    setLiveInterviewSummary(null);
+    liveSessionIdRef.current = null;
+    setPhase('setup-check');
+    setAvatarState('idle');
+    // Start camera during setup phase
+    await new Promise((r) => setTimeout(r, 300));
+    void startCamera(lobbyVideoRef);
+  }, []);
 
   const startRecording = useCallback(async () => {
     setError(null);
@@ -1178,6 +1186,126 @@ export default function InterviewPractice() {
           </div>
         </div>
 
+
+      </div>
+    );
+  }
+
+  // ── SETUP CHECK / CAMERA VERIFICATION ─────────────────────────────────────
+
+  if (phase === 'setup-check') {
+    const job = getJob();
+    return (
+      <div style={{ minHeight: '100vh', background: '#050a14', color: '#f9fafb', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <style>{AVATAR_STYLES}</style>
+
+        <div style={{ width: '100%', maxWidth: 800, display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+          {/* Header */}
+          <div style={{ textAlign: 'center' }}>
+            <h2 style={{ fontSize: 24, fontWeight: 700, color: '#f1f5f9', margin: 0, marginBottom: 8 }}>Test Your Setup</h2>
+            <p style={{ fontSize: 14, color: '#94a3b8', margin: 0 }}>Verify your camera and microphone are working properly</p>
+          </div>
+
+          {/* Main content grid */}
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+
+            {/* Camera preview - left */}
+            <div style={{ flex: '1 1 300px', minWidth: 300 }}>
+              <div style={{ background: '#0f172a', borderRadius: 16, border: '1px solid #1e293b', overflow: 'hidden', aspectRatio: '4/3', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <video
+                  ref={lobbyVideoRef}
+                  muted
+                  playsInline
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    transform: 'scaleX(-1)',
+                    display: cameraActive ? 'block' : 'none',
+                  }}
+                />
+                {!cameraActive && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+                    <div style={{ fontSize: 56 }}>📷</div>
+                    <div>
+                      <p style={{ fontSize: 14, color: '#f1f5f9', margin: 0, fontWeight: 600 }}>Camera not found</p>
+                      <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>Check permissions and try again</p>
+                    </div>
+                  </div>
+                )}
+                {cameraActive && (
+                  <div style={{ position: 'absolute', bottom: 12, left: 12, background: 'rgba(34,197,94,0.2)', border: '1px solid rgba(34,197,94,0.5)', borderRadius: 8, padding: '4px 10px', fontSize: 11, fontWeight: 600, color: '#34d399' }}>
+                    ✓ Camera active
+                  </div>
+                )}
+              </div>
+              <p style={{ fontSize: 12, color: '#64748b', margin: '12px 0 0', textAlign: 'center' }}>This is how you'll appear in the interview</p>
+            </div>
+
+            {/* Checklist - right */}
+            <div style={{ flex: '1 1 300px', minWidth: 300, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ background: '#0f172a', borderRadius: 16, border: '1px solid #1e293b', padding: 20 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: '#f1f5f9', margin: '0 0 16px' }}>Verification Checklist</h3>
+
+                {/* Camera check */}
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid #1e293b' }}>
+                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: cameraActive ? 'rgba(34,197,94,0.2)' : 'rgba(148,163,184,0.1)', border: `1px solid ${cameraActive ? 'rgba(34,197,94,0.5)' : '#334155'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {cameraActive ? <span style={{ fontSize: 12, color: '#34d399' }}>✓</span> : <span style={{ fontSize: 12, color: '#64748b' }}>1</span>}
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', margin: 0 }}>Camera</p>
+                    <p style={{ fontSize: 12, color: cameraActive ? '#34d399' : '#64748b', margin: '4px 0 0' }}>
+                      {cameraActive ? 'Connected and working' : 'Click below to enable'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Microphone check */}
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: micDenied ? 'rgba(239,68,68,0.2)' : 'rgba(148,163,184,0.1)', border: `1px solid ${micDenied ? 'rgba(239,68,68,0.5)' : '#334155'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {micDenied ? <span style={{ fontSize: 12, color: '#f87171' }}>✗</span> : <span style={{ fontSize: 12, color: '#64748b' }}>2</span>}
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', margin: 0 }}>Microphone</p>
+                    <p style={{ fontSize: 12, color: micDenied ? '#f87171' : '#64748b', margin: '4px 0 0' }}>
+                      {micDenied ? 'Access denied - check permissions' : 'Will be tested during interview'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {error && (
+                <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, padding: 12 }}>
+                  <p style={{ fontSize: 12, color: '#fca5a5', margin: 0 }}>{error}</p>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
+                  onClick={() => setPhase('lobby')}
+                  style={{ flex: 1, padding: '12px', background: '#1e293b', border: '1px solid #334155', borderRadius: 10, color: '#e2e8f0', fontWeight: 600, fontSize: 14, cursor: 'pointer', transition: 'all 0.2s' }}
+                >
+                  Back
+                </button>
+                <button
+                  onClick={() => void proceedFromSetup()}
+                  disabled={micDenied}
+                  style={{ flex: 1, padding: '12px', background: micDenied ? '#475569' : 'linear-gradient(135deg, #6366f1, #4f46e5)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 600, fontSize: 14, cursor: micDenied ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}
+                >
+                  {micDenied ? 'Enable Microphone First' : 'Start Interview'}
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Role info */}
+          <div style={{ textAlign: 'center', background: 'rgba(99,102,241,0.08)', borderRadius: 12, padding: 16, border: '1px solid rgba(99,102,241,0.2)' }}>
+            <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>You're interviewing for: <span style={{ color: '#f1f5f9', fontWeight: 600 }}>{job.title}</span> at <span style={{ color: '#f1f5f9', fontWeight: 600 }}>{job.company}</span></p>
+          </div>
+
+        </div>
 
       </div>
     );
