@@ -6,7 +6,7 @@ import {
   hasPendingCvJobsSearchMarker,
 } from '@/lib/jobsAfterCvSync';
 import type { ProfileSnapshot } from '../../../../shared/profile';
-import { Search, MapPin, DollarSign, Plus, ExternalLink, Loader2, Cookie, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Sparkles, Wifi, BookOpen, ChevronRight, Save, Check } from 'lucide-react';
+import { Search, MapPin, Plus, Loader2, Cookie, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Sparkles, Save, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { MIN_JOB_FIT_LOCAL_KEY, readMinJobFitPercent } from '@/lib/jobMatchPreferences';
 import { JobCardCompact } from '@/components/jobs/JobCardCompact';
@@ -68,82 +68,6 @@ function deriveJobSearchQueryFromProfile(profile: ProfileSnapshot | undefined): 
   const summary = profile.personalInfo?.summary?.trim();
   if (summary) return summary.split(/\s+/).slice(0, 14).join(' ').slice(0, 120);
   return '';
-}
-
-function formatSalary(min: number | null, max: number | null): string | null {
-  if (!min && !max) return null;
-  if (min && max) return `£${Math.round(min / 1000)}k–£${Math.round(max / 1000)}k`;
-  if (min) return `£${Math.round(min / 1000)}k+`;
-  return `up to £${Math.round((max ?? 0) / 1000)}k`;
-}
-
-function fitBadgeClass(score: number): string {
-  if (score >= 80) return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300';
-  if (score >= 60) return 'border-amber-500/30 bg-amber-500/10 text-amber-300';
-  return 'border-red-500/30 bg-red-500/10 text-red-300';
-}
-
-// ── Application status badge ──────────────────────────────────────────────────
-
-const STATUS_META: Record<string, { label: string; color: string }> = {
-  draft: { label: 'Draft', color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' },
-  prepared: { label: 'Prepared', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-  sent: { label: 'Applied', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' },
-  follow_up_sent: { label: 'Follow-up sent', color: 'bg-violet-500/20 text-violet-400 border-violet-500/30' },
-  interview: { label: 'Interview', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
-  accepted: { label: 'Offer', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-  rejected: { label: 'Rejected', color: 'bg-red-500/20 text-red-400 border-red-500/30' },
-  expired: { label: 'Expired', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
-  closed: { label: 'Closed', color: 'bg-slate-600/20 text-slate-500 border-slate-600/30' },
-  archived: { label: 'Archived', color: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30' },
-  unavailable: { label: 'Unavailable', color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' },
-};
-
-function ApplicationStatusBadge({ status }: { status: string }) {
-  const meta = STATUS_META[status] ?? { label: status, color: 'bg-white/10 text-slate-400 border-white/10' };
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${meta.color}`}>
-      {meta.label}
-    </span>
-  );
-}
-
-// ── Company profile card ───────────────────────────────────────────────────────
-
-function CompanyCard({ companyName, jobTitle }: { companyName: string; jobTitle: string }) {
-  const query = api.jobs.getCompanyProfile.useQuery(
-    { companyName, jobTitle },
-    { enabled: !!companyName }
-  );
-
-  if (query.isLoading) {
-    return (
-      <div className="flex items-center gap-2 py-2 text-xs text-slate-500">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        Loading company profile…
-      </div>
-    );
-  }
-
-  const profile = query.data;
-  if (!profile) return null;
-
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2 text-xs">
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-semibold text-white">{companyName}</span>
-        <div className="flex gap-1.5">
-          <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-slate-400">{profile.industry}</span>
-          <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-slate-400">{profile.size}</span>
-        </div>
-      </div>
-      <p className="text-slate-400 leading-relaxed">{profile.culture}</p>
-      <div className="rounded-lg border border-indigo-500/20 bg-indigo-500/10 px-3 py-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-indigo-400 mb-1">Interview style</p>
-        <p className="text-slate-300 leading-relaxed">{profile.interviewStyle}</p>
-      </div>
-    </div>
-  );
 }
 
 // ── Job results grid: placeholder tiles (same shell as JobCard, empty content) ─
@@ -705,7 +629,7 @@ export default function JobsDiscovery() {
 
   const handleSaveSearch = () => {
     if (userId) {
-      savePreferencesMutation.mutate({ userId, query, location });
+      savePreferencesMutation.mutate({ query, location });
     }
   };
 
