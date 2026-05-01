@@ -11,8 +11,8 @@ const ApplicationsPage = lazy(() => import('./app/applications/ApplicationsPage'
 const ApplicationsPipeline = lazy(() => import('./app/applications/ApplicationsPipeline'));
 const ReviewQueue = lazy(() => import('./app/review/ReviewQueue'));
 const AssistantPage = lazy(() => import('./app/assistant/AssistantPage'));
-const InterviewPractice = lazy(() => import('./app/interview/InterviewPractice'));
-const ProfilePage = lazy(() => import('./app/profile/ProfileScreenCanonical'));
+const InterviewPractice = lazy(() => import('./app/interview/InterviewPracticeFamilyPage'));
+const ProfilePage = lazy(() => import('./app/profile/ProfileScreenV2'));
 const BillingPage = lazy(() => import('./app/billing/BillingPage'));
 const SettingsHub = lazy(() => import('./app/settings/SettingsHub'));
 const SecurityPage = lazy(() => import('./app/settings/SecurityPage'));
@@ -104,6 +104,7 @@ export const router = createBrowserRouter([
       { path: APP_SCREENS.assistant.path.slice(1), element: withSuspense(AssistantPage) },
       { path: APP_SCREENS.dailyWarmup.path.slice(1), element: withSuspense(DailyWarmupPage) },
       { path: APP_SCREENS.interview.path.slice(1), element: withSuspense(InterviewPractice) },
+
       { path: APP_SCREENS.coach.path.slice(1), element: withSuspense(CoachPage) },
       { path: APP_SCREENS.negotiation.path.slice(1), element: withSuspense(NegotiationPage) },
       { path: APP_SCREENS.caseStudy.path.slice(1), element: withSuspense(CasePracticePage) },

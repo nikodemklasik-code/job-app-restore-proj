@@ -1087,6 +1087,8 @@ export default function InterviewPractice() {
               <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', marginBottom: 10 }}>CUSTOM ROLE</p>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
+                  id="interview-company"
+                  name="interview-company"
                   type="text"
                   placeholder="Company name"
                   value={customCompany}
@@ -1094,6 +1096,8 @@ export default function InterviewPractice() {
                   style={{ flex: 1, background: '#050a14', border: '1px solid #1e293b', borderRadius: 8, padding: '8px 12px', color: '#f1f5f9', fontSize: 14, outline: 'none' }}
                 />
                 <input
+                  id="interview-role"
+                  name="interview-role"
                   type="text"
                   placeholder="Job title"
                   value={customRole}
