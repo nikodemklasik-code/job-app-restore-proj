@@ -104,7 +104,6 @@ export const router = createBrowserRouter([
       { path: APP_SCREENS.assistant.path.slice(1), element: withSuspense(AssistantPage) },
       { path: APP_SCREENS.dailyWarmup.path.slice(1), element: withSuspense(DailyWarmupPage) },
       { path: APP_SCREENS.interview.path.slice(1), element: withSuspense(InterviewPractice) },
-
       { path: APP_SCREENS.coach.path.slice(1), element: withSuspense(CoachPage) },
       { path: APP_SCREENS.negotiation.path.slice(1), element: withSuspense(NegotiationPage) },
       { path: APP_SCREENS.caseStudy.path.slice(1), element: withSuspense(CasePracticePage) },

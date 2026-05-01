@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { Video, VideoOff } from 'lucide-react';
 import { fetchStream } from '@/lib/apiClient';
 import {
   consumeSseStream,
@@ -46,14 +46,84 @@ const INTERVIEW_TOPICS: PracticeTopic[] = [
   },
 ];
 
+function CameraPreview() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [cameraOn, setCameraOn] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const startCamera = useCallback(async () => {
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      setCameraOn(true);
+    } catch {
+      setError('Camera access denied. Check browser permissions.');
+    }
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setCameraOn(false);
+  }, []);
+
+  useEffect(() => () => { streamRef.current?.getTracks().forEach((t) => t.stop()); }, []);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900 aspect-video">
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          className="h-full w-full object-cover scale-x-[-1]"
+        />
+        {!cameraOn && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-800">
+              <VideoOff className="h-5 w-5 text-slate-500" />
+            </div>
+            <span className="text-xs text-slate-500">Camera off</span>
+          </div>
+        )}
+        {cameraOn && (
+          <div className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-lg bg-black/60 px-2 py-1">
+            <span className="h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px_#4ade80]" />
+            <span className="text-xs font-medium text-white">You</span>
+          </div>
+        )}
+      </div>
+
+      {error && <p className="rounded-xl border border-rose-500/25 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">{error}</p>}
+
+      <button
+        onClick={() => void (cameraOn ? stopCamera() : startCamera())}
+        className={`flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors ${
+          cameraOn
+            ? 'border-rose-500/30 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20'
+            : 'border-indigo-500/30 bg-indigo-500/10 text-indigo-300 hover:bg-indigo-500/20'
+        }`}
+      >
+        {cameraOn ? <><VideoOff className="h-4 w-4" /> Turn off camera</> : <><Video className="h-4 w-4" /> Turn on camera</>}
+      </button>
+    </div>
+  );
+}
+
 export default function InterviewPracticeFamilyPage() {
-  const navigate = useNavigate();
   const [selectedTopic, setSelectedTopic] = useState<PracticeTopic>(INTERVIEW_TOPICS[0]);
   const [messages, setMessages] = useState<PracticeMessage[]>([
     {
       id: practiceId('assistant'),
       role: 'assistant',
-      content: 'Pick a topic below, then answer like you are in a real interview. I will ask, listen, and probe. Camera mode comes later, so for now humanity may survive with voice and typing.',
+      content: 'Pick a topic below, then answer like you are in a real interview. I will ask, listen, and probe.',
     },
   ]);
   const [input, setInput] = useState('');
@@ -111,28 +181,11 @@ export default function InterviewPracticeFamilyPage() {
       <PracticeExperienceHeader
         eyebrow="Mock interview"
         title="Interview"
-        description="Front-facing interviewer flow: realistic prompts, follow-up pressure, transcript continuity, and voice/text input."
+        description="Front-facing interviewer flow: realistic prompts, follow-up pressure, transcript continuity, voice/text input, and camera preview."
         statusLabel="Conversation mode"
-        cameraLabel="Camera available"
         accentClass="bg-gradient-to-br from-indigo-500 to-violet-600"
         onReset={reset}
       />
-
-      <div className="flex items-center gap-3 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-3">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/20">
-          <span className="text-base">🎥</span>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-white">Live Video Interview</p>
-          <p className="text-xs text-slate-400">Full video call experience with camera preview, AI avatar, and real-time feedback</p>
-        </div>
-        <button
-          onClick={() => void navigate('/interview/live')}
-          className="shrink-0 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 transition-colors"
-        >
-          Launch →
-        </button>
-      </div>
 
       <main className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_330px]">
         <section className="flex min-h-0 flex-col gap-4 overflow-hidden">
@@ -158,10 +211,10 @@ export default function InterviewPracticeFamilyPage() {
           <PracticeTopicRail topics={INTERVIEW_TOPICS} selectedTopicId={selectedTopic.id} onSelect={selectTopic} />
         </section>
 
-        <PracticeSidePanel title="Interview Dynamics">
-          <SidePanelCard label="Main window">The large front window is the interviewer conversation, not a pile of setup cards.</SidePanelCard>
+        <PracticeSidePanel title="Camera & Tips">
+          <CameraPreview />
           <SidePanelCard label="Topic rail">Topics sit below the conversation so the session stays focused.</SidePanelCard>
-          <SidePanelCard label="Future camera">The shell leaves room for camera without pretending it works today.</SidePanelCard>
+          <SidePanelCard label="Voice input">Use the mic button to speak your answers — transcribed automatically.</SidePanelCard>
         </PracticeSidePanel>
       </main>
     </div>
