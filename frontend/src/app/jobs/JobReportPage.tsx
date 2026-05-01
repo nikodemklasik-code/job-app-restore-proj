@@ -1,4 +1,4 @@
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft,
     Bookmark,
@@ -105,8 +105,8 @@ export default function JobReportPage() {
 
                         <div className="flex items-center gap-3">
                             <span className={`px-3 py-1.5 rounded-lg text-sm font-bold border ${job.fitScore >= 90
-                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                                    : 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                : 'bg-blue-500/10 text-blue-400 border-blue-500/30'
                                 }`}>
                                 {job.fitScore}% Match
                             </span>

@@ -16,7 +16,6 @@ import {
     Sparkles,
     FileText,
     Target,
-    Clock,
     Briefcase
 } from 'lucide-react';
 import { useState } from 'react';
@@ -90,14 +89,6 @@ export default function JobDetailPage() {
         return 'text-red-400';
     };
 
-    const getBarColor = (score: number) => {
-        if (score >= 90) return 'bg-emerald-500';
-        if (score >= 80) return 'bg-emerald-500';
-        if (score >= 70) return 'bg-blue-500';
-        if (score >= 60) return 'bg-amber-400';
-        return 'bg-red-500';
-    };
-
     return (
         <div className="min-h-screen bg-[#0B1121] text-slate-300">
             {/* Ambient Background */}
@@ -124,10 +115,10 @@ export default function JobDetailPage() {
 
                     <div className="flex items-center gap-3">
                         <div className={`px-4 py-2 rounded-lg border font-bold ${fitScore >= 80
-                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                                : fitScore >= 60
-                                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                                    : 'bg-red-500/10 text-red-400 border-red-500/30'
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                            : fitScore >= 60
+                                ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                                : 'bg-red-500/10 text-red-400 border-red-500/30'
                             }`}>
                             {fitScore}% Match
                         </div>
@@ -219,8 +210,8 @@ export default function JobDetailPage() {
                             {/* Scam Warning */}
                             {scam && scam.level !== 'low' && (
                                 <div className={`rounded-xl border p-4 ${scam.level === 'high'
-                                        ? 'bg-red-500/10 border-red-500/30'
-                                        : 'bg-amber-500/10 border-amber-500/30'
+                                    ? 'bg-red-500/10 border-red-500/30'
+                                    : 'bg-amber-500/10 border-amber-500/30'
                                     }`}>
                                     <p className={`text-sm font-semibold mb-2 flex items-center gap-2 ${scam.level === 'high' ? 'text-red-400' : 'text-amber-400'
                                         }`}>

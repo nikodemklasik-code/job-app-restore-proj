@@ -719,7 +719,7 @@ export default function JobsDiscovery() {
 
   // Load saved preferences
   const preferencesQuery = api.jobs.getJobPreferences.useQuery(
-    { userId },
+    undefined,
     { enabled: !!userId }
   );
 

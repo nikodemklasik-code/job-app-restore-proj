@@ -1,8 +1,6 @@
-import { useState } from 'react';
 import {
     MapPin,
     DollarSign,
-    ExternalLink,
     ChevronDown,
     ChevronUp,
     Bookmark,
@@ -138,8 +136,8 @@ export function JobCardCompact({
                                 {/* Warning Badge */}
                                 {hasWarning && (
                                     <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold border flex items-center gap-1 ${job.scamAnalysis!.level === 'high'
-                                            ? 'bg-red-500/10 text-red-400 border-red-500/30'
-                                            : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                                        ? 'bg-red-500/10 text-red-400 border-red-500/30'
+                                        : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
                                         }`}>
                                         ⚠ {job.scamAnalysis!.level === 'high' ? 'HIGH RISK' : 'REVIEW'}
                                     </span>
