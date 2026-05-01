@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { eq, and, desc, like, or, inArray } from 'drizzle-orm';
 import { publicProcedure, protectedProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
-import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions, savedJobs } from '../../db/schema.js';
+import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions, savedJobs, userJobPreferences } from '../../db/schema.js';
 import { JobDiscoveryService } from '../../services/jobSources/jobDiscoveryService.js';
 import { discoverJobsForProfile } from '../../services/jobSources/profileDrivenDiscovery.js';
 import { explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.js';
@@ -306,7 +306,7 @@ export const jobsRouter = router({
       ]);
 
       if (fit.extractedRequirements && fit.extractedRequirements.length > 0 &&
-          ((job.requirements as string[]) ?? []).length === 0) {
+        ((job.requirements as string[]) ?? []).length === 0) {
         await db.update(jobs)
           .set({ requirements: fit.extractedRequirements, updatedAt: new Date() })
           .where(eq(jobs.id, job.id));
@@ -411,5 +411,50 @@ export const jobsRouter = router({
           fitScore: r.fitScore ?? null,
         },
       }));
+    }),
+
+  getJobPreferences: publicProcedure
+    .input(z.object({ userId: z.string() }))
+    .query(async ({ input }) => {
+      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      if (!userRecord[0]) return { lastQuery: '', lastLocation: 'United Kingdom' };
+
+      const prefs = await db.select()
+        .from(userJobPreferences)
+        .where(eq(userJobPreferences.userId, userRecord[0].id))
+        .limit(1);
+
+      if (!prefs[0]) return { lastQuery: '', lastLocation: 'United Kingdom' };
+      return { lastQuery: prefs[0].lastQuery, lastLocation: prefs[0].lastLocation };
+    }),
+
+  saveJobPreferences: publicProcedure
+    .input(z.object({
+      userId: z.string(),
+      query: z.string(),
+      location: z.string(),
+    }))
+    .mutation(async ({ input }) => {
+      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      if (!userRecord[0]) throw new Error('User not found');
+
+      const existing = await db.select({ userId: userJobPreferences.userId })
+        .from(userJobPreferences)
+        .where(eq(userJobPreferences.userId, userRecord[0].id))
+        .limit(1);
+
+      if (existing[0]) {
+        await db.update(userJobPreferences)
+          .set({ lastQuery: input.query, lastLocation: input.location, updatedAt: new Date() })
+          .where(eq(userJobPreferences.userId, userRecord[0].id));
+      } else {
+        await db.insert(userJobPreferences).values({
+          userId: userRecord[0].id,
+          lastQuery: input.query,
+          lastLocation: input.location,
+        });
+      }
+
+      return { success: true };
     }),
 });
