@@ -12,12 +12,12 @@
  * - Adaptive UI based on interview stage
  */
 
-import { useRef, useState, useEffect, useCallback } from 'react';
-import { Mic, MicOff, Video, VideoOff, PhoneOff, MessageCircle, Clock, AlertCircle, Volume2, VolumeX } from 'lucide-react';
-import type { InterviewStage } from '../../../../../shared/interview';
+import { useRef, useState, useEffect } from 'react';
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Volume2 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export type InterviewStage = 'INTRO' | 'WARMUP' | 'CORE_EXPERIENCE' | 'DEEP_DIVE' | 'CANDIDATE_QUESTIONS' | 'CLOSING';
 export type RecruiterPersona = 'hr' | 'hiring-manager' | 'tech-lead';
 
 export interface VideoCallSimulatorProps {
@@ -417,10 +417,7 @@ function InterviewProgress({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function VideoCallSimulator({
-  recruiterName,
-  recruiterRole,
   recruiterPersona,
-  interviewStage,
   isRecruiterSpeaking,
   recruiterMessage,
   candidateTranscript,

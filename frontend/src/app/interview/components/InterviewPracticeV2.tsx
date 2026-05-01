@@ -17,8 +17,7 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { trpcClient } from '@/lib/api';
 import { VideoCallSimulator } from './VideoCallSimulator';
-import type { InterviewStage } from '../../../../../shared/interview';
-import type { RecruiterPersona } from './VideoCallSimulator';
+import type { InterviewStage, RecruiterPersona } from './VideoCallSimulator';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

@@ -12,8 +12,6 @@
  * For headless servers: uses chromium with --no-sandbox
  */
 
-import { randomUUID } from 'crypto';
-
 interface BrowserLoginState {
   storageState: unknown;
   page: unknown;
@@ -94,7 +92,7 @@ async function launchBrowser() {
   return { browser, context };
 }
 
-function sleep(ms: number) {
+function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
