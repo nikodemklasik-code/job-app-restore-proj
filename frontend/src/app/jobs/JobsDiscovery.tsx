@@ -186,186 +186,6 @@ function JobCardPlaceholder({ pulsing }: { pulsing?: boolean }) {
   );
 }
 
-// ── Job card component ────────────────────────────────────────────────────────
-
-function JobCard({
-  job,
-  applicationStatus,
-  userId,
-  onExplainFit,
-}: {
-  job: JobResult;
-  applicationStatus?: string;
-  userId: string;
-  onExplainFit: (id: string) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const [showCompany, setShowCompany] = useState(false);
-  const salary = formatSalary(job.salaryMin, job.salaryMax);
-  const srcMeta = SOURCE_META[job.source as Source];
-  const scam = job.scamAnalysis;
-  const requirements: string[] = job.requirements ?? [];
-
-  const postedDate = job.postedAt
-    ? (() => {
-      const d = new Date(job.postedAt);
-      const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
-      if (diffDays === 0) return 'Today';
-      if (diffDays === 1) return 'Yesterday';
-      if (diffDays < 7) return `${diffDays}d ago`;
-      if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
-      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-    })()
-    : null;
-
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 flex flex-col gap-0 transition hover:border-white/20 hover:bg-white/[0.07] overflow-hidden">
-      {/* Card header */}
-      <div className="p-5 flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-lg font-bold text-slate-300">
-            {job.company.charAt(0).toUpperCase()}
-          </div>
-          <div className="flex items-center gap-1.5">
-            {applicationStatus && <ApplicationStatusBadge status={applicationStatus} />}
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${fitBadgeClass(job.fitScore)}`}>
-              {job.fitScore}% fit
-            </span>
-            {scam && (
-              <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold border ${scam.level === 'low' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : scam.level === 'medium' ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-red-500/30 bg-red-500/10 text-red-300'}`}>
-                Risk {scam.riskScore}%
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <h3 className="font-semibold text-white leading-tight">{job.title}</h3>
-          <button
-            onClick={() => setShowCompany((v) => !v)}
-            className="flex items-center gap-1 mt-0.5 text-sm text-slate-400 hover:text-slate-200 transition"
-          >
-            {job.company}
-            <ChevronRight className={`h-3 w-3 transition-transform ${showCompany ? 'rotate-90' : ''}`} />
-          </button>
-        </div>
-
-        {scam && scam.level !== 'low' && (
-          <span className={`inline-flex w-fit items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${scam.level === 'high' ? 'border-red-500/40 bg-red-500/15 text-red-300' : 'border-amber-500/40 bg-amber-500/15 text-amber-400'}`}>
-            {scam.level === 'high' ? 'Blocked by scam protection' : 'Manual review recommended'}
-          </span>
-        )}
-
-        {/* Company card (lazy) */}
-        {showCompany && (
-          <CompanyCard companyName={job.company} jobTitle={job.title} />
-        )}
-
-        {/* Meta row */}
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-          {job.location && (
-            <span className="flex items-center gap-1">
-              <MapPin className="h-3 w-3" />
-              {job.location}
-            </span>
-          )}
-          {salary && (
-            <span className="flex items-center gap-1">
-              <DollarSign className="h-3 w-3" />
-              {salary}
-            </span>
-          )}
-          {job.workMode && (
-            <span className="flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-medium capitalize text-slate-400">
-              <Wifi className="h-3 w-3" />
-              {job.workMode}
-            </span>
-          )}
-          {postedDate && (
-            <span className="text-slate-500">{postedDate}</span>
-          )}
-          <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium ${srcMeta?.color ?? 'bg-white/10 text-slate-400'}`}>
-            {srcMeta?.label ?? job.source}
-          </span>
-        </div>
-      </div>
-
-      {/* Expandable skills section */}
-      <div className="border-t border-white/5">
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="w-full flex items-center justify-between px-5 py-2.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 transition"
-        >
-          <span className="font-medium">
-            {requirements.length > 0 ? `${requirements.length} required skills` : 'Skills & requirements'}
-          </span>
-          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        </button>
-
-        {expanded && (
-          <div className="px-5 pb-4 space-y-3">
-            {requirements.length > 0 ? (
-              <>
-                <div className="flex flex-wrap gap-1.5">
-                  {requirements.map((req, i) => (
-                    <span
-                      key={i}
-                      className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-slate-300"
-                    >
-                      {req}
-                    </span>
-                  ))}
-                </div>
-                <Link
-                  to="/skills"
-                  className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition w-fit"
-                >
-                  <BookOpen className="h-3.5 w-3.5" />
-                  Learn these skills in Skills Lab →
-                </Link>
-              </>
-            ) : (
-              <div className="text-xs text-slate-500 space-y-1.5">
-                <p>No requirements extracted yet.</p>
-                <button
-                  onClick={() => onExplainFit(job.id)}
-                  className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 transition"
-                  disabled={!userId}
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Analyse fit to extract requirements
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className="px-5 pb-5 pt-2 mt-auto flex flex-col gap-2">
-        <button
-          onClick={() => onExplainFit(job.id)}
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 py-2 text-xs font-medium text-indigo-400 transition hover:bg-indigo-500/20"
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-          Why this match?
-        </button>
-        {job.applyUrl && (
-          <a
-            href={job.applyUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
-          >
-            Apply
-            <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        )}
-      </div>
-    </div>
-  );
-}
-
 
 function ExplainFitModal({ jobId, userId, onClose }: { jobId: string; userId: string; onClose: () => void }) {
   const explainQuery = api.jobs.explainFit.useQuery(
@@ -704,7 +524,6 @@ export default function JobsDiscovery() {
     query: string;
     location: string;
     sources: string[];
-    userId?: string;
   } | null>(null);
   const [showManualModal, setShowManualModal] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
@@ -831,7 +650,6 @@ export default function JobsDiscovery() {
       query: q,
       location,
       sources: [...sources],
-      userId: userId || undefined,
     });
   }, [
     userId,
@@ -882,7 +700,7 @@ export default function JobsDiscovery() {
         location,
       });
     }
-    setSearchParams({ query, location, sources: [...sources], userId: userId || undefined });
+    setSearchParams({ query, location, sources: [...sources] });
   };
 
   const handleSaveSearch = () => {
