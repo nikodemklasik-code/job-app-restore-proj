@@ -413,43 +413,57 @@ export const jobsRouter = router({
       }));
     }),
 
-  getJobPreferences: publicProcedure
-    .input(z.object({ userId: z.string() }))
-    .query(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
-      if (!userRecord[0]) return { lastQuery: '', lastLocation: 'United Kingdom' };
-
-      const prefs = await db.select()
+  // Job search preferences - remember last search
+  getJobPreferences: protectedProcedure
+    .output(z.object({
+      lastQuery: z.string(),
+      lastLocation: z.string(),
+    }))
+    .query(async ({ ctx }) => {
+      const rows = await db
+        .select()
         .from(userJobPreferences)
-        .where(eq(userJobPreferences.userId, userRecord[0].id))
+        .where(eq(userJobPreferences.userId, ctx.user.id))
         .limit(1);
 
-      if (!prefs[0]) return { lastQuery: '', lastLocation: 'United Kingdom' };
-      return { lastQuery: prefs[0].lastQuery, lastLocation: prefs[0].lastLocation };
+      if (rows[0]) {
+        return {
+          lastQuery: rows[0].lastQuery,
+          lastLocation: rows[0].lastLocation,
+        };
+      }
+
+      return {
+        lastQuery: '',
+        lastLocation: 'United Kingdom',
+      };
     }),
 
-  saveJobPreferences: publicProcedure
+  saveJobPreferences: protectedProcedure
     .input(z.object({
-      userId: z.string(),
-      query: z.string(),
-      location: z.string(),
+      query: z.string().max(255),
+      location: z.string().max(255),
     }))
-    .mutation(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
-      if (!userRecord[0]) throw new Error('User not found');
-
-      const existing = await db.select({ userId: userJobPreferences.userId })
+    .output(z.object({ success: z.literal(true) }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await db
+        .select({ userId: userJobPreferences.userId })
         .from(userJobPreferences)
-        .where(eq(userJobPreferences.userId, userRecord[0].id))
+        .where(eq(userJobPreferences.userId, ctx.user.id))
         .limit(1);
 
       if (existing[0]) {
-        await db.update(userJobPreferences)
-          .set({ lastQuery: input.query, lastLocation: input.location, updatedAt: new Date() })
-          .where(eq(userJobPreferences.userId, userRecord[0].id));
+        await db
+          .update(userJobPreferences)
+          .set({
+            lastQuery: input.query,
+            lastLocation: input.location,
+            updatedAt: new Date(),
+          })
+          .where(eq(userJobPreferences.userId, ctx.user.id));
       } else {
         await db.insert(userJobPreferences).values({
-          userId: userRecord[0].id,
+          userId: ctx.user.id,
           lastQuery: input.query,
           lastLocation: input.location,
         });

@@ -711,6 +711,7 @@ export default function JobsDiscovery() {
   /** After CV upload/import elsewhere: wait for profile refetch, then re-run profile-derived search. */
   const [pendingJobsSearchAfterCv, setPendingJobsSearchAfterCv] = useState(false);
   const [minJobFitPercent, setMinJobFitPercent] = useState(() => readMinJobFitPercent());
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
   // Load saved preferences
   const preferencesQuery = api.jobs.getJobPreferences.useQuery(
@@ -760,6 +761,25 @@ export default function JobsDiscovery() {
     searchParams ?? { query: '', location: 'United Kingdom', sources: ['reed'] },
     { enabled: searchParams !== null }
   );
+
+  const jobPreferencesQuery = api.jobs.getJobPreferences.useQuery(undefined, {
+    enabled: !!userId,
+  });
+
+  const saveJobPreferencesMutation = api.jobs.saveJobPreferences.useMutation();
+
+  // Load saved preferences on mount
+  useEffect(() => {
+    if (!userId || preferencesLoaded || !jobPreferencesQuery.data) return;
+    const prefs = jobPreferencesQuery.data;
+    if (prefs.lastQuery) {
+      setQuery(prefs.lastQuery);
+    }
+    if (prefs.lastLocation) {
+      setLocation(prefs.lastLocation);
+    }
+    setPreferencesLoaded(true);
+  }, [userId, jobPreferencesQuery.data, preferencesLoaded]);
 
   const profileSearchFingerprint = useMemo(() => {
     const p = profileQuery.data as ProfileSnapshot | undefined;
@@ -851,6 +871,13 @@ export default function JobsDiscovery() {
   });
 
   const handleSearch = () => {
+    // Save preferences when user searches
+    if (userId) {
+      saveJobPreferencesMutation.mutate({
+        query,
+        location,
+      });
+    }
     setSearchParams({ query, location, sources: [...sources], userId: userId || undefined });
     // Save preferences
     if (userId) {
