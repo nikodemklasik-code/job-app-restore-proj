@@ -13,3 +13,4 @@ android/
 .env.local
 .env.production
 .deploy-token-hash
+.claude/launch.json

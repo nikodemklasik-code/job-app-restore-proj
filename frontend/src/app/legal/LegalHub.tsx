@@ -421,13 +421,6 @@ export default function LegalHub() {
         <p className="text-slate-400 ml-14">UK employment law reference for job seekers — 2024/25</p>
       </div>
 
-      {/* Disclaimer */}
-      <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-5 py-4">
-        <p className="text-xs text-amber-300 leading-relaxed">
-          <span className="font-semibold">Legal Disclaimer:</span> This content is for general information only and does not constitute legal advice. Employment law is complex and fact-specific. For advice on your individual situation, consult a qualified employment solicitor or contact ACAS (0300 123 1100). Information reflects UK law as of 2024/25.
-        </p>
-      </div>
-
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
@@ -456,6 +449,15 @@ export default function LegalHub() {
         <p className="text-xs text-slate-500 leading-relaxed">
           Sources: Employment Rights Act 1996; Equality Act 2010; UK GDPR (retained EU law); Conduct of Employment Agencies and Employment Businesses Regulations 2003; Agency Workers Regulations 2010; IR35 / Income Tax (Earnings and Pensions) Act 2003 Chapter 8; National Minimum Wage Act 1998. Case law cited: Uber BV v Aslam [2021] UKSC 5; Spring v Guardian Assurance plc [1994] 3 All ER 129; Lock v British Gas Trading Ltd [2016] EWCA Civ 983.
         </p>
+      </div>
+
+      {/* Disclaimer - moved to bottom */}
+      <div className="border-t border-white/10 pt-6 mt-8">
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-5 py-4">
+          <p className="text-xs text-amber-300 leading-relaxed">
+            <span className="font-semibold">Legal Disclaimer:</span> This content is for general information only and does not constitute legal advice. Employment law is complex and fact-specific. For advice on your individual situation, consult a qualified employment solicitor or contact ACAS (0300 123 1100). Information reflects UK law as of 2024/25.
+          </p>
+        </div>
       </div>
     </div>
   );
