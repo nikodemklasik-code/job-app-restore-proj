@@ -50,7 +50,7 @@ const ALL_STATUSES: AppStatus[] = ['draft', 'prepared', 'sent', 'interview', 'ac
 
 export default function ApplicationsPipeline() {
   const { user, isLoaded } = useUser();
-  const userId = user?.id ?? '';
+  const userId = user?.id ?? null;
 
   const [filterStatus, setFilterStatus] = useState<AppStatus | 'all'>('all');
   const [showNewModal, setShowNewModal] = useState(false);
@@ -64,12 +64,12 @@ export default function ApplicationsPipeline() {
   const [monitoringMap, setMonitoringMap] = useState<Record<string, boolean>>({});
 
   const appsQuery = api.applications.getAll.useQuery(
-    { userId },
+    { userId: userId! },
     { enabled: isLoaded && !!userId }
   );
 
   const analyticsQuery = api.applications.getAnalytics.useQuery(
-    { userId },
+    { userId: userId! },
     { enabled: isLoaded && !!userId }
   );
 
@@ -125,7 +125,7 @@ export default function ApplicationsPipeline() {
     },
   });
 
-  if (!isLoaded) {
+  if (!isLoaded || !userId) {
     return (
       <div className="flex h-48 items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
@@ -139,7 +139,7 @@ export default function ApplicationsPipeline() {
   const visibleApps = filterStatus === 'all' ? apps : apps.filter(a => a.status === filterStatus);
 
   const handleCreate = () => {
-    if (!newForm.jobTitle || !newForm.company) return;
+    if (!newForm.jobTitle || !newForm.company || !userId) return;
     createMutation.mutate({ userId, jobTitle: newForm.jobTitle, company: newForm.company, notes: newForm.notes || undefined });
   };
 
