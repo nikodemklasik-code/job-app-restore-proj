@@ -435,19 +435,30 @@ export const jobsRouter = router({
       location: z.string(),
     }))
     .mutation(async ({ input }) => {
+      console.log('[saveJobPreferences] START', { userId: input.userId, query: input.query, location: input.location });
+
       const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
-      if (!userRecord[0]) throw new Error('User not found');
+      console.log('[saveJobPreferences] userRecord', userRecord);
+
+      if (!userRecord[0]) {
+        console.error('[saveJobPreferences] User not found for clerkId:', input.userId);
+        throw new Error('User not found');
+      }
 
       const existing = await db.select({ userId: userJobPreferences.userId })
         .from(userJobPreferences)
         .where(eq(userJobPreferences.userId, userRecord[0].id))
         .limit(1);
 
+      console.log('[saveJobPreferences] existing', existing);
+
       if (existing[0]) {
+        console.log('[saveJobPreferences] UPDATE existing record');
         await db.update(userJobPreferences)
           .set({ lastQuery: input.query, lastLocation: input.location, updatedAt: new Date() })
           .where(eq(userJobPreferences.userId, userRecord[0].id));
       } else {
+        console.log('[saveJobPreferences] INSERT new record');
         await db.insert(userJobPreferences).values({
           userId: userRecord[0].id,
           lastQuery: input.query,
@@ -455,6 +466,7 @@ export const jobsRouter = router({
         });
       }
 
+      console.log('[saveJobPreferences] SUCCESS');
       return { success: true };
     }),
 });
