@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { eq, and, desc, like, or, inArray } from 'drizzle-orm';
 import { publicProcedure, protectedProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
-import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions, savedJobs } from '../../db/schema.js';
+import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions, savedJobs, userJobPreferences } from '../../db/schema.js';
 import { JobDiscoveryService } from '../../services/jobSources/jobDiscoveryService.js';
 import { discoverJobsForProfile } from '../../services/jobSources/profileDrivenDiscovery.js';
 import { explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.js';
@@ -306,7 +306,7 @@ export const jobsRouter = router({
       ]);
 
       if (fit.extractedRequirements && fit.extractedRequirements.length > 0 &&
-          ((job.requirements as string[]) ?? []).length === 0) {
+        ((job.requirements as string[]) ?? []).length === 0) {
         await db.update(jobs)
           .set({ requirements: fit.extractedRequirements, updatedAt: new Date() })
           .where(eq(jobs.id, job.id));
@@ -411,5 +411,64 @@ export const jobsRouter = router({
           fitScore: r.fitScore ?? null,
         },
       }));
+    }),
+
+  // Job search preferences - remember last search
+  getJobPreferences: protectedProcedure
+    .output(z.object({
+      lastQuery: z.string(),
+      lastLocation: z.string(),
+    }))
+    .query(async ({ ctx }) => {
+      const rows = await db
+        .select()
+        .from(userJobPreferences)
+        .where(eq(userJobPreferences.userId, ctx.user.id))
+        .limit(1);
+
+      if (rows[0]) {
+        return {
+          lastQuery: rows[0].lastQuery,
+          lastLocation: rows[0].lastLocation,
+        };
+      }
+
+      return {
+        lastQuery: '',
+        lastLocation: 'United Kingdom',
+      };
+    }),
+
+  saveJobPreferences: protectedProcedure
+    .input(z.object({
+      query: z.string().max(255),
+      location: z.string().max(255),
+    }))
+    .output(z.object({ success: z.literal(true) }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await db
+        .select({ userId: userJobPreferences.userId })
+        .from(userJobPreferences)
+        .where(eq(userJobPreferences.userId, ctx.user.id))
+        .limit(1);
+
+      if (existing[0]) {
+        await db
+          .update(userJobPreferences)
+          .set({
+            lastQuery: input.query,
+            lastLocation: input.location,
+            updatedAt: new Date(),
+          })
+          .where(eq(userJobPreferences.userId, ctx.user.id));
+      } else {
+        await db.insert(userJobPreferences).values({
+          userId: ctx.user.id,
+          lastQuery: input.query,
+          lastLocation: input.location,
+        });
+      }
+
+      return { success: true };
     }),
 });

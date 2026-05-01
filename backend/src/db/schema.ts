@@ -571,6 +571,15 @@ export const savedJobs = mysqlTable('saved_jobs', {
   savedAt: timestamp('saved_at').defaultNow().notNull(),
 });
 
+/** User job search preferences — remembers last search query and location. */
+export const userJobPreferences = mysqlTable('user_job_preferences', {
+  userId: varchar('user_id', { length: 36 }).primaryKey(),
+  lastQuery: varchar('last_query', { length: 255 }).default('').notNull(),
+  lastLocation: varchar('last_location', { length: 255 }).default('United Kingdom').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
 /** Reports — interview/coach/manual/analysis notes. Run `backend/sql/2026-04-19-reports.sql`. */
 export const reportSourceValues = ['interview', 'coach', 'manual', 'analysis'] as const;
 export const reportStatusValues = ['open', 'closed'] as const;

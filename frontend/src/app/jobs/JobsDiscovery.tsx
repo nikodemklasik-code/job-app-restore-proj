@@ -84,17 +84,17 @@ function fitBadgeClass(score: number): string {
 // ── Application status badge ──────────────────────────────────────────────────
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
-  draft:            { label: 'Draft',          color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' },
-  prepared:         { label: 'Prepared',       color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-  sent:             { label: 'Applied',        color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' },
-  follow_up_sent:   { label: 'Follow-up sent', color: 'bg-violet-500/20 text-violet-400 border-violet-500/30' },
-  interview:        { label: 'Interview',      color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
-  accepted:         { label: 'Offer',          color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-  rejected:         { label: 'Rejected',       color: 'bg-red-500/20 text-red-400 border-red-500/30' },
-  expired:          { label: 'Expired',        color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
-  closed:           { label: 'Closed',         color: 'bg-slate-600/20 text-slate-500 border-slate-600/30' },
-  archived:         { label: 'Archived',       color: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30' },
-  unavailable:      { label: 'Unavailable',    color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' },
+  draft: { label: 'Draft', color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' },
+  prepared: { label: 'Prepared', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  sent: { label: 'Applied', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' },
+  follow_up_sent: { label: 'Follow-up sent', color: 'bg-violet-500/20 text-violet-400 border-violet-500/30' },
+  interview: { label: 'Interview', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+  accepted: { label: 'Offer', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+  rejected: { label: 'Rejected', color: 'bg-red-500/20 text-red-400 border-red-500/30' },
+  expired: { label: 'Expired', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
+  closed: { label: 'Closed', color: 'bg-slate-600/20 text-slate-500 border-slate-600/30' },
+  archived: { label: 'Archived', color: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30' },
+  unavailable: { label: 'Unavailable', color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' },
 };
 
 function ApplicationStatusBadge({ status }: { status: string }) {
@@ -151,9 +151,8 @@ const JOB_CARD_PLACEHOLDER_COUNT = 6;
 function JobCardPlaceholder({ pulsing }: { pulsing?: boolean }) {
   return (
     <div
-      className={`flex flex-col gap-0 overflow-hidden rounded-2xl border border-white/10 bg-white/5 ${
-        pulsing ? 'animate-pulse' : ''
-      } opacity-[0.55]`}
+      className={`flex flex-col gap-0 overflow-hidden rounded-2xl border border-white/10 bg-white/5 ${pulsing ? 'animate-pulse' : ''
+        } opacity-[0.55]`}
       aria-hidden
     >
       <div className="flex flex-col gap-3 p-5">
@@ -207,14 +206,14 @@ function JobCard({
 
   const postedDate = job.postedAt
     ? (() => {
-        const d = new Date(job.postedAt);
-        const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
-        if (diffDays === 0) return 'Today';
-        if (diffDays === 1) return 'Yesterday';
-        if (diffDays < 7) return `${diffDays}d ago`;
-        if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
-        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-      })()
+      const d = new Date(job.postedAt);
+      const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
+      if (diffDays === 0) return 'Today';
+      if (diffDays === 1) return 'Yesterday';
+      if (diffDays < 7) return `${diffDays}d ago`;
+      if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    })()
     : null;
 
   return (
@@ -403,7 +402,7 @@ function ExplainFitModal({ jobId, userId, onClose }: { jobId: string; userId: st
           </div>
         )}
 
-            {explainQuery.isError && (
+        {explainQuery.isError && (
           <p className="text-sm text-red-400">
             Could not analyse fit. Please try again.
           </p>
@@ -712,6 +711,7 @@ export default function JobsDiscovery() {
   /** After CV upload/import elsewhere: wait for profile refetch, then re-run profile-derived search. */
   const [pendingJobsSearchAfterCv, setPendingJobsSearchAfterCv] = useState(false);
   const [minJobFitPercent, setMinJobFitPercent] = useState(() => readMinJobFitPercent());
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
   useEffect(() => {
     const sync = () => setMinJobFitPercent(readMinJobFitPercent());
@@ -745,6 +745,25 @@ export default function JobsDiscovery() {
     searchParams ?? { query: '', location: 'United Kingdom', sources: ['reed'] },
     { enabled: searchParams !== null }
   );
+
+  const jobPreferencesQuery = api.jobs.getJobPreferences.useQuery(undefined, {
+    enabled: !!userId,
+  });
+
+  const saveJobPreferencesMutation = api.jobs.saveJobPreferences.useMutation();
+
+  // Load saved preferences on mount
+  useEffect(() => {
+    if (!userId || preferencesLoaded || !jobPreferencesQuery.data) return;
+    const prefs = jobPreferencesQuery.data;
+    if (prefs.lastQuery) {
+      setQuery(prefs.lastQuery);
+    }
+    if (prefs.lastLocation) {
+      setLocation(prefs.lastLocation);
+    }
+    setPreferencesLoaded(true);
+  }, [userId, jobPreferencesQuery.data, preferencesLoaded]);
 
   const profileSearchFingerprint = useMemo(() => {
     const p = profileQuery.data as ProfileSnapshot | undefined;
@@ -829,6 +848,13 @@ export default function JobsDiscovery() {
   });
 
   const handleSearch = () => {
+    // Save preferences when user searches
+    if (userId) {
+      saveJobPreferencesMutation.mutate({
+        query,
+        location,
+      });
+    }
     setSearchParams({ query, location, sources: [...sources], userId: userId || undefined });
   };
 
@@ -892,13 +918,12 @@ export default function JobsDiscovery() {
                   ? 'Indeed and Gumtree sessions are active for your current search sources.'
                   : 'Open provider sessions (Indeed and Gumtree) when you enable those sources.'
             }
-            className={`flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-medium transition ${
-              sessionBoardGap
-                ? 'motion-safe:animate-session-warn border-red-900/70 bg-gradient-to-br from-red-950/90 to-orange-950/60 text-orange-50 motion-reduce:animate-none'
-                : sessionBoardsReady
-                  ? 'motion-safe:animate-session-ok border-teal-900/80 bg-gradient-to-br from-emerald-950/95 to-teal-950/80 text-teal-50 motion-reduce:animate-none'
-                  : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'
-            }`}
+            className={`flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-medium transition ${sessionBoardGap
+              ? 'motion-safe:animate-session-warn border-red-900/70 bg-gradient-to-br from-red-950/90 to-orange-950/60 text-orange-50 motion-reduce:animate-none'
+              : sessionBoardsReady
+                ? 'motion-safe:animate-session-ok border-teal-900/80 bg-gradient-to-br from-emerald-950/95 to-teal-950/80 text-teal-50 motion-reduce:animate-none'
+                : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'
+              }`}
           >
             <Cookie className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
             Sessions
@@ -1072,13 +1097,13 @@ export default function JobsDiscovery() {
                 ? 'Waiting For Profile After CV…'
                 : pendingJobsSearchAfterCv && deriveJobSearchQueryFromProfile(profileQuery.data as ProfileSnapshot | undefined)
                   ? 'Preparing Search From Your CV…'
-                : profileQuery.isLoading
-                  ? 'Loading Your Profile…'
-                  : deriveJobSearchQueryFromProfile(profileQuery.data as ProfileSnapshot | undefined)
-                    ? 'Searching From Your Profile…'
-                    : pendingJobsSearchAfterCv
-                      ? 'CV Synced — Add A Job Title Or Skills On Your Profile, Then Search'
-                      : 'Placeholder Cards — Add Experience, Skills, Or Summary On Profile, Then Search'}
+                  : profileQuery.isLoading
+                    ? 'Loading Your Profile…'
+                    : deriveJobSearchQueryFromProfile(profileQuery.data as ProfileSnapshot | undefined)
+                      ? 'Searching From Your Profile…'
+                      : pendingJobsSearchAfterCv
+                        ? 'CV Synced — Add A Job Title Or Skills On Your Profile, Then Search'
+                        : 'Placeholder Cards — Add Experience, Skills, Or Summary On Profile, Then Search'}
             </p>
           )}
         </div>
@@ -1092,20 +1117,20 @@ export default function JobsDiscovery() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
           {jobResults.length > 0
             ? visibleJobs.map((job) => (
-                <JobCard
-                  key={job.id}
-                  job={job}
-                  applicationStatus={jobStatusMap[job.id]}
-                  userId={userId}
-                  onExplainFit={setExplainJobId}
-                />
-              ))
+              <JobCard
+                key={job.id}
+                job={job}
+                applicationStatus={jobStatusMap[job.id]}
+                userId={userId}
+                onExplainFit={setExplainJobId}
+              />
+            ))
             : Array.from({ length: JOB_CARD_PLACEHOLDER_COUNT }, (_, i) => (
-                <JobCardPlaceholder
-                  key={`job-placeholder-${i}`}
-                  pulsing={searchQuery.isFetching || (pendingJobsSearchAfterCv && profileQuery.isFetching)}
-                />
-              ))}
+              <JobCardPlaceholder
+                key={`job-placeholder-${i}`}
+                pulsing={searchQuery.isFetching || (pendingJobsSearchAfterCv && profileQuery.isFetching)}
+              />
+            ))}
         </div>
       </div>
 
