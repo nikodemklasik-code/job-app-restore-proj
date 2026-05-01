@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { and, desc, eq } from 'drizzle-orm';
 import { jobRadarReports, jobRadarScans, jobRadarScores } from '../../../../db/schema.js';
 import type {

@@ -111,8 +111,7 @@ export async function getOrCreateAppUser(clerkUserId: string): Promise<Authentic
     id: randomUUID(),
     clerkId: clerkUserId,
     email,
-    updatedAt: new Date(),
-  }).onDuplicateKeyUpdate({ set: { email, updatedAt: new Date() } });
+  }).onDuplicateKeyUpdate({ set: { email } });
 
   const result = await db
     .select({ id: users.id, clerkId: users.clerkId, email: users.email })

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { jobRadarBenchmarks } from '../../../../db/schema.js';

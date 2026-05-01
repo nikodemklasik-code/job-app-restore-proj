@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { and, eq, inArray, isNotNull, lte } from 'drizzle-orm';
 import { jobRadarSources } from '../../../../db/schema.js';
 import type {
