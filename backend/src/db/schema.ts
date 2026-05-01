@@ -670,15 +670,6 @@ export const testAccounts = mysqlTable('test_accounts', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
-// User job search preferences (query + location persistence)
-export const userJobPreferences = mysqlTable('user_job_preferences', {
-  userId: varchar('user_id', { length: 36 }).primaryKey(),
-  lastQuery: varchar('last_query', { length: 255 }).default('').notNull(),
-  lastLocation: varchar('last_location', { length: 255 }).default('United Kingdom').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
-});
-
 // Job Radar module (Drizzle definitions live in `schemas/job-radar.ts`)
 export * from './schemas/job-radar.js';
 // SkillUp module (Drizzle definitions live in `schemas/skillup.ts`)
