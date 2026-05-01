@@ -142,6 +142,7 @@ export default function ProfileScreenV2() {
   const { user, isLoaded } = useUser();
   const store = useProfileStore();
   const { profile, isLoadingProfile, isSaving, error } = store;
+  const loadProfile = useProfileStore((s) => s.loadProfile);
   const [personalInfo, setPersonalInfo] = useState<PersonalInfo>({ fullName: '', email: '', phone: '', location: '', headline: '', summary: '', linkedinUrl: '', cvUrl: '' });
   const [career, setCareer] = useState<CareerGoalsForm>({ dreamRole: '', targetSeniority: '', targetIndustries: '', expectedSalaryMin: '', expectedSalaryMax: '', workValues: '', minimumFitScore: 75 });
   const [workSetup, setWorkSetup] = useState<WorkSetupForm>({ workModePreferences: [], employmentTypePreferences: [], contractPreferences: [], preferredHoursPerWeek: '', preferredWorkRatio: '' });
@@ -153,7 +154,7 @@ export default function ProfileScreenV2() {
   const [languages, setLanguages] = useState<ProfileLanguageInput[]>([]);
   const [hobbies, setHobbies] = useState<ProfileHobbyInput[]>([]);
 
-  useEffect(() => { if (isLoaded && user?.id) void store.loadProfile(); }, [isLoaded, store.loadProfile, user?.id]);
+  useEffect(() => { if (isLoaded && user?.id) void loadProfile(); }, [isLoaded, user?.id, loadProfile]);
   useEffect(() => {
     if (!profile) return;
     const dream = dreamJobOf(profile);
