@@ -1,7 +1,7 @@
 # Integrity marker — NOT a secret. Do not put API keys, SSH keys, or passwords here.
 # Policy: docs/policies/canonical-repo-deploy-lock-policy-v1.0.md
 PROJECT_KEY=MULTIVOHUB_JOBAPP_CANONICAL
-CANONICAL_REPO_PATH=/Users/nikodem/job-app-restore/proj
+CANONICAL_REPO_PATH=/Users/nikodem/MultivoHub 26042026/job-app-restore-proj
 CANONICAL_REMOTE_BASE=/root/project
 CANONICAL_REMOTE_FRONTEND_DIST=/root/project/frontend/dist
 CANONICAL_DEPLOY_TARGET=jobs.multivohub.com

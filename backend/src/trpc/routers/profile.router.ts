@@ -154,19 +154,19 @@ async function fetchProfileSnapshot(userId: string, email: string): Promise<Prof
   const careerGoalsSnapshot = careerRow[0] ? careerRowToSnapshot(careerRow[0]) : DEFAULT_CAREER_GOALS;
   const socialSnapshot: SocialConsentsSnapshot = socialRow[0]
     ? {
-        linkedinConsent: socialRow[0].linkedinConsent,
-        facebookConsent: socialRow[0].facebookConsent,
-        instagramConsent: socialRow[0].instagramConsent,
-      }
+      linkedinConsent: socialRow[0].linkedinConsent,
+      facebookConsent: socialRow[0].facebookConsent,
+      instagramConsent: socialRow[0].instagramConsent,
+    }
     : DEFAULT_SOCIAL;
   const preferenceSnapshot: UserPreferenceFlagsSnapshot = prefRow[0]
     ? {
-        caseStudyOptIn: prefRow[0].caseStudyOptIn,
-        communityVisibility: prefRow[0].communityVisibility,
-        referralParticipation: prefRow[0].referralParticipation,
-        sharedSessionsDiscoverable: prefRow[0].sharedSessionsDiscoverable,
-        aiPersonalizationEnabled: prefRow[0].aiPersonalizationEnabled,
-      }
+      caseStudyOptIn: prefRow[0].caseStudyOptIn,
+      communityVisibility: prefRow[0].communityVisibility,
+      referralParticipation: prefRow[0].referralParticipation,
+      sharedSessionsDiscoverable: prefRow[0].sharedSessionsDiscoverable,
+      aiPersonalizationEnabled: prefRow[0].aiPersonalizationEnabled,
+    }
     : DEFAULT_PREFS;
 
   const profile = profileRecord[0];
@@ -668,43 +668,56 @@ export const profileRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      console.log('[saveCareerGoals] START', { userId: ctx.user.id, input });
+
       const localUserId = ctx.user.id;
       await ensureCareerGoalsRow(localUserId);
+      console.log('[saveCareerGoals] ensureCareerGoalsRow completed');
 
       const [row] = await db.select().from(careerGoals).where(eq(careerGoals.userId, localUserId)).limit(1);
+      console.log('[saveCareerGoals] existing row', row);
+
       const prevStrategy = row ? normalizeStrategy(row.strategyJson) : {};
       const normalizedStrategyPatch: ProfileStrategyJson | undefined = input.strategy
         ? {
-            ...input.strategy,
-            roadmap: Array.isArray(input.strategy.roadmap)
-              ? input.strategy.roadmap.map((item) => ({
-                  id: randomUUID(),
-                  title: item.title,
-                  status: item.done ? 'done' : 'not_started',
-                }))
-              : undefined,
-          }
+          ...input.strategy,
+          roadmap: Array.isArray(input.strategy.roadmap)
+            ? input.strategy.roadmap.map((item) => ({
+              id: randomUUID(),
+              title: item.title,
+              status: item.done ? 'done' : 'not_started',
+            }))
+            : undefined,
+        }
         : undefined;
       const nextStrategy: ProfileStrategyJson = normalizedStrategyPatch ? { ...prevStrategy, ...normalizedStrategyPatch } : prevStrategy;
 
+      const updateData = {
+        ...(input.currentJobTitle !== undefined ? { currentJobTitle: input.currentJobTitle } : {}),
+        ...(input.currentSalary !== undefined ? { currentSalary: input.currentSalary } : {}),
+        ...(input.targetJobTitle !== undefined ? { targetJobTitle: input.targetJobTitle } : {}),
+        ...(input.targetSalary !== undefined ? { targetSalary: input.targetSalary } : {}),
+        ...(input.targetSalaryMin !== undefined ? { targetSalaryMin: input.targetSalaryMin } : {}),
+        ...(input.targetSalaryMax !== undefined ? { targetSalaryMax: input.targetSalaryMax } : {}),
+        ...(input.targetSeniority !== undefined ? { targetSeniority: input.targetSeniority } : {}),
+        ...(input.workValues !== undefined ? { workValues: workValuesToDb(input.workValues) } : {}),
+        ...(input.autoApplyMinScore !== undefined ? { autoApplyMinScore: input.autoApplyMinScore } : {}),
+        ...(input.strategy !== undefined ? { strategyJson: nextStrategy } : {}),
+        updatedAt: new Date(),
+      };
+
+      console.log('[saveCareerGoals] UPDATE data', updateData);
+
       await db
         .update(careerGoals)
-        .set({
-          ...(input.currentJobTitle !== undefined ? { currentJobTitle: input.currentJobTitle } : {}),
-          ...(input.currentSalary !== undefined ? { currentSalary: input.currentSalary } : {}),
-          ...(input.targetJobTitle !== undefined ? { targetJobTitle: input.targetJobTitle } : {}),
-          ...(input.targetSalary !== undefined ? { targetSalary: input.targetSalary } : {}),
-          ...(input.targetSalaryMin !== undefined ? { targetSalaryMin: input.targetSalaryMin } : {}),
-          ...(input.targetSalaryMax !== undefined ? { targetSalaryMax: input.targetSalaryMax } : {}),
-          ...(input.targetSeniority !== undefined ? { targetSeniority: input.targetSeniority } : {}),
-          ...(input.workValues !== undefined ? { workValues: workValuesToDb(input.workValues) } : {}),
-          ...(input.autoApplyMinScore !== undefined ? { autoApplyMinScore: input.autoApplyMinScore } : {}),
-          ...(input.strategy !== undefined ? { strategyJson: nextStrategy } : {}),
-          updatedAt: new Date(),
-        })
+        .set(updateData)
         .where(eq(careerGoals.userId, localUserId));
 
-      return fetchProfileSnapshot(localUserId, ctx.user.email);
+      console.log('[saveCareerGoals] UPDATE completed, fetching snapshot');
+      const result = await fetchProfileSnapshot(localUserId, ctx.user.email);
+      console.log('[saveCareerGoals] SUCCESS, targetJobTitle in result:', result.careerGoals?.targetJobTitle);
+
+      return result;
     }),
 
   saveSocialConsents: protectedProcedure

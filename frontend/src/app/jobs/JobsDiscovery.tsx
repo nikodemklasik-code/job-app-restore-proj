@@ -6,9 +6,11 @@ import {
   hasPendingCvJobsSearchMarker,
 } from '@/lib/jobsAfterCvSync';
 import type { ProfileSnapshot } from '../../../../shared/profile';
-import { Search, MapPin, DollarSign, Plus, ExternalLink, Loader2, Cookie, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Sparkles, Wifi, BookOpen, ChevronRight } from 'lucide-react';
+import { Search, MapPin, DollarSign, Plus, ExternalLink, Loader2, Cookie, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Sparkles, Wifi, BookOpen, ChevronRight, Save, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { MIN_JOB_FIT_LOCAL_KEY, readMinJobFitPercent } from '@/lib/jobMatchPreferences';
+import { JobCardCompact } from '@/components/jobs/JobCardCompact';
+import { JobCardExpanded } from '@/components/jobs/JobCardExpanded';
 
 type JobResult = {
   id: string;
@@ -712,6 +714,8 @@ export default function JobsDiscovery() {
   const [pendingJobsSearchAfterCv, setPendingJobsSearchAfterCv] = useState(false);
   const [minJobFitPercent, setMinJobFitPercent] = useState(() => readMinJobFitPercent());
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
 
   // Load saved preferences
   const preferencesQuery = api.jobs.getJobPreferences.useQuery(
@@ -879,7 +883,9 @@ export default function JobsDiscovery() {
       });
     }
     setSearchParams({ query, location, sources: [...sources], userId: userId || undefined });
-    // Save preferences
+  };
+
+  const handleSaveSearch = () => {
     if (userId) {
       savePreferencesMutation.mutate({ userId, query, location });
     }
@@ -1026,6 +1032,23 @@ export default function JobsDiscovery() {
             {searchQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             Search
           </button>
+          {userId && (
+            <button
+              onClick={handleSaveSearch}
+              disabled={savePreferencesMutation.isPending}
+              className="flex items-center gap-2 rounded-xl border border-emerald-600/50 bg-emerald-600/10 px-4 py-2 text-sm font-semibold text-emerald-400 transition hover:bg-emerald-600/20 disabled:opacity-60"
+              title="Save this search for next time"
+            >
+              {savePreferencesMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : savePreferencesMutation.isSuccess ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {savePreferencesMutation.isSuccess ? 'Saved!' : 'Save'}
+            </button>
+          )}
         </div>
 
         {/* Source toggles */}
@@ -1141,17 +1164,53 @@ export default function JobsDiscovery() {
           </p>
         )}
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+        <div className="space-y-5">
           {jobResults.length > 0
-            ? visibleJobs.map((job) => (
-              <JobCard
-                key={job.id}
-                job={job}
-                applicationStatus={jobStatusMap[job.id]}
-                userId={userId}
-                onExplainFit={setExplainJobId}
-              />
-            ))
+            ? visibleJobs.map((job) => {
+              const isExpanded = expandedJobId === job.id;
+              const isSaved = savedJobs.has(job.id);
+
+              return isExpanded ? (
+                <JobCardExpanded
+                  key={job.id}
+                  job={job}
+                  applicationStatus={jobStatusMap[job.id]}
+                  isSaved={isSaved}
+                  onToggleSave={() => {
+                    setSavedJobs(prev => {
+                      const next = new Set(prev);
+                      if (next.has(job.id)) {
+                        next.delete(job.id);
+                      } else {
+                        next.add(job.id);
+                      }
+                      return next;
+                    });
+                  }}
+                  onCollapse={() => setExpandedJobId(null)}
+                />
+              ) : (
+                <JobCardCompact
+                  key={job.id}
+                  job={job}
+                  applicationStatus={jobStatusMap[job.id]}
+                  isSaved={isSaved}
+                  onToggleSave={() => {
+                    setSavedJobs(prev => {
+                      const next = new Set(prev);
+                      if (next.has(job.id)) {
+                        next.delete(job.id);
+                      } else {
+                        next.add(job.id);
+                      }
+                      return next;
+                    });
+                  }}
+                  onExpand={() => setExpandedJobId(job.id)}
+                  isExpanded={false}
+                />
+              );
+            })
             : Array.from({ length: JOB_CARD_PLACEHOLDER_COUNT }, (_, i) => (
               <JobCardPlaceholder
                 key={`job-placeholder-${i}`}

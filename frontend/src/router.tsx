@@ -7,6 +7,7 @@ import { APP_SCREENS, LEGACY_ROUTE_REDIRECTS } from './config/appScreens';
 const AuthPage = lazy(() => import('./app/auth/AuthPage'));
 const DashboardPage = lazy(() => import('./app/dashboard/DashboardPage'));
 const JobsDiscovery = lazy(() => import('./app/jobs/JobsDiscovery'));
+const JobDetailPage = lazy(() => import('./app/jobs/JobDetailPage'));
 const ApplicationsPage = lazy(() => import('./app/applications/ApplicationsPage'));
 const ApplicationsPipeline = lazy(() => import('./app/applications/ApplicationsPipeline'));
 const ReviewQueue = lazy(() => import('./app/review/ReviewQueue'));
@@ -98,6 +99,7 @@ export const router = createBrowserRouter([
       { path: APP_SCREENS.documentUpload.path.slice(1), element: withSuspense(DocumentLab) },
       { path: APP_SCREENS.styleStudio.path.slice(1), element: withSuspense(StyleStudioRedirect) },
       { path: APP_SCREENS.jobs.path.slice(1), element: withSuspense(JobsDiscovery) },
+      { path: 'jobs/:id', element: withSuspense(JobDetailPage) },
       { path: APP_SCREENS.applications.path.slice(1), element: withSuspense(ApplicationsPage) },
       { path: 'applications/board', element: withSuspense(ApplicationsPipeline) },
       { path: APP_SCREENS.applicationsReview.path.slice(1), element: withSuspense(ReviewQueue) },
