@@ -44,8 +44,7 @@ export const useCareerAssistantStore = create<CareerAssistantStore>((set, get) =
         error: null,
       });
     } catch {
-      // Silent fail — new users have no history, treat as empty conversation
-      set({ messages: [], status: 'idle', error: null });
+      set({ status: 'error', error: 'Could not load conversation history. Please refresh.' });
     }
   },
 

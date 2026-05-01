@@ -170,30 +170,28 @@ function EmptyState({ onAction, isSending }: {
   isSending: boolean;
 }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-10 px-4 py-8">
+    <div className="flex h-full flex-col items-center justify-center gap-8 px-4 py-8">
       {/* Hero */}
-      <div className="text-center space-y-4">
-        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-xl shadow-indigo-500/30 border border-indigo-500/30">
+      <div className="text-center">
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-xl shadow-indigo-500/30">
           <Sparkles className="h-8 w-8 text-white" />
         </div>
-        <div>
-          <h2 className="text-2xl font-bold text-white">AI Career Assistant</h2>
-          <p className="mt-2 text-sm text-slate-400">
-            Powered by GPT-4o · Get expert advice on CV, interviews, salary, and strategy
-          </p>
-        </div>
-        <div className="mx-auto flex w-fit items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 backdrop-blur-sm">
+        <h2 className="text-xl font-bold text-white">AI Career Assistant</h2>
+        <p className="mt-1.5 text-sm text-slate-400">
+          Powered by GPT-4o · CV, interviews, salary, strategy
+        </p>
+        <div className="mx-auto mt-3 flex w-fit items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
           <span className="text-xs font-medium text-emerald-400">Online</span>
         </div>
       </div>
 
       {/* Quick actions */}
-      <div className="w-full max-w-xl">
-        <p className="mb-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">
+      <div className="w-full max-w-lg">
+        <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">
           Quick start
         </p>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           {QUICK_ACTIONS.map((action) => {
             const Icon = action.icon;
             return (
@@ -315,16 +313,16 @@ export default function AssistantPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-10rem)] flex-col gap-6">
+    <div className="flex h-[calc(100vh-10rem)] flex-col gap-4">
 
         {/* ── Header ──────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25 p-2.5 border border-indigo-500/30">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25">
               <Bot className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white leading-tight">AI Career Assistant</h1>
+              <h1 className="text-lg font-bold text-white leading-tight">AI Career Assistant</h1>
               <div className="flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="text-xs text-slate-400">GPT-4o · online</span>
@@ -332,11 +330,11 @@ export default function AssistantPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <button
               onClick={() => clearMessages?.()}
               title="New conversation"
-              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-white transition-all"
+              className="flex items-center gap-1.5 rounded-xl border border-white/8 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-400 transition-colors hover:bg-white/10 hover:text-white"
             >
               <MessageSquarePlus className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">New chat</span>
@@ -345,7 +343,7 @@ export default function AssistantPage() {
               onClick={() => void loadHistory()}
               disabled={isLoading}
               title="Refresh"
-              className="flex items-center justify-center rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 p-1.5 text-slate-400 hover:text-white transition-all disabled:opacity-40"
+              className="flex items-center justify-center rounded-xl border border-white/8 bg-white/5 p-1.5 text-slate-400 transition-colors hover:bg-white/10 hover:text-white disabled:opacity-40"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
@@ -363,7 +361,7 @@ export default function AssistantPage() {
         )}
 
         {/* ── Messages ────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-sm">
+        <div className="flex-1 overflow-y-auto rounded-2xl border border-white/8 bg-white/[0.02]">
           {isLoading ? (
             <div className="flex h-full items-center justify-center gap-1.5">
               {[0, 1, 2].map((i) => (
@@ -396,7 +394,7 @@ export default function AssistantPage() {
         </div>
 
         {/* ── Input bar ───────────────────────────────────────────────── */}
-        <div className="flex items-end gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-4 backdrop-blur-sm">
+        <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur-sm">
           <textarea
             ref={textareaRef}
             rows={1}
