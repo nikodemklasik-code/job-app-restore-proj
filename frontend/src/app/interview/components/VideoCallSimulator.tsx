@@ -549,19 +549,11 @@ function RecruiterAvatar({
   isSpeaking: boolean;
   isListening: boolean;
 }) {
-<<<<<<< HEAD
-  const config = PERSONA_CONFIG[persona];
-  const [blinkPhase, setBlinkPhase] = useState(false);
-  const [speakingAnimation, setSpeakingAnimation] = useState(0);
-
-  // Blinking animation
-=======
   const p = PERSONAS[persona];
   const [blink, setBlink] = useState(false);
   const [mouth, setMouth] = useState(false);
 
   // Natural blinking
->>>>>>> 1e93f01 (feat(ui): rebuild Warmup, Assistant, Settings + fix Legal Hub search scoring)
   useEffect(() => {
     let tid: ReturnType<typeof setTimeout>;
     const schedule = () => {
@@ -601,90 +593,6 @@ function RecruiterAvatar({
   }, [isSpeaking]);
 
   return (
-<<<<<<< HEAD
-    <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-850 to-gray-800 overflow-hidden">
-      {/* Animated background particles */}
-      <div className="absolute inset-0 opacity-10">
-        <div className={`absolute top-1/4 left-1/4 w-32 h-32 rounded-full bg-gradient-to-br ${config.bgGradient} blur-3xl animate-pulse`} />
-        <div className={`absolute bottom-1/4 right-1/4 w-40 h-40 rounded-full bg-gradient-to-br ${config.bgGradient} blur-3xl animate-pulse`} style={{ animationDelay: '1s' }} />
-      </div>
-
-      {/* Avatar container */}
-      <div className="relative z-10 flex flex-col items-center">
-        {/* Outer glow rings */}
-        {isSpeaking && (
-          <>
-            <div className="absolute inset-0 rounded-full border-4 border-green-400/40 animate-ping" style={{ width: '200px', height: '200px', top: '-38px', left: '-38px' }} />
-            <div className="absolute inset-0 rounded-full border-3 border-green-400/60 animate-pulse" style={{ width: '170px', height: '170px', top: '-23px', left: '-23px' }} />
-          </>
-        )}
-
-        {isListening && !isSpeaking && (
-          <div className="absolute inset-0 rounded-full border-3 border-blue-400/50 animate-pulse" style={{ width: '170px', height: '170px', top: '-23px', left: '-23px' }} />
-        )}
-
-        {/* Main avatar circle with enhanced styling */}
-        <div
-          className={`relative w-32 h-32 rounded-full flex items-center justify-center text-7xl shadow-2xl transition-all duration-300 ${isSpeaking ? 'scale-110 shadow-green-500/50' : 'scale-100'
-            }`}
-          style={{
-            backgroundColor: config.color,
-            boxShadow: isSpeaking ? `0 0 40px ${config.color}80, 0 0 80px ${config.color}40` : `0 10px 40px rgba(0,0,0,0.5)`
-          }}
-        >
-          {/* Avatar emoji */}
-          <div className={`transition-transform duration-200 ${isSpeaking ? 'scale-105' : 'scale-100'}`}>
-            {config.avatar}
-          </div>
-
-          {/* Speaking indicator - animated mouth */}
-          {isSpeaking && (
-            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
-              <div className={`w-8 h-2 bg-white/80 rounded-full transition-all duration-100 ${speakingAnimation === 0 ? 'scale-x-100' : speakingAnimation === 1 ? 'scale-x-125 scale-y-150' : 'scale-x-75'
-                }`} />
-            </div>
-          )}
-
-          {/* Microphone indicator badge */}
-          {isSpeaking && (
-            <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-green-500 rounded-full flex items-center justify-center shadow-lg border-4 border-gray-900 animate-pulse">
-              <Mic className="w-5 h-5 text-white" />
-            </div>
-          )}
-
-          {/* Muted indicator when not speaking */}
-          {!isSpeaking && !isListening && (
-            <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center shadow-lg border-4 border-gray-900">
-              <MicOff className="w-5 h-5 text-gray-400" />
-            </div>
-          )}
-        </div>
-
-        {/* Name tag - Zoom-style */}
-        <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 bg-gray-900/95 backdrop-blur-sm px-4 py-2 rounded-lg border border-gray-700 shadow-xl min-w-[200px]">
-          <div className="text-white font-semibold text-base text-center">{config.name}</div>
-          <div className="text-gray-400 text-xs text-center mt-0.5">{config.role}</div>
-          {isSpeaking && (
-            <div className="flex items-center justify-center gap-1 mt-1">
-              <div className="w-1 h-3 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
-              <div className="w-1 h-4 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
-              <div className="w-1 h-3 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
-              <div className="w-1 h-2 bg-green-400 rounded-full animate-pulse" style={{ animationDelay: '450ms' }} />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Connection quality indicator */}
-      <div className="absolute top-4 left-4 flex items-center gap-2 bg-gray-900/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-gray-700">
-        <div className="flex gap-0.5">
-          <div className="w-1 h-3 bg-green-400 rounded-full" />
-          <div className="w-1 h-4 bg-green-400 rounded-full" />
-          <div className="w-1 h-5 bg-green-400 rounded-full" />
-        </div>
-        <span className="text-xs text-gray-300">HD</span>
-      </div>
-=======
     <div className="relative w-full h-full overflow-hidden bg-[#C8BCAA]">
       <PersonVideoFeed p={p} blink={blink} mouth={mouth} speaking={isSpeaking} />
 
@@ -725,7 +633,6 @@ function RecruiterAvatar({
           to   { transform: scaleY(1); }
         }
       `}</style>
->>>>>>> 1e93f01 (feat(ui): rebuild Warmup, Assistant, Settings + fix Legal Hub search scoring)
     </div>
   );
 }
@@ -763,15 +670,6 @@ function CandidateCameraPreview({
   }, [cameraEnabled]);
 
   return (
-<<<<<<< HEAD
-    <div className={`relative w-full h-full bg-gray-900 rounded-xl overflow-hidden border-3 transition-all duration-300 ${isSpeaking ? 'border-green-400 shadow-lg shadow-green-500/50' : 'border-gray-700'
-      }`}>
-      {cameraEnabled ? (
-        <>
-          <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
-
-          {/* Speaking indicator overlay */}
-=======
     <div
       className={`relative w-full h-full bg-gray-900 rounded-lg overflow-hidden border-2 transition-colors ${
         isSpeaking ? 'border-green-400' : 'border-gray-600'
@@ -787,7 +685,6 @@ function CandidateCameraPreview({
             className="w-full h-full object-cover"
             style={{ transform: 'scaleX(-1)' }}
           />
->>>>>>> 1e93f01 (feat(ui): rebuild Warmup, Assistant, Settings + fix Legal Hub search scoring)
           {isSpeaking && (
             <>
               <div className="absolute inset-0 border-4 border-green-400 rounded-xl animate-pulse pointer-events-none" />
@@ -885,24 +782,14 @@ function CallControls({
     <div className="flex items-center justify-center gap-4 bg-gray-900/90 px-6 py-4 rounded-full backdrop-blur-sm border border-gray-700">
       <button
         onClick={() => onMicToggle(!micEnabled)}
-<<<<<<< HEAD
-        className={`p-3 rounded-full transition-all ${micEnabled ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-red-600 hover:bg-red-700 text-white'
-          }`}
-=======
         className={`p-3 rounded-full transition-all ${micEnabled ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'} text-white`}
->>>>>>> 1e93f01 (feat(ui): rebuild Warmup, Assistant, Settings + fix Legal Hub search scoring)
         title={micEnabled ? 'Mute' : 'Unmute'}
       >
         {micEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
       </button>
       <button
         onClick={() => onCameraToggle(!cameraEnabled)}
-<<<<<<< HEAD
-        className={`p-3 rounded-full transition-all ${cameraEnabled ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-red-600 hover:bg-red-700 text-white'
-          }`}
-=======
         className={`p-3 rounded-full transition-all ${cameraEnabled ? 'bg-gray-700 hover:bg-gray-600' : 'bg-red-600 hover:bg-red-700'} text-white`}
->>>>>>> 1e93f01 (feat(ui): rebuild Warmup, Assistant, Settings + fix Legal Hub search scoring)
         title={cameraEnabled ? 'Turn off camera' : 'Turn on camera'}
       >
         {cameraEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
@@ -961,11 +848,8 @@ function InterviewProgress({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function VideoCallSimulator({
-<<<<<<< HEAD
-=======
   recruiterName: _recruiterName,
   recruiterRole: _recruiterRole,
->>>>>>> 1e93f01 (feat(ui): rebuild Warmup, Assistant, Settings + fix Legal Hub search scoring)
   recruiterPersona,
   isRecruiterSpeaking,
   recruiterMessage,
@@ -983,42 +867,6 @@ export function VideoCallSimulator({
 }: VideoCallSimulatorProps) {
   return (
     <div className="w-full h-screen bg-gray-950 flex flex-col">
-<<<<<<< HEAD
-      {/* Top bar - Zoom style */}
-      <div className="bg-gray-900 border-b border-gray-800 px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-gray-800 px-3 py-1.5 rounded-lg">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-            <span className="text-sm text-gray-300 font-medium">Live Interview</span>
-          </div>
-          <div className="text-sm text-gray-500">
-            {String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:{String(elapsedSeconds % 60).padStart(2, '0')}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Connection quality */}
-          <div className="flex items-center gap-2 bg-gray-800 px-3 py-1.5 rounded-lg">
-            <div className="flex gap-0.5">
-              <div className="w-1 h-2 bg-green-400 rounded-full" />
-              <div className="w-1 h-3 bg-green-400 rounded-full" />
-              <div className="w-1 h-4 bg-green-400 rounded-full" />
-            </div>
-            <span className="text-xs text-gray-400">Stable</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Main video area */}
-      <div className="flex-1 flex gap-4 p-4 overflow-hidden">
-        {/* Recruiter video (main) */}
-        <div className="flex-1 rounded-xl overflow-hidden shadow-2xl border-2 border-gray-800 bg-gray-900">
-          <RecruiterAvatar persona={recruiterPersona} isSpeaking={isRecruiterSpeaking} isListening={!isRecruiterSpeaking && !isProcessing} />
-        </div>
-
-        {/* Candidate camera (PiP) - Zoom style positioning */}
-        <div className="w-72 h-48 rounded-xl overflow-hidden shadow-2xl">
-=======
       {/* Video area */}
       <div className="flex-1 flex gap-4 p-4 overflow-hidden">
         {/* Recruiter (main feed) */}
@@ -1032,18 +880,12 @@ export function VideoCallSimulator({
 
         {/* Candidate PiP */}
         <div className="w-64 rounded-xl overflow-hidden shadow-lg border border-gray-700">
->>>>>>> 1e93f01 (feat(ui): rebuild Warmup, Assistant, Settings + fix Legal Hub search scoring)
           <CandidateCameraPreview cameraEnabled={cameraEnabled} isSpeaking={isCandidateSpeaking} />
         </div>
       </div>
 
       {/* Bottom panel */}
-<<<<<<< HEAD
-      <div className="bg-gray-900 border-t border-gray-800 p-4 space-y-4">
-        {/* Transcription */}
-=======
       <div className="bg-gray-900 border-t border-gray-700 p-4 space-y-4">
->>>>>>> 1e93f01 (feat(ui): rebuild Warmup, Assistant, Settings + fix Legal Hub search scoring)
         <TranscriptionOverlay
           recruiterMessage={recruiterMessage}
           candidateTranscript={candidateTranscript}
