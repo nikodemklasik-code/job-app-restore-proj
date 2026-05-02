@@ -817,42 +817,82 @@ export default function JobsDiscovery() {
         </div>
       </div>
 
-      {/* Error */}
-        {searchQuery.isError && (
-        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400">
-          Search failed. Please try again.
-        </p>
-      )}
-
       {/* Results */}
-      {searchQuery.isFetching ? (
-        <div className="flex h-48 items-center justify-center">
-          <div className="text-center space-y-2">
-            <Loader2 className="h-8 w-8 animate-spin text-indigo-600 mx-auto" />
-            <p className="text-sm text-slate-500">Searching {sources.join(', ')}…</p>
-          </div>
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Results</h2>
+          {searchQuery.isError ? (
+            <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs text-red-400 sm:max-w-md">
+              Search Failed — Please Try Again
+            </p>
+          ) : searchQuery.isFetching ? (
+            <p className="flex items-center gap-2 text-xs text-slate-500">
+              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-indigo-400" />
+              Searching {sources.join(', ')}…
+            </p>
+          ) : jobResults.length > 0 ? (
+            <p className="text-xs text-slate-500">
+              Showing {visibleJobs.length} of {jobResults.length} listing{jobResults.length === 1 ? '' : 's'}
+              {visibleJobs.length < jobResults.length ? ` (min fit ${minJobFitPercent}%)` : ''}
+            </p>
+          ) : searchParams !== null ? (
+            <p className="text-xs text-slate-500">No Listings For This Search — Try Other Keywords Or Location</p>
+          ) : (
+            <p className="text-xs text-slate-500">
+              {pendingJobsSearchAfterCv && profileQuery.isFetching
+                ? 'Waiting For Profile After CV…'
+                : pendingJobsSearchAfterCv
+                  ? 'Preparing Search From Your CV…'
+                  : profileQuery.isLoading
+                    ? 'Loading Your Profile…'
+                    : 'Placeholder Cards — Add Experience, Skills, Or Summary On Profile, Then Search'}
+            </p>
+          )}
         </div>
-      ) : jobResults.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
-          {jobResults.map((job) => (
-            <JobCard
-              key={job.id}
-              job={job}
-              applicationStatus={jobStatusMap[job.id]}
-              userId={userId}
-              onExplainFit={setExplainJobId}
-            />
-          ))}
+
+        {jobResults.length > 0 && visibleJobs.length === 0 && (
+          <p className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+            Every listing is below your minimum fit. Lower the slider (here or on Profile) to see more roles.
+          </p>
+        )}
+
+        <div className="space-y-5">
+          {jobResults.length > 0
+            ? visibleJobs.map((job) => {
+              const isExpanded = expandedJobId === job.id;
+              const isSaved = savedJobs.has(job.id);
+
+              return isExpanded ? (
+                <JobCardExpanded
+                  key={job.id}
+                  job={job}
+                  applicationStatus={jobStatusMap[job.id]}
+                  isSaved={isSaved}
+                  onToggleSave={() => handleToggleSave(job.id)}
+                  onCollapse={() => setExpandedJobId(null)}
+                  onExplain={() => setExplainJobId(job.id)}
+                />
+              ) : (
+                <JobCardCompact
+                  key={job.id}
+                  job={job}
+                  applicationStatus={jobStatusMap[job.id]}
+                  isSaved={isSaved}
+                  onToggleSave={() => handleToggleSave(job.id)}
+                  onExpand={() => setExpandedJobId(job.id)}
+                  onExplain={() => setExplainJobId(job.id)}
+                  isExpanded={false}
+                />
+              );
+            })
+            : Array.from({ length: JOB_CARD_PLACEHOLDER_COUNT }, (_, i) => (
+              <JobCardPlaceholder
+                key={`job-placeholder-${i}`}
+                pulsing={searchQuery.isFetching || (pendingJobsSearchAfterCv && profileQuery.isFetching)}
+              />
+            ))}
         </div>
-      ) : searchParams !== null ? (
-        <div className="flex h-48 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-500 dark:border-white/10 dark:bg-white/5">
-          No jobs found. Try different keywords or locations.
-        </div>
-      ) : (
-        <div className="flex h-48 items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 dark:border-white/10 dark:text-slate-500">
-          Enter a search query above and click Search to find jobs.
-        </div>
-      )}
+      </div>
 
       {/* Explain Fit Modal */}
       {explainJobId && (

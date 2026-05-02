@@ -347,7 +347,9 @@ export default function AssistantPage() {
   };
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-6rem)] min-h-[640px] max-w-4xl flex-col gap-0 overflow-hidden">
+    /* Escape AppShell padding (p-6 / lg:p-8) so the chat fills the viewport edge-to-edge vertically */
+    <div className="-mx-6 -my-6 lg:-mx-8 lg:-my-8 flex h-[calc(100%+3rem)] lg:h-[calc(100%+4rem)] flex-col overflow-hidden">
+      <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden px-4 py-4 lg:px-6">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header className="shrink-0 rounded-t-3xl border border-b-0 border-white/10 bg-white/[0.04] px-5 py-4">
@@ -490,9 +492,11 @@ export default function AssistantPage() {
       </div>
 
       {/* ── Hint ────────────────────────────────────────────────────────────── */}
-      <p className="shrink-0 pt-2 text-center text-[11px] text-slate-600">
+      <p className="shrink-0 pt-1.5 text-center text-[11px] text-slate-600">
         Enter to send · Shift+Enter for new line · Mic for voice
       </p>
+
+      </div>{/* end inner max-w wrapper */}
     </div>
   );
 }

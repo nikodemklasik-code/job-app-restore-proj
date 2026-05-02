@@ -1,12 +1,99 @@
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { eq, and, desc, like, or, inArray } from 'drizzle-orm';
-import { publicProcedure, router } from '../trpc.js';
+import { publicProcedure, protectedProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
-import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions } from '../../db/schema.js';
-import { searchAllProviders } from '../../services/jobProviders.js';
-import { scoreJobFit, explainJobFit, isScamJob, getCompanyProfile } from '../../services/aiPersonalizer.js';
+import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions, savedJobs, userJobPreferences } from '../../db/schema.js';
+import { JobDiscoveryService } from '../../services/jobSources/jobDiscoveryService.js';
+import { discoverJobsForProfile } from '../../services/jobSources/profileDrivenDiscovery.js';
+import { explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.js';
+import { assessJobScamRisk } from '../../services/jobProtection.js';
 import { buildCandidateInsights } from '../../services/adaptiveInterviewer.js';
+
+const PUBLIC_JOB_PROVIDERS = ['reed', 'adzuna', 'jooble'];
+
+function mapRequestedProviders(sources: string[]): string[] {
+  return sources.map((source) => {
+    if (source === 'indeed') return 'indeed-browser';
+    return source;
+  });
+}
+
+function isBroadUkLocation(location: string): boolean {
+  const value = location.trim().toLowerCase();
+  return [
+    '',
+    'england',
+    'all england',
+    'whole england',
+    'cała anglia',
+    'cala anglia',
+    'uk',
+    'united kingdom',
+    'great britain',
+    'gb',
+    'anywhere',
+    'remote',
+  ].includes(value);
+}
+
+function locationFallbacks(location: string): string[] {
+  const original = location.trim();
+  const value = original.toLowerCase();
+  const fallbacks = isBroadUkLocation(original)
+    ? [original, 'United Kingdom', 'England', '']
+    : value === 'manchester'
+      ? [original, 'Manchester', 'Greater Manchester', '']
+      : [original];
+  return Array.from(new Set(fallbacks));
+}
+
+function queryFallbacks(query: string): string[] {
+  const original = query.trim();
+  const value = original.toLowerCase();
+  const fallbackTerms: string[] = [original];
+
+  if (/\bwaiter\b|\bwaitress\b|\bserver\b/.test(value)) {
+    fallbackTerms.push(
+      'waiter waitress',
+      'restaurant waiter',
+      'front of house',
+      'bar staff',
+      'hospitality assistant',
+      'restaurant staff',
+      'cafe assistant',
+    );
+  }
+
+  return Array.from(new Set(fallbackTerms.filter(Boolean)));
+}
+
+async function runManualDiscoveryWithFallbacks(input: {
+  query: string;
+  location: string;
+  limit: number;
+  userId?: string;
+  providers: string[];
+}, providerContext: { sessionCookies?: { indeed?: string; gumtree?: string }; userId?: string }): Promise<Awaited<ReturnType<typeof JobDiscoveryService.discover>>['jobs']> {
+  const providers = Array.from(new Set([...input.providers, ...PUBLIC_JOB_PROVIDERS]));
+  const attempts: Array<{ query: string; location: string }> = [];
+
+  for (const query of queryFallbacks(input.query)) {
+    for (const location of locationFallbacks(input.location)) {
+      attempts.push({ query, location });
+    }
+  }
+
+  for (const attempt of attempts) {
+    const result = await JobDiscoveryService.discover(
+      { ...input, query: attempt.query, location: attempt.location, providers },
+      providerContext,
+    );
+    if (result.jobs.length > 0) return result.jobs;
+  }
+
+  return [];
+}
 
 export const jobsRouter = router({
   search: publicProcedure
@@ -19,7 +106,6 @@ export const jobsRouter = router({
     }))
     .query(async ({ input }) => {
       try {
-        // Fetch session cookies for Indeed/Gumtree if user is signed in
         let sessionCookies: { indeed?: string; gumtree?: string } | undefined;
         if (input.userId) {
           const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
@@ -37,47 +123,82 @@ export const jobsRouter = router({
           }
         }
 
-        const listings = await searchAllProviders(input.query, input.location, input.limit, input.sources, sessionCookies);
+        const trimmedQuery = input.query.trim();
+        const providerContext = { sessionCookies, userId: input.userId };
+        const discoveryInput = {
+          query: trimmedQuery,
+          location: input.location,
+          limit: input.limit,
+          userId: input.userId,
+          providers: mapRequestedProviders(input.sources),
+        };
 
-        let profileForScoring: { summary?: string; skills?: string[] } = {};
-        if (input.userId) {
-          const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
-          if (userRecord[0]) {
-            const profileRecord = await db.select({ id: profiles.id, summary: profiles.summary })
-              .from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1);
-            if (profileRecord[0]) {
-              const skillRecords = await db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profileRecord[0].id));
-              profileForScoring = { summary: profileRecord[0].summary ?? '', skills: skillRecords.map((s) => s.name) };
+        let discoveryJobs = input.userId && trimmedQuery.length === 0
+          ? await discoverJobsForProfile(discoveryInput, providerContext)
+          : (await JobDiscoveryService.discover(discoveryInput, providerContext)).jobs;
+
+        // If a manual search returns zero, retry with public suppliers, location
+        // variants and role synonyms before showing emptiness. This is especially
+        // important for hospitality queries such as "waiter" in Manchester.
+        if (discoveryJobs.length === 0 && trimmedQuery.length > 0) {
+          discoveryJobs = await runManualDiscoveryWithFallbacks(discoveryInput, providerContext);
+        }
+
+        // Last resort: use OpenAI to generate realistic listings if all real providers failed.
+        // This ensures users always see relevant results rather than an empty state.
+        if (discoveryJobs.length === 0 && trimmedQuery.length > 0 && process.env.OPENAI_API_KEY) {
+          try {
+            const { getProvider } = await import('../../services/jobSources/providerRegistry.js');
+            const aiProvider = getProvider('openai-discovery');
+            if (aiProvider) {
+              const aiJobs = await aiProvider.discover(discoveryInput, providerContext);
+              if (aiJobs.length > 0) {
+                console.info('[jobs.search] using OpenAI fallback, generated', aiJobs.length, 'listings');
+                discoveryJobs = aiJobs;
+              }
             }
+          } catch (err) {
+            console.error('[jobs.search] OpenAI fallback failed:', err);
           }
         }
 
-        const result = await Promise.all(listings.map(async (job) => {
-          let fitScore = 60;
-          if (Object.keys(profileForScoring).length > 0) {
-            const scored = await scoreJobFit(profileForScoring, job);
-            fitScore = scored.score;
-          }
+        const result = await Promise.all(discoveryJobs.map(async (job) => {
+          const fitScore = job.fitScore ?? 60;
+          const scamAnalysis = assessJobScamRisk({
+            title: job.title,
+            company: job.company,
+            description: job.description,
+            applyUrl: job.applyUrl,
+            salaryMin: job.salaryMin,
+            salaryMax: job.salaryMax,
+          });
 
           const existing = await db.select({ id: jobs.id }).from(jobs)
             .where(and(eq(jobs.externalId, job.externalId), eq(jobs.source, job.source))).limit(1);
 
-          const jobId = existing[0]?.id ?? job.id;
+          const jobId = existing[0]?.id ?? randomUUID();
           if (existing.length === 0) {
             await db.insert(jobs).values({
-              id: job.id, externalId: job.externalId, source: job.source,
-              title: job.title, company: job.company, location: job.location,
-              description: job.description, applyUrl: job.applyUrl,
+              id: jobId,
+              externalId: job.externalId,
+              source: job.source,
+              title: job.title,
+              company: job.company,
+              location: job.location,
+              description: job.description,
+              applyUrl: job.applyUrl,
               salaryMin: job.salaryMin ? String(job.salaryMin) : undefined,
               salaryMax: job.salaryMax ? String(job.salaryMax) : undefined,
-              workMode: job.workMode ?? undefined, fitScore,
+              workMode: job.workMode ?? undefined,
+              fitScore,
+              requirements: job.requirements,
             });
           }
 
-          return { ...job, fitScore, id: jobId };
+          return { ...job, fitScore, id: jobId, scamAnalysis };
         }));
 
-        return result.sort((a, b) => b.fitScore - a.fitScore);
+        return result.sort((a, b) => b.fitScore - a.fitScore).slice(0, input.limit);
       } catch (err) {
         console.error('[jobs.search]', err);
         const cached = await db.select().from(jobs).orderBy(desc(jobs.createdAt)).limit(input.limit);
@@ -89,6 +210,14 @@ export const jobsRouter = router({
           salaryMax: j.salaryMax ? Number(j.salaryMax) : null,
           workMode: j.workMode, requirements: (j.requirements as string[]) ?? [],
           postedAt: j.createdAt.toISOString(), fitScore: j.fitScore ?? 60,
+          scamAnalysis: assessJobScamRisk({
+            title: j.title,
+            company: j.company,
+            description: j.description ?? '',
+            applyUrl: j.applyUrl ?? '',
+            salaryMin: j.salaryMin ? Number(j.salaryMin) : null,
+            salaryMax: j.salaryMax ? Number(j.salaryMax) : null,
+          }),
         }));
       }
     }),
@@ -162,7 +291,6 @@ export const jobsRouter = router({
             skills: skillRecords.map((s) => s.name),
           };
         }
-        // Facultatively incorporate interview performance data
         if (sessionCount.length > 0) {
           const insights = await buildCandidateInsights(userRecord[0].id);
           if (insights.sessionCount > 0) {
@@ -185,18 +313,24 @@ export const jobsRouter = router({
 
       const [fit, scam] = await Promise.all([
         explainJobFit(profileData, jobForAnalysis, interviewInsights),
-        Promise.resolve(isScamJob(job.title, job.description ?? '')),
+        Promise.resolve(assessJobScamRisk({
+          title: job.title,
+          company: job.company,
+          description: job.description ?? '',
+          applyUrl: job.applyUrl ?? '',
+          salaryMin: job.salaryMin ? Number(job.salaryMin) : null,
+          salaryMax: job.salaryMax ? Number(job.salaryMax) : null,
+        })),
       ]);
 
-      // Save extracted requirements back to DB if the job has none yet
       if (fit.extractedRequirements && fit.extractedRequirements.length > 0 &&
-          ((job.requirements as string[]) ?? []).length === 0) {
+        ((job.requirements as string[]) ?? []).length === 0) {
         await db.update(jobs)
           .set({ requirements: fit.extractedRequirements, updatedAt: new Date() })
           .where(eq(jobs.id, job.id));
       }
 
-      return { fit, scam };
+      return { fit, scam: { ...scam, isScam: scam.level === 'high' || scam.level === 'medium' } };
     }),
 
   getUserJobStatuses: publicProcedure
@@ -225,5 +359,134 @@ export const jobsRouter = router({
     .input(z.object({ companyName: z.string().min(1), jobTitle: z.string().optional() }))
     .query(async ({ input }) => {
       return getCompanyProfile(input.companyName, input.jobTitle);
+    }),
+
+  saveJob: protectedProcedure
+    .input(z.object({ jobId: z.string().min(1) }))
+    .output(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await db.select({ id: savedJobs.id })
+        .from(savedJobs)
+        .where(and(eq(savedJobs.userId, ctx.user.id), eq(savedJobs.jobId, input.jobId)))
+        .limit(1);
+      if (existing[0]) return { id: existing[0].id };
+      const id = randomUUID();
+      await db.insert(savedJobs).values({ id, userId: ctx.user.id, jobId: input.jobId });
+      return { id };
+    }),
+
+  unsaveJob: protectedProcedure
+    .input(z.object({ jobId: z.string().min(1) }))
+    .output(z.object({ success: z.literal(true) }))
+    .mutation(async ({ ctx, input }) => {
+      await db.delete(savedJobs)
+        .where(and(eq(savedJobs.userId, ctx.user.id), eq(savedJobs.jobId, input.jobId)));
+      return { success: true };
+    }),
+
+  getSavedJobs: protectedProcedure
+    .output(z.array(z.object({
+      savedId: z.string(),
+      savedAt: z.string(),
+      job: z.object({
+        id: z.string(),
+        title: z.string(),
+        company: z.string(),
+        location: z.string().nullable(),
+        applyUrl: z.string().nullable(),
+        isActive: z.boolean(),
+        fitScore: z.number().nullable(),
+      }),
+    })))
+    .query(async ({ ctx }) => {
+      const rows = await db
+        .select({
+          savedId: savedJobs.id,
+          savedAt: savedJobs.savedAt,
+          jobId: jobs.id,
+          title: jobs.title,
+          company: jobs.company,
+          location: jobs.location,
+          applyUrl: jobs.applyUrl,
+          isActive: jobs.isActive,
+          fitScore: jobs.fitScore,
+        })
+        .from(savedJobs)
+        .innerJoin(jobs, eq(jobs.id, savedJobs.jobId))
+        .where(eq(savedJobs.userId, ctx.user.id))
+        .orderBy(desc(savedJobs.savedAt));
+
+      return rows.map((r) => ({
+        savedId: r.savedId,
+        savedAt: r.savedAt.toISOString(),
+        job: {
+          id: r.jobId,
+          title: r.title,
+          company: r.company,
+          location: r.location ?? null,
+          applyUrl: r.applyUrl ?? null,
+          isActive: r.isActive,
+          fitScore: r.fitScore ?? null,
+        },
+      }));
+    }),
+
+  // Job search preferences - remember last search
+  getJobPreferences: protectedProcedure
+    .output(z.object({
+      lastQuery: z.string(),
+      lastLocation: z.string(),
+    }))
+    .query(async ({ ctx }) => {
+      const rows = await db
+        .select()
+        .from(userJobPreferences)
+        .where(eq(userJobPreferences.userId, ctx.user.id))
+        .limit(1);
+
+      if (rows[0]) {
+        return {
+          lastQuery: rows[0].lastQuery,
+          lastLocation: rows[0].lastLocation,
+        };
+      }
+
+      return {
+        lastQuery: '',
+        lastLocation: 'United Kingdom',
+      };
+    }),
+
+  saveJobPreferences: protectedProcedure
+    .input(z.object({
+      query: z.string().max(255),
+      location: z.string().max(255),
+    }))
+    .output(z.object({ success: z.literal(true) }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await db
+        .select({ userId: userJobPreferences.userId })
+        .from(userJobPreferences)
+        .where(eq(userJobPreferences.userId, ctx.user.id))
+        .limit(1);
+
+      if (existing[0]) {
+        await db
+          .update(userJobPreferences)
+          .set({
+            lastQuery: input.query,
+            lastLocation: input.location,
+            updatedAt: new Date(),
+          })
+          .where(eq(userJobPreferences.userId, ctx.user.id));
+      } else {
+        await db.insert(userJobPreferences).values({
+          userId: ctx.user.id,
+          lastQuery: input.query,
+          lastLocation: input.location,
+        });
+      }
+
+      return { success: true };
     }),
 });
