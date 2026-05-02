@@ -85,12 +85,22 @@ export const useCareerAssistantStore = create<CareerAssistantStore>((set, get) =
         sourceType: 'manual_user_input',
         jobId: get().selectedJobId,
       });
+      if ('status' in resp && resp.status === 'incomplete_profile') {
+        // Profile incomplete — silently roll back optimistic message
+        set((s) => ({
+          messages: s.messages.filter((m) => m.id !== optimistic.id),
+          status: 'idle',
+          error: null,
+        }));
+        return;
+      }
+      const okResp = resp as { conversationId: string; userRecord: unknown; aiRecord: unknown };
       set((s) => ({
-        conversationId: resp.conversationId,
+        conversationId: okResp.conversationId,
         messages: sortAsc([
           ...s.messages.filter((m) => m.id !== optimistic.id),
-          resp.userRecord as AssistantHistoryMessage,
-          resp.aiRecord as AssistantHistoryMessage,
+          okResp.userRecord as AssistantHistoryMessage,
+          okResp.aiRecord as AssistantHistoryMessage,
         ]),
         status: 'idle',
         error: null,

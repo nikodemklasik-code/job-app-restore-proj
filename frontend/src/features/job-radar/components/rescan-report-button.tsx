@@ -12,12 +12,14 @@ export function RescanReportButton({ reportId }: { reportId: string }) {
   async function handleClick() {
     const result = await mutation.mutateAsync({ reportId });
 
-    if (result.report_id && result.status && terminal.has(result.status)) {
+    if ('report_id' in result && result.report_id && result.status && terminal.has(result.status)) {
       navigate(`/job-radar/report/${result.report_id}`);
       return;
     }
 
-    navigate(`/job-radar/scan/${result.scan_id}`);
+    if ('scan_id' in result) {
+      navigate(`/job-radar/scan/${result.scan_id}`);
+    }
   }
 
   return (

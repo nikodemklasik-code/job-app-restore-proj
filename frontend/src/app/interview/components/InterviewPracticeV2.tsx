@@ -60,6 +60,7 @@ export function InterviewPracticeV2({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const processTurnRef = useRef<((userMessage: string) => Promise<void>) | null>(null);
 
   // ─── State ────────────────────────────────────────────────────────────────
 
@@ -135,7 +136,6 @@ export function InterviewPracticeV2({
     try {
       setPhase('connecting');
       const result = await trpcClient.liveInterview.createSession.mutate({
-        userId: user.id,
         mode,
         roleContext: {
           targetRole,
@@ -144,17 +144,30 @@ export function InterviewPracticeV2({
         },
         config: {
           maxTurns,
-          maxFollowUpsPerTopic: 2,
         },
       });
 
-      setSession(result as InterviewSession);
+      setSession({
+        id: result.sessionId,
+        status: result.status as InterviewSession['status'],
+        stage: result.stage as InterviewSession['stage'],
+        turnCount: 0,
+        transcript: [],
+        memory: {
+          askedQuestions: [],
+          claimsCaptured: [],
+          themesCovered: [],
+          positiveSignals: [],
+          negativeSignals: [],
+          openLoops: [],
+        },
+      });
       setPhase('active');
       await startAudioRecording();
 
       // Start the interview
       const startResult = await trpcClient.liveInterview.startSession.mutate({
-        sessionId: result.id,
+        sessionId: result.sessionId,
       });
 
       setRecruiterMessage(startResult.assistantMessage);
@@ -178,7 +191,7 @@ export function InterviewPracticeV2({
         setCandidateTranscript(userMessage);
         setIsCandidateSpeaking(false);
 
-        const result = await trpcClient.liveInterview.processTurn.mutate({
+        const result = await trpcClient.liveInterview.respond.mutate({
           sessionId: session.id,
           userMessage,
         });
@@ -190,11 +203,8 @@ export function InterviewPracticeV2({
         await playRecruiterMessage(result.assistantMessage);
         setIsRecruiterSpeaking(false);
 
-        // Update session
-        setSession(result.session as InterviewSession);
-
         // Check if interview is complete
-        if (result.session.status === 'COMPLETED') {
+        if (result.isComplete) {
           setPhase('completing');
           await completeSession();
         }
@@ -207,12 +217,15 @@ export function InterviewPracticeV2({
     [session]
   );
 
+  // Keep ref up-to-date so callers (e.g. future speech-end events) can invoke it
+  processTurnRef.current = processTurn;
+
   const completeSession = useCallback(async () => {
     if (!session) return;
 
     try {
-      const audioBlob = await stopAudioRecording();
-      const result = await trpcClient.liveInterview.completeSession.mutate({
+      await stopAudioRecording();
+      await trpcClient.liveInterview.complete.mutate({
         sessionId: session.id,
       });
 
