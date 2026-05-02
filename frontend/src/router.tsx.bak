@@ -98,7 +98,7 @@ export const router = createBrowserRouter([
       { path: APP_SCREENS.jobs.path.slice(1), element: withSuspense(JobsDiscovery) },
       { path: 'jobs/:id', element: withSuspense(JobDetailPage) },
       { path: 'jobs/radar/:scanId', element: withSuspense(JobRadarReport) },
-      { path: 'jobs/saved', element: withSuspense(SavedJobs) },      { path: APP_SCREENS.applications.path.slice(1), element: withSuspense(ApplicationsPage) },
+      { path: APP_SCREENS.applications.path.slice(1), element: withSuspense(ApplicationsPage) },
       { path: 'applications/board', element: withSuspense(ApplicationsPipeline) },
       { path: APP_SCREENS.applicationsReview.path.slice(1), element: withSuspense(ReviewQueue) },
       { path: APP_SCREENS.assistant.path.slice(1), element: withSuspense(AssistantPage) },
