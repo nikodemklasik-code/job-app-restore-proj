@@ -371,7 +371,7 @@ export function JobCardExpanded({
                                         ) : (
                                             <>
                                                 <Sparkles className="w-4 h-4 inline mr-2" />
-                                                Tailor Resume
+                                                Tailor CV
                                             </>
                                         )}
                                     </button>
