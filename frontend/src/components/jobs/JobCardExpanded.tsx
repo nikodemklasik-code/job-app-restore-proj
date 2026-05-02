@@ -6,7 +6,8 @@ import {
     CheckCircle2,
     ExternalLink,
     FileText,
-    Target
+    Target,
+    Radar
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { JobCardCompact } from './JobCardCompact';
@@ -35,6 +36,9 @@ type JobCardExpandedProps = {
     isSaved?: boolean;
     onToggleSave?: () => void;
     onCollapse?: () => void;
+    onCreateDraft?: () => void;
+    onTailorResume?: () => void;
+    onStartRadarScan?: () => void;
     fitAnalysis?: {
         skillsMatch: number;
         experienceMatch: number;
@@ -51,6 +55,9 @@ export function JobCardExpanded({
     isSaved,
     onToggleSave,
     onCollapse,
+    onCreateDraft,
+    onTailorResume,
+    onStartRadarScan,
     fitAnalysis,
 }: JobCardExpandedProps) {
     // Mock data if not provided
@@ -98,6 +105,7 @@ export function JobCardExpanded({
                     isSaved={isSaved}
                     onToggleSave={onToggleSave}
                     onExpand={onCollapse}
+                    onCreateDraft={onCreateDraft}
                     isExpanded={true}
                 />
 
@@ -238,8 +246,8 @@ export function JobCardExpanded({
                         {/* Scam Warning */}
                         {job.scamAnalysis && job.scamAnalysis.level !== 'low' && (
                             <div className={`rounded-xl border p-3 ${job.scamAnalysis.level === 'high'
-                                    ? 'bg-red-500/10 border-red-500/30'
-                                    : 'bg-amber-500/10 border-amber-500/30'
+                                ? 'bg-red-500/10 border-red-500/30'
+                                : 'bg-amber-500/10 border-amber-500/30'
                                 }`}>
                                 <p className={`text-sm font-semibold mb-1 flex items-center gap-2 ${job.scamAnalysis.level === 'high' ? 'text-red-400' : 'text-amber-400'
                                     }`}>
@@ -296,21 +304,41 @@ export function JobCardExpanded({
                                     View Full Report
                                 </Link>
 
+                                <button
+                                    onClick={onCreateDraft}
+                                    className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                                >
+                                    <Target className="w-4 h-4" />
+                                    Start Application
+                                </button>
+
                                 {job.applyUrl && (
                                     <a
                                         href={job.applyUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                                        className="flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium py-2.5 px-4 rounded-lg transition-colors border border-slate-600"
                                     >
-                                        Apply Now
+                                        Quick Apply (External)
                                         <ExternalLink className="w-4 h-4" />
                                     </a>
                                 )}
 
-                                <button className="px-4 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium transition-colors border border-slate-600">
+                                <button
+                                    onClick={onTailorResume}
+                                    className="px-4 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium transition-colors border border-slate-600"
+                                >
                                     <Sparkles className="w-4 h-4 inline mr-2" />
                                     Tailor Resume
+                                </button>
+
+                                <button
+                                    onClick={onStartRadarScan}
+                                    className="px-4 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-semibold transition-all border border-indigo-500/50 shadow-lg shadow-indigo-900/30"
+                                    title="Deep employer & risk analysis"
+                                >
+                                    <Radar className="w-4 h-4 inline mr-2" />
+                                    Job Radar Scan
                                 </button>
                             </div>
                         </div>

@@ -7,7 +7,7 @@ import {
 } from '@/lib/jobsAfterCvSync';
 import type { ProfileSnapshot } from '../../../../shared/profile';
 import { Search, MapPin, Plus, Loader2, Cookie, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Sparkles, Save, Check } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { MIN_JOB_FIT_LOCAL_KEY, readMinJobFitPercent } from '@/lib/jobMatchPreferences';
 import { JobCardCompact } from '@/components/jobs/JobCardCompact';
 import { JobCardExpanded } from '@/components/jobs/JobCardExpanded';
@@ -440,6 +440,7 @@ function SessionPanel({ provider, status, userId }: {
 export default function JobsDiscovery() {
   const { user, isLoaded } = useUser();
   const userId = user?.id ?? '';
+  const navigate = useNavigate();
 
   const [query, setQuery] = useState('');
   const [location, setLocation] = useState('United Kingdom');
@@ -459,6 +460,8 @@ export default function JobsDiscovery() {
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
+  const [radarScanningJobId, setRadarScanningJobId] = useState<string | null>(null);
+  const [radarScanId, setRadarScanId] = useState<string | null>(null);
 
   // Load persisted saved jobs from backend and hydrate local Set
   const savedJobsQuery = api.jobs.getSavedJobs.useQuery(undefined, { enabled: !!userId });
@@ -470,6 +473,9 @@ export default function JobsDiscovery() {
 
   const saveJobMutation = api.jobs.saveJob.useMutation();
   const unsaveJobMutation = api.jobs.unsaveJob.useMutation();
+  const createApplicationMutation = api.applications.create.useMutation();
+  const generateDocumentsMutation = api.applications.generateDocuments.useMutation();
+  const startRadarScanMutation = api.jobRadar.startScan.useMutation();
 
   const handleToggleSave = (jobId: string) => {
     const isSaved = savedJobs.has(jobId);
@@ -489,6 +495,101 @@ export default function JobsDiscovery() {
         onError: () => setSavedJobs(prev => { const next = new Set(prev); next.delete(jobId); return next; }),
       });
     }
+  };
+
+  const handleCreateDraft = (job: JobResult) => {
+    if (!userId) return;
+
+    createApplicationMutation.mutate(
+      {
+        userId,
+        jobId: job.id,
+        jobTitle: job.title,
+        company: job.company,
+        notes: `Source: ${job.source}\nLocation: ${job.location}\nFit Score: ${job.fitScore}%`,
+      },
+      {
+        onSuccess: (data) => {
+          // Show success message
+          alert(`Draft application created! Application ID: ${data.id}`);
+          // Navigate to applications page
+          navigate('/applications');
+        },
+        onError: (error) => {
+          alert(`Failed to create draft: ${error.message}`);
+        },
+      }
+    );
+  };
+
+  const handleTailorResume = (job: JobResult) => {
+    if (!userId) return;
+
+    // First create the draft application
+    createApplicationMutation.mutate(
+      {
+        userId,
+        jobId: job.id,
+        jobTitle: job.title,
+        company: job.company,
+        notes: `Source: ${job.source}\nLocation: ${job.location}\nFit Score: ${job.fitScore}%`,
+      },
+      {
+        onSuccess: (data) => {
+          // Then generate documents for it
+          generateDocumentsMutation.mutate(
+            {
+              userId,
+              applicationId: data.id,
+            },
+            {
+              onSuccess: () => {
+                alert('Draft created and documents generated!');
+                navigate('/applications');
+              },
+              onError: (error) => {
+                alert(`Draft created but document generation failed: ${error.message}`);
+                navigate('/applications');
+              },
+            }
+          );
+        },
+        onError: (error) => {
+          alert(`Failed to create draft: ${error.message}`);
+        },
+      }
+    );
+  };
+
+  const handleStartRadarScan = (job: JobResult) => {
+    if (!userId) return;
+
+    setRadarScanningJobId(job.id);
+
+    startRadarScanMutation.mutate(
+      {
+        jobId: job.id,
+        jobTitle: job.title,
+        company: job.company,
+        location: job.location,
+        description: job.description,
+        salaryMin: job.salaryMin ?? undefined,
+        salaryMax: job.salaryMax ?? undefined,
+        applyUrl: job.applyUrl,
+        scanTrigger: 'manual_search',
+      },
+      {
+        onSuccess: (data) => {
+          setRadarScanId(data.scanId);
+          // Navigate to Job Radar report page
+          navigate(`/jobs/radar/${data.scanId}`);
+        },
+        onError: (error) => {
+          alert(`Failed to start Job Radar scan: ${error.message}`);
+          setRadarScanningJobId(null);
+        },
+      }
+    );
   };
 
   // Load saved preferences
@@ -951,6 +1052,9 @@ export default function JobsDiscovery() {
                   isSaved={isSaved}
                   onToggleSave={() => handleToggleSave(job.id)}
                   onCollapse={() => setExpandedJobId(null)}
+                  onCreateDraft={() => handleCreateDraft(job)}
+                  onTailorResume={() => handleTailorResume(job)}
+                  onStartRadarScan={() => handleStartRadarScan(job)}
                 />
               ) : (
                 <JobCardCompact
@@ -960,6 +1064,7 @@ export default function JobsDiscovery() {
                   isSaved={isSaved}
                   onToggleSave={() => handleToggleSave(job.id)}
                   onExpand={() => setExpandedJobId(job.id)}
+                  onCreateDraft={() => handleCreateDraft(job)}
                   isExpanded={false}
                 />
               );

@@ -7,7 +7,8 @@ import {
     BookmarkCheck,
     Sparkles,
     Building2,
-    Clock
+    Clock,
+    Target
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -33,6 +34,7 @@ type JobCardCompactProps = {
     isSaved?: boolean;
     onToggleSave?: () => void;
     onExpand?: () => void;
+    onCreateDraft?: () => void;
     isExpanded?: boolean;
 };
 
@@ -77,6 +79,7 @@ export function JobCardCompact({
     isSaved = false,
     onToggleSave,
     onExpand,
+    onCreateDraft,
     isExpanded = false,
 }: JobCardCompactProps) {
     const salary = formatSalary(job.salaryMin, job.salaryMax);
@@ -208,16 +211,32 @@ export function JobCardCompact({
 
                 {/* Actions */}
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onToggleSave?.();
-                        }}
-                        className="w-9 h-9 rounded-lg bg-slate-800 text-slate-400 hover:text-emerald-400 hover:bg-slate-700 border border-slate-700 transition-all flex items-center justify-center"
-                        title={isSaved ? 'Unsave Job' : 'Save Job'}
-                    >
-                        {isSaved ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
-                    </button>
+                    {onCreateDraft && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onCreateDraft();
+                            }}
+                            className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 border border-emerald-500 transition-all text-xs font-semibold"
+                            title="Start Application"
+                        >
+                            <Target className="w-3.5 h-3.5" />
+                            Start
+                        </button>
+                    )}
+
+                    {onToggleSave && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleSave();
+                            }}
+                            className="w-9 h-9 rounded-lg bg-slate-800 text-slate-400 hover:text-emerald-400 hover:bg-slate-700 border border-slate-700 transition-all flex items-center justify-center"
+                            title={isSaved ? 'Unsave Job' : 'Save Job'}
+                        >
+                            {isSaved ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+                        </button>
+                    )}
 
                     <button
                         onClick={(e) => {
