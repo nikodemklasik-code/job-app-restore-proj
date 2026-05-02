@@ -101,19 +101,9 @@ export async function initializeJobRadarScan(
 ): Promise<{ scanId: string; idempotencyKey: string }> {
     const scanId = randomUUID();
     const idempotencyKey = randomUUID();
-    const entityFingerprint = generateEntityFingerprint(input);
-
-    const progress: JobRadarScanProgress = {
-        stage: 'init',
-        stageState: 'processing',
-        message: 'Initializing deep scan...',
-        completedSteps: 0,
-        totalSteps: 5,
-        sourcesCollected: 0,
-        signalsExtracted: 0,
-    };
 
     // Note: Actual DB insert happens in the router
+    // entityFingerprint and progress are created in the router
     return { scanId, idempotencyKey };
 }
 
