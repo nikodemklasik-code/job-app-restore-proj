@@ -16,6 +16,7 @@ import {
   jobRadarSignals,
   jobRadarFindings,
   jobRadarBenchmarks,
+  jobRadarScoreDrivers,
 } from '../../db/schema.js';
 import {
   initializeJobRadarScan,
@@ -206,6 +207,42 @@ export const jobRadarRouter = router({
         .from(jobRadarSources)
         .where(eq(jobRadarSources.scanId, input.scanId));
 
+      // Get score drivers
+      const scoreDrivers = await db
+        .select()
+        .from(jobRadarScoreDrivers)
+        .where(eq(jobRadarScoreDrivers.scanId, input.scanId));
+
+      // Group drivers by score name
+      const groupedDrivers: Record<string, { positive_drivers: any[]; negative_drivers: any[]; neutral_constraints: any[] }> = {
+        employer_score: { positive_drivers: [], negative_drivers: [], neutral_constraints: [] },
+        offer_score: { positive_drivers: [], negative_drivers: [], neutral_constraints: [] },
+        market_pay_score: { positive_drivers: [], negative_drivers: [], neutral_constraints: [] },
+        benefits_score: { positive_drivers: [], negative_drivers: [], neutral_constraints: [] },
+        culture_fit_score: { positive_drivers: [], negative_drivers: [], neutral_constraints: [] },
+        risk_score: { positive_drivers: [], negative_drivers: [], neutral_constraints: [] },
+      };
+
+      for (const driver of scoreDrivers) {
+        const payload = {
+          label: driver.label,
+          impact: driver.impact,
+          confidence: driver.confidence,
+        };
+
+        if (!groupedDrivers[driver.scoreName]) {
+          groupedDrivers[driver.scoreName] = { positive_drivers: [], negative_drivers: [], neutral_constraints: [] };
+        }
+
+        if (driver.driverType === 'positive') {
+          groupedDrivers[driver.scoreName].positive_drivers.push(payload);
+        } else if (driver.driverType === 'negative') {
+          groupedDrivers[driver.scoreName].negative_drivers.push(payload);
+        } else {
+          groupedDrivers[driver.scoreName].neutral_constraints.push(payload);
+        }
+      }
+
       const summary: JobRadarReportSummary = {
         scanId: input.scanId,
         status: report[0].status,
@@ -241,6 +278,7 @@ export const jobRadarRouter = router({
         summary,
         report: report[0],
         scores: scores[0],
+        scoreDrivers: groupedDrivers,
         findings,
         benchmark: benchmark[0],
         sources,

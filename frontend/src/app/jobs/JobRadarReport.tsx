@@ -18,6 +18,7 @@ import {
     ExternalLink,
     RefreshCw,
 } from 'lucide-react';
+import { ScoreCardsGrid } from '@/features/job-radar/components/score-cards-grid';
 
 export default function JobRadarReport() {
     const { scanId } = useParams<{ scanId: string }>();
