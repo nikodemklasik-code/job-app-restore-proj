@@ -660,6 +660,22 @@ export const referrals = mysqlTable('referrals', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+// Job Provider Monitoring - tracks provider health and structure changes
+export const jobProviderLogs = mysqlTable('job_provider_logs', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  provider: varchar('provider', { length: 50 }).notNull(),
+  eventType: varchar('event_type', { length: 50 }).notNull(), // 'search_success', 'search_failure', 'structure_change', 'parsing_error'
+  query: varchar('query', { length: 255 }),
+  location: varchar('location', { length: 255 }),
+  jobsFound: int('jobs_found').default(0),
+  parsingMethod: varchar('parsing_method', { length: 50 }), // 'next_data_json', 'structured_data', 'html_regex', 'api'
+  errorMessage: text('error_message'),
+  responseTimeMs: int('response_time_ms'),
+  httpStatus: int('http_status'),
+  metadata: json('metadata'), // Additional context
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 // Test / demo accounts — unlimited access, no billing, not subject to retention
 export const testAccounts = mysqlTable('test_accounts', {
   id: varchar('id', { length: 36 }).primaryKey(),

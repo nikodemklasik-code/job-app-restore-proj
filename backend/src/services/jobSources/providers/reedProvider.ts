@@ -1,4 +1,5 @@
 import type { JobSourceProvider, DiscoveryInput, ProviderContext, SourceJob } from '../types.js';
+import { logProviderEvent } from '../providerMonitoring.js';
 
 function norm(v: unknown): string {
   return String(v ?? '').trim();
@@ -74,6 +75,60 @@ function collectStructuredJobs(value: unknown, sink: Record<string, unknown>[]):
   collectStructuredJobs(obj.itemListElement, sink);
 }
 
+function extractNextDataJobs(html: string): SourceJob[] {
+  // Reed now embeds job data in __NEXT_DATA__ JSON
+  const nextDataMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>(.*?)<\/script>/s);
+  if (!nextDataMatch) {
+    console.warn('[ReedProvider] No __NEXT_DATA__ found - Reed may have changed their structure');
+    return [];
+  }
+
+  try {
+    const data = JSON.parse(nextDataMatch[1]);
+    const jobs = data?.props?.pageProps?.jobsData?.jobs;
+
+    if (!Array.isArray(jobs)) {
+      console.warn('[ReedProvider] __NEXT_DATA__ found but jobs array missing - structure changed');
+      return [];
+    }
+
+    console.info(`[ReedProvider] Extracted ${jobs.length} jobs from __NEXT_DATA__`);
+
+    return jobs
+      .map((item: any): SourceJob | null => {
+        const job = item?.jobDetail;
+        if (!job) return null;
+
+        const title = norm(job.jobTitle);
+        const jobId = norm(job.jobId);
+        if (!title || !jobId) return null;
+
+        const url = norm(item.url);
+        const applyUrl = job.externalUrl ? norm(job.externalUrl) : `https://www.reed.co.uk${url}`;
+        const description = stripHtml(norm(job.jobDescription));
+
+        return {
+          externalId: jobId,
+          source: 'reed',
+          title,
+          company: norm(job.ouName ?? 'Unknown company'),
+          location: norm(job.displayLocationName ?? job.countyLocation ?? 'United Kingdom'),
+          description,
+          applyUrl,
+          salaryMin: typeof job.salaryFrom === 'number' ? job.salaryFrom : null,
+          salaryMax: typeof job.salaryTo === 'number' ? job.salaryTo : null,
+          workMode: job.remoteWorkingOption === 'Remote' ? 'remote' : parseWorkMode(description),
+          requirements: extractRequirements(description),
+          postedAt: norm(job.dateCreated) || new Date().toISOString(),
+        };
+      })
+      .filter((job): job is SourceJob => job !== null);
+  } catch (err) {
+    console.error('[ReedProvider] Failed to parse __NEXT_DATA__:', err);
+    return [];
+  }
+}
+
 function extractStructuredJobs(html: string): SourceJob[] {
   const scriptPattern = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
   const entries: Record<string, unknown>[] = [];
@@ -115,40 +170,137 @@ function extractStructuredJobs(html: string): SourceJob[] {
 }
 
 async function searchReedWebsite(input: DiscoveryInput): Promise<SourceJob[]> {
+  const startTime = Date.now();
   const url = `https://www.reed.co.uk/jobs/${slugify(input.query)}-jobs-in-${slugify(input.location || 'united-kingdom')}`;
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'en-GB,en;q=0.9',
-    },
-  });
-  if (!res.ok) throw new Error(`Reed public ${res.status}`);
-  const html = await res.text();
 
-  const structured = extractStructuredJobs(html);
-  if (structured.length > 0) return structured.slice(0, input.limit);
-
-  const results: SourceJob[] = [];
-  const pattern = /href="(\/jobs\/[^"#?]+)"[\s\S]{0,800}?jobTitle[^>]*>(.*?)<\/[a-z]+>[\s\S]{0,500}?employerName[^>]*>(.*?)<\/[a-z]+>[\s\S]{0,400}?locationName[^>]*>(.*?)<\/[a-z]+>/gi;
-  let match: RegExpExecArray | null;
-  while ((match = pattern.exec(html)) !== null && results.length < input.limit) {
-    results.push({
-      externalId: match[1],
-      source: 'reed',
-      title: stripHtml(match[2]),
-      company: stripHtml(match[3]),
-      location: stripHtml(match[4]),
-      description: '',
-      applyUrl: `https://www.reed.co.uk${match[1]}`,
-      salaryMin: null,
-      salaryMax: null,
-      workMode: null,
-      requirements: [],
-      postedAt: new Date().toISOString(),
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-GB,en;q=0.9',
+      },
     });
+
+    const responseTime = Date.now() - startTime;
+
+    if (!res.ok) {
+      await logProviderEvent({
+        provider: 'reed',
+        eventType: 'search_failure',
+        query: input.query,
+        location: input.location,
+        httpStatus: res.status,
+        responseTimeMs: responseTime,
+        errorMessage: `Reed public ${res.status}`,
+      });
+      throw new Error(`Reed public ${res.status}`);
+    }
+
+    const html = await res.text();
+
+    // Try __NEXT_DATA__ JSON first (current Reed structure as of May 2026)
+    const nextDataJobs = extractNextDataJobs(html);
+    if (nextDataJobs.length > 0) {
+      console.info(`[ReedProvider] Found ${nextDataJobs.length} jobs via __NEXT_DATA__`);
+      await logProviderEvent({
+        provider: 'reed',
+        eventType: 'search_success',
+        query: input.query,
+        location: input.location,
+        jobsFound: nextDataJobs.length,
+        parsingMethod: 'next_data_json',
+        responseTimeMs: responseTime,
+        httpStatus: res.status,
+      });
+      return nextDataJobs.slice(0, input.limit);
+    }
+
+    // Fallback to structured data (ld+json)
+    const structured = extractStructuredJobs(html);
+    if (structured.length > 0) {
+      console.info(`[ReedProvider] Found ${structured.length} jobs via structured data (fallback)`);
+      await logProviderEvent({
+        provider: 'reed',
+        eventType: 'structure_change',
+        query: input.query,
+        location: input.location,
+        jobsFound: structured.length,
+        parsingMethod: 'structured_data',
+        responseTimeMs: responseTime,
+        httpStatus: res.status,
+        errorMessage: '__NEXT_DATA__ not found, using structured data fallback',
+      });
+      return structured.slice(0, input.limit);
+    }
+
+    // Last resort: HTML regex parsing (legacy)
+    console.warn('[ReedProvider] Falling back to HTML regex parsing - Reed structure may have changed');
+    const results: SourceJob[] = [];
+    const pattern = /href="(\/jobs\/[^"#?]+)"[\s\S]{0,800}?jobTitle[^>]*>(.*?)<\/[a-z]+>[\s\S]{0,500}?employerName[^>]*>(.*?)<\/[a-z]+>[\s\S]{0,400}?locationName[^>]*>(.*?)<\/[a-z]+>/gi;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(html)) !== null && results.length < input.limit) {
+      results.push({
+        externalId: match[1],
+        source: 'reed',
+        title: stripHtml(match[2]),
+        company: stripHtml(match[3]),
+        location: stripHtml(match[4]),
+        description: '',
+        applyUrl: `https://www.reed.co.uk${match[1]}`,
+        salaryMin: null,
+        salaryMax: null,
+        workMode: null,
+        requirements: [],
+        postedAt: new Date().toISOString(),
+      });
+    }
+
+    if (results.length === 0) {
+      console.error('[ReedProvider] All parsing methods failed - Reed structure has likely changed significantly');
+      await logProviderEvent({
+        provider: 'reed',
+        eventType: 'parsing_error',
+        query: input.query,
+        location: input.location,
+        jobsFound: 0,
+        parsingMethod: 'html_regex',
+        responseTimeMs: responseTime,
+        httpStatus: res.status,
+        errorMessage: 'All parsing methods failed - structure changed',
+        metadata: {
+          htmlSample: html.substring(0, 500),
+          hasNextData: html.includes('__NEXT_DATA__'),
+          hasStructuredData: html.includes('application/ld+json'),
+        },
+      });
+    } else {
+      await logProviderEvent({
+        provider: 'reed',
+        eventType: 'structure_change',
+        query: input.query,
+        location: input.location,
+        jobsFound: results.length,
+        parsingMethod: 'html_regex',
+        responseTimeMs: responseTime,
+        httpStatus: res.status,
+        errorMessage: 'Using legacy HTML regex - both JSON methods failed',
+      });
+    }
+
+    return results;
+  } catch (err) {
+    const responseTime = Date.now() - startTime;
+    await logProviderEvent({
+      provider: 'reed',
+      eventType: 'search_failure',
+      query: input.query,
+      location: input.location,
+      responseTimeMs: responseTime,
+      errorMessage: err instanceof Error ? err.message : String(err),
+    });
+    throw err;
   }
-  return results;
 }
 
 async function searchReedApi(input: DiscoveryInput): Promise<SourceJob[]> {
