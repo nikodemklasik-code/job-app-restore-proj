@@ -85,10 +85,15 @@ function extractNextDataJobs(html: string): SourceJob[] {
 
   try {
     const data = JSON.parse(nextDataMatch[1]);
-    const jobs = data?.props?.pageProps?.jobsData?.jobs;
+    const searchResults = data?.props?.pageProps?.searchResults;
+    const jobs = searchResults?.jobs;
 
     if (!Array.isArray(jobs)) {
-      console.warn('[ReedProvider] __NEXT_DATA__ found but jobs array missing - structure changed');
+      console.warn('[ReedProvider] __NEXT_DATA__ found but jobs array missing - structure changed', {
+        hasSearchResults: !!searchResults,
+        searchResultsKeys: searchResults ? Object.keys(searchResults) : [],
+        pagePropsKeys: data?.props?.pageProps ? Object.keys(data.props.pageProps).slice(0, 10) : [],
+      });
       return [];
     }
 
