@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
+import toast from 'react-hot-toast';
 import { api } from '@/lib/api';
 import {
   clearPendingCvJobsSearchMarker,
@@ -7,7 +8,7 @@ import {
 } from '@/lib/jobsAfterCvSync';
 import type { ProfileSnapshot } from '../../../../shared/profile';
 import { Search, MapPin, Plus, Loader2, Cookie, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Sparkles, Save, Check } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { MIN_JOB_FIT_LOCAL_KEY, readMinJobFitPercent } from '@/lib/jobMatchPreferences';
 import { JobCardCompact } from '@/components/jobs/JobCardCompact';
 import { JobCardExpanded } from '@/components/jobs/JobCardExpanded';
@@ -441,15 +442,30 @@ export default function JobsDiscovery() {
   const { user, isLoaded } = useUser();
   const userId = user?.id ?? '';
   const navigate = useNavigate();
+  const [urlSearchParams, setUrlSearchParams] = useSearchParams();
 
-  const [query, setQuery] = useState('');
-  const [location, setLocation] = useState('United Kingdom');
-  const [sources, setSources] = useState<Source[]>(['reed', 'adzuna', 'jooble']);
-  const [searchParams, setSearchParams] = useState<{
-    query: string;
-    location: string;
-    sources: string[];
-  } | null>(null);
+  // Initialize from URL params or state
+  const [query, setQuery] = useState(() => urlSearchParams.get('q') || '');
+  const [location, setLocation] = useState(() => urlSearchParams.get('loc') || 'United Kingdom');
+  const [sources, setSources] = useState<Source[]>(() => {
+    const sourcesParam = urlSearchParams.get('sources');
+    return sourcesParam ? sourcesParam.split(',') as Source[] : ['reed', 'adzuna', 'jooble'];
+  });
+
+  // searchParams is derived from URL - never null if URL has params
+  const searchParams = useMemo(() => {
+    const q = urlSearchParams.get('q');
+    const loc = urlSearchParams.get('loc');
+    const src = urlSearchParams.get('sources');
+
+    if (!q) return null;
+
+    return {
+      query: q,
+      location: loc || 'United Kingdom',
+      sources: src ? src.split(',') : ['reed', 'adzuna', 'jooble'],
+    };
+  }, [urlSearchParams]);
   const [showManualModal, setShowManualModal] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
   const [manualForm, setManualForm] = useState({ title: '', company: '', location: '', applyUrl: '' });
@@ -496,7 +512,12 @@ export default function JobsDiscovery() {
   };
 
   const handleCreateDraft = (job: JobResult) => {
-    if (!userId) return;
+    if (!userId) {
+      toast.error('Please sign in to create applications');
+      return;
+    }
+
+    const toastId = toast.loading('Creating draft application...');
 
     createApplicationMutation.mutate(
       {
@@ -508,20 +529,23 @@ export default function JobsDiscovery() {
       },
       {
         onSuccess: (data) => {
-          // Show success message
-          alert(`Draft application created! Application ID: ${data.id}`);
-          // Navigate to applications page
+          toast.success('Draft application created!', { id: toastId });
           navigate('/applications');
         },
         onError: (error) => {
-          alert(`Failed to create draft: ${error.message}`);
+          toast.error(`Failed to create draft: ${error.message}`, { id: toastId });
         },
       }
     );
   };
 
   const handleTailorResume = (job: JobResult) => {
-    if (!userId) return;
+    if (!userId) {
+      toast.error('Please sign in to tailor resume');
+      return;
+    }
+
+    const toastId = toast.loading('Creating draft and generating documents...');
 
     // First create the draft application
     createApplicationMutation.mutate(
@@ -542,25 +566,30 @@ export default function JobsDiscovery() {
             },
             {
               onSuccess: () => {
-                alert('Draft created and documents generated!');
+                toast.success('Draft created and documents generated!', { id: toastId });
                 navigate('/applications');
               },
               onError: (error) => {
-                alert(`Draft created but document generation failed: ${error.message}`);
+                toast.error(`Draft created but document generation failed: ${error.message}`, { id: toastId });
                 navigate('/applications');
               },
             }
           );
         },
         onError: (error) => {
-          alert(`Failed to create draft: ${error.message}`);
+          toast.error(`Failed to create draft: ${error.message}`, { id: toastId });
         },
       }
     );
   };
 
   const handleStartRadarScan = (job: JobResult) => {
-    if (!userId) return;
+    if (!userId) {
+      toast.error('Please sign in to start Job Radar scan');
+      return;
+    }
+
+    const toastId = toast.loading('Starting Job Radar scan...');
 
     startRadarScanMutation.mutate(
       {
@@ -576,11 +605,11 @@ export default function JobsDiscovery() {
       },
       {
         onSuccess: (data) => {
-          // Navigate to Job Radar report page
+          toast.success('Job Radar scan started!', { id: toastId });
           navigate(`/jobs/radar/${data.scanId}`);
         },
         onError: (error) => {
-          alert(`Failed to start Job Radar scan: ${error.message}`);
+          toast.error(`Failed to start Job Radar scan: ${error.message}`, { id: toastId });
         },
       }
     );
@@ -614,10 +643,10 @@ export default function JobsDiscovery() {
 
   const utils = api.useUtils();
   const startCvJobsFlow = useCallback(() => {
-    setSearchParams(null);
+    setUrlSearchParams({});
     setPendingJobsSearchAfterCv(true);
     void utils.profile.getProfile.invalidate();
-  }, [utils]);
+  }, [utils, setUrlSearchParams]);
 
   const profileQuery = api.profile.getProfile.useQuery(undefined, {
     enabled: !!userId,
@@ -696,10 +725,11 @@ export default function JobsDiscovery() {
     if (!q.trim()) return;
 
     setQuery(q);
-    setSearchParams({
-      query: q,
-      location,
-      sources: [...sources],
+    // Update URL params to persist search results
+    setUrlSearchParams({
+      q,
+      loc: location,
+      sources: sources.join(','),
     });
   }, [
     userId,
@@ -712,6 +742,7 @@ export default function JobsDiscovery() {
     searchParams,
     pendingJobsSearchAfterCv,
     preferencesQuery.data,
+    setUrlSearchParams,
   ]);
 
   useEffect(() => {
@@ -750,7 +781,19 @@ export default function JobsDiscovery() {
         location,
       });
     }
-    setSearchParams({ query, location, sources: [...sources] });
+    // Update URL params to persist search results
+    setUrlSearchParams({
+      q: query,
+      loc: location,
+      sources: sources.join(','),
+    });
+  };
+
+  const handleClearSearch = () => {
+    setUrlSearchParams({});
+    setQuery('');
+    setLocation('United Kingdom');
+    setSources(['reed', 'adzuna', 'jooble']);
   };
 
   const handleSaveSearch = () => {
@@ -900,6 +943,16 @@ export default function JobsDiscovery() {
             {searchQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             Search
           </button>
+          {searchParams && (
+            <button
+              onClick={handleClearSearch}
+              className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-500/20"
+              title="Clear search results"
+            >
+              <XCircle className="h-4 w-4" />
+              Clear
+            </button>
+          )}
           {userId && (
             <button
               onClick={handleSaveSearch}
@@ -1049,6 +1102,9 @@ export default function JobsDiscovery() {
                   onCreateDraft={() => handleCreateDraft(job)}
                   onTailorResume={() => handleTailorResume(job)}
                   onStartRadarScan={() => handleStartRadarScan(job)}
+                  isCreatingDraft={createApplicationMutation.isPending}
+                  isTailoringResume={generateDocumentsMutation.isPending}
+                  isStartingRadarScan={startRadarScanMutation.isPending}
                 />
               ) : (
                 <JobCardCompact
@@ -1060,6 +1116,7 @@ export default function JobsDiscovery() {
                   onExpand={() => setExpandedJobId(job.id)}
                   onCreateDraft={() => handleCreateDraft(job)}
                   isExpanded={false}
+                  isCreatingDraft={createApplicationMutation.isPending}
                 />
               );
             })
