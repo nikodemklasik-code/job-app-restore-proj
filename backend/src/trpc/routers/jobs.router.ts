@@ -41,9 +41,9 @@ function locationFallbacks(location: string): string[] {
   const original = location.trim();
   const value = original.toLowerCase();
   const fallbacks = isBroadUkLocation(original)
-    ? [original, 'United Kingdom', 'England', '']
+    ? ['United Kingdom', 'England', original].filter(Boolean)
     : value === 'manchester'
-      ? [original, 'Manchester', 'Greater Manchester', '']
+      ? [original, 'Manchester', 'Greater Manchester']
       : [original];
   return Array.from(new Set(fallbacks));
 }
