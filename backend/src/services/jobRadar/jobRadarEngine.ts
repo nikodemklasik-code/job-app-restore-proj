@@ -97,7 +97,7 @@ export function generateSourceFingerprint(sources: string[]): string {
  * Initialize a new Job Radar scan
  */
 export async function initializeJobRadarScan(
-    input: JobRadarScanInput,
+    _input: JobRadarScanInput,
 ): Promise<{ scanId: string; idempotencyKey: string }> {
     const scanId = randomUUID();
     const idempotencyKey = randomUUID();
@@ -203,7 +203,7 @@ export async function collectJobRadarSources(
  */
 export async function extractJobRadarSignals(
     scanId: string,
-    sources: JobRadarSource[],
+    _sources: JobRadarSource[],
     input: JobRadarScanInput,
 ): Promise<JobRadarSignal[]> {
     const signals: Partial<JobRadarSignal>[] = [];
