@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Sparkles, TrendingUp } from 'lucide-react';
 import type { DashboardSnapshot as DashboardSnapshotDto } from '@/types/dashboard';
 
 function formatCurrency(cents: number, currency: string): string {
@@ -183,6 +184,80 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
         />
       </section>
 
+
+      {/* Career Intelligence Tiles */}
+      <section className="grid gap-4 md:grid-cols-2">
+        {/* Match Analysis Tile */}
+        <Link
+          to="/skills"
+          className="mvh-card-glow group rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-slate-900/40 p-6 transition hover:border-indigo-500/50 hover:from-indigo-500/15"
+        >
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 transition group-hover:bg-indigo-500/30">
+              <Sparkles className="h-6 w-6 text-indigo-300" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-white">Match Analysis</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Understand why you match certain roles and which skills are being evaluated
+              </p>
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-500">Profile completeness</span>
+                  <span className="font-semibold text-white">{profile.completeness}%</span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all"
+                    style={{ width: `${profile.completeness}%` }}
+                  />
+                </div>
+              </div>
+              <div className="mt-4 flex items-center gap-2 text-xs font-medium text-indigo-300">
+                <span>View detailed analysis</span>
+                <span className="transition group-hover:translate-x-1">→</span>
+              </div>
+            </div>
+          </div>
+        </Link>
+
+        {/* Skills Gap Analysis Tile */}
+        <Link
+          to="/skills"
+          className="mvh-card-glow group rounded-2xl border border-teal-500/30 bg-gradient-to-br from-teal-500/10 to-slate-900/40 p-6 transition hover:border-teal-500/50 hover:from-teal-500/15"
+        >
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-teal-500/20 transition group-hover:bg-teal-500/30">
+              <TrendingUp className="h-6 w-6 text-teal-300" />
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-white">Skills Gap Analysis</h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Identify missing skills for your target role and get personalized development paths
+              </p>
+              <div className="mt-4 space-y-2">
+                {profile.missingCriticalFields.length > 0 ? (
+                  <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2">
+                    <p className="text-xs font-medium text-amber-300">
+                      {profile.missingCriticalFields.length} gap{profile.missingCriticalFields.length === 1 ? '' : 's'} identified
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2">
+                    <p className="text-xs font-medium text-emerald-300">
+                      Profile complete — ready for analysis
+                    </p>
+                  </div>
+                )}
+              </div>
+              <div className="mt-4 flex items-center gap-2 text-xs font-medium text-teal-300">
+                <span>Open Skills Lab</span>
+                <span className="transition group-hover:translate-x-1">→</span>
+              </div>
+            </div>
+          </div>
+        </Link>
+      </section>
       <section className="grid gap-6 xl:grid-cols-3">
         <div className="mvh-card-glow rounded-2xl border border-white/10 bg-white/5 p-5 xl:col-span-2">
           <div className="flex items-center justify-between">
