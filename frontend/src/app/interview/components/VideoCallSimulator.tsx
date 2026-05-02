@@ -549,7 +549,6 @@ function RecruiterAvatar({
   isSpeaking: boolean;
   isListening: boolean;
 }) {
-<<<<<<< HEAD
   const p = PERSONAS[persona];
   const [blink, setBlink] = useState(false);
   const [mouth, setMouth] = useState(false);
@@ -569,12 +568,6 @@ function RecruiterAvatar({
   }, []);
 
   // Mouth flap when speaking
-=======
-  const config = PERSONA_CONFIG[persona];
-  const [speakingAnimation, setSpeakingAnimation] = useState(0);
-
-  // Speaking animation - mouth movement
->>>>>>> 7717c1d (Fix remaining TypeScript errors: add interviewStage prop, remove unused functions and variables)
   useEffect(() => {
     if (!isSpeaking) { setMouth(false); return; }
     let active = true;
@@ -666,8 +659,9 @@ function CandidateCameraPreview({
 
   return (
     <div
-      className={`relative w-full h-full bg-gray-900 rounded-lg overflow-hidden border-2 transition-colors ${isSpeaking ? 'border-green-400' : 'border-gray-600'
-        }`}
+      className={`relative w-full h-full bg-gray-900 rounded-lg overflow-hidden border-2 transition-colors ${
+        isSpeaking ? 'border-green-400' : 'border-gray-600'
+      }`}
     >
       {cameraEnabled ? (
         <>
