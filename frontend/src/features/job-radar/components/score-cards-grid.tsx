@@ -13,6 +13,8 @@ const scoreItems = [
 ] as const;
 
 export function ScoreCardsGrid({ report }: { report: JobRadarReportView }) {
+  const sourcesCount = report.sources?.length ?? 0;
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {scoreItems.map((item) => {
@@ -29,6 +31,7 @@ export function ScoreCardsGrid({ report }: { report: JobRadarReportView }) {
             label={item.label}
             score={score}
             drivers={drivers}
+            sourcesCount={sourcesCount}
           />
         );
       })}
@@ -36,6 +39,11 @@ export function ScoreCardsGrid({ report }: { report: JobRadarReportView }) {
       <div className="rounded-lg border border-neutral-200 bg-white p-4 sm:col-span-2 xl:col-span-3 dark:border-neutral-800 dark:bg-neutral-950">
         <div className="text-sm text-neutral-600 dark:text-neutral-400">Recommendation</div>
         <div className="mt-2 text-xl font-semibold text-neutral-900 dark:text-neutral-50">{report.recommendation}</div>
+        {sourcesCount > 0 && (
+          <div className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
+            Based on {sourcesCount} source{sourcesCount !== 1 ? 's' : ''} analyzed
+          </div>
+        )}
       </div>
     </div>
   );
