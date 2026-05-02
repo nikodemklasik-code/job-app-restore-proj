@@ -1117,7 +1117,6 @@ export default function JobsDiscovery() {
                   onCreateDraft={() => handleCreateDraft(job)}
                   isExpanded={false}
                   isCreatingDraft={createApplicationMutation.isPending}
-                  onFitScoreClick={() => setExplainJobId(job.id)}
                 />
               );
             })

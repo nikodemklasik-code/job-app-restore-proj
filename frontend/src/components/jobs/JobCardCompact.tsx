@@ -35,7 +35,9 @@ type JobCardCompactProps = {
     onToggleSave?: () => void;
     onExpand?: () => void;
     onCreateDraft?: () => void;
+    onFitScoreClick?: () => void;
     isExpanded?: boolean;
+    isCreatingDraft?: boolean;
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -80,7 +82,9 @@ export function JobCardCompact({
     onToggleSave,
     onExpand,
     onCreateDraft,
+    onFitScoreClick,
     isExpanded = false,
+    isCreatingDraft = false,
 }: JobCardCompactProps) {
     const salary = formatSalary(job.salaryMin, job.salaryMax);
     const timeAgo = getTimeAgo(job.postedAt);
@@ -99,21 +103,17 @@ export function JobCardCompact({
       `}
             onClick={onExpand}
         >
-            {/* Glow effect for high matches */}
             {job.fitScore >= 90 && !isExpanded && (
                 <div className="absolute inset-0 rounded-2xl bg-emerald-500/5 blur-xl opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
             )}
 
             <div className="flex items-start justify-between gap-4">
                 <div className="flex gap-4 flex-1 min-w-0">
-                    {/* Company Logo */}
                     <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center shrink-0 border border-slate-700 shadow-inner">
                         <Building2 className="w-6 h-6 text-slate-400" />
                     </div>
 
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
-                        {/* Title & Badges */}
                         <div className="flex items-start gap-3 mb-2 flex-wrap">
                             <Link
                                 to={`/jobs/${job.id}`}
@@ -124,19 +124,23 @@ export function JobCardCompact({
                             </Link>
 
                             <div className="flex items-center gap-2 flex-wrap">
-                                {/* Fit Score Badge */}
-                                <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold tracking-wide border ${fitScoreColor}`}>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onFitScoreClick?.();
+                                    }}
+                                    className={`px-2.5 py-0.5 rounded-md text-xs font-bold tracking-wide border ${fitScoreColor} hover:opacity-80 transition-opacity cursor-pointer`}
+                                    title="Click to see why this job matches"
+                                >
                                     {job.fitScore}% MATCH
-                                </span>
+                                </button>
 
-                                {/* Application Status */}
                                 {applicationStatus && (
                                     <span className={`px-2.5 py-0.5 rounded-md text-xs font-semibold border ${STATUS_COLORS[applicationStatus] || 'bg-slate-500/20 text-slate-400 border-slate-500/30'}`}>
                                         {applicationStatus.toUpperCase()}
                                     </span>
                                 )}
 
-                                {/* Warning Badge */}
                                 {hasWarning && (
                                     <span className={`px-2.5 py-0.5 rounded-md text-xs font-bold border flex items-center gap-1 ${job.scamAnalysis!.level === 'high'
                                         ? 'bg-red-500/10 text-red-400 border-red-500/30'
@@ -148,7 +152,6 @@ export function JobCardCompact({
                             </div>
                         </div>
 
-                        {/* Company & Meta */}
                         <div className="flex items-center gap-3 text-sm text-slate-400 mb-3 flex-wrap">
                             <span className="flex items-center gap-1.5 hover:text-slate-300 transition-colors">
                                 <Building2 className="w-3.5 h-3.5" />
@@ -195,7 +198,6 @@ export function JobCardCompact({
                             )}
                         </div>
 
-                        {/* AI Summary - Always visible */}
                         <div className={`pl-4 border-l-2 transition-colors ${isExpanded ? 'border-emerald-500/50' : 'border-slate-700 group-hover:border-emerald-500/30'
                             }`}>
                             <p className="text-sm text-slate-400 line-clamp-2">
@@ -209,7 +211,6 @@ export function JobCardCompact({
                     </div>
                 </div>
 
-                {/* Actions */}
                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     {onCreateDraft && (
                         <button
@@ -217,7 +218,8 @@ export function JobCardCompact({
                                 e.stopPropagation();
                                 onCreateDraft();
                             }}
-                            className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 border border-emerald-500 transition-all text-xs font-semibold"
+                            disabled={isCreatingDraft}
+                            className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 border border-emerald-500 transition-all text-xs font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
                             title="Start Application"
                         >
                             <Target className="w-3.5 h-3.5" />

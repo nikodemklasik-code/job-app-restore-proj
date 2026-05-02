@@ -9,6 +9,13 @@ import {
     CheckCircle2,
     XCircle,
     Info,
+    DollarSign,
+    Building2,
+    Users,
+    Heart,
+    Shield,
+    Star,
+    ExternalLink,
     RefreshCw,
 } from 'lucide-react';
 import { ScoreCardsGrid } from '@/features/job-radar/components/score-cards-grid';
@@ -60,7 +67,7 @@ export default function JobRadarReport() {
         return null;
     }
 
-    const { summary, sources, scoreDrivers } = reportQuery.data;
+    const { summary, sources } = reportQuery.data;
 
     if (summary.status === 'processing') {
         return (
@@ -88,8 +95,12 @@ export default function JobRadarReport() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
             <div className="mx-auto max-w-6xl space-y-6">
+                {/* Header */}
                 <div className="flex items-center justify-between">
-                    <Link to="/jobs" className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition">
+                    <Link
+                        to="/jobs"
+                        className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition"
+                    >
                         <ArrowLeft className="h-4 w-4" />
                         Back to Jobs
                     </Link>
@@ -99,62 +110,73 @@ export default function JobRadarReport() {
                     </div>
                 </div>
 
+                {/* Title */}
                 <div>
                     <h1 className="text-3xl font-bold text-white">Job Radar Deep Analysis</h1>
-                    <p className="mt-2 text-slate-400">Comprehensive employer research, market benchmarks, and risk assessment</p>
+                    <p className="mt-2 text-slate-400">
+                        Comprehensive employer research, market benchmarks, and risk assessment
+                    </p>
                 </div>
 
+                {/* Overall Recommendation */}
                 <div className={`rounded-2xl border p-6 ${getRecommendationColor(summary.recommendation)}`}>
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm font-semibold uppercase tracking-wider opacity-80">Overall Assessment</p>
                             <h2 className="mt-1 text-2xl font-bold">{summary.recommendation}</h2>
-                            <p className="mt-1 text-sm opacity-70">Confidence: {summary.confidenceOverall} • {summary.sourcesCount} sources analyzed</p>
+                            <p className="mt-1 text-sm opacity-70">
+                                Confidence: {summary.confidenceOverall} • {summary.sourcesCount} sources analyzed
+                            </p>
                         </div>
                         {summary.recommendation === 'Strong Match' && <CheckCircle2 className="h-12 w-12 opacity-50" />}
-                        {summary.recommendation === 'Good Option' && <CheckCircle2 className="h-12 w-12 opacity-50" />}
+                        {summary.recommendation === 'Good Option' && <Star className="h-12 w-12 opacity-50" />}
                         {summary.recommendation === 'Mixed Signals' && <Info className="h-12 w-12 opacity-50" />}
                         {summary.recommendation === 'High Risk' && <AlertTriangle className="h-12 w-12 opacity-50" />}
                     </div>
                 </div>
 
-                <ScoreCardsGrid 
-                    report={{
-                        report_id: summary.scanId,
-                        scan_id: summary.scanId,
-                        status: summary.status as any,
-                        scoring_version: '1.0',
-                        parser_version: '1.0',
-                        scores: {
-                            employer_score: summary.employerScore,
-                            offer_score: summary.offerScore,
-                            market_pay_score: summary.marketPayScore,
-                            benefits_score: summary.benefitsScore,
-                            culture_fit_score: summary.cultureFitScore,
-                            risk_score: summary.riskScore,
-                        },
-                        recommendation: summary.recommendation as any,
-                        score_drivers: scoreDrivers || {},
-                        confidence_summary: { overall: summary.confidenceOverall as any },
-                        freshness: {
-                            last_scanned_at: new Date().toISOString(),
-                            freshness_hours: summary.freshnessHours,
-                            freshness_status: summary.freshnessStatus as any,
-                            auto_rescan_eligible: true,
-                        },
-                        missing_data: [],
-                        red_flags: [],
-                        key_findings: [],
-                        sources: sources.map((s: any) => ({
-                            source_id: s.id,
-                            type: s.sourceType,
-                            url: s.sourceUrl || '',
-                            tier: s.sourceQualityTier,
-                            collected_at: s.collectedAt,
-                        })),
-                    }}
-                />
+                {/* Scores Grid */}
+                <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+                    <ScoreCard
+                        icon={<Building2 className="h-5 w-5" />}
+                        label="Employer"
+                        score={summary.employerScore}
+                        description="Company reputation & stability"
+                    />
+                    <ScoreCard
+                        icon={<Star className="h-5 w-5" />}
+                        label="Offer Quality"
+                        score={summary.offerScore}
+                        description="Role attractiveness"
+                    />
+                    <ScoreCard
+                        icon={<DollarSign className="h-5 w-5" />}
+                        label="Market Pay"
+                        score={summary.marketPayScore}
+                        description="Salary vs market"
+                    />
+                    <ScoreCard
+                        icon={<Heart className="h-5 w-5" />}
+                        label="Benefits"
+                        score={summary.benefitsScore}
+                        description="Perks & compensation"
+                    />
+                    <ScoreCard
+                        icon={<Users className="h-5 w-5" />}
+                        label="Culture Fit"
+                        score={summary.cultureFitScore}
+                        description="Work environment"
+                    />
+                    <ScoreCard
+                        icon={<Shield className="h-5 w-5" />}
+                        label="Risk Level"
+                        score={100 - summary.riskScore}
+                        description="Safety & legitimacy"
+                        inverted
+                    />
+                </div>
 
+                {/* Red Flags */}
                 {summary.redFlags.length > 0 && (
                     <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-6">
                         <div className="flex items-center gap-3 mb-4">
@@ -172,6 +194,7 @@ export default function JobRadarReport() {
                     </div>
                 )}
 
+                {/* Key Findings */}
                 {summary.keyFindings.length > 0 && (
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
                         <h3 className="text-lg font-semibold text-white mb-4">Key Findings</h3>
@@ -186,6 +209,7 @@ export default function JobRadarReport() {
                     </div>
                 )}
 
+                {/* Positive Signals */}
                 {summary.positiveSignals.length > 0 && (
                     <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6">
                         <div className="flex items-center gap-3 mb-4">
@@ -203,21 +227,28 @@ export default function JobRadarReport() {
                     </div>
                 )}
 
+                {/* Salary Benchmark */}
                 {summary.salaryBenchmark && (
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
                         <h3 className="text-lg font-semibold text-white mb-4">Salary Benchmark</h3>
                         <div className="grid grid-cols-3 gap-4">
                             <div className="text-center">
                                 <p className="text-xs text-slate-500 uppercase tracking-wider">25th Percentile</p>
-                                <p className="mt-1 text-2xl font-bold text-slate-300">£{summary.salaryBenchmark.p25.toLocaleString()}</p>
+                                <p className="mt-1 text-2xl font-bold text-slate-300">
+                                    £{summary.salaryBenchmark.p25.toLocaleString()}
+                                </p>
                             </div>
                             <div className="text-center">
                                 <p className="text-xs text-slate-500 uppercase tracking-wider">Median</p>
-                                <p className="mt-1 text-2xl font-bold text-white">£{summary.salaryBenchmark.median.toLocaleString()}</p>
+                                <p className="mt-1 text-2xl font-bold text-white">
+                                    £{summary.salaryBenchmark.median.toLocaleString()}
+                                </p>
                             </div>
                             <div className="text-center">
                                 <p className="text-xs text-slate-500 uppercase tracking-wider">75th Percentile</p>
-                                <p className="mt-1 text-2xl font-bold text-slate-300">£{summary.salaryBenchmark.p75.toLocaleString()}</p>
+                                <p className="mt-1 text-2xl font-bold text-slate-300">
+                                    £{summary.salaryBenchmark.p75.toLocaleString()}
+                                </p>
                             </div>
                         </div>
                         <div className="mt-4 flex items-center justify-center gap-2 text-sm">
@@ -242,7 +273,84 @@ export default function JobRadarReport() {
                         </div>
                     </div>
                 )}
+
+                {/* Sources */}
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                    <h3 className="text-lg font-semibold text-white mb-4">
+                        Data Sources ({sources.length})
+                    </h3>
+                    <div className="space-y-2">
+                        {sources.map((source: any) => (
+                            <div
+                                key={source.id}
+                                className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] px-4 py-2"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/20">
+                                        <ExternalLink className="h-4 w-4 text-indigo-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-white">{source.title}</p>
+                                        <p className="text-xs text-slate-500 capitalize">{source.sourceType.replace(/_/g, ' ')}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-slate-500">Tier {source.sourceQualityTier}</span>
+                                    {source.parseStatus === 'parsed' && (
+                                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                                    )}
+                                    {source.parseStatus === 'pending' && (
+                                        <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                                    )}
+                                    {source.parseStatus === 'failed' && (
+                                        <XCircle className="h-4 w-4 text-red-400" />
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
+        </div>
+    );
+}
+
+function ScoreCard({
+    icon,
+    label,
+    score,
+    description,
+    inverted = false,
+}: {
+    icon: React.ReactNode;
+    label: string;
+    score: number;
+    description: string;
+    inverted?: boolean;
+}) {
+    const displayScore = inverted ? 100 - score : score;
+    const getColor = (s: number) => {
+        if (s >= 80) return 'text-emerald-400';
+        if (s >= 60) return 'text-blue-400';
+        if (s >= 40) return 'text-amber-400';
+        return 'text-red-400';
+    };
+
+    const getBg = (s: number) => {
+        if (s >= 80) return 'bg-emerald-500/20 border-emerald-500/30';
+        if (s >= 60) return 'bg-blue-500/20 border-blue-500/30';
+        if (s >= 40) return 'bg-amber-500/20 border-amber-500/30';
+        return 'bg-red-500/20 border-red-500/30';
+    };
+
+    return (
+        <div className={`rounded-2xl border p-4 ${getBg(displayScore)}`}>
+            <div className="flex items-center gap-2 mb-2">
+                <div className={getColor(displayScore)}>{icon}</div>
+                <p className="text-sm font-semibold text-white">{label}</p>
+            </div>
+            <p className={`text-3xl font-bold ${getColor(displayScore)}`}>{displayScore}</p>
+            <p className="mt-1 text-xs text-slate-400">{description}</p>
         </div>
     );
 }
