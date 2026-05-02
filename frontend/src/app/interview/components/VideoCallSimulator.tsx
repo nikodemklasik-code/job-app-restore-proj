@@ -580,18 +580,6 @@ function RecruiterAvatar({
     return () => { active = false; };
   }, [isSpeaking]);
 
-  // Speaking animation - mouth movement
-  useEffect(() => {
-    if (!isSpeaking) {
-      setSpeakingAnimation(0);
-      return;
-    }
-    const timer = setInterval(() => {
-      setSpeakingAnimation((prev) => (prev + 1) % 3);
-    }, 200);
-    return () => clearInterval(timer);
-  }, [isSpeaking]);
-
   return (
     <div className="relative w-full h-full overflow-hidden bg-[#C8BCAA]">
       <PersonVideoFeed p={p} blink={blink} mouth={mouth} speaking={isSpeaking} />
@@ -851,6 +839,7 @@ export function VideoCallSimulator({
   recruiterName: _recruiterName,
   recruiterRole: _recruiterRole,
   recruiterPersona,
+  interviewStage,
   isRecruiterSpeaking,
   recruiterMessage,
   candidateTranscript,
