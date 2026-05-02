@@ -4,10 +4,12 @@ import { eq, desc } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { publicProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
-import { applications, applicationLogs, profiles, skills, users } from '../../db/schema.js';
+import { applications, applicationLogs, profiles, skills, users, experiences, educations } from '../../db/schema.js';
 import { generateCoverLetter, generateCvSummary, scoreJobFit, generateFollowUp } from '../../services/aiPersonalizer.js';
-import { generateCvPdf, generateCoverLetterPdf, generateCandidateReport } from '../../services/pdfGenerator.js';
+import { generateCvPdf, generateCoverLetterPdf, generateCandidateReport, generateAtsCvPdf, calculateAtsScore } from '../../services/pdfGenerator.js';
 import { getLearnedSignals, recordOutcome } from '../../services/learningService.js';
+import { analyzeJobDescription, matchProfileToJob } from '../../services/jobAnalyzer.js';
+import { generateTailoredCv, generateTailoredCoverLetter } from '../../services/documentTailoring.js';
 import { Resend } from 'resend';
 
 const getResend = () => new Resend(process.env.RESEND_API_KEY);
@@ -92,14 +94,39 @@ export const applicationsRouter = router({
       if (!profile) throw new Error('Profile not found — complete your profile first');
 
       const skillRecords = await db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profile.id));
+      const experienceRecords = await db.select().from(experiences).where(eq(experiences.profileId, profile.id)).orderBy(desc(experiences.startDate));
+      const educationRecords = await db.select().from(educations).where(eq(educations.profileId, profile.id)).orderBy(desc(educations.startDate));
       const learnedSignals = await getLearnedSignals(userRecord[0].id);
 
-      const jobData = { title: appRow[0].jobTitle, company: appRow[0].company };
+      const jobData = { title: appRow[0].jobTitle, company: appRow[0].company, description: appRow[0].jobDescription ?? '' };
       const profileData = {
         fullName: profile.fullName,
         summary: profile.summary ?? '',
         skills: skillRecords.map((s) => s.name),
+        experience: experienceRecords.map((e) => ({
+          id: e.id,
+          title: e.jobTitle,
+          company: e.employerName,
+          description: e.description ?? '',
+          achievements: e.achievements ? JSON.parse(e.achievements as string) : [],
+        })),
+        education: educationRecords.map((e) => ({
+          degree: e.degree,
+          school: e.schoolName,
+        })),
       };
+
+      // Phase 1: Analyze job and match profile
+      let jobAnalysis;
+      let profileMatch;
+      try {
+        jobAnalysis = await analyzeJobDescription(jobData.title, jobData.company, jobData.description);
+        profileMatch = await matchProfileToJob(profileData, jobAnalysis);
+      } catch (error) {
+        console.warn('Job analysis failed, continuing with basic generation:', error);
+        jobAnalysis = null;
+        profileMatch = null;
+      }
 
       const [coverLetter, cvSummary] = await Promise.all([
         generateCoverLetter(profileData, jobData, learnedSignals),
@@ -108,17 +135,32 @@ export const applicationsRouter = router({
 
       const jobFit = await scoreJobFit(profileData, jobData);
 
+      // Store job analysis metadata if available
+      const metadata = jobAnalysis && profileMatch ? {
+        jobAnalysis,
+        profileMatch,
+        generatedAt: new Date().toISOString(),
+      } : null;
+
       await db.update(applications).set({
         coverLetterSnapshot: coverLetter,
         cvSnapshot: cvSummary,
         fitScore: jobFit.score,
         status: 'prepared',
         updatedAt: new Date(),
+        metadata: metadata ? JSON.stringify(metadata) : null,
       }).where(eq(applications.id, input.applicationId));
 
       await db.insert(applicationLogs).values({ id: randomUUID(), applicationId: input.applicationId, action: 'documents_generated' });
 
-      return { coverLetter, cvSummary, fitScore: jobFit.score, fitReasons: jobFit.reasons };
+      return {
+        coverLetter,
+        cvSummary,
+        fitScore: jobFit.score,
+        fitReasons: jobFit.reasons,
+        jobAnalysis: jobAnalysis || undefined,
+        profileMatch: profileMatch || undefined,
+      };
     }),
 
   sendByEmail: publicProcedure
@@ -142,6 +184,10 @@ export const applicationsRouter = router({
       const profile = profileRecord[0];
       const skillRecords = profile ? await db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profile.id)) : [];
 
+      // Fetch experience and education for complete CV
+      const experienceRecords = profile ? await db.select().from(experiences).where(eq(experiences.profileId, profile.id)).orderBy(desc(experiences.startDate)) : [];
+      const educationRecords = profile ? await db.select().from(educations).where(eq(educations.profileId, profile.id)).orderBy(desc(educations.startDate)) : [];
+
       // Generate PDFs
       const [cvPdf, clPdf] = await Promise.all([
         generateCvPdf({
@@ -150,6 +196,19 @@ export const applicationsRouter = router({
           phone: profile?.phone ?? '',
           summary: profile?.summary ?? '',
           skills: skillRecords.map((s) => s.name),
+          experience: experienceRecords.map((e) => ({
+            title: e.jobTitle,
+            company: e.employerName,
+            startDate: e.startDate,
+            endDate: e.endDate ?? undefined,
+            description: e.description ?? undefined,
+          })),
+          education: educationRecords.map((e) => ({
+            degree: e.degree,
+            school: e.schoolName,
+            startDate: e.startDate,
+            endDate: e.endDate ?? undefined,
+          })),
         }),
         generateCoverLetterPdf(appRow[0].coverLetterSnapshot, {
           senderName: profile?.fullName ?? '',
@@ -271,6 +330,8 @@ export const applicationsRouter = router({
       if (!profile) throw new Error('Complete your profile first');
 
       const skillRecords = await db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profile.id));
+      const experienceRecords = await db.select().from(experiences).where(eq(experiences.profileId, profile.id)).orderBy(desc(experiences.startDate));
+      const educationRecords = await db.select().from(educations).where(eq(educations.profileId, profile.id)).orderBy(desc(educations.startDate));
 
       const pdfBuffer = await generateCvPdf({
         fullName: profile.fullName,
@@ -278,6 +339,19 @@ export const applicationsRouter = router({
         phone: profile.phone ?? '',
         summary: profile.summary ?? '',
         skills: skillRecords.map((s) => s.name),
+        experience: experienceRecords.map((e) => ({
+          title: e.jobTitle,
+          company: e.employerName,
+          startDate: e.startDate,
+          endDate: e.endDate ?? undefined,
+          description: e.description ?? undefined,
+        })),
+        education: educationRecords.map((e) => ({
+          degree: e.degree,
+          school: e.schoolName,
+          startDate: e.startDate,
+          endDate: e.endDate ?? undefined,
+        })),
       });
 
       return { base64: pdfBuffer.toString('base64') };
@@ -381,6 +455,106 @@ export const applicationsRouter = router({
         topCompanies,
         topStatuses,
         generatedAt: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
+      });
+
+      return { base64: pdfBuffer.toString('base64') };
+    }),
+
+  // Phase 4: New ATS-Optimized Endpoints
+
+  analyzeJobFit: publicProcedure
+    .input(z.object({ userId: z.string(), applicationId: z.string() }))
+    .query(async ({ input }) => {
+      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      if (!userRecord[0]) throw new Error('User not found');
+
+      const appRow = await db.select().from(applications).where(eq(applications.id, input.applicationId)).limit(1);
+      if (!appRow[0]) throw new Error('Application not found');
+
+      // Parse metadata if available
+      if (appRow[0].metadata) {
+        try {
+          const metadata = JSON.parse(appRow[0].metadata as string);
+          return {
+            jobAnalysis: metadata.jobAnalysis,
+            profileMatch: metadata.profileMatch,
+            generatedAt: metadata.generatedAt,
+          };
+        } catch {
+          return { error: 'Metadata parsing failed' };
+        }
+      }
+
+      return { error: 'No job analysis available - generate documents first' };
+    }),
+
+  getAtsScore: publicProcedure
+    .input(z.object({ userId: z.string() }))
+    .query(async ({ input }) => {
+      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      if (!userRecord[0]) throw new Error('User not found');
+
+      const profileRecord = await db.select().from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1);
+      const profile = profileRecord[0];
+      if (!profile) throw new Error('Profile not found');
+
+      const skillRecords = await db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profile.id));
+      const experienceRecords = await db.select().from(experiences).where(eq(experiences.profileId, profile.id));
+      const educationRecords = await db.select().from(educations).where(eq(educations.profileId, profile.id));
+
+      const atsScore = calculateAtsScore({
+        fullName: profile.fullName,
+        email: userRecord[0].email,
+        phone: profile.phone ?? undefined,
+        summary: profile.summary ?? undefined,
+        skills: skillRecords.map((s) => s.name),
+        experience: experienceRecords.map((e) => ({
+          title: e.jobTitle,
+          company: e.employerName,
+          description: e.description ?? undefined,
+        })),
+        education: educationRecords.map((e) => ({
+          degree: e.degree,
+          school: e.schoolName,
+        })),
+      });
+
+      return { atsScore };
+    }),
+
+  downloadAtsCvPdf: publicProcedure
+    .input(z.object({ userId: z.string() }))
+    .mutation(async ({ input }) => {
+      const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      if (!userRecord[0]) throw new Error('User not found');
+
+      const profileRecord = await db.select().from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1);
+      const profile = profileRecord[0];
+      if (!profile) throw new Error('Complete your profile first');
+
+      const skillRecords = await db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profile.id));
+      const experienceRecords = await db.select().from(experiences).where(eq(experiences.profileId, profile.id)).orderBy(desc(experiences.startDate));
+      const educationRecords = await db.select().from(educations).where(eq(educations.profileId, profile.id)).orderBy(desc(educations.startDate));
+
+      const pdfBuffer = await generateAtsCvPdf({
+        fullName: profile.fullName,
+        email: userRecord[0].email,
+        phone: profile.phone ?? '',
+        summary: profile.summary ?? '',
+        skills: skillRecords.map((s) => s.name),
+        experience: experienceRecords.map((e) => ({
+          title: e.jobTitle,
+          company: e.employerName,
+          startDate: e.startDate,
+          endDate: e.endDate ?? undefined,
+          description: e.description ?? undefined,
+        })),
+        education: educationRecords.map((e) => ({
+          degree: e.degree,
+          school: e.schoolName,
+          startDate: e.startDate,
+          endDate: e.endDate ?? undefined,
+        })),
       });
 
       return { base64: pdfBuffer.toString('base64') };

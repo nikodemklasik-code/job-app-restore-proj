@@ -90,6 +90,7 @@ export const experiences = mysqlTable('experiences', {
   startDate: varchar('start_date', { length: 20 }).notNull(),
   endDate: varchar('end_date', { length: 20 }),
   description: text('description'),
+  achievements: json('achievements'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -120,6 +121,7 @@ export const trainings = mysqlTable('trainings', {
   issuedAt: varchar('issued_at', { length: 20 }).notNull(),
   expiresAt: varchar('expires_at', { length: 20 }),
   credentialUrl: varchar('credential_url', { length: 500 }),
+  relevanceScore: int('relevance_score'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -305,13 +307,17 @@ export const applications = mysqlTable('applications', {
   jobId: varchar('job_id', { length: 36 }),
   jobTitle: varchar('job_title', { length: 255 }).notNull().default(''),
   company: varchar('company', { length: 255 }).notNull().default(''),
+  jobDescription: text('job_description'),
   status: varchar('status', { length: 50 }).notNull().default('draft'),
   fitScore: int('fit_score'),
+  atsScore: int('ats_score'),
+  keywordCoverage: int('keyword_coverage'),
   cvSnapshot: text('cv_snapshot'),
   coverLetterSnapshot: text('cover_letter_snapshot'),
   emailSentAt: timestamp('email_sent_at'),
   channel: varchar('channel', { length: 50 }).default('email'),
   notes: text('notes'),
+  metadata: json('metadata'),
   silenceDays: int('silence_days').notNull().default(0),
   lastFollowedUpAt: timestamp('last_followed_up_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),

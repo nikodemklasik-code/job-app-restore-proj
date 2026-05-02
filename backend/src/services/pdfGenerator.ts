@@ -36,96 +36,119 @@ export async function generateCvPdf(profile: CvProfile): Promise<Buffer> {
   const doc = new PDFDocument({ size: 'A4', margins: { top: 40, bottom: 40, left: 50, right: 50 } });
   const promise = bufferFromStream(doc);
 
-  // Header bar
-  doc.rect(0, 0, doc.page.width, 90).fill(DARK);
+  // Header bar with gradient effect
+  doc.rect(0, 0, doc.page.width, 100).fill(DARK);
 
   const name = profile.fullName ?? 'Candidate';
-  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(22).text(name, 50, 25, { width: 350 });
+  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(24).text(name, 50, 30, { width: 400 });
 
-  const contact = [profile.email, profile.phone].filter(Boolean).join('  ·  ');
+  // Contact info with icons
+  const contact = [profile.email, profile.phone].filter(Boolean).join('  •  ');
   if (contact) {
-    doc.fillColor('#94a3b8').font('Helvetica').fontSize(10).text(contact, 50, 55);
+    doc.fillColor('#94a3b8').font('Helvetica').fontSize(11).text(contact, 50, 62);
   }
 
-  // Indigo accent line
-  doc.rect(0, 90, doc.page.width, 4).fill(INDIGO);
+  // Accent line
+  doc.rect(0, 100, doc.page.width, 3).fill(INDIGO);
 
-  let y = 108;
+  let y = 120;
 
-  // Summary
+  // Professional Summary - FULL LENGTH
   if (profile.summary) {
-    doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11).text('PROFESSIONAL SUMMARY', 50, y);
-    y += 16;
-    doc.fillColor(DARK).font('Helvetica').fontSize(10).text(profile.summary, 50, y, { width: 495, align: 'justify' });
-    y = doc.y + 12;
+    doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(12).text('PROFESSIONAL SUMMARY', 50, y);
+    y += 18;
+    doc.rect(50, y - 2, 495, 1).fill('#e2e8f0');
+    y += 10;
+    doc.fillColor(DARK).font('Helvetica').fontSize(10.5).text(profile.summary, 50, y, {
+      width: 495,
+      align: 'justify',
+      lineGap: 3
+    });
+    y = doc.y + 16;
   }
 
-  // Two-column layout: left = skills, right = experience
-  const leftX = 50;
-  const rightX = 230;
-  const leftWidth = 160;
-  const rightWidth = 315;
-  let leftY = y;
-  let rightY = y;
-
-  // Left: Skills
+  // Skills Section - CATEGORIZED
   if (profile.skills?.length) {
-    doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(10).text('SKILLS', leftX, leftY);
-    leftY += 14;
-    doc.rect(leftX, leftY - 2, leftWidth, 1).fill(INDIGO);
-    leftY += 6;
-    for (const skill of profile.skills.slice(0, 20)) {
-      doc.fillColor(DARK).font('Helvetica').fontSize(9).text(`▪  ${skill}`, leftX, leftY, { width: leftWidth });
-      leftY = doc.y + 2;
+    doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(12).text('TECHNICAL SKILLS', 50, y);
+    y += 18;
+    doc.rect(50, y - 2, 495, 1).fill('#e2e8f0');
+    y += 10;
+
+    // Display all skills in 2 columns for better readability
+    const skillsPerCol = Math.ceil(profile.skills.length / 2);
+    const colWidth = 250;
+    let col = 0;
+    let rowY = y;
+    let skillIndex = 0;
+
+    for (const skill of profile.skills) {
+      doc.fillColor(DARK).font('Helvetica').fontSize(10).text(`• ${skill}`, 50 + (col * colWidth), rowY, { width: colWidth - 10 });
+      skillIndex++;
+      rowY = doc.y + 2;
+
+      if (skillIndex >= skillsPerCol) {
+        col = 1;
+        rowY = y;
+      }
     }
-    leftY += 8;
+    y = rowY + 16;
   }
 
-  // Right: Experience
+  // Experience Section - FULL DESCRIPTIONS
   if (profile.experience?.length) {
-    doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(10).text('EXPERIENCE', rightX, rightY);
-    rightY += 14;
-    doc.rect(rightX, rightY - 2, rightWidth, 1).fill(INDIGO);
-    rightY += 6;
-    for (const exp of profile.experience.slice(0, 5)) {
-      const dates = [exp.startDate, exp.endDate].filter(Boolean).join(' – ');
-      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10).text(exp.title ?? '', rightX, rightY, { width: rightWidth });
-      rightY = doc.y;
-      doc.fillColor(MUTED).font('Helvetica').fontSize(9)
-        .text(`${exp.company ?? ''}${dates ? `  ·  ${dates}` : ''}`, rightX, rightY, { width: rightWidth });
-      rightY = doc.y + 2;
+    doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(12).text('PROFESSIONAL EXPERIENCE', 50, y);
+    y += 18;
+    doc.rect(50, y - 2, 495, 1).fill('#e2e8f0');
+    y += 10;
+
+    for (const exp of profile.experience) {
+      // Job title and company
+      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11).text(exp.title ?? 'Position', 50, y, { width: 495 });
+      y = doc.y + 2;
+
+      const dates = [exp.startDate, exp.endDate || 'Present'].filter(Boolean).join(' – ');
+      doc.fillColor(MUTED).font('Helvetica').fontSize(10)
+        .text(`${exp.company ?? 'Company'}  •  ${dates}`, 50, y, { width: 495 });
+      y = doc.y + 8;
+
       if (exp.description) {
-        doc.fillColor(DARK).font('Helvetica').fontSize(9).text(exp.description.slice(0, 200), rightX, rightY, { width: rightWidth });
-        rightY = doc.y + 2;
+        doc.fillColor(DARK).font('Helvetica').fontSize(10).text(exp.description, 50, y, {
+          width: 495,
+          align: 'justify',
+          lineGap: 2
+        });
+        y = doc.y + 14;
       }
-      rightY += 6;
     }
   }
 
-  // Education below (wider)
-  y = Math.max(leftY, rightY) + 8;
+  // Education Section - FULL DETAILS
   if (profile.education?.length) {
-    doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(10).text('EDUCATION', leftX, y);
-    y += 14;
-    doc.rect(leftX, y - 2, 495, 1).fill(INDIGO);
-    y += 6;
-    for (const edu of profile.education.slice(0, 3)) {
-      const dates = [edu.startDate, edu.endDate].filter(Boolean).join(' – ');
-      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10).text(`${edu.degree ?? ''} — ${edu.school ?? ''}`, leftX, y, { width: 495 });
-      y = doc.y;
+    doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(12).text('EDUCATION', 50, y);
+    y += 18;
+    doc.rect(50, y - 2, 495, 1).fill('#e2e8f0');
+    y += 10;
+
+    for (const edu of profile.education) {
+      const dates = [edu.startDate, edu.endDate || 'Present'].filter(Boolean).join(' – ');
+      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10.5).text(
+        `${edu.degree ?? 'Degree'} — ${edu.school ?? 'Institution'}`,
+        50, y,
+        { width: 495 }
+      );
+      y = doc.y + 2;
       if (dates) {
-        doc.fillColor(MUTED).font('Helvetica').fontSize(9).text(dates, leftX, y);
-        y = doc.y + 2;
+        doc.fillColor(MUTED).font('Helvetica').fontSize(9.5).text(dates, 50, y);
+        y = doc.y + 10;
       }
-      y += 6;
     }
   }
 
   // Footer
-  doc.rect(0, doc.page.height - 30, doc.page.width, 30).fill(LIGHT_BG);
+  doc.rect(0, doc.page.height - 35, doc.page.width, 35).fill(LIGHT_BG);
   doc.fillColor(MUTED).font('Helvetica').fontSize(8).text(
-    `Generated by MultivoHub  ·  ${new Date().toLocaleDateString('en-GB')}`,
-    0, doc.page.height - 20, { align: 'center', width: doc.page.width },
+    `Generated by MultivoHub  •  ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`,
+    0, doc.page.height - 22, { align: 'center', width: doc.page.width },
   );
 
   doc.end();
@@ -136,35 +159,62 @@ export async function generateCoverLetterPdf(text: string, meta: CoverLetterMeta
   const doc = new PDFDocument({ size: 'A4', margins: { top: 60, bottom: 60, left: 70, right: 70 } });
   const promise = bufferFromStream(doc);
 
-  // Header accent
-  doc.rect(70, 55, 4, 60).fill(INDIGO);
+  // Header with accent bar
+  doc.rect(70, 50, 4, 80).fill(INDIGO);
 
   const sender = meta.senderName ?? 'Candidate';
   const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
-  doc.fillColor(DARK).font('Helvetica-Bold').fontSize(16).text(sender, 85, 60);
-  doc.fillColor(MUTED).font('Helvetica').fontSize(10).text(date, 85, 82);
+  doc.fillColor(DARK).font('Helvetica-Bold').fontSize(18).text(sender, 85, 55);
+  doc.fillColor(MUTED).font('Helvetica').fontSize(10).text(date, 85, 78);
 
-  let y = 140;
+  let y = 160;
+
+  // Recipient info
   if (meta.company) {
-    doc.fillColor(DARK).font('Helvetica').fontSize(10).text(meta.company, 70, y);
-    y += 16;
+    doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11).text(meta.company, 70, y);
+    y += 18;
   }
   if (meta.role) {
-    doc.fillColor(MUTED).fontSize(10).text(`Re: Application for ${meta.role}`, 70, y);
-    y += 24;
+    doc.fillColor(MUTED).font('Helvetica').fontSize(10).text(`Re: Application for ${meta.role}`, 70, y);
+    y += 26;
   }
 
+  // Separator line
   doc.rect(70, y, 455, 1).fill('#e2e8f0');
-  y += 16;
+  y += 20;
 
-  // Body text
+  // Body text with proper paragraph formatting
   const paragraphs = text.split('\n\n').filter((p) => p.trim());
   for (const para of paragraphs) {
-    doc.fillColor(DARK).font('Helvetica').fontSize(10.5)
-      .text(para.replace(/\n/g, ' ').trim(), 70, y, { width: 455, align: 'justify', lineGap: 3 });
+    const cleanPara = para.replace(/\n/g, ' ').trim();
+
+    // Skip signature lines - handle separately
+    if (cleanPara.toLowerCase().startsWith('yours sincerely')) {
+      continue;
+    }
+
+    doc.fillColor(DARK).font('Helvetica').fontSize(11)
+      .text(cleanPara, 70, y, {
+        width: 455,
+        align: 'justify',
+        lineGap: 5
+      });
     y = doc.y + 14;
   }
+
+  // Closing
+  y += 8;
+  doc.fillColor(DARK).font('Helvetica').fontSize(11).text('Yours sincerely,', 70, y);
+  y += 24;
+  doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11).text(sender, 70, y);
+
+  // Footer
+  doc.rect(0, doc.page.height - 35, doc.page.width, 35).fill(LIGHT_BG);
+  doc.fillColor(MUTED).font('Helvetica').fontSize(8).text(
+    `Generated by MultivoHub  •  ${date}`,
+    0, doc.page.height - 22, { align: 'center', width: doc.page.width },
+  );
 
   doc.end();
   return promise;
@@ -384,4 +434,147 @@ export async function generateCandidateReport(data: CandidateReportData): Promis
 
   doc.end();
   return promise;
+}
+
+/**
+ * Generate ATS-Friendly CV PDF
+ * Optimized for Applicant Tracking Systems with single-column layout and standard formatting
+ */
+export async function generateAtsCvPdf(
+  profile: CvProfile & {
+    trainings?: Array<{ title?: string; providerName?: string; issuedAt?: string }>;
+  }
+): Promise<Buffer> {
+  const doc = new PDFDocument({
+    size: 'A4',
+    margins: { top: 40, bottom: 40, left: 50, right: 50 },
+    bufferPages: false,
+  });
+  const promise = bufferFromStream(doc);
+
+  // ATS-Friendly: No colors, simple black text
+  const name = profile.fullName ?? 'Candidate';
+  const contact = [profile.email, profile.phone].filter(Boolean).join(' | ');
+
+  // Header: Name and contact (ATS-friendly format)
+  doc.fillColor('#000000').font('Helvetica-Bold').fontSize(16).text(name, 50, 40);
+  if (contact) {
+    doc.fillColor('#000000').font('Helvetica').fontSize(10).text(contact, 50, 60);
+  }
+
+  let y = 85;
+
+  // Professional Summary
+  if (profile.summary) {
+    doc.fillColor('#000000').font('Helvetica-Bold').fontSize(11).text('PROFESSIONAL SUMMARY', 50, y);
+    y += 14;
+    doc.fillColor('#000000').font('Helvetica').fontSize(10).text(profile.summary, 50, y, {
+      width: 495,
+      align: 'left',
+      lineGap: 3,
+    });
+    y = doc.y + 12;
+  }
+
+  // Technical Skills
+  if (profile.skills?.length) {
+    doc.fillColor('#000000').font('Helvetica-Bold').fontSize(11).text('TECHNICAL SKILLS', 50, y);
+    y += 14;
+    doc.fillColor('#000000').font('Helvetica').fontSize(10).text(profile.skills.join(', '), 50, y, {
+      width: 495,
+      align: 'left',
+      lineGap: 2,
+    });
+    y = doc.y + 12;
+  }
+
+  // Professional Experience
+  if (profile.experience?.length) {
+    doc.fillColor('#000000').font('Helvetica-Bold').fontSize(11).text('PROFESSIONAL EXPERIENCE', 50, y);
+    y += 14;
+
+    for (const exp of profile.experience) {
+      // Job title
+      doc.fillColor('#000000').font('Helvetica-Bold').fontSize(10.5).text(exp.title ?? 'Position', 50, y);
+      y = doc.y + 2;
+
+      // Company and dates
+      const dates = [exp.startDate, exp.endDate || 'Present'].filter(Boolean).join(' - ');
+      doc.fillColor('#000000').font('Helvetica').fontSize(10).text(`${exp.company ?? 'Company'} | ${dates}`, 50, y);
+      y = doc.y + 8;
+
+      // Description
+      if (exp.description) {
+        doc.fillColor('#000000').font('Helvetica').fontSize(10).text(exp.description, 50, y, {
+          width: 495,
+          align: 'left',
+          lineGap: 2,
+        });
+        y = doc.y + 10;
+      }
+    }
+  }
+
+  // Education
+  if (profile.education?.length) {
+    doc.fillColor('#000000').font('Helvetica-Bold').fontSize(11).text('EDUCATION', 50, y);
+    y += 14;
+
+    for (const edu of profile.education) {
+      const dates = [edu.startDate, edu.endDate || 'Present'].filter(Boolean).join(' - ');
+      doc.fillColor('#000000').font('Helvetica-Bold').fontSize(10).text(
+        `${edu.degree ?? 'Degree'} - ${edu.school ?? 'Institution'}`,
+        50,
+        y
+      );
+      y = doc.y + 2;
+      if (dates) {
+        doc.fillColor('#000000').font('Helvetica').fontSize(9).text(dates, 50, y);
+        y = doc.y + 10;
+      }
+    }
+  }
+
+  // Certifications/Trainings
+  if (profile.trainings?.length) {
+    doc.fillColor('#000000').font('Helvetica-Bold').fontSize(11).text('CERTIFICATIONS', 50, y);
+    y += 14;
+
+    for (const training of profile.trainings) {
+      const date = training.issuedAt ? ` (${training.issuedAt})` : '';
+      doc.fillColor('#000000').font('Helvetica').fontSize(10).text(
+        `• ${training.title}${date}`,
+        50,
+        y,
+        { width: 495 }
+      );
+      y = doc.y + 6;
+    }
+  }
+
+  doc.end();
+  return promise;
+}
+
+/**
+ * Calculate ATS Score for a CV
+ * Returns a score 0-100 indicating how well the CV will be parsed by ATS
+ */
+export function calculateAtsScore(profile: CvProfile): number {
+  let score = 50; // Base score
+
+  // Check for required fields
+  if (profile.fullName && profile.fullName.length > 0) score += 10;
+  if (profile.email && profile.email.length > 0) score += 10;
+  if (profile.phone && profile.phone.length > 0) score += 5;
+  if (profile.summary && profile.summary.length > 100) score += 10;
+  if (profile.skills && profile.skills.length >= 5) score += 10;
+  if (profile.experience && profile.experience.length >= 2) score += 10;
+  if (profile.education && profile.education.length >= 1) score += 10;
+
+  // Check for ATS-unfriendly elements
+  if (profile.summary && profile.summary.includes('•')) score -= 5; // Bullet points in summary
+  if (profile.experience?.some((e) => e.description?.includes('•'))) score -= 5; // Bullet points in description
+
+  return Math.min(100, Math.max(0, score));
 }
