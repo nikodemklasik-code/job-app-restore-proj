@@ -460,8 +460,6 @@ export default function JobsDiscovery() {
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
-  const [radarScanningJobId, setRadarScanningJobId] = useState<string | null>(null);
-  const [radarScanId, setRadarScanId] = useState<string | null>(null);
 
   // Load persisted saved jobs from backend and hydrate local Set
   const savedJobsQuery = api.jobs.getSavedJobs.useQuery(undefined, { enabled: !!userId });
@@ -564,8 +562,6 @@ export default function JobsDiscovery() {
   const handleStartRadarScan = (job: JobResult) => {
     if (!userId) return;
 
-    setRadarScanningJobId(job.id);
-
     startRadarScanMutation.mutate(
       {
         jobId: job.id,
@@ -580,13 +576,11 @@ export default function JobsDiscovery() {
       },
       {
         onSuccess: (data) => {
-          setRadarScanId(data.scanId);
           // Navigate to Job Radar report page
           navigate(`/jobs/radar/${data.scanId}`);
         },
         onError: (error) => {
           alert(`Failed to start Job Radar scan: ${error.message}`);
-          setRadarScanningJobId(null);
         },
       }
     );

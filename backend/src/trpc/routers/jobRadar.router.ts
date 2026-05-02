@@ -16,8 +16,6 @@ import {
   jobRadarSignals,
   jobRadarFindings,
   jobRadarBenchmarks,
-  jobs,
-  users,
 } from '../../db/schema.js';
 import {
   initializeJobRadarScan,

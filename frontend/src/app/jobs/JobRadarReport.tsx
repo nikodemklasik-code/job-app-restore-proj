@@ -23,7 +23,13 @@ export default function JobRadarReport() {
     const { scanId } = useParams<{ scanId: string }>();
     const reportQuery = api.jobRadar.getReport.useQuery(
         { scanId: scanId! },
-        { enabled: !!scanId, refetchInterval: (data) => (data?.summary.status === 'processing' ? 2000 : false) }
+        {
+            enabled: !!scanId,
+            refetchInterval: (query) => {
+                const data = query.state.data;
+                return data?.summary.status === 'processing' ? 2000 : false;
+            }
+        }
     );
 
     if (reportQuery.isLoading) {
@@ -56,7 +62,11 @@ export default function JobRadarReport() {
         );
     }
 
-    const { summary, report, scores, findings, benchmark, sources } = reportQuery.data;
+    if (!reportQuery.data) {
+        return null;
+    }
+
+    const { summary, sources } = reportQuery.data;
 
     if (summary.status === 'processing') {
         return (
@@ -73,20 +83,6 @@ export default function JobRadarReport() {
             </div>
         );
     }
-
-    const getScoreColor = (score: number) => {
-        if (score >= 80) return 'text-emerald-400';
-        if (score >= 60) return 'text-blue-400';
-        if (score >= 40) return 'text-amber-400';
-        return 'text-red-400';
-    };
-
-    const getScoreBg = (score: number) => {
-        if (score >= 80) return 'bg-emerald-500/20 border-emerald-500/30';
-        if (score >= 60) return 'bg-blue-500/20 border-blue-500/30';
-        if (score >= 40) return 'bg-amber-500/20 border-amber-500/30';
-        return 'bg-red-500/20 border-red-500/30';
-    };
 
     const getRecommendationColor = (rec: string) => {
         if (rec === 'Strong Match') return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
@@ -187,7 +183,7 @@ export default function JobRadarReport() {
                             <h3 className="text-lg font-semibold text-red-400">Red Flags Detected</h3>
                         </div>
                         <ul className="space-y-2">
-                            {summary.redFlags.map((flag, i) => (
+                            {summary.redFlags.map((flag: string, i: number) => (
                                 <li key={i} className="flex items-start gap-2 text-sm text-red-300">
                                     <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
                                     <span>{flag}</span>
@@ -202,7 +198,7 @@ export default function JobRadarReport() {
                     <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
                         <h3 className="text-lg font-semibold text-white mb-4">Key Findings</h3>
                         <ul className="space-y-2">
-                            {summary.keyFindings.map((finding, i) => (
+                            {summary.keyFindings.map((finding: string, i: number) => (
                                 <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
                                     <Info className="h-4 w-4 shrink-0 mt-0.5 text-blue-400" />
                                     <span>{finding}</span>
@@ -220,7 +216,7 @@ export default function JobRadarReport() {
                             <h3 className="text-lg font-semibold text-emerald-400">Positive Signals</h3>
                         </div>
                         <ul className="space-y-2">
-                            {summary.positiveSignals.map((signal, i) => (
+                            {summary.positiveSignals.map((signal: string, i: number) => (
                                 <li key={i} className="flex items-start gap-2 text-sm text-emerald-300">
                                     <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
                                     <span>{signal}</span>
@@ -283,7 +279,7 @@ export default function JobRadarReport() {
                         Data Sources ({sources.length})
                     </h3>
                     <div className="space-y-2">
-                        {sources.map((source) => (
+                        {sources.map((source: any) => (
                             <div
                                 key={source.id}
                                 className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] px-4 py-2"

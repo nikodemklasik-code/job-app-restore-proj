@@ -5,11 +5,9 @@
 
 import { randomUUID } from 'crypto';
 import type {
-    JobRadarScan,
-    JobRadarReport,
-    JobRadarScore,
     JobRadarSource,
     JobRadarSignal,
+    JobRadarScore,
     JobRadarFinding,
     JobRadarBenchmark,
 } from '../../db/schemas/job-radar.js';
