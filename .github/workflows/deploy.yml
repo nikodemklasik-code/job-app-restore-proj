@@ -171,6 +171,11 @@ jobs:
           rsync -avz --delete frontend-dist/ \
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${REMOTE_BASE}/frontend/dist/"
 
+      - name: Fix frontend dist permissions (nginx www-data access)
+        run: |
+          ssh "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "chmod o+x /root /root/project /root/project/frontend && chmod -R o+rX ${REMOTE_BASE}/frontend/dist/"
+
       - name: Sync backend dist
         run: |
           rsync -avz --delete \
@@ -187,6 +192,13 @@ jobs:
       - name: Sync PM2 ecosystem
         run: |
           rsync -avz             infra/ecosystem.config.cjs             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${REMOTE_BASE}/infra/"
+
+      - name: Sync nginx config and reload
+        run: |
+          rsync -avz infra/nginx/multivohub-jobapp.conf \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:/etc/nginx/sites-enabled/multivohub-jobapp"
+          ssh "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "nginx -t && systemctl reload nginx"
 
       - name: Sync env schema
         run: |
