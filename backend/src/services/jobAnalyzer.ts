@@ -86,24 +86,23 @@ For keywordDensity and priorityScore, analyze the job description and return:
 Return ONLY valid JSON, no markdown or explanation.`;
 
     try {
-        const response = await client.messages.create({
+        const response = await client.chat.completions.create({
             model,
             max_tokens: 2000,
+            temperature: 0.3,
             messages: [
-                {
-                    role: 'user',
-                    content: prompt,
-                },
+                { role: 'system', content: 'You are an expert recruiter analyzing job descriptions.' },
+                { role: 'user', content: prompt },
             ],
         });
 
-        const content = response.content[0];
-        if (content.type !== 'text') {
-            throw new Error('Unexpected response type from OpenAI');
+        const text = response.choices[0]?.message?.content?.trim();
+        if (!text) {
+            throw new Error('No response from OpenAI');
         }
 
         // Parse JSON response
-        const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+        const jsonMatch = text.match(/{[\s\S]*\}/);
         if (!jsonMatch) {
             throw new Error('Could not extract JSON from response');
         }
@@ -235,23 +234,22 @@ Analyze the match and return a JSON object with:
 Return ONLY valid JSON, no markdown or explanation.`;
 
     try {
-        const response = await client.messages.create({
+        const response = await client.chat.completions.create({
             model,
             max_tokens: 3000,
+            temperature: 0.3,
             messages: [
-                {
-                    role: 'user',
-                    content: prompt,
-                },
+                { role: 'system', content: 'You are an expert recruiter matching candidates to jobs.' },
+                { role: 'user', content: prompt },
             ],
         });
 
-        const content = response.content[0];
-        if (content.type !== 'text') {
-            throw new Error('Unexpected response type from OpenAI');
+        const text = response.choices[0]?.message?.content?.trim();
+        if (!text) {
+            throw new Error('No response from OpenAI');
         }
 
-        const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+        const jsonMatch = text.match(/{[\s\S]*\}/);
         if (!jsonMatch) {
             throw new Error('Could not extract JSON from response');
         }

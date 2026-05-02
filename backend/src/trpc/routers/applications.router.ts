@@ -18,7 +18,7 @@ export const applicationsRouter = router({
   getAll: publicProcedure
     .input(z.object({ userId: z.string() }))
     .query(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       if (!userRecord[0]) return [];
       return db.select().from(applications)
         .where(eq(applications.userId, userRecord[0].id))
@@ -28,7 +28,7 @@ export const applicationsRouter = router({
   getById: publicProcedure
     .input(z.object({ id: z.string(), userId: z.string() }))
     .query(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       const localUserId = userRecord[0]?.id;
       const rows = await db.select().from(applications).where(eq(applications.id, input.id)).limit(1);
       const row = rows[0];
@@ -45,7 +45,7 @@ export const applicationsRouter = router({
       notes: z.string().optional(),
     }))
     .mutation(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       if (!userRecord[0]) throw new Error('User not found');
 
       const id = randomUUID();
@@ -69,7 +69,7 @@ export const applicationsRouter = router({
       status: z.enum(['draft', 'prepared', 'sent', 'follow_up_sent', 'rejected', 'accepted', 'interview']),
     }))
     .mutation(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       const localUserId = userRecord[0]?.id;
       const rows = await db.select({ userId: applications.userId }).from(applications).where(eq(applications.id, input.id)).limit(1);
       if (!rows[0] || rows[0].userId !== localUserId) {
@@ -83,7 +83,7 @@ export const applicationsRouter = router({
   generateDocuments: publicProcedure
     .input(z.object({ userId: z.string(), applicationId: z.string() }))
     .mutation(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       if (!userRecord[0]) throw new Error('User not found');
 
       const appRow = await db.select().from(applications).where(eq(applications.id, input.applicationId)).limit(1);
@@ -248,7 +248,7 @@ export const applicationsRouter = router({
       outcome: z.enum(['interview', 'offer', 'rejection']),
     }))
     .mutation(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       if (!userRecord[0]) return { success: false };
 
       const appRow = await db.select().from(applications).where(eq(applications.id, input.applicationId)).limit(1);
@@ -268,7 +268,7 @@ export const applicationsRouter = router({
   generateFollowUp: publicProcedure
     .input(z.object({ userId: z.string(), applicationId: z.string() }))
     .mutation(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       if (!userRecord[0]) throw new Error('User not found');
 
       const appRow = await db.select().from(applications).where(eq(applications.id, input.applicationId)).limit(1);
@@ -295,7 +295,7 @@ export const applicationsRouter = router({
   getAnalytics: publicProcedure
     .input(z.object({ userId: z.string() }))
     .query(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       if (!userRecord[0]) return { total: 0, byStatus: {}, recentActivity: [], applied: 0, interviews: 0, offers: 0, rejections: 0, responseRate: 0 };
 
       const all = await db.select({ status: applications.status, createdAt: applications.createdAt })
@@ -365,7 +365,7 @@ export const applicationsRouter = router({
       role: z.string().optional(),
     }))
     .mutation(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       if (!userRecord[0]) throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found' });
 
       const profileRecord = await db.select({ fullName: profiles.fullName }).from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1);
@@ -382,7 +382,7 @@ export const applicationsRouter = router({
   getLogs: publicProcedure
     .input(z.object({ userId: z.string(), applicationId: z.string() }))
     .query(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       if (!userRecord[0]) return [];
       const rows = await db
         .select({ userId: applications.userId })
@@ -465,7 +465,7 @@ export const applicationsRouter = router({
   analyzeJobFit: publicProcedure
     .input(z.object({ userId: z.string(), applicationId: z.string() }))
     .query(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       if (!userRecord[0]) throw new Error('User not found');
 
       const appRow = await db.select().from(applications).where(eq(applications.id, input.applicationId)).limit(1);
@@ -491,7 +491,7 @@ export const applicationsRouter = router({
   getAtsScore: publicProcedure
     .input(z.object({ userId: z.string() }))
     .query(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       if (!userRecord[0]) throw new Error('User not found');
 
       const profileRecord = await db.select().from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1);

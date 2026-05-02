@@ -142,9 +142,9 @@ export async function generateTailoredCv(
 
     // Calculate keyword coverage
     const allText = [
-        profile.summary,
-        ...orderedSkills.map((s) => s.name),
-        ...orderedExperience.map((e) => e.description),
+        profile.summary || '',
+        ...(orderedSkills || []).map((s) => s.name),
+        ...(orderedExperience || []).map((e) => e.description || ''),
     ]
         .join(' ')
         .toLowerCase();
@@ -175,7 +175,7 @@ export async function generateTailoredCv(
                 relevanceScore: matched?.relevanceScore || 0,
             };
         }),
-        education: profile.education || [],
+        education: (profile.education || []).map((e) => ({ degree: e.degree || '', school: e.school || '', dates: '' })),
         trainings: relevantTrainings.slice(0, 5).map((t) => ({
             title: t.title || '',
             provider: t.provider || '',
@@ -357,9 +357,9 @@ function calculateAtsScore(
 
     // Check for keyword coverage
     const allText = [
-        profile.summary,
-        ...profile.skills,
-        ...profile.experience.map((e) => e.description),
+        profile.summary || '',
+        ...(profile.skills || []),
+        ...(profile.experience || []).map((e) => e.description || ''),
     ]
         .join(' ')
         .toLowerCase();
@@ -447,10 +447,12 @@ Enhance this cover letter to:
 Return ONLY the enhanced cover letter text (opening + 3 body paragraphs + closing), no markdown or explanation.`;
 
     try {
-        const response = await client.messages.create({
+        const response = await client.chat.completions.create({
             model,
             max_tokens: 1500,
+            temperature: 0.4,
             messages: [
+                { role: 'system', content: 'You are an expert cover letter writer.' },
                 {
                     role: 'user',
                     content: prompt,
@@ -458,13 +460,12 @@ Return ONLY the enhanced cover letter text (opening + 3 body paragraphs + closin
             ],
         });
 
-        const content = response.content[0];
-        if (content.type !== 'text') {
+        const text = response.choices[0]?.message?.content?.trim();
+        if (!text) {
             return baseLetter;
         }
 
         // Parse the enhanced text
-        const text = content.text.trim();
         const paragraphs = text.split('\n\n').filter((p) => p.trim());
 
         if (paragraphs.length >= 3) {
