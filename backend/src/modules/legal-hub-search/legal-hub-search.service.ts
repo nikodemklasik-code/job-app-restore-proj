@@ -2,7 +2,6 @@ import { LEGAL_HUB_SOURCE_CATALOG } from './legal-hub-search.catalog.js';
 import type {
   LegalSearchHit,
   LegalSearchScopeSummary,
-  LegalSourceTier,
 } from './legal-hub-search.types.js';
 
 function normalizeQuery(q: string): string {
@@ -14,17 +13,6 @@ function tokenize(q: string): string[] {
     .split(/\s+/)
     .map((t) => t.replace(/[^a-z0-9-]/gi, ''))
     .filter((t) => t.length > 1);
-}
-
-function scoreEntry(query: string, tokens: string[], tier: LegalSourceTier): number {
-  const nq = normalizeQuery(query);
-  let score = tier === 'core' ? 2 : 0;
-  if (!nq) return 0;
-  const hay = nq;
-  for (const t of tokens) {
-    if (hay.includes(t)) score += 3;
-  }
-  return score;
 }
 
 export function getLegalSearchScopeSummary(): LegalSearchScopeSummary {
@@ -55,11 +43,15 @@ export function searchLegalHubSources(query: string, limit = 8): LegalSearchHit[
   const hits: LegalSearchHit[] = [];
   for (const entry of LEGAL_HUB_SOURCE_CATALOG) {
     const blob = `${entry.title} ${entry.snippet} ${entry.tags.join(' ')}`.toLowerCase();
-    let s = scoreEntry(query, tokens, entry.tier);
+    let s = 0;
+    // Full phrase match — highest signal
     if (blob.includes(nq)) s += 5;
+    // Per-token content matches in the entry blob
     for (const t of tokens) {
       if (blob.includes(t)) s += 2;
     }
+    // Slight tiebreaker preference for core sources — only when content already matched
+    if (s > 0 && entry.tier === 'core') s += 1;
     if (s > 0) {
       hits.push({
         title: entry.title,
