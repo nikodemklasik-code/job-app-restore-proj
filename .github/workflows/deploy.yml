@@ -81,7 +81,7 @@ jobs:
       - name: Build frontend
         run: npm run build:frontend
         env:
-          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
+          # VITE_CLERK_PUBLISHABLE_KEY: read from frontend/.env.production (committed, not a secret)
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_STRIPE_PRO_PRICE_ID: ${{ secrets.VITE_STRIPE_PRO_PRICE_ID }}
           VITE_STRIPE_AUTOPILOT_PRICE_ID: ${{ secrets.VITE_STRIPE_AUTOPILOT_PRICE_ID }}
