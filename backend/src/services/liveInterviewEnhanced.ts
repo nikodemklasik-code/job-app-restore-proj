@@ -159,11 +159,11 @@ Return JSON:
 
     return {
       candidateProfile: {
-        level: detectCandidateLevel(candidateMessage, {}),
+        level: detectCandidateLevel(candidateMessage, { targetRole: '' }),
         communicationStyle: detectCommunicationStyle(candidateMessage),
         strengths: analysis.strengths ?? [],
         weaknesses: analysis.improvements ?? [],
-        signals: analysis.signals ?? { positive: [], negative: [] },
+        signals: { positive: analysis.signals?.positive ?? [], negative: analysis.signals?.negative ?? [] },
       },
       contentQuality: analysis.contentQuality ?? 50,
       reasoningQuality: analysis.reasoningQuality ?? 50,
