@@ -731,7 +731,7 @@ export default function CoachPage() {
             value={answerDraft}
             onChange={(e) => setAnswerDraft(e.target.value)}
             placeholder="Type your answer here…"
-            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 resize-none"
+            className="w-full bg-slate-950/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 resize-none"
             rows={5}
           />
           <button
@@ -792,7 +792,7 @@ export default function CoachPage() {
           <button
             type="button"
             onClick={() => stopRecording()}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm border border-white/10 text-slate-300 hover:bg-white/10 transition-colors"
           >
             <MicOff className="h-4 w-4" /> Stop &amp; transcribe
           </button>
@@ -801,7 +801,7 @@ export default function CoachPage() {
             value={answerDraft}
             onChange={(e) => setAnswerDraft(e.target.value)}
             placeholder="Optional: type extra notes while you speak…"
-            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 resize-none"
+            className="w-full bg-slate-950/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 resize-none"
             rows={4}
           />
         </div>
@@ -827,7 +827,7 @@ export default function CoachPage() {
             onChange={(e) => setAnswerDraft(e.target.value)}
             disabled={isTranscribing}
             placeholder="Your transcribed answer appears here…"
-            className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 resize-none disabled:opacity-60"
+            className="w-full bg-slate-950/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 resize-none disabled:opacity-60"
             rows={7}
           />
           <button
@@ -951,7 +951,7 @@ export default function CoachPage() {
                   setAnswerDraft('');
                   setTranscribeError(null);
                 }}
-                className="px-4 py-3 rounded-xl font-semibold text-sm border border-slate-700 text-slate-400 hover:bg-slate-800 transition-colors"
+                className="px-4 py-3 rounded-xl font-semibold text-sm border border-white/10 text-slate-400 hover:bg-white/10 transition-colors"
                 title="Redo this question"
               >
                 <RefreshCw className="h-4 w-4" />

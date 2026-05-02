@@ -396,7 +396,7 @@ export default function NegotiationPage() {
 
   const SimulatorSetup = () => (
     <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-8">
-      <div className="mvh-card-glow w-full max-w-lg rounded-2xl border border-indigo-500/25 bg-indigo-500/10 p-8">
+      <div className="mvh-card-glow w-full max-w-lg rounded-2xl border border-white/10 bg-white/[0.04] p-8">
         <div className="mb-5 flex items-center gap-3">
           <Swords className="h-5 w-5 shrink-0 text-indigo-400" aria-hidden />
           <h2 className="text-lg font-bold text-white">Set Up Your Simulation</h2>
@@ -405,17 +405,17 @@ export default function NegotiationPage() {
           <div className="col-span-2">
             <label className="text-xs text-slate-400 mb-1 block">Role being offered</label>
             <input value={offer.role} onChange={(e) => setOffer((o) => ({ ...o, role: e.target.value }))}
-              placeholder="e.g. Senior Product Manager" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500" />
+              placeholder="e.g. Senior Product Manager" className="w-full bg-slate-950/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500" />
           </div>
           <div className="col-span-2">
             <label className="text-xs text-slate-400 mb-1 block">Company</label>
             <input value={offer.company} onChange={(e) => setOffer((o) => ({ ...o, company: e.target.value }))}
-              placeholder="e.g. Acme Corp" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500" />
+              placeholder="e.g. Acme Corp" className="w-full bg-slate-950/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500" />
           </div>
           <div>
             <label className="text-xs text-slate-400 mb-1 block">Currency</label>
             <select value={offer.currency} onChange={(e) => setOffer((o) => ({ ...o, currency: e.target.value }))}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-indigo-500">
+              className="w-full bg-slate-950/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-indigo-500">
               <option value="GBP">GBP £</option>
               <option value="USD">USD $</option>
               <option value="EUR">EUR €</option>
@@ -424,22 +424,22 @@ export default function NegotiationPage() {
           <div>
             <label className="text-xs text-slate-400 mb-1 block">Their offer</label>
             <input type="number" value={offer.offeredSalary} onChange={(e) => setOffer((o) => ({ ...o, offeredSalary: Number(e.target.value) }))}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-indigo-500" />
+              className="w-full bg-slate-950/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-indigo-500" />
           </div>
           <div>
             <label className="text-xs text-slate-400 mb-1 block">Your target salary</label>
             <input type="number" value={offer.targetSalary} onChange={(e) => setOffer((o) => ({ ...o, targetSalary: Number(e.target.value) }))}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-indigo-500" />
+              className="w-full bg-slate-950/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-indigo-500" />
           </div>
           <div>
             <label className="text-xs text-slate-400 mb-1 block">Market rate (optional)</label>
             <input type="number" value={offer.marketRate} onChange={(e) => setOffer((o) => ({ ...o, marketRate: Number(e.target.value) }))}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-indigo-500" />
+              className="w-full bg-slate-950/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-indigo-500" />
           </div>
           <div className="col-span-2">
             <label className="text-xs text-slate-400 mb-1 block">Benefits (optional)</label>
             <input value={offer.benefits} onChange={(e) => setOffer((o) => ({ ...o, benefits: e.target.value }))}
-              placeholder="e.g. pension, 25 days holiday, bonus" className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500" />
+              placeholder="e.g. pension, 25 days holiday, bonus" className="w-full bg-slate-950/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500" />
           </div>
         </div>
         <div className="mt-2 rounded-lg border border-indigo-500/15 bg-indigo-500/[0.08] p-3">
@@ -466,7 +466,7 @@ export default function NegotiationPage() {
   return (
     <div className="mx-auto flex h-[calc(100vh-5rem)] w-full max-w-6xl flex-col px-4">
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between border-b border-slate-800 px-2 py-4 sm:px-0">
+      <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-2 py-4 sm:px-0">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-gradient-to-br from-indigo-500 to-violet-600 shadow-sm">
             <Scale className="h-[18px] w-[18px] text-white" aria-hidden />
@@ -482,7 +482,7 @@ export default function NegotiationPage() {
         </div>
         <div className="flex items-center gap-2">
           {/* Mode toggle */}
-          <div className="flex rounded-lg overflow-hidden border border-slate-700">
+          <div className="flex rounded-lg overflow-hidden border border-white/10">
             <button
               type="button"
               onClick={() => handleModeSwitch('coach')}
@@ -517,14 +517,14 @@ export default function NegotiationPage() {
             {voiceMode ? 'Voice' : 'Text'}
           </button>
           {appMode === 'coach' && (
-            <button onClick={() => setShowScenarios((v) => !v)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 text-slate-300 hover:bg-slate-800 transition-colors">
+            <button onClick={() => setShowScenarios((v) => !v)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-white/10 text-slate-300 hover:bg-white/10 transition-colors">
               <Lightbulb className="h-3.5 w-3.5" />
               Scenarios
               {showScenarios ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </button>
           )}
           {(messages.length > 0 || simStarted) && (
-            <button onClick={handleReset} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors">
+            <button onClick={handleReset} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-white/10 text-slate-400 hover:bg-white/10 hover:text-white transition-colors">
               <RefreshCw className="h-3.5 w-3.5" />
               {appMode === 'simulator' ? 'New simulation' : 'New session'}
             </button>
@@ -555,12 +555,12 @@ export default function NegotiationPage() {
 
       {/* Negotiation scenarios (strategy mode only) */}
       {showScenarios && appMode === 'coach' && (
-        <div className="mvh-card-glow px-6 py-3 border-b border-slate-800 bg-slate-900/60 shrink-0">
+        <div className="mvh-card-glow px-6 py-3 border-b border-white/10 bg-white/[0.04] shrink-0">
           <p className="mb-2 text-xs font-medium text-slate-400">Select a negotiation scenario:</p>
           <div className="flex flex-wrap gap-2">
             {PRACTICE_SCENARIOS.map((s) => (
               <button key={s.label} onClick={() => { setShowScenarios(false); void handleSend(s.text); }}
-                className="px-3 py-1.5 text-xs rounded-lg border border-slate-700 text-slate-300 hover:bg-indigo-900/40 hover:border-indigo-600 hover:text-indigo-300 transition-colors">
+                className="px-3 py-1.5 text-xs rounded-lg border border-white/10 text-slate-300 hover:bg-indigo-900/40 hover:border-indigo-600 hover:text-indigo-300 transition-colors">
                 {s.label}
               </button>
             ))}
@@ -575,7 +575,7 @@ export default function NegotiationPage() {
         <>
           {/* Simulator progress bar */}
           {appMode === 'simulator' && simStarted && (
-            <div className="px-6 py-2 border-b border-slate-800 bg-slate-900/40 shrink-0">
+            <div className="px-6 py-2 border-b border-white/10 bg-white/[0.02] shrink-0">
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>Offer: <strong className="text-slate-200">{fmt(offer.offeredSalary, offer.currency)}</strong></span>
                 <span>Your target: <strong className="text-indigo-400">{fmt(offer.targetSalary, offer.currency)}</strong></span>

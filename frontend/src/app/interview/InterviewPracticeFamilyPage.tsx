@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Video, VideoOff } from 'lucide-react';
+import { Video, VideoOff, Users } from 'lucide-react';
 import { fetchStream } from '@/lib/apiClient';
+import { InterviewPracticeV2 } from './components/InterviewPracticeV2';
+import type { RecruiterPersona } from './components/VideoCallSimulator';
 import {
   consumeSseStream,
   PracticeConversationWindow,
@@ -117,7 +119,122 @@ function CameraPreview() {
   );
 }
 
+// ─── Live Video Setup ─────────────────────────────────────────────────────────
+
+type LiveVideoSetup = { targetRole: string; persona: RecruiterPersona; mode: 'behavioral' | 'technical' | 'general' | 'hr' };
+
+function LiveVideoLobby({ onStart }: { onStart: (setup: LiveVideoSetup) => void }) {
+  const [targetRole, setTargetRole] = useState('');
+  const [persona, setPersona] = useState<RecruiterPersona>('hr');
+  const [mode, setMode] = useState<LiveVideoSetup['mode']>('behavioral');
+
+  const PERSONAS: Array<{ value: RecruiterPersona; label: string; desc: string }> = [
+    { value: 'hr', label: 'Sarah — HR Partner', desc: 'Warm & structured' },
+    { value: 'hiring-manager', label: 'James — Eng Manager', desc: 'Direct & technical' },
+    { value: 'tech-lead', label: 'Alex — Tech Lead', desc: 'Deep-dive technical' },
+  ];
+  const MODES: Array<{ value: LiveVideoSetup['mode']; label: string }> = [
+    { value: 'behavioral', label: 'Behavioural (STAR)' },
+    { value: 'technical', label: 'Technical' },
+    { value: 'general', label: 'General' },
+    { value: 'hr', label: 'HR Screening' },
+  ];
+
+  return (
+    <div className="mx-auto flex h-[calc(100dvh-6rem)] max-w-2xl flex-col items-center justify-center gap-8 px-4">
+      <div className="w-full rounded-3xl border border-white/10 bg-white/[0.04] p-8">
+        <div className="mb-6 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-500/20">
+            <Users className="h-5 w-5 text-indigo-300" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-white">Live Video Interview</h1>
+            <p className="text-sm text-slate-400">Full video call simulation with AI recruiter</p>
+          </div>
+        </div>
+
+        <div className="space-y-5">
+          <div>
+            <label className="mb-2 block text-xs font-semibold text-slate-400">Target Role</label>
+            <input
+              value={targetRole}
+              onChange={(e) => setTargetRole(e.target.value)}
+              placeholder="e.g. Senior Software Engineer"
+              className="w-full rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-xs font-semibold text-slate-400">Interview Type</label>
+            <div className="grid grid-cols-2 gap-2">
+              {MODES.map((m) => (
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => setMode(m.value)}
+                  className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${mode === m.value ? 'border-indigo-500/50 bg-indigo-500/20 text-indigo-200' : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'}`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-xs font-semibold text-slate-400">Interviewer</label>
+            <div className="space-y-2">
+              {PERSONAS.map((p) => (
+                <button
+                  key={p.value}
+                  type="button"
+                  onClick={() => setPersona(p.value)}
+                  className={`w-full rounded-xl border px-4 py-3 text-left transition ${persona === p.value ? 'border-indigo-500/50 bg-indigo-500/20' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
+                >
+                  <p className={`text-sm font-semibold ${persona === p.value ? 'text-indigo-100' : 'text-white'}`}>{p.label}</p>
+                  <p className="text-xs text-slate-400">{p.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onStart({ targetRole: targetRole.trim() || 'Software Engineer', persona, mode })}
+            className="w-full rounded-2xl bg-indigo-600 py-3 text-sm font-bold text-white transition hover:bg-indigo-500"
+          >
+            Start Live Interview
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function InterviewPracticeFamilyPage() {
+  const [viewMode, setViewMode] = useState<'chat' | 'live-lobby' | 'live-active'>('chat');
+  const [liveSetup, setLiveSetup] = useState<LiveVideoSetup | null>(null);
+
+  // Live video mode — full screen
+  if (viewMode === 'live-lobby') {
+    return (
+      <LiveVideoLobby
+        onStart={(setup) => {
+          setLiveSetup(setup);
+          setViewMode('live-active');
+        }}
+      />
+    );
+  }
+  if (viewMode === 'live-active' && liveSetup) {
+    return (
+      <InterviewPracticeV2
+        mode={liveSetup.mode}
+        recruiterPersona={liveSetup.persona}
+        targetRole={liveSetup.targetRole}
+      />
+    );
+  }
+
   const [selectedTopic, setSelectedTopic] = useState<PracticeTopic>(INTERVIEW_TOPICS[0]);
   const [messages, setMessages] = useState<PracticeMessage[]>([
     {
@@ -178,14 +295,24 @@ export default function InterviewPracticeFamilyPage() {
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-6rem)] min-h-[760px] max-w-7xl flex-col gap-4 overflow-hidden px-1">
-      <PracticeExperienceHeader
-        eyebrow="Mock interview"
-        title="Interview"
-        description="Front-facing interviewer flow: realistic prompts, follow-up pressure, transcript continuity, voice/text input, and camera preview."
-        statusLabel="Conversation mode"
-        accentClass="bg-gradient-to-br from-indigo-500 to-violet-600"
-        onReset={reset}
-      />
+      <div className="flex items-start justify-between gap-4">
+        <PracticeExperienceHeader
+          eyebrow="Mock interview"
+          title="Interview"
+          description="Front-facing interviewer flow: realistic prompts, follow-up pressure, transcript continuity, voice/text input, and camera preview."
+          statusLabel="Conversation mode"
+          accentClass="bg-gradient-to-br from-indigo-500 to-violet-600"
+          onReset={reset}
+        />
+        <button
+          type="button"
+          onClick={() => setViewMode('live-lobby')}
+          className="mt-1 shrink-0 inline-flex items-center gap-2 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-2.5 text-sm font-semibold text-indigo-200 transition hover:bg-indigo-500/20"
+        >
+          <Users className="h-4 w-4" />
+          Live Video Interview
+        </button>
+      </div>
 
       <main className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_330px]">
         <section className="flex min-h-0 flex-col gap-4 overflow-hidden">

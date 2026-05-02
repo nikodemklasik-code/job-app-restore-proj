@@ -460,6 +460,37 @@ export default function JobsDiscovery() {
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
 
+  // Load persisted saved jobs from backend and hydrate local Set
+  const savedJobsQuery = api.jobs.getSavedJobs.useQuery(undefined, { enabled: !!userId });
+  useEffect(() => {
+    if (savedJobsQuery.data) {
+      setSavedJobs(new Set(savedJobsQuery.data.map((j) => j.job.id)));
+    }
+  }, [savedJobsQuery.data]);
+
+  const saveJobMutation = api.jobs.saveJob.useMutation();
+  const unsaveJobMutation = api.jobs.unsaveJob.useMutation();
+
+  const handleToggleSave = (jobId: string) => {
+    const isSaved = savedJobs.has(jobId);
+    // Optimistic update
+    setSavedJobs(prev => {
+      const next = new Set(prev);
+      if (isSaved) next.delete(jobId); else next.add(jobId);
+      return next;
+    });
+    // Persist to backend
+    if (isSaved) {
+      unsaveJobMutation.mutate({ jobId }, {
+        onError: () => setSavedJobs(prev => { const next = new Set(prev); next.add(jobId); return next; }),
+      });
+    } else {
+      saveJobMutation.mutate({ jobId }, {
+        onError: () => setSavedJobs(prev => { const next = new Set(prev); next.delete(jobId); return next; }),
+      });
+    }
+  };
+
   // Load saved preferences
   const preferencesQuery = api.jobs.getJobPreferences.useQuery(
     undefined,
@@ -918,17 +949,7 @@ export default function JobsDiscovery() {
                   job={job}
                   applicationStatus={jobStatusMap[job.id]}
                   isSaved={isSaved}
-                  onToggleSave={() => {
-                    setSavedJobs(prev => {
-                      const next = new Set(prev);
-                      if (next.has(job.id)) {
-                        next.delete(job.id);
-                      } else {
-                        next.add(job.id);
-                      }
-                      return next;
-                    });
-                  }}
+                  onToggleSave={() => handleToggleSave(job.id)}
                   onCollapse={() => setExpandedJobId(null)}
                 />
               ) : (
@@ -937,17 +958,7 @@ export default function JobsDiscovery() {
                   job={job}
                   applicationStatus={jobStatusMap[job.id]}
                   isSaved={isSaved}
-                  onToggleSave={() => {
-                    setSavedJobs(prev => {
-                      const next = new Set(prev);
-                      if (next.has(job.id)) {
-                        next.delete(job.id);
-                      } else {
-                        next.add(job.id);
-                      }
-                      return next;
-                    });
-                  }}
+                  onToggleSave={() => handleToggleSave(job.id)}
                   onExpand={() => setExpandedJobId(job.id)}
                   isExpanded={false}
                 />

@@ -70,7 +70,7 @@ const strategyPatchSchema = z
     blockedAreas: z.array(z.string()).optional(),
     highImpactImprovements: z.array(z.string()).optional(),
   })
-  .strict();
+  .passthrough(); // allow extra keys (e.g. targetIndustries, dreamJob) without throwing
 
 function workValuesFromDb(raw: string | null): string[] {
   if (!raw?.trim()) return [];
