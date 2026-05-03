@@ -260,47 +260,51 @@ export async function extractJobRadarSignals(
     // Fetch real data from sources
     const realData = await fetchRealData(sources);
 
-    // Employer signals - use real data or fallback
-    const employeeCount = realData.employeeCount ?? 250;
-    signals.push({
-        id: randomUUID(),
-        scanId,
-        signalScope: 'employer',
-        category: 'company_size',
-        signalKey: 'employee_count',
-        signalValueNumber: String(employeeCount),
-        confidence: realData.employeeCount ? 'high' : 'low',
-        sourceQualityTier: realData.employeeCount ? 5 : 2,
-        isMissingData: !realData.employeeCount,
-        isConflicted: false,
-    });
+    // Employer signals - ONLY add if we have real data
+    if (realData.employeeCount) {
+        signals.push({
+            id: randomUUID(),
+            scanId,
+            signalScope: 'employer',
+            category: 'company_size',
+            signalKey: 'employee_count',
+            signalValueNumber: String(realData.employeeCount),
+            confidence: 'high',
+            sourceQualityTier: 5,
+            isMissingData: false,
+            isConflicted: false,
+        });
+    }
 
-    signals.push({
-        id: randomUUID(),
-        scanId,
-        signalScope: 'employer',
-        category: 'company_age',
-        signalKey: 'founded_year',
-        signalValueText: '2015',
-        confidence: 'low',
-        sourceQualityTier: 2,
-        isMissingData: true,
-        isConflicted: false,
-    });
-
-    const glassdoorRating = realData.glassdoorRating ?? 3.8;
-    signals.push({
-        id: randomUUID(),
-        scanId,
-        signalScope: 'employer',
-        category: 'reputation',
-        signalKey: 'glassdoor_rating',
-        signalValueNumber: String(glassdoorRating),
-        confidence: realData.glassdoorRating ? 'high' : 'low',
-        sourceQualityTier: realData.glassdoorRating ? 5 : 2,
-        isMissingData: !realData.glassdoorRating,
-        isConflicted: false,
-    });
+    if (realData.glassdoorRating) {
+        signals.push({
+            id: randomUUID(),
+            scanId,
+            signalScope: 'employer',
+            category: 'reputation',
+            signalKey: 'glassdoor_rating',
+            signalValueNumber: String(realData.glassdoorRating),
+            confidence: 'high',
+            sourceQualityTier: 5,
+            isMissingData: false,
+            isConflicted: false,
+        });
+    }
+    
+    if (realData.reviewCount) {
+        signals.push({
+            id: randomUUID(),
+            scanId,
+            signalScope: 'employer',
+            category: 'reputation',
+            signalKey: 'review_count',
+            signalValueNumber: String(realData.reviewCount),
+            confidence: 'high',
+            sourceQualityTier: 5,
+            isMissingData: false,
+            isConflicted: false,
+        });
+    }
 
     // Job offer signals
     if (input.salaryMin && input.salaryMax) {
@@ -451,21 +455,33 @@ export async function generateScoreDrivers(
     // Employer Score Drivers
     const employeeCountSignal = signals.find(s => s.signalKey === 'employee_count');
     const employeeCount = Number(employeeCountSignal?.signalValueNumber ?? 0);
-    const isRealEmployeeData = !employeeCountSignal?.isMissingData;
     
     const glassdoorSignal = signals.find(s => s.signalKey === 'glassdoor_rating');
     const glassdoorRating = Number(glassdoorSignal?.signalValueNumber ?? 0);
-    const isRealGlassdoorData = !glassdoorSignal?.isMissingData;
     
-    if (employeeCount > 50) {
+    const reviewCountSignal = signals.find(s => s.signalKey === 'review_count');
+    const reviewCount = Number(reviewCountSignal?.signalValueNumber ?? 0);
+    
+    // Only add drivers if we have real data
+    if (employeeCount > 0) {
         drivers.push({
             id: randomUUID(),
             scanId,
             scoreName: 'employer_score',
             driverType: 'positive',
-            label: `Company size: ${employeeCount.toLocaleString()} employees${isRealEmployeeData ? ' (verified from LinkedIn)' : ' (estimated)'}`,
+            label: `Company size: ${employeeCount.toLocaleString()} employees (verified from LinkedIn)`,
             impact: 20,
-            confidence: isRealEmployeeData ? 'high' : 'low',
+            confidence: 'high',
+        });
+    } else {
+        drivers.push({
+            id: randomUUID(),
+            scanId,
+            scoreName: 'employer_score',
+            driverType: 'neutral',
+            label: 'Company size: No data available in this search',
+            impact: 0,
+            confidence: 'low',
         });
     }
     
@@ -475,20 +491,30 @@ export async function generateScoreDrivers(
             scanId,
             scoreName: 'employer_score',
             driverType: 'positive',
-            label: `Glassdoor rating: ${glassdoorRating.toFixed(1)}/5.0${isRealGlassdoorData ? ' (live data)' : ' (estimated)'}`,
+            label: `Glassdoor rating: ${glassdoorRating.toFixed(1)}/5.0 (live data)${reviewCount > 0 ? ` - ${reviewCount.toLocaleString()} reviews` : ''}`,
             impact: Math.round(glassdoorRating * 10),
-            confidence: isRealGlassdoorData ? 'high' : 'low',
+            confidence: 'high',
         });
-    } else if (glassdoorRating > 0) {
-        const negativeReviews = Math.round((5 - glassdoorRating) * 20);
+    } else if (glassdoorRating > 0 && glassdoorRating < 3.5) {
+        const negativePercent = Math.round((5 - glassdoorRating) * 20);
         drivers.push({
             id: randomUUID(),
             scanId,
             scoreName: 'employer_score',
             driverType: 'negative',
-            label: `Low Glassdoor rating: ${glassdoorRating.toFixed(1)}/5.0 - approximately ${negativeReviews}% negative reviews${isRealGlassdoorData ? ' (live data)' : ' (estimated)'}`,
+            label: `Low Glassdoor rating: ${glassdoorRating.toFixed(1)}/5.0 - approximately ${negativePercent}% negative reviews (live data)`,
             impact: -Math.round((5 - glassdoorRating) * 10),
-            confidence: isRealGlassdoorData ? 'high' : 'low',
+            confidence: 'high',
+        });
+    } else {
+        drivers.push({
+            id: randomUUID(),
+            scanId,
+            scoreName: 'employer_score',
+            driverType: 'neutral',
+            label: 'Glassdoor rating: No data available in this search',
+            impact: 0,
+            confidence: 'low',
         });
     }
 
