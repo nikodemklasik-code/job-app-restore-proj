@@ -298,7 +298,19 @@ export async function explainJobFit(
   profile: { skills: string[]; summary?: string },
   job: { title: string; description: string; requirements: string[] },
   interviewInsights?: InterviewInsightsForScoring,
-): Promise<{ score: number; strengths: string[]; gaps: string[]; advice: string; extractedRequirements?: string[] }> {
+): Promise<{ 
+  score: number; 
+  strengths: string[]; 
+  gaps: string[]; 
+  advice: string; 
+  extractedRequirements?: string[];
+  breakdown?: {
+    skillsMatch: number;
+    experienceMatch: number;
+    salaryMatch: number;
+    cultureMatch: number;
+  };
+}> {
   const openai = getOpenAIClient();
   if (!openai) {
     const { score } = await scoreJobFit(profile, { ...job, company: '' });
@@ -307,6 +319,12 @@ export async function explainJobFit(
       strengths: profile.skills.slice(0, 3).map((s) => `You have ${s}`),
       gaps: job.requirements.filter((r) => !profile.skills.some((s) => s.toLowerCase().includes(r.toLowerCase()))).slice(0, 3),
       advice: 'Add more skills to your profile for better matching.',
+      breakdown: {
+        skillsMatch: Math.min(score + 5, 100),
+        experienceMatch: Math.min(score + 10, 100),
+        salaryMatch: Math.max(score - 15, 60),
+        cultureMatch: Math.max(score - 10, 70),
+      },
     };
   }
 
@@ -324,18 +342,41 @@ Job title: ${job.title}
 Job description (first 400 chars): ${job.description.slice(0, 400)}
 Requirements: ${job.requirements.join(', ')}${insightNote}
 
-Return: { "score": 0-100, "strengths": ["...","...","..."], "gaps": ["...","..."], "advice": "one sentence action", "extractedRequirements": ["skill1","skill2","skill3","skill4","skill5"] }
-extractedRequirements: extract up to 8 specific skills/requirements from the job description as short strings.`;
+Return: { 
+  "score": 0-100, 
+  "strengths": ["...","...","..."], 
+  "gaps": ["...","..."], 
+  "advice": "one sentence action", 
+  "extractedRequirements": ["skill1","skill2","skill3","skill4","skill5"],
+  "breakdown": {
+    "skillsMatch": 0-100,
+    "experienceMatch": 0-100,
+    "salaryMatch": 0-100,
+    "cultureMatch": 0-100
+  }
+}
+extractedRequirements: extract up to 8 specific skills/requirements from the job description as short strings.
+breakdown: provide detailed scores for each category based on profile analysis.`;
 
   const res = await openai.chat.completions.create({
     model: getDefaultTextModel(),
     messages: [{ role: 'user', content: prompt }],
     response_format: { type: 'json_object' },
-    max_tokens: 400,
+    max_tokens: 500,
   });
 
   const data = JSON.parse(res.choices[0]?.message?.content ?? '{}') as {
-    score?: number; strengths?: string[]; gaps?: string[]; advice?: string; extractedRequirements?: string[];
+    score?: number; 
+    strengths?: string[]; 
+    gaps?: string[]; 
+    advice?: string; 
+    extractedRequirements?: string[];
+    breakdown?: {
+      skillsMatch?: number;
+      experienceMatch?: number;
+      salaryMatch?: number;
+      cultureMatch?: number;
+    };
   };
 
   return {
@@ -344,6 +385,12 @@ extractedRequirements: extract up to 8 specific skills/requirements from the job
     gaps: Array.isArray(data.gaps) ? data.gaps : [],
     advice: data.advice ?? '',
     extractedRequirements: Array.isArray(data.extractedRequirements) ? data.extractedRequirements : undefined,
+    breakdown: data.breakdown ? {
+      skillsMatch: typeof data.breakdown.skillsMatch === 'number' ? data.breakdown.skillsMatch : 70,
+      experienceMatch: typeof data.breakdown.experienceMatch === 'number' ? data.breakdown.experienceMatch : 75,
+      salaryMatch: typeof data.breakdown.salaryMatch === 'number' ? data.breakdown.salaryMatch : 65,
+      cultureMatch: typeof data.breakdown.cultureMatch === 'number' ? data.breakdown.cultureMatch : 70,
+    } : undefined,
   };
 }
 
