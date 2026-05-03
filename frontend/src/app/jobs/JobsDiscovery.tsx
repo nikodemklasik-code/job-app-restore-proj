@@ -475,6 +475,12 @@ export default function JobsDiscovery() {
   const [minJobFitPercent, setMinJobFitPercent] = useState(() => readMinJobFitPercent());
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+
+  // Fetch fit analysis for expanded job
+  const expandedJobFitQuery = api.jobs.explainFit.useQuery(
+    { userId, jobId: expandedJobId! },
+    { enabled: !!userId && !!expandedJobId }
+  );
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
 
   // Load persisted saved jobs from backend and hydrate local Set
@@ -1105,6 +1111,14 @@ export default function JobsDiscovery() {
                   isCreatingDraft={createApplicationMutation.isPending}
                   isTailoringResume={generateDocumentsMutation.isPending}
                   isStartingRadarScan={startRadarScanMutation.isPending}
+                  fitAnalysis={expandedJobFitQuery.data?.fit.breakdown ? {
+                    skillsMatch: expandedJobFitQuery.data.fit.breakdown.skillsMatch,
+                    experienceMatch: expandedJobFitQuery.data.fit.breakdown.experienceMatch,
+                    salaryMatch: expandedJobFitQuery.data.fit.breakdown.salaryMatch,
+                    cultureMatch: expandedJobFitQuery.data.fit.breakdown.cultureMatch,
+                    strengths: expandedJobFitQuery.data.fit.strengths,
+                    gaps: expandedJobFitQuery.data.fit.gaps,
+                  } : undefined}
                 />
               ) : (
                 <JobCardCompact
