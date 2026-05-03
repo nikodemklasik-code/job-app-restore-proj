@@ -274,6 +274,9 @@ export const jobRadarRouter = router({
         sourcesQuality: sources.length > 3 ? 'high' : sources.length > 1 ? 'medium' : 'low',
       };
 
+      // Extract job info from scan input
+      const scanInput = scan[0].inputPayload as JobRadarScanInput;
+
       return {
         summary,
         report: report[0],
@@ -282,6 +285,13 @@ export const jobRadarRouter = router({
         findings,
         benchmark: benchmark[0],
         sources,
+        jobInfo: {
+          title: scanInput.jobTitle,
+          company: scanInput.company,
+          location: scanInput.location,
+          description: scanInput.description,
+          applyUrl: scanInput.applyUrl,
+        },
       };
     }),
 

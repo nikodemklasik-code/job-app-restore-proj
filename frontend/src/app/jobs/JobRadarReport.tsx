@@ -60,7 +60,7 @@ export default function JobRadarReport() {
         return null;
     }
 
-    const { summary, sources, scoreDrivers } = reportQuery.data;
+    const { summary, sources, scoreDrivers, jobInfo } = reportQuery.data;
 
     if (summary.status === 'processing') {
         return (
@@ -242,6 +242,36 @@ export default function JobRadarReport() {
                         </div>
                     </div>
                 )}
+
+                {/* Job Description */}
+                {jobInfo?.description && (
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                        <h3 className="text-lg font-semibold text-white mb-4">Job Description</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <h4 className="text-sm font-semibold text-indigo-400 mb-2">{jobInfo.title}</h4>
+                                <p className="text-sm text-slate-400">{jobInfo.company}{jobInfo.location ? ` • ${jobInfo.location}` : ''}</p>
+                            </div>
+                            <div className="prose prose-invert prose-sm max-w-none">
+                                <p className="text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">{jobInfo.description}</p>
+                            </div>
+                            {jobInfo.applyUrl && (
+                                <a
+                                    href={jobInfo.applyUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition"
+                                >
+                                    Apply Now
+                                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                    </svg>
+                                </a>
+                            )}
+                        </div>
+                    </div>
+                )}
+
             </div>
         </div>
     );
