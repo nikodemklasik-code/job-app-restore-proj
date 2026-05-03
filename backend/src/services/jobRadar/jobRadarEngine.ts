@@ -366,6 +366,181 @@ export async function calculateJobRadarScores(
 }
 
 /**
+ * Generate score drivers - concrete reasons for each score
+ */
+export async function generateScoreDrivers(
+    scanId: string,
+    signals: JobRadarSignal[],
+    scores: JobRadarScore,
+    input: JobRadarScanInput,
+): Promise<Array<{
+    id: string;
+    scanId: string;
+    scoreName: string;
+    driverType: 'positive' | 'negative' | 'neutral';
+    label: string;
+    impact: number;
+    confidence: 'low' | 'medium' | 'high';
+    sourceId?: string;
+    sourceRef?: string;
+}>> {
+    const drivers: Array<{
+        id: string;
+        scanId: string;
+        scoreName: string;
+        driverType: 'positive' | 'negative' | 'neutral';
+        label: string;
+        impact: number;
+        confidence: 'low' | 'medium' | 'high';
+        sourceId?: string;
+        sourceRef?: string;
+    }> = [];
+
+    // Employer Score Drivers
+    const employeeCount = signals.find(s => s.signalKey === 'employee_count')?.signalValueNumber ?? 0;
+    const glassdoorRating = signals.find(s => s.signalKey === 'glassdoor_rating')?.signalValueNumber ?? 0;
+    
+    if (Number(employeeCount) > 50) {
+        drivers.push({
+            id: randomUUID(),
+            scanId,
+            scoreName: 'employer_score',
+            driverType: 'positive',
+            label: `Established company with ${employeeCount}+ employees`,
+            impact: 20,
+            confidence: 'medium',
+        });
+    }
+    
+    if (Number(glassdoorRating) >= 3.5) {
+        drivers.push({
+            id: randomUUID(),
+            scanId,
+            scoreName: 'employer_score',
+            driverType: 'positive',
+            label: `Glassdoor rating: ${glassdoorRating}/5.0`,
+            impact: Math.round(Number(glassdoorRating) * 10),
+            confidence: 'medium',
+        });
+    } else if (Number(glassdoorRating) > 0) {
+        drivers.push({
+            id: randomUUID(),
+            scanId,
+            scoreName: 'employer_score',
+            driverType: 'negative',
+            label: `Low Glassdoor rating: ${glassdoorRating}/5.0`,
+            impact: -Math.round((5 - Number(glassdoorRating)) * 10),
+            confidence: 'medium',
+        });
+    }
+
+    // Market Pay Score Drivers
+    if (input.salaryMin && input.salaryMax) {
+        const avgSalary = (input.salaryMin + input.salaryMax) / 2;
+        const marketMedian = 45000; // Mock market data
+        
+        if (avgSalary >= marketMedian) {
+            drivers.push({
+                id: randomUUID(),
+                scanId,
+                scoreName: 'market_pay_score',
+                driverType: 'positive',
+                label: `Salary £${avgSalary.toLocaleString()} at or above market median (£${marketMedian.toLocaleString()})`,
+                impact: 20,
+                confidence: 'medium',
+            });
+        } else {
+            drivers.push({
+                id: randomUUID(),
+                scanId,
+                scoreName: 'market_pay_score',
+                driverType: 'negative',
+                label: `Salary £${avgSalary.toLocaleString()} below market median (£${marketMedian.toLocaleString()})`,
+                impact: -15,
+                confidence: 'medium',
+            });
+        }
+    }
+
+    // Benefits Score Drivers
+    const remoteWork = signals.find(s => s.signalKey === 'remote_work');
+    if (remoteWork) {
+        drivers.push({
+            id: randomUUID(),
+            scanId,
+            scoreName: 'benefits_score',
+            driverType: 'positive',
+            label: `Remote/hybrid work: ${remoteWork.signalValueText}`,
+            impact: 20,
+            confidence: 'high',
+        });
+    }
+
+    // Mock additional benefits
+    drivers.push({
+        id: randomUUID(),
+        scanId,
+        scoreName: 'benefits_score',
+        driverType: 'neutral',
+        label: 'Dental coverage: Not mentioned in job posting',
+        impact: 0,
+        confidence: 'low',
+    });
+
+    // Culture Fit Score Drivers
+    if (Number(glassdoorRating) >= 3.5) {
+        drivers.push({
+            id: randomUUID(),
+            scanId,
+            scoreName: 'culture_fit_score',
+            driverType: 'positive',
+            label: 'Positive employee reviews on Glassdoor',
+            impact: 15,
+            confidence: 'medium',
+        });
+    }
+
+    // Risk Score Drivers
+    const hasRedFlags = signals.some(s => s.category === 'red_flag');
+    if (hasRedFlags) {
+        const redFlagSignal = signals.find(s => s.category === 'red_flag');
+        drivers.push({
+            id: randomUUID(),
+            scanId,
+            scoreName: 'risk_score',
+            driverType: 'negative',
+            label: redFlagSignal?.signalValueText ?? 'Red flag detected in job posting',
+            impact: 55,
+            confidence: 'high',
+        });
+    } else {
+        drivers.push({
+            id: randomUUID(),
+            scanId,
+            scoreName: 'risk_score',
+            driverType: 'positive',
+            label: 'No obvious red flags detected',
+            impact: -10,
+            confidence: 'medium',
+        });
+    }
+
+    // Offer Score Drivers
+    drivers.push({
+        id: randomUUID(),
+        scanId,
+        scoreName: 'offer_score',
+        driverType: 'neutral',
+        label: `Job title: ${input.jobTitle}`,
+        impact: 0,
+        confidence: 'high',
+    });
+
+    return drivers;
+}
+
+
+/**
  * Generate findings (red flags, warnings, positive signals)
  */
 export async function generateJobRadarFindings(

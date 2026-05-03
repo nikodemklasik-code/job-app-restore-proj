@@ -23,6 +23,7 @@ import {
   collectJobRadarSources,
   extractJobRadarSignals,
   calculateJobRadarScores,
+  generateScoreDrivers,
   generateJobRadarFindings,
   generateSalaryBenchmark,
   generateEntityFingerprint,
@@ -433,6 +434,12 @@ async function processJobRadarScan(scanId: string, input: JobRadarScanInput): Pr
 
     const scores = await calculateJobRadarScores(scanId, signals, input);
     await db.insert(jobRadarScores).values(scores);
+
+    // Generate score drivers
+    const scoreDrivers = await generateScoreDrivers(scanId, signals, scores, input);
+    for (const driver of scoreDrivers) {
+      await db.insert(jobRadarScoreDrivers).values(driver);
+    }
 
     // Generate findings
     const findings = await generateJobRadarFindings(scanId, signals, scores);
