@@ -9,7 +9,8 @@ import {
     Target,
     Radar,
     Loader2,
-    X
+    X,
+    Beaker
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
@@ -52,6 +53,7 @@ type JobCardExpandedProps = {
         cultureMatch: number;
         strengths: string[];
         gaps: string[];
+        extractedRequirements?: string[];
     };
 };
 
@@ -440,6 +442,18 @@ export function JobCardExpanded({
                                             <li>Considered proficiency levels</li>
                                             <li>Factored in related technologies</li>
                                         </ul>
+                                        {(fitAnalysis?.extractedRequirements && fitAnalysis.extractedRequirements.length > 0) && (
+                                            <div className="mt-2 pt-2 border-t border-indigo-500/20">
+                                                <p className="text-xs font-semibold text-indigo-300 mb-1">Skills analyzed from job description:</p>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {fitAnalysis.extractedRequirements.slice(0, 8).map((req, i) => (
+                                                        <span key={i} className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-[10px] text-indigo-200 border border-indigo-500/30">
+                                                            {req}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 space-y-2">
                                         <p className="text-sm font-semibold text-emerald-400">Your matched skills:</p>
@@ -457,6 +471,30 @@ export function JobCardExpanded({
                                             Consider learning or refreshing: Advanced frameworks, Cloud platforms, DevOps practices
                                         </p>
                                     </div>
+                                    {/* Skills Gap Analysis */}
+                                    {analysis.gaps && analysis.gaps.length > 0 && (
+                                        <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 px-4 py-3 space-y-2">
+                                            <p className="text-sm font-semibold text-purple-400 flex items-center gap-2">
+                                                <Beaker className="h-4 w-4" />
+                                                Skills Gap Analysis
+                                            </p>
+                                            <ul className="text-xs text-purple-300 space-y-1">
+                                                {analysis.gaps.map((gap, i) => (
+                                                    <li key={i} className="flex items-start gap-2">
+                                                        <span className="text-purple-400">•</span>
+                                                        <span>{gap}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                            <Link
+                                                to="/skills"
+                                                className="mt-2 flex items-center justify-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-500 px-3 py-2 text-xs font-semibold text-white transition-colors"
+                                            >
+                                                <Beaker className="h-3.5 w-3.5" />
+                                                Go to Skills Lab
+                                            </Link>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

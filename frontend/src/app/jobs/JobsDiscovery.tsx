@@ -1118,6 +1118,7 @@ export default function JobsDiscovery() {
                     cultureMatch: expandedJobFitQuery.data.fit.breakdown.cultureMatch,
                     strengths: expandedJobFitQuery.data.fit.strengths,
                     gaps: expandedJobFitQuery.data.fit.gaps,
+                    extractedRequirements: expandedJobFitQuery.data.fit.extractedRequirements,
                   } : undefined}
                 />
               ) : (
