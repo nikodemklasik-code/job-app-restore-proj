@@ -165,8 +165,16 @@ export type ExplainFitResult = {
   skillsBreakdown?: SkillsBreakdown;
 };
 
+export interface CandidateExperience {
+  jobTitle: string;
+  employerName: string;
+  startDate: string;
+  endDate?: string | null;
+  description?: string | null;
+}
+
 export async function explainJobFit(
-  profile: { skills: string[]; summary?: string },
+  profile: { skills: string[]; summary?: string; experiences?: CandidateExperience[] },
   job: { title: string; description: string; requirements: string[] },
   interviewInsights?: InterviewInsightsForScoring,
 ): Promise<ExplainFitResult> {
@@ -192,6 +200,16 @@ export async function explainJobFit(
     };
   }
 
+  // Format employment history for GPT
+  const experienceLines = (profile.experiences ?? [])
+    .slice(0, 6)
+    .map((e) => {
+      const period = e.endDate ? `${e.startDate}–${e.endDate}` : `${e.startDate}–present`;
+      const desc = e.description ? ` — ${e.description.slice(0, 120)}` : '';
+      return `• ${e.jobTitle} at ${e.employerName} (${period})${desc}`;
+    })
+    .join('\n');
+
   const insightNote = interviewInsights && interviewInsights.sessionCount > 0
     ? `\nInterview performance (${interviewInsights.sessionCount} sessions, avg ${interviewInsights.averageScore}%):
   Strong: ${interviewInsights.strongAreas.join(', ') || 'none'}
@@ -203,20 +221,22 @@ export async function explainJobFit(
 
 CANDIDATE:
 Skills: ${profile.skills.join(', ') || 'none listed'}
-Summary: ${profile.summary ?? 'not provided'}${insightNote}
+Summary: ${profile.summary || 'not provided'}
+Employment history:
+${experienceLines || 'not provided'}${insightNote}
 
 JOB:
 Title: ${job.title}
-Description (first 500 chars): ${job.description.slice(0, 500)}
+Description (first 600 chars): ${job.description.slice(0, 600)}
 Stated requirements: ${job.requirements.join(', ') || 'none stated'}
 
 Return this exact JSON structure:
 {
   "score": <0-100 overall match>,
   "skillsMatch": <0-100 how well candidate skills match job requirements>,
-  "experienceMatch": <0-100 how well candidate experience level matches seniority of role>,
+  "experienceMatch": <0-100 how well candidate employment history matches seniority and domain of the role — use job titles, employers and dates>,
   "salaryMatch": <50 as default if unknown>,
-  "cultureMatch": <0-100 based on work mode signals, company culture clues in description>,
+  "cultureMatch": <0-100 based on work mode signals and company culture clues>,
   "strengths": ["specific strength 1", "specific strength 2", "specific strength 3"],
   "gaps": ["specific gap 1", "specific gap 2"],
   "advice": "one concrete action sentence the candidate should take",
@@ -230,13 +250,15 @@ Return this exact JSON structure:
 }
 
 Rules:
+- experienceMatch: base on actual job titles, seniority level and employment history provided — do NOT default to 0 if history is present
 - extractedRequirements: up to 8 specific skill/tool names from the job description
 - skillsBreakdown.matched: cross-reference candidate skills vs extracted requirements
 - skillsBreakdown.missing: requirements not found in candidate skills (max 6)
 - skillsBreakdown.partial: close matches (max 3)
 - skillsBreakdown.bonus: candidate skills relevant but not in requirements (max 3)
 - All arrays can be empty []
-- Scores must be integers 0-100`;
+- Scores must be integers 0-100
+- skillsMatch must be consistent with skillsBreakdown: if matched array is non-empty, skillsMatch must be > 0`;
 
   const res = await openai.chat.completions.create({
     model: 'gpt-4o-mini',

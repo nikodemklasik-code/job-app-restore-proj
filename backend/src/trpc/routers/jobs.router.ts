@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { eq, and, desc, like, or, inArray } from 'drizzle-orm';
 import { publicProcedure, protectedProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
-import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions, savedJobs, userJobPreferences } from '../../db/schema.js';
+import { jobs, profiles, skills, experiences, users, userJobSessions, applications, interviewSessions, savedJobs, userJobPreferences } from '../../db/schema.js';
 import { JobDiscoveryService } from '../../services/jobSources/jobDiscoveryService.js';
 import { discoverJobsForProfile } from '../../services/jobSources/profileDrivenDiscovery.js';
 import { explainJobFit, getCompanyProfile, generateCoverLetter } from '../../services/aiPersonalizer.js';
@@ -285,7 +285,7 @@ export const jobsRouter = router({
 
       const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
 
-      let profileData: { skills: string[]; summary?: string } = { skills: [] };
+      let profileData: Parameters<typeof explainJobFit>[0] = { skills: [] };
       let interviewInsights: Parameters<typeof explainJobFit>[2] | undefined;
 
       if (userRecord[0]) {
@@ -296,10 +296,20 @@ export const jobsRouter = router({
             .from(interviewSessions).where(eq(interviewSessions.userId, userRecord[0].id)).limit(1),
         ]);
         if (profileRecord[0]) {
-          const skillRecords = await db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profileRecord[0].id));
+          const [skillRecords, experienceRecords] = await Promise.all([
+            db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profileRecord[0].id)),
+            db.select({
+              jobTitle: experiences.jobTitle,
+              employerName: experiences.employerName,
+              startDate: experiences.startDate,
+              endDate: experiences.endDate,
+              description: experiences.description,
+            }).from(experiences).where(eq(experiences.profileId, profileRecord[0].id)),
+          ]);
           profileData = {
             summary: profileRecord[0].summary ?? '',
             skills: skillRecords.map((s) => s.name),
+            experiences: experienceRecords,
           };
         }
         if (sessionCount.length > 0) {
@@ -532,9 +542,21 @@ export const jobsRouter = router({
         if (profileRow) {
           profileFullName = profileRow.fullName || 'Candidate';
           profileSummary = profileRow.summary ?? '';
-          const skillRows = await db.select({ name: skills.name }).from(skills)
-            .where(eq(skills.profileId, profileRow.id));
+          const [skillRows, expRows] = await Promise.all([
+            db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profileRow.id)),
+            db.select({
+              jobTitle: experiences.jobTitle,
+              employerName: experiences.employerName,
+              startDate: experiences.startDate,
+              endDate: experiences.endDate,
+            }).from(experiences).where(eq(experiences.profileId, profileRow.id)),
+          ]);
           profileSkills = skillRows.map((s) => s.name);
+          // Build a short employment summary for the cover letter
+          if (expRows.length > 0) {
+            const recent = expRows[0];
+            profileSummary = profileSummary || `${recent.jobTitle} at ${recent.employerName}`;
+          }
         }
       }
 
