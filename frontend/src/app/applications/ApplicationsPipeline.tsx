@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
+import { useLocation } from 'react-router-dom';
 import { api } from '@/lib/api';
 import {
   Plus,
@@ -13,6 +14,8 @@ import {
   MessageSquare,
   Award,
   Bell,
+  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
 
 type AppStatus = 'draft' | 'prepared' | 'sent' | 'interview' | 'accepted' | 'rejected';
@@ -51,6 +54,7 @@ const ALL_STATUSES: AppStatus[] = ['draft', 'prepared', 'sent', 'interview', 'ac
 export default function ApplicationsPipeline() {
   const { user, isLoaded } = useUser();
   const userId = user?.id ?? null;
+  const location = useLocation();
 
   const [filterStatus, setFilterStatus] = useState<AppStatus | 'all'>('all');
   const [showNewModal, setShowNewModal] = useState(false);
@@ -62,6 +66,49 @@ export default function ApplicationsPipeline() {
   const [followUpAppId, setFollowUpAppId] = useState<string | null>(null);
   const [followUpText, setFollowUpText] = useState('');
   const [monitoringMap, setMonitoringMap] = useState<Record<string, boolean>>({});
+
+  // Cover letter compose modal (triggered from job cards via navigation state)
+  const [composeModal, setComposeModal] = useState<{
+    jobId: string;
+    jobTitle: string;
+    company: string;
+    recipientEmail: string;
+    subject: string;
+    coverLetter: string;
+  } | null>(null);
+
+  const coverLetterMutation = api.jobs.generateCoverLetter.useMutation({
+    onSuccess: (data) => {
+      setComposeModal((prev) => prev ? {
+        ...prev,
+        coverLetter: data.coverLetter,
+        recipientEmail: data.recipientEmail ?? prev.recipientEmail,
+        jobTitle: data.jobTitle,
+        company: data.company,
+        subject: `Application for ${data.jobTitle} — ${user?.fullName ?? 'Candidate'}`,
+      } : null);
+    },
+  });
+
+  // Detect navigation state from "Tailor CV" button on job cards
+  useEffect(() => {
+    const state = location.state as { tailorForJobId?: string; jobTitle?: string; company?: string } | null;
+    if (state?.tailorForJobId && isLoaded && userId) {
+      setComposeModal({
+        jobId: state.tailorForJobId,
+        jobTitle: state.jobTitle ?? 'Role',
+        company: state.company ?? 'Company',
+        recipientEmail: '',
+        subject: `Application for ${state.jobTitle ?? 'Role'} — ${user?.fullName ?? 'Candidate'}`,
+        coverLetter: '',
+      });
+      // Trigger cover letter generation
+      coverLetterMutation.mutate({ jobId: state.tailorForJobId });
+      // Clear nav state to prevent re-triggering on re-render
+      window.history.replaceState({}, '', location.pathname);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, userId]);
 
   const appsQuery = api.applications.getAll.useQuery(
     { userId: userId! },
@@ -581,6 +628,109 @@ export default function ApplicationsPipeline() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Cover Letter Compose Modal (from Tailor CV) ──────────────────── */}
+      {composeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl space-y-4 rounded-2xl border border-white/10 bg-[#020617] p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-indigo-400" />
+                  Tailor CV — Send Cover Letter
+                </h2>
+                <p className="text-sm text-slate-400 mt-0.5">
+                  AI-generated cover letter for <span className="text-white font-medium">{composeModal.jobTitle}</span> at <span className="text-white font-medium">{composeModal.company}</span>
+                </p>
+              </div>
+              <button onClick={() => setComposeModal(null)} className="text-slate-500 hover:text-white transition">✕</button>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-400">To (Employer Email)</label>
+              <input
+                type="email"
+                value={composeModal.recipientEmail}
+                onChange={(e) => setComposeModal((prev) => prev ? { ...prev, recipientEmail: e.target.value } : null)}
+                placeholder="hiring@company.com"
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-400">Subject</label>
+              <input
+                type="text"
+                value={composeModal.subject}
+                onChange={(e) => setComposeModal((prev) => prev ? { ...prev, subject: e.target.value } : null)}
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Cover Letter</label>
+                <button
+                  onClick={() => coverLetterMutation.mutate({ jobId: composeModal.jobId })}
+                  disabled={coverLetterMutation.isPending}
+                  className="flex items-center gap-1.5 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-xs font-medium text-indigo-300 transition hover:bg-indigo-500/20 disabled:opacity-50"
+                >
+                  {coverLetterMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                  Regenerate
+                </button>
+              </div>
+              {coverLetterMutation.isPending && !composeModal.coverLetter ? (
+                <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-8 text-sm text-slate-400">
+                  <Loader2 className="h-5 w-5 animate-spin text-indigo-400 shrink-0" />
+                  Generating personalised cover letter…
+                </div>
+              ) : (
+                <textarea
+                  value={composeModal.coverLetter}
+                  onChange={(e) => setComposeModal((prev) => prev ? { ...prev, coverLetter: e.target.value } : null)}
+                  rows={12}
+                  className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm leading-relaxed text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  placeholder="Cover letter will appear here…"
+                />
+              )}
+            </div>
+
+            {coverLetterMutation.isError && (
+              <p className="text-xs text-red-400">Could not generate cover letter. Check your profile has skills and summary.</p>
+            )}
+
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setComposeModal(null)}
+                className="flex-1 rounded-xl border border-white/10 py-2.5 text-sm text-slate-400 transition hover:bg-white/5"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const body = `${composeModal.coverLetter}`;
+                  const mailto = `mailto:${composeModal.recipientEmail}?subject=${encodeURIComponent(composeModal.subject)}&body=${encodeURIComponent(body)}`;
+                  window.open(mailto, '_blank');
+                }}
+                disabled={!composeModal.coverLetter || coverLetterMutation.isPending}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
+              >
+                <Mail className="h-4 w-4" />
+                Open in Email Client
+              </button>
+              <button
+                onClick={() => { void navigator.clipboard.writeText(composeModal.coverLetter); }}
+                disabled={!composeModal.coverLetter}
+                className="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-2.5 px-4 text-sm font-medium text-slate-300 transition hover:bg-white/10 disabled:opacity-60"
+                title="Copy cover letter to clipboard"
+              >
+                <FileText className="h-4 w-4" />
+                Copy
+              </button>
+            </div>
           </div>
         </div>
       )}

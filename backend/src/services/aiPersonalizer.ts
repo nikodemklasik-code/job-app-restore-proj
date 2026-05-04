@@ -145,56 +145,130 @@ export interface InterviewInsightsForScoring {
   weakAreas: string[];
 }
 
+export type SkillsBreakdown = {
+  matched: string[];   // user HAS this, job requires it
+  missing: string[];   // job requires it, user DOESN'T have it
+  partial: string[];   // similar skill exists (e.g. user has JS, job wants TypeScript)
+  bonus: string[];     // user has it, job doesn't explicitly require it but it's relevant
+};
+
+export type ExplainFitResult = {
+  score: number;
+  skillsMatch: number;
+  experienceMatch: number;
+  salaryMatch: number;
+  cultureMatch: number;
+  strengths: string[];
+  gaps: string[];
+  advice: string;
+  extractedRequirements?: string[];
+  skillsBreakdown?: SkillsBreakdown;
+};
+
 export async function explainJobFit(
   profile: { skills: string[]; summary?: string },
   job: { title: string; description: string; requirements: string[] },
   interviewInsights?: InterviewInsightsForScoring,
-): Promise<{ score: number; strengths: string[]; gaps: string[]; advice: string; extractedRequirements?: string[] }> {
+): Promise<ExplainFitResult> {
   const openai = getOpenAIClient();
   if (!openai) {
     const { score } = await scoreJobFit(profile, { ...job, company: '' });
+    const matched = profile.skills.filter((s) =>
+      job.requirements.some((r) => r.toLowerCase().includes(s.toLowerCase()) || s.toLowerCase().includes(r.toLowerCase()))
+    );
+    const missing = job.requirements.filter((r) =>
+      !profile.skills.some((s) => s.toLowerCase().includes(r.toLowerCase()) || r.toLowerCase().includes(s.toLowerCase()))
+    ).slice(0, 5);
     return {
       score,
-      strengths: profile.skills.slice(0, 3).map((s) => `You have ${s}`),
-      gaps: job.requirements.filter((r) => !profile.skills.some((s) => s.toLowerCase().includes(r.toLowerCase()))).slice(0, 3),
+      skillsMatch: score,
+      experienceMatch: score,
+      salaryMatch: 50,
+      cultureMatch: 50,
+      strengths: matched.slice(0, 3).map((s) => `You have ${s}`),
+      gaps: missing.slice(0, 3),
       advice: 'Add more skills to your profile for better matching.',
+      skillsBreakdown: { matched, missing, partial: [], bonus: [] },
     };
   }
 
   const insightNote = interviewInsights && interviewInsights.sessionCount > 0
-    ? `\nInterview performance data (${interviewInsights.sessionCount} sessions, avg score ${interviewInsights.averageScore}%):
-  - Strong areas: ${interviewInsights.strongAreas.join(', ') || 'none identified'}
-  - Weak areas: ${interviewInsights.weakAreas.join(', ') || 'none identified'}
-  Factor this into the score: strong interview performance (+5), weak areas matching job requirements (-5 each).`
+    ? `\nInterview performance (${interviewInsights.sessionCount} sessions, avg ${interviewInsights.averageScore}%):
+  Strong: ${interviewInsights.strongAreas.join(', ') || 'none'}
+  Weak: ${interviewInsights.weakAreas.join(', ') || 'none'}
+  Adjust score: +5 for strong interview, -5 per weak area that matches job requirements.`
     : '';
 
-  const prompt = `Analyse this job fit and respond with JSON only.
-Profile skills: ${profile.skills.join(', ')}
-Summary: ${profile.summary ?? ''}
-Job title: ${job.title}
-Job description (first 400 chars): ${job.description.slice(0, 400)}
-Requirements: ${job.requirements.join(', ')}${insightNote}
+  const prompt = `Analyse this candidate's fit for the job and respond with JSON only.
 
-Return: { "score": 0-100, "strengths": ["...","...","..."], "gaps": ["...","..."], "advice": "one sentence action", "extractedRequirements": ["skill1","skill2","skill3","skill4","skill5"] }
-extractedRequirements: extract up to 8 specific skills/requirements from the job description as short strings.`;
+CANDIDATE:
+Skills: ${profile.skills.join(', ') || 'none listed'}
+Summary: ${profile.summary ?? 'not provided'}${insightNote}
+
+JOB:
+Title: ${job.title}
+Description (first 500 chars): ${job.description.slice(0, 500)}
+Stated requirements: ${job.requirements.join(', ') || 'none stated'}
+
+Return this exact JSON structure:
+{
+  "score": <0-100 overall match>,
+  "skillsMatch": <0-100 how well candidate skills match job requirements>,
+  "experienceMatch": <0-100 how well candidate experience level matches seniority of role>,
+  "salaryMatch": <50 as default if unknown>,
+  "cultureMatch": <0-100 based on work mode signals, company culture clues in description>,
+  "strengths": ["specific strength 1", "specific strength 2", "specific strength 3"],
+  "gaps": ["specific gap 1", "specific gap 2"],
+  "advice": "one concrete action sentence the candidate should take",
+  "extractedRequirements": ["req1","req2","req3","req4","req5","req6","req7","req8"],
+  "skillsBreakdown": {
+    "matched": ["skill the candidate HAS that the job explicitly requires"],
+    "missing": ["skill the job REQUIRES that the candidate does NOT have"],
+    "partial": ["skill the candidate has that is close but not exact (e.g. has JS, job wants TypeScript)"],
+    "bonus": ["skill candidate has that is relevant but not required — gives them an edge"]
+  }
+}
+
+Rules:
+- extractedRequirements: up to 8 specific skill/tool names from the job description
+- skillsBreakdown.matched: cross-reference candidate skills vs extracted requirements
+- skillsBreakdown.missing: requirements not found in candidate skills (max 6)
+- skillsBreakdown.partial: close matches (max 3)
+- skillsBreakdown.bonus: candidate skills relevant but not in requirements (max 3)
+- All arrays can be empty []
+- Scores must be integers 0-100`;
 
   const res = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
     messages: [{ role: 'user', content: prompt }],
     response_format: { type: 'json_object' },
-    max_tokens: 400,
+    max_tokens: 700,
   });
 
   const data = JSON.parse(res.choices[0]?.message?.content ?? '{}') as {
-    score?: number; strengths?: string[]; gaps?: string[]; advice?: string; extractedRequirements?: string[];
+    score?: number;
+    skillsMatch?: number;
+    experienceMatch?: number;
+    salaryMatch?: number;
+    cultureMatch?: number;
+    strengths?: string[];
+    gaps?: string[];
+    advice?: string;
+    extractedRequirements?: string[];
+    skillsBreakdown?: SkillsBreakdown;
   };
 
   return {
     score: typeof data.score === 'number' ? data.score : 50,
+    skillsMatch: typeof data.skillsMatch === 'number' ? data.skillsMatch : (data.score ?? 50),
+    experienceMatch: typeof data.experienceMatch === 'number' ? data.experienceMatch : (data.score ?? 50),
+    salaryMatch: typeof data.salaryMatch === 'number' ? data.salaryMatch : 50,
+    cultureMatch: typeof data.cultureMatch === 'number' ? data.cultureMatch : 50,
     strengths: Array.isArray(data.strengths) ? data.strengths : [],
     gaps: Array.isArray(data.gaps) ? data.gaps : [],
     advice: data.advice ?? '',
     extractedRequirements: Array.isArray(data.extractedRequirements) ? data.extractedRequirements : undefined,
+    skillsBreakdown: data.skillsBreakdown ?? undefined,
   };
 }
 

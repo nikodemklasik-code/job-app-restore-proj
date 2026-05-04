@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
-import { Search, MapPin, DollarSign, Plus, ExternalLink, Loader2, Cookie, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Sparkles, Wifi, BookOpen, ChevronRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Search, MapPin, Plus, Loader2, Cookie, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { JobCardCompact } from '@/components/jobs/JobCardCompact';
+import { JobCardExpanded } from '@/components/jobs/JobCardExpanded';
 
 type JobResult = {
   id: string;
@@ -18,9 +19,44 @@ type JobResult = {
   description?: string;
   requirements?: string[];
   postedAt?: string;
+  scamAnalysis?: {
+    riskScore: number;
+    level: 'low' | 'medium' | 'high';
+    reasons?: string[];
+  };
+  employerSignals?: {
+    trustScore: number;
+    trustLevel: 'verified' | 'likely_legit' | 'review' | 'risky';
+    riskScore: number;
+    riskLevel: 'low' | 'medium' | 'high';
+    salaryTransparency: 'full' | 'range' | 'none';
+    descriptionQuality: 'detailed' | 'average' | 'thin';
+    requirementsClarity: 'clear' | 'vague' | 'none';
+    workModeClarity: 'explicit' | 'implicit' | 'none';
+    benefits: { type: string; label: string; source: 'detected_in_listing' }[];
+    ukSignals: { type: string; label: string; present: boolean }[];
+    trustReasons: string[];
+    riskReasons: string[];
+  };
 };
 
 type SessionStatus = { id: string; provider: string; isActive: boolean; lastTestedAt: Date | null; updatedAt: Date };
+
+type FitAnalysis = {
+  skillsMatch: number;
+  experienceMatch: number;
+  salaryMatch: number;
+  cultureMatch: number;
+  strengths: string[];
+  gaps: string[];
+  advice?: string;
+  skillsBreakdown?: {
+    matched: string[];
+    missing: string[];
+    partial: string[];
+    bonus: string[];
+  };
+};
 
 const ALL_SOURCES = ['reed', 'adzuna', 'jooble', 'indeed', 'gumtree'] as const;
 type Source = (typeof ALL_SOURCES)[number];
@@ -32,287 +68,6 @@ const SOURCE_META: Record<Source, { label: string; color: string; requiresSessio
   indeed: { label: 'Indeed', color: 'bg-blue-500/20 text-blue-400', requiresSession: true, url: 'https://www.indeed.co.uk' },
   gumtree: { label: 'Gumtree', color: 'bg-green-500/20 text-green-400', requiresSession: true, url: 'https://www.gumtree.com/jobs' },
 };
-
-
-function formatSalary(min: number | null, max: number | null): string | null {
-  if (!min && !max) return null;
-  if (min && max) return `£${Math.round(min / 1000)}k–£${Math.round(max / 1000)}k`;
-  if (min) return `£${Math.round(min / 1000)}k+`;
-  return `up to £${Math.round((max ?? 0) / 1000)}k`;
-}
-
-// ── Scam check helper ─────────────────────────────────────────────────────────
-
-function quickScamCheck(title: string, desc: string): boolean {
-  const text = (title + ' ' + desc).toLowerCase();
-  const patterns = [
-    /earn \$?\d{3,}/i, /work from home.*guaranteed/i, /no experience.*\$\d{4,}/i,
-    /mlm|pyramid|commission only|uncapped earning/i, /whatsapp.*job/i,
-    /investment.*return/i, /crypto.*recruiter/i, /be your own boss.*income/i
-  ];
-  return patterns.filter(p => p.test(text)).length >= 2;
-}
-
-// ── Application status badge ──────────────────────────────────────────────────
-
-const STATUS_META: Record<string, { label: string; color: string }> = {
-  draft:            { label: 'Draft',          color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' },
-  prepared:         { label: 'Prepared',       color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-  sent:             { label: 'Applied',        color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' },
-  follow_up_sent:   { label: 'Follow-up sent', color: 'bg-violet-500/20 text-violet-400 border-violet-500/30' },
-  interview:        { label: 'Interview',      color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
-  accepted:         { label: 'Offer',          color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-  rejected:         { label: 'Rejected',       color: 'bg-red-500/20 text-red-400 border-red-500/30' },
-  expired:          { label: 'Expired',        color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
-  closed:           { label: 'Closed',         color: 'bg-slate-600/20 text-slate-500 border-slate-600/30' },
-  archived:         { label: 'Archived',       color: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30' },
-  unavailable:      { label: 'Unavailable',    color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' },
-};
-
-function ApplicationStatusBadge({ status }: { status: string }) {
-  const meta = STATUS_META[status] ?? { label: status, color: 'bg-white/10 text-slate-400 border-white/10' };
-  return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${meta.color}`}>
-      {meta.label}
-    </span>
-  );
-}
-
-// ── Company profile card ───────────────────────────────────────────────────────
-
-function CompanyCard({ companyName, jobTitle }: { companyName: string; jobTitle: string }) {
-  const query = api.jobs.getCompanyProfile.useQuery(
-    { companyName, jobTitle },
-    { enabled: !!companyName }
-  );
-
-  if (query.isLoading) {
-    return (
-      <div className="flex items-center gap-2 py-2 text-xs text-slate-500">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        Loading company profile…
-      </div>
-    );
-  }
-
-  const profile = query.data;
-  if (!profile) return null;
-
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2 text-xs">
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-semibold text-white">{companyName}</span>
-        <div className="flex gap-1.5">
-          <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-slate-400">{profile.industry}</span>
-          <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-slate-400">{profile.size}</span>
-        </div>
-      </div>
-      <p className="text-slate-400 leading-relaxed">{profile.culture}</p>
-      <div className="rounded-lg border border-indigo-500/20 bg-indigo-500/10 px-3 py-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-indigo-400 mb-1">Interview style</p>
-        <p className="text-slate-300 leading-relaxed">{profile.interviewStyle}</p>
-      </div>
-    </div>
-  );
-}
-
-// ── Job card component ────────────────────────────────────────────────────────
-
-function JobCard({
-  job,
-  applicationStatus,
-  userId,
-  onExplainFit,
-}: {
-  job: JobResult;
-  applicationStatus?: string;
-  userId: string;
-  onExplainFit: (id: string) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const [showCompany, setShowCompany] = useState(false);
-
-  const fit = job.fitScore;
-  const fitColor = fit >= 80
-    ? { bar: '#34d399', badge: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25' }
-    : fit >= 60
-    ? { bar: '#fbbf24', badge: 'bg-amber-500/15 text-amber-400 border-amber-500/25' }
-    : { bar: '#f87171', badge: 'bg-red-500/15 text-red-400 border-red-500/25' };
-
-  const salary = formatSalary(job.salaryMin, job.salaryMax);
-  const srcMeta = SOURCE_META[job.source as Source];
-  const isScam = quickScamCheck(job.title, job.description ?? '');
-  const requirements: string[] = job.requirements ?? [];
-
-  const postedDate = job.postedAt
-    ? (() => {
-        const d = new Date(job.postedAt);
-        const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
-        if (diffDays === 0) return 'Today';
-        if (diffDays === 1) return 'Yesterday';
-        if (diffDays < 7) return `${diffDays}d ago`;
-        if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
-        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-      })()
-    : null;
-
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 flex flex-col transition hover:border-white/20 hover:bg-white/[0.07] overflow-hidden">
-      {/* Fit bar accent — top edge colour indicates match quality */}
-      <div className="h-1 w-full" style={{ background: fitColor.bar, opacity: 0.7 }} />
-
-      {/* Card body */}
-      <div className="p-5 flex flex-col gap-3 flex-1">
-        {/* Row 1: Avatar + title + badges */}
-        <div className="flex items-start gap-3">
-          {/* Company avatar */}
-          <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-base font-bold text-white"
-            style={{ background: `${fitColor.bar}30`, border: `1px solid ${fitColor.bar}40` }}
-          >
-            {job.company.charAt(0).toUpperCase()}
-          </div>
-
-          {/* Title + company */}
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-white leading-tight line-clamp-2">{job.title}</h3>
-            <button
-              onClick={() => setShowCompany((v) => !v)}
-              className="flex items-center gap-1 mt-0.5 text-xs text-slate-400 hover:text-slate-200 transition"
-            >
-              {job.company}
-              <ChevronRight className={`h-3 w-3 transition-transform ${showCompany ? 'rotate-90' : ''}`} />
-            </button>
-          </div>
-
-          {/* Fit score pill */}
-          <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-bold ${fitColor.badge}`}>
-            {fit}%
-          </span>
-        </div>
-
-        {/* Company profile (lazy expand) */}
-        {showCompany && (
-          <CompanyCard companyName={job.company} jobTitle={job.title} />
-        )}
-
-        {/* Scam warning */}
-        {isScam && (
-          <span className="inline-flex w-fit items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/15 px-2.5 py-0.5 text-xs font-medium text-amber-400">
-            ⚠️ Verify carefully
-          </span>
-        )}
-
-        {/* Meta: location / salary / mode / date / source */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-          {job.location && (
-            <span className="flex items-center gap-1">
-              <MapPin className="h-3 w-3 shrink-0" />
-              {job.location}
-            </span>
-          )}
-          {salary && (
-            <span className="flex items-center gap-1 font-medium text-slate-300">
-              <DollarSign className="h-3 w-3 shrink-0" />
-              {salary}
-            </span>
-          )}
-          {job.workMode && (
-            <span className="flex items-center gap-1 rounded-full border border-white/10 px-2 py-0.5 text-[10px] font-medium capitalize text-slate-400">
-              <Wifi className="h-2.5 w-2.5" />
-              {job.workMode}
-            </span>
-          )}
-          {postedDate && <span>{postedDate}</span>}
-          <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold ${srcMeta?.color ?? 'bg-white/10 text-slate-400'}`}>
-            {srcMeta?.label ?? job.source}
-          </span>
-        </div>
-
-        {/* Application status badge */}
-        {applicationStatus && (
-          <div><ApplicationStatusBadge status={applicationStatus} /></div>
-        )}
-
-        {/* Fit score bar */}
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider">AI match</span>
-            <span className="text-[10px] font-semibold" style={{ color: fitColor.bar }}>{fit}%</span>
-          </div>
-          <div className="h-1.5 w-full rounded-full bg-white/10">
-            <div className="h-1.5 rounded-full transition-all" style={{ width: `${fit}%`, background: fitColor.bar }} />
-          </div>
-        </div>
-      </div>
-
-      {/* Skills section (collapsible) */}
-      <div className="border-t border-white/5">
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="w-full flex items-center justify-between px-5 py-2.5 text-xs text-slate-400 hover:text-white hover:bg-white/5 transition"
-        >
-          <span className="font-medium">
-            {requirements.length > 0 ? `${requirements.length} required skills` : 'Skills & requirements'}
-          </span>
-          {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-        </button>
-        {expanded && (
-          <div className="px-5 pb-4 space-y-3">
-            {requirements.length > 0 ? (
-              <>
-                <div className="flex flex-wrap gap-1.5">
-                  {requirements.map((req, i) => (
-                    <span key={i} className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-slate-300">
-                      {req}
-                    </span>
-                  ))}
-                </div>
-                <Link to="/skills" className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition w-fit">
-                  <BookOpen className="h-3.5 w-3.5" />
-                  Learn these skills in Skills Lab →
-                </Link>
-              </>
-            ) : (
-              <div className="text-xs text-slate-500 space-y-1.5">
-                <p>No requirements extracted yet.</p>
-                <button onClick={() => onExplainFit(job.id)} className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 transition" disabled={!userId}>
-                  <Sparkles className="h-3.5 w-3.5" /> Analyse fit to extract requirements
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className="px-5 pb-5 pt-2 flex flex-col gap-2">
-        <button
-          onClick={() => onExplainFit(job.id)}
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 py-2 text-xs font-medium text-indigo-400 transition hover:bg-indigo-500/20"
-        >
-          <Sparkles className="h-3.5 w-3.5" />
-          Why this match?
-        </button>
-        {job.applyUrl ? (
-          <a
-            href={job.applyUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
-          >
-            Apply <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        ) : (
-          <div className="flex items-center justify-center rounded-xl border border-white/10 bg-white/5 py-2.5 text-xs text-slate-500">
-            No direct link available
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 
 function ExplainFitModal({ jobId, userId, onClose }: { jobId: string; userId: string; onClose: () => void }) {
   const explainQuery = api.jobs.explainFit.useQuery(
@@ -647,16 +402,24 @@ export default function JobsDiscovery() {
   const [query, setQuery] = useState('');
   const [location, setLocation] = useState('United Kingdom');
   const [sources, setSources] = useState<Source[]>(['reed', 'adzuna', 'jooble']);
+  const [maxDaysOld, setMaxDaysOld] = useState<number | undefined>(undefined);
   const [searchParams, setSearchParams] = useState<{
     query: string;
     location: string;
     sources: string[];
     userId?: string;
+    maxDaysOld?: number;
   } | null>(null);
   const [showManualModal, setShowManualModal] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
   const [manualForm, setManualForm] = useState({ title: '', company: '', location: '', applyUrl: '' });
   const [explainJobId, setExplainJobId] = useState<string | null>(null);
+  const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set());
+  const [minJobFitPercent, _setMinJobFitPercent] = useState(50);
+  const [pendingJobsSearchAfterCv] = useState(false);
+  const [fitAnalysisCache, setFitAnalysisCache] = useState<Record<string, FitAnalysis>>({});
+  const [loadingFitIds, setLoadingFitIds] = useState<Set<string>>(new Set());
 
   const sessionQuery = api.jobSessions.getStatus.useQuery(
     { userId },
@@ -676,9 +439,63 @@ export default function JobsDiscovery() {
     },
   });
 
+  const profileQuery = api.profile.getProfile.useQuery(
+    undefined,
+    { enabled: !!userId }
+  );
+
+  const getSavedJobsQuery = api.jobs.getSavedJobs.useQuery(
+    undefined,
+    { enabled: !!userId }
+  );
+
+  const saveJobMutation = api.jobs.saveJob.useMutation({
+    onSuccess: (_, vars) => {
+      setSavedJobs((prev) => new Set(prev).add(vars.jobId));
+    },
+  });
+
+  const unsaveJobMutation = api.jobs.unsaveJob.useMutation({
+    onSuccess: (_, vars) => {
+      setSavedJobs((prev) => {
+        const next = new Set(prev);
+        next.delete(vars.jobId);
+        return next;
+      });
+    },
+  });
+
   const handleSearch = () => {
-    setSearchParams({ query, location, sources: [...sources], userId: userId || undefined });
+    setSearchParams({ query, location, sources: [...sources], userId: userId || undefined, maxDaysOld });
   };
+
+  // Load fit analysis for a job (called on card expand, cached to avoid re-fetching)
+  const loadFitAnalysis = useCallback(async (jobId: string) => {
+    if (!userId || fitAnalysisCache[jobId] || loadingFitIds.has(jobId)) return;
+    setLoadingFitIds((prev) => new Set(prev).add(jobId));
+    try {
+      const result = await (api as any).jobs.explainFit.query({ userId, jobId });
+      if (result?.fit) {
+        setFitAnalysisCache((prev) => ({
+          ...prev,
+          [jobId]: {
+            skillsMatch: result.fit.skillsMatch ?? result.fit.score ?? 50,
+            experienceMatch: result.fit.experienceMatch ?? result.fit.score ?? 50,
+            salaryMatch: result.fit.salaryMatch ?? 50,
+            cultureMatch: result.fit.cultureMatch ?? 50,
+            strengths: result.fit.strengths ?? [],
+            gaps: result.fit.gaps ?? [],
+            advice: result.fit.advice,
+            skillsBreakdown: result.fit.skillsBreakdown,
+          },
+        }));
+      }
+    } catch {
+      // silently fail — user can still click "Why this match?" manually
+    } finally {
+      setLoadingFitIds((prev) => { const next = new Set(prev); next.delete(jobId); return next; });
+    }
+  }, [userId, fitAnalysisCache, loadingFitIds]);
 
   const toggleSource = (source: Source) => {
     setSources((prev) =>
@@ -710,6 +527,30 @@ export default function JobsDiscovery() {
     { enabled: !!userId && jobIds.length > 0 }
   );
   const jobStatusMap = (jobStatusQuery.data ?? {}) as Record<string, string>;
+
+  // Sync savedJobs from server query
+  const serverSavedIds = useMemo(
+    () => new Set((getSavedJobsQuery.data ?? []).map((j: { job: { id: string } }) => j.job.id)),
+    [getSavedJobsQuery.data]
+  );
+  const effectiveSavedJobs = savedJobs.size > 0 ? savedJobs : serverSavedIds;
+
+  const visibleJobs = useMemo(
+    () => jobResults.filter((j) => j.fitScore >= minJobFitPercent),
+    [jobResults, minJobFitPercent]
+  );
+
+  const handleToggleSave = (jobId: string) => {
+    if (!userId) return;
+    const isSaved = effectiveSavedJobs.has(jobId);
+    if (isSaved) {
+      setSavedJobs((prev) => { const next = new Set(prev); next.delete(jobId); return next; });
+      unsaveJobMutation.mutate({ jobId });
+    } else {
+      setSavedJobs((prev) => new Set(prev).add(jobId));
+      saveJobMutation.mutate({ jobId });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -787,7 +628,7 @@ export default function JobsDiscovery() {
           </button>
         </div>
 
-        {/* Source toggles */}
+        {/* Source toggles + date filter */}
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-xs text-slate-500 uppercase tracking-wider">Sources:</span>
           {ALL_SOURCES.map((source) => {
@@ -814,6 +655,23 @@ export default function JobsDiscovery() {
               </label>
             );
           })}
+
+          {/* Date filter */}
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-xs text-slate-500 uppercase tracking-wider">Posted:</span>
+            <select
+              value={maxDaysOld ?? ''}
+              onChange={(e) => setMaxDaysOld(e.target.value ? Number(e.target.value) : undefined)}
+              className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            >
+              <option value="">Any time</option>
+              <option value="1">Today</option>
+              <option value="3">Last 3 days</option>
+              <option value="7">Last 7 days</option>
+              <option value="14">Last 2 weeks</option>
+              <option value="30">Last month</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -860,7 +718,12 @@ export default function JobsDiscovery() {
           {jobResults.length > 0
             ? visibleJobs.map((job) => {
               const isExpanded = expandedJobId === job.id;
-              const isSaved = savedJobs.has(job.id);
+              const isSaved = effectiveSavedJobs.has(job.id);
+
+              const handleExpand = () => {
+                setExpandedJobId(job.id);
+                loadFitAnalysis(job.id);
+              };
 
               return isExpanded ? (
                 <JobCardExpanded
@@ -871,6 +734,8 @@ export default function JobsDiscovery() {
                   onToggleSave={() => handleToggleSave(job.id)}
                   onCollapse={() => setExpandedJobId(null)}
                   onExplain={() => setExplainJobId(job.id)}
+                  fitAnalysis={fitAnalysisCache[job.id]}
+                  fitLoading={loadingFitIds.has(job.id)}
                 />
               ) : (
                 <JobCardCompact
@@ -879,16 +744,20 @@ export default function JobsDiscovery() {
                   applicationStatus={jobStatusMap[job.id]}
                   isSaved={isSaved}
                   onToggleSave={() => handleToggleSave(job.id)}
-                  onExpand={() => setExpandedJobId(job.id)}
+                  onExpand={handleExpand}
                   onExplain={() => setExplainJobId(job.id)}
                   isExpanded={false}
                 />
               );
             })
-            : Array.from({ length: JOB_CARD_PLACEHOLDER_COUNT }, (_, i) => (
-              <JobCardPlaceholder
+            : Array.from({ length: 6 }, (_, i) => (
+              <div
                 key={`job-placeholder-${i}`}
-                pulsing={searchQuery.isFetching || (pendingJobsSearchAfterCv && profileQuery.isFetching)}
+                className={`rounded-2xl border border-white/10 bg-white/5 h-48 ${
+                  (searchQuery.isFetching || (pendingJobsSearchAfterCv && profileQuery.isFetching))
+                    ? 'animate-pulse'
+                    : ''
+                }`}
               />
             ))}
         </div>

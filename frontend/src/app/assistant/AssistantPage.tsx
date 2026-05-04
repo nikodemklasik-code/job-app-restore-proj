@@ -43,46 +43,52 @@ async function speakText(text: string): Promise<void> {
   } catch { /* TTS is non-fatal */ }
 }
 
-// ── Quick actions ─────────────────────────────────────────────────────────────
+// ── The four assistant modes (per product spec) ───────────────────────────────
 
-const QUICK_ACTIONS = [
+const MODES = [
   {
+    id: 'cv' as const,
     icon: FileText,
-    label: 'CV Review',
-    desc: 'Get tailored feedback on your CV',
-    prompt: 'Review my CV for a Senior Frontend role',
-    mode: 'cv' as const,
+    label: 'CV & Applications',
+    desc: 'Review, tailor and improve your CV for specific roles',
+    prompt: 'Review my CV and suggest improvements for a Senior Frontend role',
     color: 'text-indigo-400',
-    ring: 'border-indigo-500/25 hover:border-indigo-400/50 hover:bg-indigo-500/10',
+    ring: 'border-indigo-500/25 hover:border-indigo-400/60 hover:bg-indigo-500/10',
+    activeBg: 'bg-indigo-600',
   },
   {
+    id: 'salary' as const,
     icon: DollarSign,
-    label: 'Salary Negotiation',
-    desc: 'Strategies to maximise your offer',
-    prompt: 'How should I negotiate my salary effectively?',
-    mode: 'salary' as const,
+    label: 'Salary & Offers',
+    desc: 'Negotiate better compensation and evaluate offer packages',
+    prompt: 'How should I negotiate my salary offer effectively?',
     color: 'text-emerald-400',
-    ring: 'border-emerald-500/25 hover:border-emerald-400/50 hover:bg-emerald-500/10',
+    ring: 'border-emerald-500/25 hover:border-emerald-400/60 hover:bg-emerald-500/10',
+    activeBg: 'bg-emerald-600',
   },
   {
+    id: 'interview' as const,
     icon: Briefcase,
     label: 'Interview Prep',
-    desc: 'Practice behavioural and technical questions',
-    prompt: 'Prepare me for a behavioural interview',
-    mode: 'interview' as const,
+    desc: 'Practise behavioural, technical and competency questions',
+    prompt: 'Help me prepare for a Senior Engineer behavioural interview',
     color: 'text-amber-400',
-    ring: 'border-amber-500/25 hover:border-amber-400/50 hover:bg-amber-500/10',
+    ring: 'border-amber-500/25 hover:border-amber-400/60 hover:bg-amber-500/10',
+    activeBg: 'bg-amber-600',
   },
   {
+    id: 'general' as const,
     icon: TrendingUp,
-    label: 'Job Strategy',
-    desc: 'Smarter search and positioning advice',
-    prompt: 'What are the best job search strategies right now?',
-    mode: 'general' as const,
+    label: 'Career Strategy',
+    desc: 'Job search tactics, career pivots and positioning advice',
+    prompt: 'What are the most effective job search strategies right now?',
     color: 'text-violet-400',
-    ring: 'border-violet-500/25 hover:border-violet-400/50 hover:bg-violet-500/10',
+    ring: 'border-violet-500/25 hover:border-violet-400/60 hover:bg-violet-500/10',
+    activeBg: 'bg-violet-600',
   },
-];
+] as const;
+
+type Mode = (typeof MODES)[number]['id'];
 
 const MAX_TEXTAREA_ROWS = 5;
 const LINE_HEIGHT_PX = 24;
@@ -160,48 +166,38 @@ function MessageBubble({
   );
 }
 
-// ── Empty state with inline quick actions ─────────────────────────────────────
+// ── Topic picker (shown when no conversation yet) ─────────────────────────────
 
-function EmptyState({
+function TopicPicker({
   onPick,
   isSending,
 }: {
-  onPick: (prompt: string, mode: 'general' | 'cv' | 'interview' | 'salary') => void;
+  onPick: (prompt: string, mode: Mode) => void;
   isSending: boolean;
 }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-8 px-4 py-12">
-      <div className="text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-xl shadow-indigo-500/30">
-          <Sparkles className="h-7 w-7 text-white" />
-        </div>
-        <h2 className="text-xl font-bold text-white">AI Career Assistant</h2>
-        <p className="mx-auto mt-2 max-w-sm text-sm text-slate-400">
-          Ask anything career-related or pick a topic to get started.
-        </p>
-        <div className="mx-auto mt-3 flex w-fit items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1">
-          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-          <span className="text-xs font-medium text-emerald-400">Assistant online · GPT-4o</span>
-        </div>
-      </div>
+    <div className="flex flex-1 flex-col items-center justify-center gap-6 px-4 py-8 border-x border-white/10 bg-white/[0.02]">
+      <p className="text-sm text-slate-400">
+        Pick a topic to get started, or type your question below.
+      </p>
 
-      <div className="grid w-full max-w-2xl grid-cols-2 gap-3 sm:grid-cols-4">
-        {QUICK_ACTIONS.map((action) => {
-          const Icon = action.icon;
+      <div className="grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {MODES.map((mode) => {
+          const Icon = mode.icon;
           return (
             <button
-              key={action.label}
+              key={mode.id}
               type="button"
-              onClick={() => !isSending && onPick(action.prompt, action.mode)}
+              onClick={() => !isSending && onPick(mode.prompt, mode.id)}
               disabled={isSending}
-              className={`group flex flex-col items-start gap-2 rounded-2xl border bg-white/[0.03] p-4 text-left transition disabled:opacity-45 ${action.ring}`}
+              className={`group flex flex-col items-start gap-3 rounded-2xl border bg-white/[0.03] p-4 text-left transition-all duration-150 disabled:opacity-45 ${mode.ring}`}
             >
-              <div className={`flex h-8 w-8 items-center justify-center rounded-xl bg-white/5 transition group-hover:bg-white/10 ${action.color}`}>
+              <div className={`flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 transition group-hover:bg-white/10 ${mode.color}`}>
                 <Icon className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-xs font-semibold text-white">{action.label}</p>
-                <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{action.desc}</p>
+                <p className="text-xs font-semibold text-white leading-snug">{mode.label}</p>
+                <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{mode.desc}</p>
               </div>
             </button>
           );
@@ -222,7 +218,7 @@ function EmptyState({
 // ── Main component ────────────────────────────────────────────────────────────
 
 type AssistantPrefillState = {
-  prefill?: { text: string; mode?: 'general' | 'cv' | 'interview' | 'salary'; autoSend?: boolean };
+  prefill?: { text: string; mode?: Mode; autoSend?: boolean };
 };
 
 export default function AssistantPage() {
@@ -232,7 +228,7 @@ export default function AssistantPage() {
   const prefillConsumedRef = useRef(false);
 
   const [input, setInput] = useState('');
-  const [replyMode, setReplyMode] = useState<'general' | 'cv' | 'interview' | 'salary'>('general');
+  const [replyMode, setReplyMode] = useState<Mode>('general');
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -253,6 +249,7 @@ export default function AssistantPage() {
 
   const isSending = status === 'sending';
   const isLoading = status === 'syncing';
+  const hasMessages = messages.length > 0 || isSending;
 
   useEffect(() => {
     if (isSignedIn) void loadHistory();
@@ -330,7 +327,7 @@ export default function AssistantPage() {
     await sendMessage(text, replyMode);
   };
 
-  const handleQuickStart = async (prompt: string, mode: 'general' | 'cv' | 'interview' | 'salary') => {
+  const handleTopicPick = async (prompt: string, mode: Mode) => {
     setReplyMode(mode);
     await sendMessage(prompt, mode);
   };
@@ -346,157 +343,167 @@ export default function AssistantPage() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); }
   };
 
+  const activeMode = MODES.find((m) => m.id === replyMode);
+
   return (
-    /* Escape AppShell padding (p-6 / lg:p-8) so the chat fills the viewport edge-to-edge vertically */
     <div className="-mx-6 -my-6 lg:-mx-8 lg:-my-8 flex h-[calc(100%+3rem)] lg:h-[calc(100%+4rem)] flex-col overflow-hidden">
       <div className="mx-auto flex h-full w-full max-w-4xl flex-col overflow-hidden px-4 py-4 lg:px-6">
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <header className="shrink-0 rounded-t-3xl border border-b-0 border-white/10 bg-white/[0.04] px-5 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25">
-              <Bot className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold leading-tight text-white">AI Career Assistant</h1>
-              <div className="flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                <span className="text-xs text-slate-400">GPT-4o · online</span>
+        {/* ── Header ─────────────────────────────────────────────────────────── */}
+        <header className="shrink-0 rounded-t-3xl border border-b-0 border-white/10 bg-white/[0.04] px-5 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25">
+                <Bot className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold leading-tight text-white">AI Career Assistant</h1>
+                <div className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                  <span className="text-xs text-slate-400">GPT-4o · online</span>
+                </div>
               </div>
             </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => clearMessages?.()}
+                title="New conversation"
+                className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-white/10 hover:text-white"
+              >
+                <MessageSquarePlus className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">New chat</span>
+              </button>
+              <button
+                onClick={() => void loadHistory()}
+                disabled={isLoading}
+                title="Refresh"
+                className="flex items-center justify-center rounded-xl border border-white/10 bg-white/5 p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white disabled:opacity-40"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => clearMessages?.()}
-              title="New conversation"
-              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-white/10 hover:text-white"
-            >
-              <MessageSquarePlus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">New chat</span>
-            </button>
-            <button
-              onClick={() => void loadHistory()}
-              disabled={isLoading}
-              title="Refresh"
-              className="flex items-center justify-center rounded-xl border border-white/10 bg-white/5 p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white disabled:opacity-40"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            </button>
-          </div>
-        </div>
-      </header>
+        </header>
 
-      {/* ── Error banner ────────────────────────────────────────────────────── */}
-      {error && (
-        <div className="shrink-0 border-x border-white/10 bg-white/[0.02] px-4 pt-3">
-          <div className="flex items-center justify-between rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">
-            <span>{error}</span>
-            <button onClick={resetError} className="ml-3 rounded p-0.5 hover:bg-red-500/20">
-              <X className="h-4 w-4" />
-            </button>
+        {/* ── Error banner ────────────────────────────────────────────────────── */}
+        {error && (
+          <div className="shrink-0 border-x border-white/10 bg-white/[0.02] px-4 pt-3">
+            <div className="flex items-center justify-between rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">
+              <span>{error}</span>
+              <button onClick={resetError} className="ml-3 rounded p-0.5 hover:bg-red-500/20">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ── Chat area ───────────────────────────────────────────────────────── */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto border-x border-white/10 bg-white/[0.02]">
-        {isLoading ? (
-          <div className="flex h-full items-center justify-center gap-1.5">
+        {/* ── Loading spinner ──────────────────────────────────────────────────── */}
+        {isLoading && (
+          <div className="flex flex-1 items-center justify-center gap-1.5 border-x border-white/10 bg-white/[0.02]">
             {[0, 1, 2].map((i) => (
               <span key={i} className="h-2 w-2 animate-bounce rounded-full bg-indigo-400" style={{ animationDelay: `${i * 0.15}s` }} />
             ))}
           </div>
-        ) : messages.length === 0 ? (
-          <EmptyState onPick={(p, m) => void handleQuickStart(p, m)} isSending={isSending} />
-        ) : (
-          <div className="space-y-5 p-5">
-            {messages.map((msg) => (
-              <MessageBubble
-                key={msg.id}
-                msg={msg}
-                speakingId={speakingMsgId}
-                onSpeak={(id, text) => void handleSpeak(id, text)}
-              />
-            ))}
-            {isSending && <TypingIndicator />}
-            <div ref={messagesEndRef} />
+        )}
+
+        {/* ── Topic picker (empty state — no scroll, no duplicate heading) ─────── */}
+        {!isLoading && !hasMessages && (
+          <TopicPicker onPick={(p, m) => void handleTopicPick(p, m)} isSending={isSending} />
+        )}
+
+        {/* ── Chat messages (only when conversation exists) ────────────────────── */}
+        {!isLoading && hasMessages && (
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto border-x border-white/10 bg-white/[0.02]">
+            <div className="space-y-5 p-5">
+              {messages.map((msg) => (
+                <MessageBubble
+                  key={msg.id}
+                  msg={msg}
+                  speakingId={speakingMsgId}
+                  onSpeak={(id, text) => void handleSpeak(id, text)}
+                />
+              ))}
+              {isSending && <TypingIndicator />}
+              <div ref={messagesEndRef} />
+            </div>
           </div>
         )}
-      </div>
 
-      {/* ── Input bar ───────────────────────────────────────────────────────── */}
-      <div className="shrink-0 rounded-b-3xl border border-t-0 border-white/10 bg-slate-950/60 px-4 py-3 backdrop-blur-sm">
-        {/* Mode pills */}
-        <div className="mb-3 flex flex-wrap gap-1.5">
-          {(
-            [
-              { id: 'general' as const, label: 'General' },
-              { id: 'cv' as const, label: 'CV' },
-              { id: 'interview' as const, label: 'Interview' },
-              { id: 'salary' as const, label: 'Salary' },
-            ]
-          ).map((m) => (
+        {/* ── Input bar ───────────────────────────────────────────────────────── */}
+        <div className="shrink-0 rounded-b-3xl border border-t-0 border-white/10 bg-slate-950/60 px-4 py-3 backdrop-blur-sm">
+
+          {/* Mode pills — only shown while a conversation is active */}
+          {hasMessages && (
+            <div className="mb-3 flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] uppercase tracking-wider text-slate-600 mr-1">Mode:</span>
+              {MODES.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setReplyMode(m.id)}
+                  className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${
+                    replyMode === m.id
+                      ? `${m.activeBg} text-white`
+                      : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+              {activeMode && (
+                <span className={`ml-auto text-[10px] ${activeMode.color} hidden sm:inline`}>
+                  {activeMode.desc}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Textarea + mic + send */}
+          <div className="flex items-end gap-2">
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              placeholder={
+                isTranscribing ? 'Transcribing…' :
+                isRecording    ? 'Recording… click mic to stop' :
+                hasMessages    ? 'Continue the conversation…' :
+                                 'Or type your question directly…'
+              }
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={isSending || isTranscribing}
+              className="min-h-[44px] flex-1 resize-none rounded-xl border border-white/10 bg-slate-950/70 px-3 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-indigo-400/50 disabled:opacity-50"
+              style={{ lineHeight: `${LINE_HEIGHT_PX}px`, overflowY: 'hidden' }}
+            />
             <button
-              key={m.id}
-              type="button"
-              onClick={() => setReplyMode(m.id)}
-              className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${
-                replyMode === m.id
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200'
+              onClick={toggleRecording}
+              disabled={isSending || isTranscribing}
+              title={isRecording ? 'Stop recording' : 'Voice input'}
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition disabled:opacity-40 ${
+                isRecording
+                  ? 'animate-pulse border-rose-400/40 bg-rose-500/15 text-rose-200'
+                  : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'
               }`}
             >
-              {m.label}
+              {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             </button>
-          ))}
+            <button
+              onClick={() => void handleSend()}
+              disabled={isSending || !input.trim()}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
-        {/* Textarea + mic + send */}
-        <div className="flex items-end gap-2">
-          <textarea
-            ref={textareaRef}
-            rows={1}
-            placeholder={
-              isTranscribing ? 'Transcribing…' :
-              isRecording    ? 'Recording… click mic to stop' :
-                               'Ask anything career-related…'
-            }
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isSending || isTranscribing}
-            className="min-h-[44px] flex-1 resize-none rounded-xl border border-white/10 bg-slate-950/70 px-3 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-indigo-400/50 disabled:opacity-50"
-            style={{ lineHeight: `${LINE_HEIGHT_PX}px`, overflowY: 'hidden' }}
-          />
-          <button
-            onClick={toggleRecording}
-            disabled={isSending || isTranscribing}
-            title={isRecording ? 'Stop recording' : 'Voice input'}
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition disabled:opacity-40 ${
-              isRecording
-                ? 'animate-pulse border-rose-400/40 bg-rose-500/15 text-rose-200'
-                : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'
-            }`}
-          >
-            {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-          </button>
-          <button
-            onClick={() => void handleSend()}
-            disabled={isSending || !input.trim()}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            <Send className="h-4 w-4" />
-          </button>
-        </div>
+        {/* ── Keyboard hint ───────────────────────────────────────────────────── */}
+        <p className="shrink-0 pt-1.5 text-center text-[11px] text-slate-600">
+          Enter to send · Shift+Enter for new line · Mic for voice input
+        </p>
+
       </div>
-
-      {/* ── Hint ────────────────────────────────────────────────────────────── */}
-      <p className="shrink-0 pt-1.5 text-center text-[11px] text-slate-600">
-        Enter to send · Shift+Enter for new line · Mic for voice
-      </p>
-
-      </div>{/* end inner max-w wrapper */}
     </div>
   );
 }

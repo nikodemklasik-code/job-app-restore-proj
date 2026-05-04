@@ -489,3 +489,19 @@ export const testAccounts = mysqlTable('test_accounts', {
   createdBy: varchar('created_by', { length: 100 }).notNull().default('admin'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+// Saved jobs (bookmarks) per user
+export const savedJobs = mysqlTable('saved_jobs', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  jobId: varchar('job_id', { length: 36 }).notNull(),
+  savedAt: timestamp('saved_at').defaultNow().notNull(),
+});
+
+// Per-user job search preferences (last query / location)
+export const userJobPreferences = mysqlTable('user_job_preferences', {
+  userId: varchar('user_id', { length: 36 }).primaryKey(),
+  lastQuery: varchar('last_query', { length: 255 }).notNull().default(''),
+  lastLocation: varchar('last_location', { length: 255 }).notNull().default('United Kingdom'),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});

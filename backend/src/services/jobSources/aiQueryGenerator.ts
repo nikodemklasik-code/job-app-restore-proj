@@ -35,7 +35,13 @@ export async function generateJobQueries(
           },
           {
             role: 'user',
-            content: `Generate ${count} varied job search queries for a candidate with this profile: ${profileSummary}. Return as JSON array of short query strings.`,
+            content: `Generate ${count} varied job search queries for a candidate with this profile: ${profileSummary}. Return as JSON array of short query strings.
+
+IMPORTANT rules:
+- Stay strictly within the candidate's professional sector (tech, digital, product, data, design, etc.)
+- Do NOT generate queries for: estate agent, letting agent, insurance broker, mortgage advisor, financial advisor (IFA), debt collector, MLM, network marketing, direct sales, field sales, door-to-door sales, recruitment consultant (unless candidate is a recruiter), trades (plumber, electrician, carpenter), personal trainer, beauty therapist, HGV driver, or any commission-only roles
+- Each query should be 1-4 words maximum
+- Vary seniority level (junior, mid, senior) and specialisation`,
           },
         ],
         temperature: 0.7,

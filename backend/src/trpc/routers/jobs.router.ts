@@ -6,7 +6,7 @@ import { db } from '../../db/index.js';
 import { jobs, profiles, skills, users, userJobSessions, applications, interviewSessions, savedJobs, userJobPreferences } from '../../db/schema.js';
 import { JobDiscoveryService } from '../../services/jobSources/jobDiscoveryService.js';
 import { discoverJobsForProfile } from '../../services/jobSources/profileDrivenDiscovery.js';
-import { explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.js';
+import { explainJobFit, getCompanyProfile, generateCoverLetter } from '../../services/aiPersonalizer.js';
 import { assessJobScamRisk } from '../../services/jobProtection.js';
 import { buildCandidateInsights } from '../../services/adaptiveInterviewer.js';
 
@@ -103,6 +103,7 @@ export const jobsRouter = router({
       sources: z.array(z.string()).default(['reed', 'adzuna', 'jooble']),
       limit: z.number().min(1).max(50).default(20),
       userId: z.string().optional(),
+      maxDaysOld: z.number().min(1).max(90).optional(),
     }))
     .query(async ({ input }) => {
       try {
@@ -160,6 +161,16 @@ export const jobsRouter = router({
           } catch (err) {
             console.error('[jobs.search] OpenAI fallback failed:', err);
           }
+        }
+
+        // Filter by age if requested
+        if (input.maxDaysOld) {
+          const cutoff = Date.now() - input.maxDaysOld * 86400000;
+          discoveryJobs = discoveryJobs.filter((job) => {
+            if (!job.postedAt) return true;
+            const posted = new Date(job.postedAt).getTime();
+            return isNaN(posted) || posted >= cutoff;
+          });
         }
 
         const result = await Promise.all(discoveryJobs.map(async (job) => {
@@ -488,5 +499,74 @@ export const jobsRouter = router({
       }
 
       return { success: true };
+    }),
+
+  generateCoverLetter: protectedProcedure
+    .input(z.object({
+      jobId: z.string(),
+    }))
+    .output(z.object({
+      coverLetter: z.string(),
+      recipientEmail: z.string().nullable(),
+      jobTitle: z.string(),
+      company: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Fetch job
+      const jobRows = await db.select().from(jobs).where(eq(jobs.id, input.jobId)).limit(1);
+      const job = jobRows[0];
+
+      // Fetch user profile + skills
+      const userRows = await db.select({ id: users.id, email: users.email }).from(users)
+        .where(eq(users.clerkId, ctx.user.id)).limit(1);
+      const userRow = userRows[0];
+
+      let profileFullName = 'Candidate';
+      let profileSummary = '';
+      let profileSkills: string[] = [];
+      const profileEmail = userRow?.email ?? '';
+
+      if (userRow) {
+        const profileRows = await db.select().from(profiles).where(eq(profiles.userId, userRow.id)).limit(1);
+        const profileRow = profileRows[0];
+        if (profileRow) {
+          profileFullName = profileRow.fullName || 'Candidate';
+          profileSummary = profileRow.summary ?? '';
+          const skillRows = await db.select({ name: skills.name }).from(skills)
+            .where(eq(skills.profileId, profileRow.id));
+          profileSkills = skillRows.map((s) => s.name);
+        }
+      }
+
+      const profile = {
+        fullName: profileFullName,
+        summary: profileSummary,
+        skills: profileSkills,
+        email: profileEmail,
+      };
+
+      const jobData = {
+        title: job?.title ?? 'Role',
+        company: job?.company ?? 'Company',
+        description: job?.description ?? '',
+        location: job?.location ?? '',
+        requirements: (job?.requirements as string[]) ?? [],
+      };
+
+      const coverLetter = await generateCoverLetter(profile, jobData);
+
+      // Extract recipient email from applyUrl if it's a mailto: link
+      let recipientEmail: string | null = null;
+      if (job?.applyUrl?.startsWith('mailto:')) {
+        const mailtoMatch = /^mailto:([^?]+)/.exec(job.applyUrl);
+        if (mailtoMatch) recipientEmail = mailtoMatch[1];
+      }
+
+      return {
+        coverLetter,
+        recipientEmail,
+        jobTitle: jobData.title,
+        company: jobData.company,
+      };
     }),
 });
