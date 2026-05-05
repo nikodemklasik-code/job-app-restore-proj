@@ -44,14 +44,14 @@ export async function processEmailApply(job: QueueRow): Promise<'sent' | 'skippe
 
   const linkedJob = job.jobId
     ? await db.select({
-        id: jobs.id,
-        title: jobs.title,
-        company: jobs.company,
-        description: jobs.description,
-        applyUrl: jobs.applyUrl,
-        salaryMin: jobs.salaryMin,
-        salaryMax: jobs.salaryMax,
-      }).from(jobs).where(eq(jobs.id, job.jobId)).limit(1)
+      id: jobs.id,
+      title: jobs.title,
+      company: jobs.company,
+      description: jobs.description,
+      applyUrl: jobs.applyUrl,
+      salaryMin: jobs.salaryMin,
+      salaryMax: jobs.salaryMax,
+    }).from(jobs).where(eq(jobs.id, job.jobId)).limit(1)
     : [];
 
   const scamAssessment = assessJobScamRisk({
@@ -63,7 +63,7 @@ export async function processEmailApply(job: QueueRow): Promise<'sent' | 'skippe
     salaryMax: linkedJob[0]?.salaryMax ? Number(linkedJob[0].salaryMax) : null,
   });
 
-  if (!scamAssessment.safeForAutomation) {
+  if (scamAssessment.level === 'high') {
     await db.update(autoApplyQueue).set({
       status: 'skipped',
       errorMessage: `Blocked by scam protection: ${scamAssessment.reasons.join('; ')}`,
@@ -156,9 +156,9 @@ export async function processEmailApply(job: QueueRow): Promise<'sent' | 'skippe
   // So the pipeline shows this auto-apply
   const existingApp = job.jobId
     ? await db.select({ id: applications.id })
-        .from(applications)
-        .where(and(eq(applications.userId, userId), eq(applications.jobId, job.jobId)))
-        .limit(1)
+      .from(applications)
+      .where(and(eq(applications.userId, userId), eq(applications.jobId, job.jobId)))
+      .limit(1)
     : [];
 
   if (!existingApp.length) {

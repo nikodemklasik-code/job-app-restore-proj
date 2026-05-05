@@ -75,14 +75,14 @@ async function applyToJob(job: {
 
   const linkedJob = 'jobId' in job && job.jobId
     ? await db.select({
-        id: jobs.id,
-        title: jobs.title,
-        company: jobs.company,
-        description: jobs.description,
-        applyUrl: jobs.applyUrl,
-        salaryMin: jobs.salaryMin,
-        salaryMax: jobs.salaryMax,
-      }).from(jobs).where(eq(jobs.id, job.jobId)).limit(1)
+      id: jobs.id,
+      title: jobs.title,
+      company: jobs.company,
+      description: jobs.description,
+      applyUrl: jobs.applyUrl,
+      salaryMin: jobs.salaryMin,
+      salaryMax: jobs.salaryMax,
+    }).from(jobs).where(eq(jobs.id, job.jobId)).limit(1)
     : [];
 
   const scamAssessment = assessJobScamRisk({
@@ -94,7 +94,7 @@ async function applyToJob(job: {
     salaryMax: linkedJob[0]?.salaryMax ? Number(linkedJob[0].salaryMax) : null,
   });
 
-  if (!scamAssessment.safeForAutomation) {
+  if (scamAssessment.level === 'high') {
     log(`Blocked risky job ${job.id} — ${scamAssessment.reasons.join('; ')}`);
     await markStatus(job.id, 'skipped', `Blocked by scam protection: ${scamAssessment.reasons.join('; ')}`);
     return;
