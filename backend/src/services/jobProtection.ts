@@ -1,116 +1,225 @@
-export interface ScamSignal {
-  code: string;
-  label: string;
-  weight: number;
-  evidence?: string;
-}
+/**
+ * jobProtection.ts
+ * Analyses a job listing for scam/risk signals and employer trust indicators.
+ * Pure function — no DB or network calls.
+ */
 
-export interface ScamAssessment {
-  riskScore: number;
-  confidenceScore: number;
+export type ScamAnalysis = {
+  riskScore: number;        // 0–100
   level: 'low' | 'medium' | 'high';
-  safeForAutomation: boolean;
-  signals: ScamSignal[];
   reasons: string[];
-}
+};
 
-export interface ScamJobInput {
+export type BenefitSignal = {
+  type: string;
+  label: string;
+  source: 'detected_in_listing';
+};
+
+export type UkSignal = {
+  type: string;
+  label: string;
+  present: boolean;
+};
+
+export type EmployerSignals = {
+  trustScore: number;                        // 0–100
+  trustLevel: 'verified' | 'likely_legit' | 'review' | 'risky';
+  riskScore: number;                         // 0–100
+  riskLevel: 'low' | 'medium' | 'high';
+  salaryTransparency: 'full' | 'range' | 'none';
+  descriptionQuality: 'detailed' | 'average' | 'thin';
+  requirementsClarity: 'clear' | 'vague' | 'none';
+  workModeClarity: 'explicit' | 'implicit' | 'none';
+  benefits: BenefitSignal[];
+  ukSignals: UkSignal[];
+  trustReasons: string[];
+  riskReasons: string[];
+};
+
+type JobInput = {
   title: string;
   company?: string | null;
   description?: string | null;
   applyUrl?: string | null;
   salaryMin?: number | null;
   salaryMax?: number | null;
-}
+};
 
-const suspiciousPatterns: Array<{ code: string; label: string; weight: number; regex: RegExp }> = [
-  { code: 'payment_request', label: 'Mentions fees, deposits, or payments from the candidate', weight: 35, regex: /(deposit|registration fee|training fee|processing fee|pay upfront|purchase equipment|security payment)/i },
-  { code: 'messaging_redirect', label: 'Pushes the candidate to WhatsApp or Telegram', weight: 22, regex: /(whatsapp|telegram|signal app|text me on)/i },
-  { code: 'crypto', label: 'Mentions crypto or investment-style recruitment', weight: 26, regex: /(crypto|blockchain investment|trading signals|forex|investment return)/i },
-  { code: 'pressure_language', label: 'Uses urgency or pressure language', weight: 14, regex: /(immediate start|urgent hiring|limited spots|act now|today only|quick money)/i },
-  { code: 'guaranteed_money', label: 'Promises unrealistic or guaranteed earnings', weight: 24, regex: /(guaranteed income|guaranteed earnings|earn \$?\d+\s*(per day|daily|weekly)|easy money|instant income)/i },
-  { code: 'mlm', label: 'Looks like MLM or commission-only selling', weight: 25, regex: /(mlm|multi[- ]level|pyramid scheme|commission only|be your own boss)/i },
-  { code: 'generic_recruitment', label: 'The description is very generic', weight: 10, regex: /(no experience needed|simple tasks|anyone can do this|full training provided)/i },
-  { code: 'personal_data', label: 'Requests sensitive personal or banking data early', weight: 30, regex: /(bank details|passport copy|national insurance number|driving licence copy|send your id)/i },
+// ── Scam patterns ─────────────────────────────────────────────────────────────
+
+const HIGH_RISK_PATTERNS = [
+  /earn\s+\$?\d{3,}[k+]?\s*(per|a)\s*(day|week)/i,
+  /work\s*from\s*home\s*(and\s*)?earn/i,
+  /no\s*(experience|qualifications?)\s*required/i,
+  /wire\s*transfer|western\s*union|gift\s*card/i,
+  /uncapped\s*earnings?/i,
+  /\$\d{4,}\s*(per|a)\s*(day|week)/i,
+  /mystery\s*shopper/i,
+  /data\s*entry\s*(from\s*home)?\s*\$\d+/i,
 ];
 
-function safeHost(url?: string | null): string | null {
-  if (!url) return null;
-  try {
-    return new URL(url).hostname.toLowerCase();
-  } catch {
-    return null;
-  }
-}
+const MEDIUM_RISK_PATTERNS = [
+  /urgent(ly)?\s*(hiring|needed|required)/i,
+  /make\s*\$\d{3,}\s*(fast|quick|easily)/i,
+  /be\s*your\s*own\s*boss/i,
+  /unlimited\s*(income|earning|potential)/i,
+  /100%\s*commission\s*only/i,
+  /no\s*interview\s*required/i,
+];
 
-function containsCareerSignal(host: string): boolean {
-  return ['indeed.', 'reed.', 'adzuna.', 'jooble.', 'gumtree.', 'linkedin.', 'greenhouse.', 'lever.', 'workday.', 'smartrecruiters.']
-    .some((needle) => host.includes(needle));
-}
+// ── Benefit keywords ──────────────────────────────────────────────────────────
 
-export function assessJobScamRisk(input: ScamJobInput): ScamAssessment {
-  const title = input.title?.trim() ?? '';
-  const company = input.company?.trim() ?? '';
-  const description = input.description?.trim() ?? '';
-  const applyUrl = input.applyUrl?.trim() ?? '';
-  const text = `${title}\n${company}\n${description}`;
-  const lowerText = text.toLowerCase();
-  const signals: ScamSignal[] = [];
+const BENEFIT_PATTERNS: Array<{ regex: RegExp; type: string; label: string }> = [
+  { regex: /private\s*(health|medical|dental|optical)/i, type: 'health', label: 'Private healthcare' },
+  { regex: /pension|401k/i, type: 'pension', label: 'Pension / 401k' },
+  { regex: /remote\s*work|work\s*from\s*home|wfh/i, type: 'remote', label: 'Remote working' },
+  { regex: /hybrid/i, type: 'hybrid', label: 'Hybrid working' },
+  { regex: /flexible\s*(hours?|working|schedule)/i, type: 'flex', label: 'Flexible hours' },
+  { regex: /cycle\s*to\s*work|bike\s*scheme/i, type: 'cycle', label: 'Cycle to work' },
+  { regex: /share\s*option|eso[ps]?|equity/i, type: 'equity', label: 'Share options / equity' },
+  { regex: /annual\s*(leave|holiday)|paid\s*time\s*off|pto/i, type: 'leave', label: 'Annual leave' },
+  { regex: /bonus/i, type: 'bonus', label: 'Bonus scheme' },
+  { regex: /training\s*(budget|allowance)|learning\s*budget|l&d/i, type: 'learning', label: 'L&D budget' },
+  { regex: /gym\s*(membership|subsidy)|wellness/i, type: 'wellness', label: 'Wellness / gym' },
+  { regex: /parental\s*leave|maternity|paternity/i, type: 'parental', label: 'Enhanced parental leave' },
+];
 
-  for (const pattern of suspiciousPatterns) {
-    const match = lowerText.match(pattern.regex);
-    if (match) {
-      signals.push({ code: pattern.code, label: pattern.label, weight: pattern.weight, evidence: match[0] });
+// ── UK-specific signals ───────────────────────────────────────────────────────
+
+const UK_SIGNAL_PATTERNS: Array<{ type: string; label: string; regex: RegExp }> = [
+  { type: 'right_to_work', label: 'Right to Work check', regex: /right\s*to\s*work/i },
+  { type: 'dbs', label: 'DBS check', regex: /\bdbs\b|disclosure\s*and\s*barring/i },
+  { type: 'ir35', label: 'IR35 mentioned', regex: /\bir35\b/i },
+  { type: 'sc_clearance', label: 'Security clearance required', regex: /sc\s*cleared|security\s*clearance|nsc/i },
+  { type: 'visa_sponsorship', label: 'Visa sponsorship available', regex: /visa\s*sponsor/i },
+  { type: 'equality_statement', label: 'Equal opportunities stated', regex: /equal\s*opportunit/i },
+];
+
+// ── Core functions ────────────────────────────────────────────────────────────
+
+export function assessJobScamRisk(job: JobInput): ScamAnalysis {
+  const text = `${job.title} ${job.company ?? ''} ${job.description ?? ''} ${job.applyUrl ?? ''}`;
+  const reasons: string[] = [];
+  let riskScore = 0;
+
+  for (const pattern of HIGH_RISK_PATTERNS) {
+    if (pattern.test(text)) {
+      riskScore += 30;
+      reasons.push(`High-risk pattern detected in listing text`);
     }
   }
 
-  if (!company || /^(confidential|private employer|private company|n\/a|unknown)$/i.test(company)) {
-    signals.push({ code: 'missing_company', label: 'Company identity is missing or generic', weight: 16, evidence: company || 'missing company' });
-  }
-
-  if (description.length > 0 && description.length < 80) {
-    signals.push({ code: 'thin_description', label: 'Job description is unusually thin', weight: 14, evidence: `${description.length} characters` });
-  }
-
-  const host = safeHost(applyUrl);
-  if (!host) {
-    signals.push({ code: 'invalid_apply_url', label: 'Apply URL is missing or invalid', weight: 18, evidence: applyUrl || 'missing url' });
-  } else if (!containsCareerSignal(host)) {
-    const normalizedCompany = company.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const normalizedHost = host.replace(/[^a-z0-9]/g, '');
-    if (normalizedCompany && !normalizedHost.includes(normalizedCompany.slice(0, Math.min(normalizedCompany.length, 6)))) {
-      signals.push({ code: 'domain_mismatch', label: 'Apply domain does not clearly match the employer', weight: 16, evidence: host });
+  for (const pattern of MEDIUM_RISK_PATTERNS) {
+    if (pattern.test(text)) {
+      riskScore += 15;
+      reasons.push(`Suspicious phrasing detected`);
     }
   }
 
-  if (/@(gmail|yahoo|hotmail|outlook)\./i.test(description) || /@(gmail|yahoo|hotmail|outlook)\./i.test(applyUrl)) {
-    signals.push({ code: 'generic_email', label: 'Uses a generic email domain for hiring', weight: 14 });
+  // No salary info AND no description = suspicious
+  if (!job.salaryMin && !job.salaryMax && (!job.description || job.description.length < 100)) {
+    riskScore += 10;
+    reasons.push('Very thin listing — no salary or description');
   }
 
-  const salaryMax = input.salaryMax ?? 0;
-  const salaryMin = input.salaryMin ?? 0;
-  if (salaryMax >= 200000 || salaryMin >= 150000) {
-    signals.push({ code: 'salary_outlier', label: 'Salary looks unusually high for a general listing', weight: 12, evidence: `${salaryMin}-${salaryMax}` });
+  // Apply URL points to suspicious domain
+  if (job.applyUrl) {
+    if (/bit\.ly|tinyurl|goo\.gl/i.test(job.applyUrl)) {
+      riskScore += 20;
+      reasons.push('Apply URL uses a URL shortener');
+    }
   }
 
-  const uniqueCodes = new Set<string>();
-  const dedupedSignals = signals.filter((signal) => {
-    if (uniqueCodes.has(signal.code)) return false;
-    uniqueCodes.add(signal.code);
-    return true;
-  });
+  const capped = Math.min(riskScore, 100);
+  const level: ScamAnalysis['level'] =
+    capped >= 50 ? 'high' : capped >= 25 ? 'medium' : 'low';
 
-  const riskScore = Math.max(0, Math.min(100, dedupedSignals.reduce((sum, signal) => sum + signal.weight, 0)));
-  const confidenceBase = 35 + Math.min(description.length / 12, 30) + (host ? 20 : 0) + (company ? 10 : 0);
-  const confidenceScore = Math.max(20, Math.min(100, Math.round(confidenceBase)));
-  const level: ScamAssessment['level'] = riskScore >= 55 ? 'high' : riskScore >= 28 ? 'medium' : 'low';
+  return { riskScore: capped, level, reasons: [...new Set(reasons)] };
+}
+
+export function assessEmployerSignals(job: JobInput): EmployerSignals {
+  const desc = job.description ?? '';
+  const trustReasons: string[] = [];
+  const riskReasons: string[] = [];
+  let trustScore = 50;
+
+  // ── Salary transparency ───────────────────────────────────────────────────
+  const salaryTransparency: EmployerSignals['salaryTransparency'] =
+    job.salaryMin && job.salaryMax ? 'full'
+    : job.salaryMin || job.salaryMax ? 'range'
+    : 'none';
+
+  if (salaryTransparency === 'full') { trustScore += 10; trustReasons.push('Full salary range disclosed'); }
+  else if (salaryTransparency === 'none') { riskReasons.push('No salary information provided'); }
+
+  // ── Description quality ───────────────────────────────────────────────────
+  const descriptionQuality: EmployerSignals['descriptionQuality'] =
+    desc.length > 800 ? 'detailed'
+    : desc.length > 250 ? 'average'
+    : 'thin';
+
+  if (descriptionQuality === 'detailed') { trustScore += 10; trustReasons.push('Detailed job description'); }
+  else if (descriptionQuality === 'thin') { riskReasons.push('Very short description'); }
+
+  // ── Requirements clarity ──────────────────────────────────────────────────
+  const hasRequirements = /require[sd]?:|responsibilities:|you (will|must|should)|minimum \d|essential:/i.test(desc);
+  const requirementsClarity: EmployerSignals['requirementsClarity'] =
+    hasRequirements ? 'clear'
+    : desc.length > 200 ? 'vague'
+    : 'none';
+
+  if (requirementsClarity === 'clear') { trustScore += 5; trustReasons.push('Clear requirements listed'); }
+
+  // ── Work mode clarity ─────────────────────────────────────────────────────
+  const workModeClarity: EmployerSignals['workModeClarity'] =
+    /\b(remote|hybrid|on.?site|in.?office|work from home|wfh)\b/i.test(desc) ? 'explicit'
+    : desc.length > 200 ? 'implicit'
+    : 'none';
+
+  if (workModeClarity === 'explicit') { trustScore += 5; trustReasons.push('Work mode explicitly stated'); }
+
+  // ── Benefits ──────────────────────────────────────────────────────────────
+  const benefits: BenefitSignal[] = BENEFIT_PATTERNS
+    .filter(({ regex }) => regex.test(desc))
+    .map(({ type, label }) => ({ type, label, source: 'detected_in_listing' as const }));
+
+  if (benefits.length > 3) { trustScore += 5; trustReasons.push(`${benefits.length} benefits mentioned`); }
+
+  // ── UK signals ────────────────────────────────────────────────────────────
+  const ukSignals: UkSignal[] = UK_SIGNAL_PATTERNS.map(({ type, label, regex }) => ({
+    type, label, present: regex.test(desc),
+  }));
+
+  if (ukSignals.find((s) => s.type === 'equality_statement' && s.present)) {
+    trustScore += 5;
+    trustReasons.push('Equal opportunities statement present');
+  }
+
+  // ── Scam deductions ───────────────────────────────────────────────────────
+  const scam = assessJobScamRisk(job);
+  trustScore -= scam.riskScore * 0.4;
+  if (scam.level !== 'low') riskReasons.push(...scam.reasons);
+
+  const cappedTrust = Math.max(0, Math.min(100, Math.round(trustScore)));
+  const trustLevel: EmployerSignals['trustLevel'] =
+    cappedTrust >= 75 ? 'verified'
+    : cappedTrust >= 55 ? 'likely_legit'
+    : cappedTrust >= 35 ? 'review'
+    : 'risky';
 
   return {
-    riskScore,
-    confidenceScore,
-    level,
-    safeForAutomation: level === 'low',
-    signals: dedupedSignals,
-    reasons: dedupedSignals.map((signal) => signal.label),
+    trustScore: cappedTrust,
+    trustLevel,
+    riskScore: scam.riskScore,
+    riskLevel: scam.level,
+    salaryTransparency,
+    descriptionQuality,
+    requirementsClarity,
+    workModeClarity,
+    benefits,
+    ukSignals,
+    trustReasons,
+    riskReasons,
   };
 }

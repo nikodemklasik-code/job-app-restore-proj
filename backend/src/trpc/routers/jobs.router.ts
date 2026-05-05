@@ -7,7 +7,7 @@ import { jobs, profiles, skills, experiences, users, userJobSessions, applicatio
 import { JobDiscoveryService } from '../../services/jobSources/jobDiscoveryService.js';
 import { discoverJobsForProfile } from '../../services/jobSources/profileDrivenDiscovery.js';
 import { explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.js';
-import { assessJobScamRisk } from '../../services/jobProtection.js';
+import { assessJobScamRisk, assessEmployerSignals } from '../../services/jobProtection.js';
 import { buildCandidateInsights } from '../../services/adaptiveInterviewer.js';
 
 const PUBLIC_JOB_PROVIDERS = ['reed', 'adzuna', 'jooble'];
@@ -165,6 +165,14 @@ export const jobsRouter = router({
             salaryMin: job.salaryMin,
             salaryMax: job.salaryMax,
           });
+          const employerSignals = assessEmployerSignals({
+            title: job.title,
+            company: job.company,
+            description: job.description,
+            applyUrl: job.applyUrl,
+            salaryMin: job.salaryMin,
+            salaryMax: job.salaryMax,
+          });
 
           const existing = await db.select({ id: jobs.id }).from(jobs)
             .where(and(eq(jobs.externalId, job.externalId), eq(jobs.source, job.source))).limit(1);
@@ -188,7 +196,7 @@ export const jobsRouter = router({
             });
           }
 
-          return { ...job, fitScore, id: jobId, scamAnalysis };
+          return { ...job, fitScore, id: jobId, scamAnalysis, employerSignals };
         }));
 
         return result.sort((a, b) => b.fitScore - a.fitScore).slice(0, input.limit);
@@ -204,6 +212,14 @@ export const jobsRouter = router({
           workMode: j.workMode, requirements: (j.requirements as string[]) ?? [],
           postedAt: j.createdAt.toISOString(), fitScore: j.fitScore ?? 60,
           scamAnalysis: assessJobScamRisk({
+            title: j.title,
+            company: j.company,
+            description: j.description ?? '',
+            applyUrl: j.applyUrl ?? '',
+            salaryMin: j.salaryMin ? Number(j.salaryMin) : null,
+            salaryMax: j.salaryMax ? Number(j.salaryMax) : null,
+          }),
+          employerSignals: assessEmployerSignals({
             title: j.title,
             company: j.company,
             description: j.description ?? '',
