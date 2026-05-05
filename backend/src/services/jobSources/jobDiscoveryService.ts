@@ -9,6 +9,50 @@ function elapsedMs(startedAt: number): number {
   return Math.max(0, Date.now() - startedAt);
 }
 
+// ── Sector blacklist ────────────────────────────────────────────────────────
+// Filters out listings from unrelated sectors (real estate, insurance, MLM, etc.)
+// that pollute results when job boards return broad matches.
+
+const BLACKLIST_TITLE_PATTERNS: RegExp[] = [
+  /\bestate\s+agent\b/i,
+  /\bletting\s+agent\b/i,
+  /\bproperty\s+(consultant|advisor|sales|manager)\b/i,
+  /\bmortgage\s+(advisor|broker|consultant)\b/i,
+  /\binsurance\s+(broker|agent|advisor|consultant|sales)\b/i,
+  /\blife\s+insurance\b/i,
+  /\bfinancial\s+(advisor|planner|consultant|adviser)\b/i,
+  /\bindependent\s+financial\b/i,
+  /\b(IFA|DFA)\b/,
+  /\bdebt\s+(collector|collection|recovery|advisor)\b/i,
+  /\bcredit\s+controller\b/i,
+  /\bMLM\b/i,
+  /\bmulti.?level\s+market/i,
+  /\bnetwork\s+marketing\b/i,
+  /\bself.?employed\s+(agent|advisor|consultant)\b/i,
+  /\bdirect\s+sales\b/i,
+  /\bdoor\s+to\s+door\b/i,
+  /\bcold\s+calling\b/i,
+  /\bfield\s+sales\s+representative\b/i,
+  /\bwindmill\b/i,
+  /\bgas\s+(engineer|fitter|installer)\b/i,
+  /\bboiler\s+(engineer|installer|technician)\b/i,
+  /\bplumber\b/i,
+  /\belectrician\b/i,
+  /\bcarpenter\b/i,
+  /\bbricklayer\b/i,
+  /\bpersonal\s+trainer\b/i,
+  /\bhair\s+(stylist|dresser)\b/i,
+  /\bbeauty\s+therapist\b/i,
+  /\bnail\s+technician\b/i,
+  /\bHGV\s+driver\b/i,
+  /\btruck\s+driver\b/i,
+  /\bforklift\b/i,
+];
+
+function isSectorBlacklisted(title: string): boolean {
+  return BLACKLIST_TITLE_PATTERNS.some((pattern) => pattern.test(title));
+}
+
 export class JobDiscoveryService {
   static async discover(
     input: DiscoveryInput,
@@ -111,10 +155,17 @@ export class JobDiscoveryService {
       }
     }
 
+    // Filter out blacklisted sectors BEFORE dedup
+    const sectorFiltered = rawJobs.filter((job) => !isSectorBlacklisted(job.title));
+    const filteredOut = rawJobs.length - sectorFiltered.length;
+    if (filteredOut > 0) {
+      console.log(`[JobDiscoveryService] Sector filter removed ${filteredOut} off-sector listings`);
+    }
+
     // Deduplicate by externalId + source. Do not synthesize missing ads here.
     // If providers return nothing, the correct result is zero ready listings plus diagnostics.
     const seen = new Set<string>();
-    const dedupedJobs = rawJobs.filter((job) => {
+    const dedupedJobs = sectorFiltered.filter((job) => {
       const key = `${job.externalId.toLowerCase().trim()}|${job.source.toLowerCase().trim()}`;
       if (seen.has(key)) return false;
       seen.add(key);
