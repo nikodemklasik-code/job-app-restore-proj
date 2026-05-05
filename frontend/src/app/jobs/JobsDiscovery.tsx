@@ -48,21 +48,7 @@ type JobResult = {
   };
 };
 
-type FitAnalysis = {
-  skillsMatch: number;
-  experienceMatch: number;
-  salaryMatch: number;
-  cultureMatch: number;
-  strengths: string[];
-  gaps: string[];
-  advice?: string;
-  skillsBreakdown?: {
-    matched: string[];
-    missing: string[];
-    partial: string[];
-    bonus: string[];
-  };
-};
+// Removed unused FitAnalysis type - defined in backend
 
 type SessionStatus = { id: string; provider: string; isActive: boolean; lastTestedAt: Date | null; updatedAt: Date };
 

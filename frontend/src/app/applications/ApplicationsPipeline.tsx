@@ -192,12 +192,12 @@ export default function ApplicationsPipeline() {
   const [monitoringMap, setMonitoringMap] = useState<Record<string, boolean>>({});
 
   const appsQuery = api.applications.getAll.useQuery(
-    { userId },
+    { userId: userId || '' },
     { enabled: isLoaded && !!userId }
   );
 
   const analyticsQuery = api.applications.getAnalytics.useQuery(
-    { userId },
+    { userId: userId || '' },
     { enabled: isLoaded && !!userId }
   );
 

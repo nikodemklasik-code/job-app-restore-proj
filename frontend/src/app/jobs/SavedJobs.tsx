@@ -1,5 +1,5 @@
 import { api } from '@/lib/api';
-import { Loader2, Bookmark, Trash2 } from 'lucide-react';
+import { Loader2, Bookmark } from 'lucide-react';
 import { JobCardCompact } from '@/components/jobs/JobCardCompact';
 import { JobCardExpanded } from '@/components/jobs/JobCardExpanded';
 import { useState } from 'react';
@@ -9,7 +9,7 @@ import toast from 'react-hot-toast';
 export default function SavedJobs() {
   const navigate = useNavigate();
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
-  
+
   const savedJobsQuery = api.jobs.getSavedJobs.useQuery();
   const unsaveJobMutation = api.jobs.unsaveJob.useMutation({
     onSuccess: () => {
@@ -17,7 +17,7 @@ export default function SavedJobs() {
       toast.success('Job removed from saved');
     },
   });
-  
+
   const createApplicationMutation = api.applications.create.useMutation();
   const generateDocumentsMutation = api.applications.generateDocuments.useMutation();
   const startRadarScanMutation = api.jobRadar.startScan.useMutation();
@@ -140,7 +140,7 @@ export default function SavedJobs() {
           {savedJobs.map((savedJob: any) => {
             const job = savedJob.job;
             const isExpanded = expandedJobId === job.id;
-            
+
             return isExpanded ? (
               <JobCardExpanded
                 key={job.id}

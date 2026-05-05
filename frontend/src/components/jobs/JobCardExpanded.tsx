@@ -16,17 +16,11 @@ import {
     ShieldCheck,
     Briefcase,
     Clock,
-    MapPin,
-    Banknote,
     Laptop,
-    Users,
-    GraduationCap,
     Zap,
     ChevronDown,
     ChevronUp,
-    XCircle,
     Star,
-    MinusCircle,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
