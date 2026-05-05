@@ -4,7 +4,9 @@ import { AdzunaProvider } from './providers/adzunaProvider.js';
 import { JoobleProvider } from './providers/joobleProvider.js';
 import { IndeedBrowserProvider } from './providers/indeedBrowserProvider.js';
 import { GumtreeProvider } from './providers/gumtreeProvider.js';
-import { RegisteredExternalProvider } from './providers/registeredExternalProvider.js';
+import { TotaljobsProvider } from './providers/totaljobsProvider.js';
+import { CvLibraryProvider } from './providers/cvLibraryProvider.js';
+import { FindAJobProvider } from './providers/findAJobProvider.js';
 import { DatabaseProvider } from './providers/databaseProvider.js';
 import { ManualProvider } from './providers/manualProvider.js';
 import { CompanyTargetsProvider } from './providers/companyTargetsProvider.js';
@@ -20,9 +22,9 @@ export function getProviders(): JobSourceProvider[] {
     new JoobleProvider(),
     new IndeedBrowserProvider(),
     new GumtreeProvider(),
-    new RegisteredExternalProvider('totaljobs', 'Totaljobs'),
-    new RegisteredExternalProvider('cv-library', 'CV-Library'),
-    new RegisteredExternalProvider('findajob', 'Find a Job'),
+    new TotaljobsProvider(),
+    new CvLibraryProvider(),
+    new FindAJobProvider(),
     new DatabaseProvider(),
     new ManualProvider(),
     new CompanyTargetsProvider(),
