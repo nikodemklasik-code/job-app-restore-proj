@@ -109,7 +109,6 @@ async function scrapeGlassdoor(input: DiscoveryInput, cookies?: string): Promise
             while ((match = cardPattern.exec(html)) !== null) {
                 const salary = parseSalary(match[5]);
                 jobs.push({
-                    id: crypto.randomUUID(),
                     externalId: match[1],
                     source: 'glassdoor',
                     title: stripHtml(match[2]),
@@ -137,7 +136,6 @@ async function scrapeGlassdoor(input: DiscoveryInput, cookies?: string): Promise
 function parseGlassdoorJob(data: Record<string, unknown>): SourceJob {
     const salary = parseSalary(norm(data.salaryText || data.salary));
     return {
-        id: crypto.randomUUID(),
         externalId: norm(data.jobId || data.id),
         source: 'glassdoor',
         title: norm(data.jobTitle || data.title),

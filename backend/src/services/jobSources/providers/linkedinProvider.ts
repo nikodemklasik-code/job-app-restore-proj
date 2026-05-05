@@ -84,7 +84,6 @@ async function scrapeLinkedIn(input: DiscoveryInput, cookies?: string): Promise<
             let match;
             while ((match = cardPattern.exec(html)) !== null) {
                 jobs.push({
-                    id: crypto.randomUUID(),
                     externalId: match[1],
                     source: 'linkedin',
                     title: stripHtml(match[2]),
@@ -111,7 +110,6 @@ async function scrapeLinkedIn(input: DiscoveryInput, cookies?: string): Promise<
 
 function parseLinkedInJob(data: Record<string, unknown>): SourceJob {
     return {
-        id: crypto.randomUUID(),
         externalId: norm(data.jobId || data.id),
         source: 'linkedin',
         title: norm(data.title),

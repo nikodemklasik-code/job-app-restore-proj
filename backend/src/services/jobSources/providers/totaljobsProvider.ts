@@ -85,7 +85,6 @@ async function scrapeTotaljobs(input: DiscoveryInput): Promise<SourceJob[]> {
             let match;
             while ((match = cardPattern.exec(html)) !== null) {
                 jobs.push({
-                    id: crypto.randomUUID(),
                     externalId: match[1],
                     source: 'totaljobs',
                     title: stripHtml(match[2]),
@@ -124,7 +123,6 @@ function parseJobPosting(data: Record<string, unknown>): SourceJob | null {
         const salaryValue = salary?.value as Record<string, unknown> | undefined;
 
         return {
-            id: crypto.randomUUID(),
             externalId: norm(data.identifier),
             source: 'totaljobs',
             title,

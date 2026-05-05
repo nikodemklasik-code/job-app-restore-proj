@@ -103,7 +103,6 @@ async function scrapeMonster(input: DiscoveryInput): Promise<SourceJob[]> {
             while ((match = cardPattern.exec(html)) !== null) {
                 const salary = parseSalary(match[6]);
                 jobs.push({
-                    id: crypto.randomUUID(),
                     externalId: match[1],
                     source: 'monster',
                     title: stripHtml(match[3]),
@@ -144,7 +143,6 @@ function parseJobPosting(data: Record<string, unknown>): SourceJob | null {
         const salaryValue = salary?.value as Record<string, unknown> | undefined;
 
         return {
-            id: crypto.randomUUID(),
             externalId: norm(data.identifier),
             source: 'monster',
             title,
