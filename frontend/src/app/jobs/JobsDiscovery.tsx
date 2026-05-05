@@ -29,10 +29,8 @@ type JobResult = {
   postedAt?: string;
   scamAnalysis?: {
     riskScore: number;
-    confidenceScore: number;
     level: 'low' | 'medium' | 'high';
-    safeForAutomation: boolean;
-    reasons: string[];
+    reasons?: string[];
   };
   employerSignals?: {
     trustScore: number;

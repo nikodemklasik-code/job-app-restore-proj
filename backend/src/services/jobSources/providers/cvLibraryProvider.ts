@@ -104,7 +104,6 @@ async function scrapeCvLibrary(input: DiscoveryInput): Promise<SourceJob[]> {
             while ((match = cardPattern.exec(html)) !== null) {
                 const salary = parseSalary(match[5]);
                 jobs.push({
-                    id: crypto.randomUUID(),
                     externalId: match[1],
                     source: 'cv-library',
                     title: stripHtml(match[2]),
@@ -143,7 +142,6 @@ function parseJobPosting(data: Record<string, unknown>): SourceJob | null {
         const salaryValue = salary?.value as Record<string, unknown> | undefined;
 
         return {
-            id: crypto.randomUUID(),
             externalId: norm(data.identifier),
             source: 'cv-library',
             title,
