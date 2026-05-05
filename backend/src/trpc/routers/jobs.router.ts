@@ -103,6 +103,7 @@ export const jobsRouter = router({
       sources: z.array(z.string()).default(['reed', 'adzuna', 'jooble']),
       limit: z.number().min(1).max(50).default(20),
       userId: z.string().optional(),
+      maxDaysOld: z.number().min(1).max(90).optional(),
     }))
     .query(async ({ input }) => {
       try {
@@ -142,6 +143,16 @@ export const jobsRouter = router({
         // important for hospitality queries such as "waiter" in Manchester.
         if (discoveryJobs.length === 0 && trimmedQuery.length > 0) {
           discoveryJobs = await runManualDiscoveryWithFallbacks(discoveryInput, providerContext);
+        }
+
+        // Filter by age if requested
+        if (input.maxDaysOld) {
+          const cutoff = Date.now() - input.maxDaysOld * 86400000;
+          discoveryJobs = discoveryJobs.filter((job) => {
+            if (!job.postedAt) return true; // Keep jobs without date
+            const posted = new Date(job.postedAt).getTime();
+            return isNaN(posted) || posted >= cutoff;
+          });
         }
 
         const result = await Promise.all(discoveryJobs.map(async (job) => {

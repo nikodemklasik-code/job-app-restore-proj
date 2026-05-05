@@ -34,6 +34,36 @@ type JobResult = {
     safeForAutomation: boolean;
     reasons: string[];
   };
+  employerSignals?: {
+    trustScore: number;
+    trustLevel: 'verified' | 'likely_legit' | 'review' | 'risky';
+    riskScore: number;
+    riskLevel: 'low' | 'medium' | 'high';
+    salaryTransparency: 'full' | 'range' | 'none';
+    descriptionQuality: 'detailed' | 'average' | 'thin';
+    requirementsClarity: 'clear' | 'vague' | 'none';
+    workModeClarity: 'explicit' | 'implicit' | 'none';
+    benefits: { type: string; label: string; source: 'detected_in_listing' }[];
+    ukSignals: { type: string; label: string; present: boolean }[];
+    trustReasons: string[];
+    riskReasons: string[];
+  };
+};
+
+type FitAnalysis = {
+  skillsMatch: number;
+  experienceMatch: number;
+  salaryMatch: number;
+  cultureMatch: number;
+  strengths: string[];
+  gaps: string[];
+  advice?: string;
+  skillsBreakdown?: {
+    matched: string[];
+    missing: string[];
+    partial: string[];
+    bonus: string[];
+  };
 };
 
 type SessionStatus = { id: string; provider: string; isActive: boolean; lastTestedAt: Date | null; updatedAt: Date };
@@ -457,6 +487,7 @@ export default function JobsDiscovery() {
     const sourcesParam = urlSearchParams.get('sources');
     return sourcesParam ? sourcesParam.split(',') as Source[] : ['reed', 'adzuna', 'jooble'];
   });
+  const [maxDaysOld, setMaxDaysOld] = useState<number | undefined>(undefined);
 
   // searchParams is derived from URL - never null if URL has params
   const searchParams = useMemo(() => {
@@ -470,8 +501,9 @@ export default function JobsDiscovery() {
       query: q,
       location: loc || 'United Kingdom',
       sources: src ? src.split(',') : ['reed', 'adzuna', 'jooble'],
+      maxDaysOld,
     };
-  }, [urlSearchParams]);
+  }, [urlSearchParams, maxDaysOld]);
   const [showManualModal, setShowManualModal] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
   const [manualForm, setManualForm] = useState({ title: '', company: '', location: '', applyUrl: '' });
@@ -1024,6 +1056,22 @@ export default function JobsDiscovery() {
               </label>
             );
           })}
+        </div>
+
+        {/* Date filter */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-500 uppercase tracking-wider">Posted:</span>
+          <select
+            value={maxDaysOld ?? ''}
+            onChange={(e) => setMaxDaysOld(e.target.value ? Number(e.target.value) : undefined)}
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
+          >
+            <option value="">Any time</option>
+            <option value="1">Today</option>
+            <option value="7">Last 7 days</option>
+            <option value="14">Last 14 days</option>
+            <option value="30">Last 30 days</option>
+          </select>
         </div>
 
         <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 space-y-2">
