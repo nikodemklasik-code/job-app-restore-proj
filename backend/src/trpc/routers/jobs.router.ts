@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { eq, and, desc, like, or, inArray } from 'drizzle-orm';
 import { publicProcedure, protectedProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
-import { jobs, profiles, skills, experiences, users, userJobSessions, applications, interviewSessions, savedJobs, userJobPreferences } from '../../db/schema.js';
+import { jobs, profiles, skills, experiences, users, userJobSessions, applications, interviewSessions, savedJobs, userJobPreferences, aiJobRecommendationFeedback } from '../../db/schema.js';
 import { JobDiscoveryService } from '../../services/jobSources/jobDiscoveryService.js';
 import { discoverJobsForProfile } from '../../services/jobSources/profileDrivenDiscovery.js';
 import { explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.js';
@@ -514,6 +514,52 @@ export const jobsRouter = router({
         });
       }
 
+      return { success: true };
+    }),
+
+  getRecommendationFeedback: protectedProcedure
+    .output(z.record(z.enum(['up', 'down'])))
+    .query(async ({ ctx }) => {
+      const rows = await db
+        .select({ jobId: aiJobRecommendationFeedback.jobId, feedback: aiJobRecommendationFeedback.feedback })
+        .from(aiJobRecommendationFeedback)
+        .where(eq(aiJobRecommendationFeedback.userId, ctx.user.id));
+
+      const map: Record<string, 'up' | 'down'> = {};
+      for (const row of rows) {
+        if (row.feedback === 'up' || row.feedback === 'down') map[row.jobId] = row.feedback;
+      }
+      return map;
+    }),
+
+  saveRecommendationFeedback: protectedProcedure
+    .input(z.object({
+      jobId: z.string().min(1),
+      feedback: z.enum(['up', 'down']),
+    }))
+    .output(z.object({ success: z.literal(true) }))
+    .mutation(async ({ ctx, input }) => {
+      const existing = await db
+        .select({ id: aiJobRecommendationFeedback.id })
+        .from(aiJobRecommendationFeedback)
+        .where(and(
+          eq(aiJobRecommendationFeedback.userId, ctx.user.id),
+          eq(aiJobRecommendationFeedback.jobId, input.jobId),
+        ))
+        .limit(1);
+
+      if (existing[0]) {
+        await db.update(aiJobRecommendationFeedback)
+          .set({ feedback: input.feedback })
+          .where(eq(aiJobRecommendationFeedback.id, existing[0].id));
+      } else {
+        await db.insert(aiJobRecommendationFeedback).values({
+          id: randomUUID(),
+          userId: ctx.user.id,
+          jobId: input.jobId,
+          feedback: input.feedback,
+        });
+      }
       return { success: true };
     }),
 });
