@@ -9,7 +9,6 @@ import { generateCoverLetter, generateCvSummary, scoreJobFit, generateFollowUp }
 import { generateCvPdf, generateCoverLetterPdf, generateCandidateReport, generateAtsCvPdf, calculateAtsScore } from '../../services/pdfGenerator.js';
 import { getLearnedSignals, recordOutcome } from '../../services/learningService.js';
 import { analyzeJobDescription, matchProfileToJob } from '../../services/jobAnalyzer.js';
-import { generateTailoredCv, generateTailoredCoverLetter } from '../../services/documentTailoring.js';
 import { Resend } from 'resend';
 
 const getResend = () => new Resend(process.env.RESEND_API_KEY);
