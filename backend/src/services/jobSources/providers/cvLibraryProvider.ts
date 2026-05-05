@@ -176,10 +176,25 @@ export class CvLibraryProvider implements JobSourceProvider {
         const start = Date.now();
         try {
             const jobs = await scrapeCvLibrary(input);
-            logProviderEvent(this.name, 'discover', jobs.length, Date.now() - start);
+            await logProviderEvent({
+                provider: this.name,
+                eventType: 'search_success',
+                query: input.query,
+                location: input.location,
+                jobsFound: jobs.length,
+                responseTimeMs: Date.now() - start,
+            });
             return jobs;
         } catch (error) {
-            logProviderEvent(this.name, 'discover', 0, Date.now() - start, error as Error);
+            await logProviderEvent({
+                provider: this.name,
+                eventType: 'search_failure',
+                query: input.query,
+                location: input.location,
+                jobsFound: 0,
+                responseTimeMs: Date.now() - start,
+                errorMessage: error instanceof Error ? error.message : String(error),
+            });
             return [];
         }
     }
