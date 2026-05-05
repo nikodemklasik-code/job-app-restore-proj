@@ -79,6 +79,19 @@ export default function SavedJobs() {
 
   const handleStartRadarScan = (job: any) => {
     const toastId = toast.loading('Starting Job Radar scan...');
+
+    // Validate applyUrl - only send if it's a valid URL
+    let validApplyUrl: string | undefined = undefined;
+    if (job.applyUrl) {
+      try {
+        new URL(job.applyUrl);
+        validApplyUrl = job.applyUrl;
+      } catch {
+        // Invalid URL, leave as undefined
+        console.warn('Invalid applyUrl, skipping:', job.applyUrl);
+      }
+    }
+
     startRadarScanMutation.mutate(
       {
         jobId: job.id,
@@ -88,7 +101,7 @@ export default function SavedJobs() {
         description: job.description,
         salaryMin: job.salaryMin ?? undefined,
         salaryMax: job.salaryMax ?? undefined,
-        applyUrl: job.applyUrl,
+        applyUrl: validApplyUrl,
         scanTrigger: 'manual_search',
       },
       {

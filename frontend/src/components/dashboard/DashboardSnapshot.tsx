@@ -4,14 +4,6 @@ import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import type { DashboardSnapshot as DashboardSnapshotDto } from '@/types/dashboard';
 
-function formatCurrency(cents: number, currency: string): string {
-  return new Intl.NumberFormat('en-GB', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-  }).format(cents / 100);
-}
-
 function formatDate(date: string | null): string {
   if (!date) return 'No completed sessions yet';
   return new Date(date).toLocaleString('en-GB', {
@@ -42,7 +34,7 @@ function StatusBadge({ status }: { status: DashboardSnapshotDto['applications'][
     saved: 'bg-sky-500/20 text-sky-200',
     applied: 'bg-amber-500/20 text-amber-100',
     interview: 'bg-violet-500/20 text-violet-100',
-    offer: 'bg-emerald-500/20 text-emerald-100',
+    offer: 'bg-emerald-500/20 text-amber-100',
     rejected: 'bg-rose-500/20 text-rose-100',
     archived: 'bg-slate-600/30 text-slate-300',
   };
@@ -51,75 +43,6 @@ function StatusBadge({ status }: { status: DashboardSnapshotDto['applications'][
     <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${statusClasses[status]}`}>
       {status}
     </span>
-  );
-}
-
-function CaseStudyPromo() {
-  const steps = [
-    ['01', 'Make your choice.', 'Pick the pressure situation you want to practise.'],
-    ['02', 'Prepare to win.', 'Build your position before the challenge starts.'],
-    ['03', 'Start the action.', 'Defend your answer and respond under pressure.'],
-  ] as const;
-
-  return (
-    <section className="mvh-card-glow overflow-hidden rounded-3xl border border-violet-400/25 bg-gradient-to-br from-violet-600/25 via-indigo-600/15 to-slate-950 p-0 shadow-2xl shadow-black/20">
-      <div className="grid gap-0 lg:grid-cols-[1.12fr_0.88fr]">
-        <div className="p-5 sm:p-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-violet-300/25 bg-violet-400/10 px-3 py-1 text-xs font-semibold text-violet-100">
-            Featured practice
-          </div>
-          <h2 className="mt-4 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            Defend your position. Win with words.
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-            No winner is decided in advance. Your result depends on argument quality, clear rhetoric, interpersonal skill, and how well you hold your ground under pressure.
-          </p>
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            {steps.map(([number, title, detail]) => (
-              <div key={number} className="rounded-2xl border border-white/10 bg-white/[0.06] p-3 shadow-inner shadow-white/5">
-                <p className="text-xs font-bold uppercase tracking-wide text-violet-200">Step {number}</p>
-                <p className="mt-1 text-sm font-semibold text-white">{title}</p>
-                <p className="mt-1 text-xs leading-5 text-slate-400">{detail}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link
-              to="/case-study"
-              className="inline-flex min-w-[170px] items-center justify-center rounded-xl bg-violet-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-violet-400"
-            >
-              Play Case Study
-            </Link>
-            <Link
-              to="/coach"
-              className="inline-flex min-w-[170px] items-center justify-center rounded-xl border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10"
-            >
-              Practise With Coach
-            </Link>
-          </div>
-        </div>
-        <div className="relative min-h-[220px] border-t border-white/10 bg-black/25 p-5 lg:border-l lg:border-t-0">
-          <div className="absolute inset-0 opacity-50 [background-image:radial-gradient(circle_at_30%_30%,rgba(167,139,250,0.5),transparent_30%),radial-gradient(circle_at_75%_70%,rgba(79,70,229,0.35),transparent_35%)]" />
-          <div className="relative flex h-full min-h-[190px] flex-col justify-between rounded-3xl border border-white/15 bg-slate-950/60 p-5">
-            <div className="flex items-center justify-between">
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200">Scenario preview</span>
-              <span className="rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-semibold text-emerald-200">Interactive</span>
-            </div>
-            <div className="py-5">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border border-white/25 bg-white/15 text-2xl text-white">
-                ▶
-              </div>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-white">Example: Fair Treatment Concern</p>
-              <p className="mt-1 text-sm leading-5 text-slate-300">
-                Use evidence, rhetoric, and calm pressure control to make your case without losing your ground.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -155,11 +78,11 @@ function CVValueCard() {
   return (
     <Link
       to="/skills"
-      className="mvh-card-glow group rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-slate-900/40 p-6 transition hover:border-emerald-500/50 hover:from-emerald-500/15"
+      className="mvh-card-glow group rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-slate-900/40 p-6 transition hover:border-amber-500/50 hover:from-amber-500/15"
     >
       <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 transition group-hover:bg-emerald-500/30">
-          <DollarSign className="h-6 w-6 text-emerald-300" />
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 transition group-hover:bg-amber-500/30">
+          <span className="text-2xl font-bold text-amber-300">£</span>
         </div>
         <div className="flex-1">
           <h2 className="text-lg font-semibold text-white">CV Market Value</h2>
@@ -170,17 +93,17 @@ function CVValueCard() {
           {signals ? (
             <div className="mt-4 space-y-3">
               {/* Salary Potential */}
-              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3">
+              <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <Target className="h-4 w-4 text-emerald-300" />
-                  <p className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
+                  <Target className="h-4 w-4 text-amber-300" />
+                  <p className="text-xs font-semibold uppercase tracking-wider text-amber-300">
                     Salary Potential
                   </p>
                 </div>
-                <p className="text-sm font-medium text-emerald-100">
+                <p className="text-sm font-medium text-amber-100">
                   {signals.salaryImpact.tier}
                 </p>
-                <p className="mt-1 text-xs text-emerald-200/70">
+                <p className="mt-1 text-xs text-amber-200/70">
                   {signals.salaryImpact.rationale}
                 </p>
               </div>
@@ -223,7 +146,7 @@ function CVValueCard() {
             </div>
           )}
 
-          <div className="mt-4 flex items-center gap-2 text-xs font-medium text-emerald-300">
+          <div className="mt-4 flex items-center gap-2 text-xs font-medium text-amber-300">
             <span>View full analysis in Skills Lab</span>
             <span className="transition group-hover:translate-x-1">→</span>
           </div>
@@ -234,7 +157,7 @@ function CVValueCard() {
 }
 
 export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto }) {
-  const { profile, applications, billing, practice, nextAction } = snapshot;
+  const { profile, applications, practice, nextAction } = snapshot;
   const displayName = firstName(profile.fullName);
 
   return (
@@ -265,14 +188,22 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
             </Link>
           </div>
         </div>
-        {nextAction.reason ? (
-          <div className="mt-5 rounded-2xl border border-white/10 bg-black/15 px-4 py-3 text-xs leading-5 text-slate-400">
-            Workspace status: {nextAction.reason}
+        {/* Workspace Status - Always show real information */}
+        <div className="mt-5 rounded-2xl border border-white/10 bg-black/15 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300 mb-1">Workspace Status</p>
+              <p className="text-sm text-slate-300">{nextAction.reason}</p>
+            </div>
+            <div className="flex items-center gap-4 text-xs text-slate-400">
+              <Link to="/profile" className="hover:text-white transition">Profile</Link>
+              <Link to="/jobs" className="hover:text-white transition">Jobs</Link>
+              <Link to="/applications" className="hover:text-white transition">Applications</Link>
+              <Link to="/settings" className="hover:text-white transition">Settings</Link>
+            </div>
           </div>
-        ) : null}
+        </div>
       </section>
-
-      <CaseStudyPromo />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
@@ -282,17 +213,14 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
         />
         <StatCard title="Applications" value={String(applications.total)} subtitle={`${applications.needsReviewCount} need review`} />
         <StatCard
-          title="Available balance"
-          value={formatCurrency(billing.availableBalanceCents, billing.currency)}
-          subtitle={`${formatCurrency(billing.postedNetCents, billing.currency)} posted, ${formatCurrency(
-            billing.pendingNetCents,
-            billing.currency,
-          )} pending`}
-        />
-        <StatCard
           title="Interview practice"
           value={String(practice.totalSessions)}
           subtitle={practice.averageScore === null ? 'No scored sessions yet' : `Average score ${practice.averageScore}`}
+        />
+        <StatCard
+          title="Jobs tracked"
+          value={String(applications.byStatus.saved + applications.byStatus.applied)}
+          subtitle="Saved + applied positions"
         />
       </section>
 
@@ -303,7 +231,7 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
           <div>
             <h2 className="text-xl font-bold text-white">Career Intelligence</h2>
             <p className="mt-1 text-sm text-slate-400">
-              AI-powered insights about your market value, skills match, and growth opportunities
+              AI-powered insights about your market value and skills match
             </p>
           </div>
           <Link
@@ -318,7 +246,7 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
           {/* CV Market Value Tile */}
           <CVValueCard />
 
-          {/* Match Analysis Tile */}
+          {/* Skills Market Value - % match */}
           <Link
             to="/skills"
             className="mvh-card-glow group rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-slate-900/40 p-6 transition hover:border-indigo-500/50 hover:from-indigo-500/15"
@@ -328,21 +256,19 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
                 <Sparkles className="h-6 w-6 text-indigo-300" />
               </div>
               <div className="flex-1">
-                <h2 className="text-lg font-semibold text-white">Match Analysis</h2>
+                <h2 className="text-lg font-semibold text-white">Skills Market Value</h2>
                 <p className="mt-1 text-sm text-slate-400">
-                  Understand why you match certain roles and which skills are being evaluated
+                  Match to your dream job
                 </p>
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500">Profile completeness</span>
-                    <span className="font-semibold text-white">{profile.completeness}%</span>
-                  </div>
-                  <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all"
-                      style={{ width: `${profile.completeness}%` }}
-                    />
-                  </div>
+                <div className="mt-3">
+                  <p className="text-4xl font-bold text-white">{profile.completeness}%</p>
+                  <p className="mt-1 text-xs text-slate-500">skills alignment score</p>
+                </div>
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all"
+                    style={{ width: `${profile.completeness}%` }}
+                  />
                 </div>
                 <div className="mt-4 flex items-center gap-2 text-xs font-medium text-indigo-300">
                   <span>View detailed analysis</span>
@@ -364,23 +290,25 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
               <div className="flex-1">
                 <h2 className="text-lg font-semibold text-white">Skills Gap Analysis</h2>
                 <p className="mt-1 text-sm text-slate-400">
-                  Identify missing skills for your target role and get personalized development paths
+                  Missing skills for your target role
                 </p>
-                <div className="mt-4 space-y-2">
-                  {profile.missingCriticalFields.length > 0 ? (
-                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2">
-                      <p className="text-xs font-medium text-amber-300">
-                        {profile.missingCriticalFields.length} gap{profile.missingCriticalFields.length === 1 ? '' : 's'} identified
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2">
-                      <p className="text-xs font-medium text-emerald-300">
-                        Profile complete — ready for analysis
-                      </p>
-                    </div>
-                  )}
+                <div className="mt-3">
+                  <p className="text-4xl font-bold text-white">{profile.missingCriticalFields.length}</p>
+                  <p className="mt-1 text-xs text-slate-500">gaps identified</p>
                 </div>
+                {profile.missingCriticalFields.length > 0 ? (
+                  <div className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2">
+                    <p className="text-xs text-amber-300 truncate">
+                      {profile.missingCriticalFields[0]}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2">
+                    <p className="text-xs font-medium text-emerald-300">
+                      Profile complete — ready for analysis
+                    </p>
+                  </div>
+                )}
                 <div className="mt-4 flex items-center gap-2 text-xs font-medium text-teal-300">
                   <span>Open Skills Lab</span>
                   <span className="transition group-hover:translate-x-1">→</span>
@@ -389,6 +317,30 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
             </div>
           </Link>
         </div>
+      </section>
+
+      {/* Quick Navigation - 4 tiles */}
+      <section className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <Link to="/profile" className="mvh-card-glow group rounded-2xl border border-white/10 bg-white/5 p-5 text-center transition hover:border-indigo-500/40 hover:bg-indigo-500/5">
+          <Target className="mx-auto h-8 w-8 text-indigo-300 mb-2" />
+          <p className="text-sm font-semibold text-white">Open Profile</p>
+          <p className="mt-1 text-xs text-slate-500">Edit your details</p>
+        </Link>
+        <Link to="/jobs" className="mvh-card-glow group rounded-2xl border border-white/10 bg-white/5 p-5 text-center transition hover:border-emerald-500/40 hover:bg-emerald-500/5">
+          <Sparkles className="mx-auto h-8 w-8 text-emerald-300 mb-2" />
+          <p className="text-sm font-semibold text-white">Jobs</p>
+          <p className="mt-1 text-xs text-slate-500">Discover opportunities</p>
+        </Link>
+        <Link to="/applications" className="mvh-card-glow group rounded-2xl border border-white/10 bg-white/5 p-5 text-center transition hover:border-violet-500/40 hover:bg-violet-500/5">
+          <Award className="mx-auto h-8 w-8 text-violet-300 mb-2" />
+          <p className="text-sm font-semibold text-white">Applications</p>
+          <p className="mt-1 text-xs text-slate-500">Track your pipeline</p>
+        </Link>
+        <Link to="/settings" className="mvh-card-glow group rounded-2xl border border-white/10 bg-white/5 p-5 text-center transition hover:border-amber-500/40 hover:bg-amber-500/5">
+          <DollarSign className="mx-auto h-8 w-8 text-amber-300 mb-2" />
+          <p className="text-sm font-semibold text-white">Settings</p>
+          <p className="mt-1 text-xs text-slate-500">Preferences & billing</p>
+        </Link>
       </section>
       <section className="grid gap-6 xl:grid-cols-3">
         <div className="mvh-card-glow rounded-2xl border border-white/10 bg-white/5 p-5 xl:col-span-2">
@@ -449,7 +401,7 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
           <div className="mvh-card-glow rounded-2xl border border-white/10 bg-white/5 p-5">
             <h2 className="text-lg font-semibold text-white">Profile gaps</h2>
             {profile.missingCriticalFields.length === 0 ? (
-              <p className="mt-4 text-sm text-emerald-300">All tracked profile signals are present.</p>
+              <p className="mt-4 text-sm text-amber-300">All tracked profile signals are present.</p>
             ) : (
               <ul className="mt-4 space-y-2">
                 {profile.missingCriticalFields.map((field) => (

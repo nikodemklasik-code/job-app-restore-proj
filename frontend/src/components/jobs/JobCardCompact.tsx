@@ -173,13 +173,16 @@ export function JobCardCompact({
                                 {job.company}
                             </span>
 
-                            {/* Source badge */}
+                            {/* Source badge - 2 lines */}
                             {job.source && SOURCE_LABELS[job.source] && (
                                 <>
                                     <span className="w-1 h-1 rounded-full bg-slate-700" />
-                                    <span className={`px-2 py-0.5 rounded-full border text-xs font-medium ${SOURCE_LABELS[job.source].color}`}>
-                                        {SOURCE_LABELS[job.source].label}
-                                    </span>
+                                    <div className="flex flex-col leading-tight">
+                                        <span className="text-[10px] text-slate-500 uppercase tracking-wide">Source:</span>
+                                        <span className={`text-xs font-medium ${SOURCE_LABELS[job.source].color.replace('bg-', 'text-').replace('/20', '').replace(' border-', ' ').split(' ')[0]}`}>
+                                            {SOURCE_LABELS[job.source].label}
+                                        </span>
+                                    </div>
                                 </>
                             )}
 
