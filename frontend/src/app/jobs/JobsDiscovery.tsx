@@ -38,7 +38,7 @@ type JobResult = {
 
 type SessionStatus = { id: string; provider: string; isActive: boolean; lastTestedAt: Date | null; updatedAt: Date };
 
-const ALL_SOURCES = ['reed', 'adzuna', 'jooble', 'indeed', 'gumtree'] as const;
+const ALL_SOURCES = ['reed', 'adzuna', 'jooble', 'indeed', 'gumtree', 'totaljobs', 'cv-library', 'findajob', 'linkedin', 'monster', 'glassdoor'] as const;
 type Source = (typeof ALL_SOURCES)[number];
 
 const SOURCE_META: Record<Source, { label: string; color: string; requiresSession: boolean; url: string }> = {
@@ -47,6 +47,12 @@ const SOURCE_META: Record<Source, { label: string; color: string; requiresSessio
   jooble: { label: 'Jooble', color: 'bg-sky-500/20 text-sky-400', requiresSession: false, url: '' },
   indeed: { label: 'Indeed', color: 'bg-blue-500/20 text-blue-400', requiresSession: true, url: 'https://www.indeed.co.uk' },
   gumtree: { label: 'Gumtree', color: 'bg-green-500/20 text-green-400', requiresSession: true, url: 'https://www.gumtree.com/jobs' },
+  totaljobs: { label: 'Totaljobs', color: 'bg-purple-500/20 text-purple-400', requiresSession: false, url: '' },
+  'cv-library': { label: 'CV-Library', color: 'bg-indigo-500/20 text-indigo-400', requiresSession: false, url: '' },
+  findajob: { label: 'Find a Job', color: 'bg-teal-500/20 text-teal-400', requiresSession: false, url: '' },
+  linkedin: { label: 'LinkedIn', color: 'bg-cyan-500/20 text-cyan-400', requiresSession: true, url: 'https://www.linkedin.com' },
+  monster: { label: 'Monster UK', color: 'bg-orange-500/20 text-orange-400', requiresSession: false, url: '' },
+  glassdoor: { label: 'Glassdoor', color: 'bg-emerald-500/20 text-emerald-400', requiresSession: true, url: 'https://www.glassdoor.co.uk' },
 };
 
 const SESSION_BOARD_TOOLTIP: Partial<Record<Source, string>> = {

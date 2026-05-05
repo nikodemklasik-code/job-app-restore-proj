@@ -7,6 +7,9 @@ export type ProviderName =
   | 'totaljobs'
   | 'cv-library'
   | 'findajob'
+  | 'linkedin'
+  | 'monster'
+  | 'glassdoor'
   | 'database'
   | 'manual'
   | 'openai-discovery'
@@ -34,6 +37,9 @@ export const EXTERNAL_JOB_PROVIDER_NAMES: ProviderName[] = [
   'totaljobs',
   'cv-library',
   'findajob',
+  'linkedin',
+  'monster',
+  'glassdoor',
 ];
 
 export const JOB_SOURCE_CATALOG: JobSourceCatalogEntry[] = [
@@ -128,6 +134,42 @@ export const JOB_SOURCE_CATALOG: JobSourceCatalogEntry[] = [
     icon: '🇬🇧',
     requiresApiKey: null,
     requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'linkedin',
+    label: 'LinkedIn',
+    description: 'LinkedIn job listings searched through a saved browser session. Enabling this source is your consent to use it for search.',
+    icon: '💼',
+    requiresApiKey: null,
+    requiresSession: true,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'monster',
+    label: 'Monster UK',
+    description: 'Monster UK job board source for web-scanned listings. Enabling this source is your consent to use it for search.',
+    icon: '👹',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'glassdoor',
+    label: 'Glassdoor',
+    description: 'Glassdoor job listings searched through a saved browser session. Enabling this source is your consent to use it for search.',
+    icon: '🏢',
+    requiresApiKey: null,
+    requiresSession: true,
     isAiPowered: false,
     defaultEnabled: false,
     category: 'browser',
