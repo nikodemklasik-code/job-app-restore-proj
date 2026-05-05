@@ -38,6 +38,7 @@ type JobCardCompactProps = {
     onFitScoreClick?: () => void;
     isExpanded?: boolean;
     isCreatingDraft?: boolean;
+    jobPreviewState?: 'loading' | 'loaded' | 'error';
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -100,6 +101,7 @@ export function JobCardCompact({
     onFitScoreClick,
     isExpanded = false,
     isCreatingDraft = false,
+    jobPreviewState,
 }: JobCardCompactProps) {
     const salary = formatSalary(job.salaryMin, job.salaryMax);
     const timeAgo = getTimeAgo(job.postedAt);

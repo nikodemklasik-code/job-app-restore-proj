@@ -59,6 +59,7 @@ export default function ApplicationsPage() {
 
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
   const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
   const [employerEmail, setEmployerEmail] = useState('');
 
   const applicationsQuery = api.applications.getAll.useQuery({ userId }, { enabled: !!userId });
@@ -116,6 +117,7 @@ export default function ApplicationsPage() {
       applicationId: application.id,
       recipientEmail: employerEmail,
       subject: emailSubject || `Application for ${application.jobTitle}`,
+      body: emailBody || undefined,
     });
   }
 
@@ -342,6 +344,20 @@ export default function ApplicationsPage() {
                     className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                     placeholder={`Application for ${selectedApplication.jobTitle}`}
                   />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Email Body (Optional)</label>
+                  <textarea
+                    value={emailBody}
+                    onChange={(e) => setEmailBody(e.target.value)}
+                    rows={4}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
+                    placeholder="Custom message (leave empty to use auto-generated content)"
+                  />
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                    If left empty, an AI-generated message will be used based on your profile and cover letter.
+                  </p>
                 </div>
 
                 <button

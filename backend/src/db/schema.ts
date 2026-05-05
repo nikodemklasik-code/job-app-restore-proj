@@ -586,6 +586,16 @@ export const userJobPreferences = mysqlTable('user_job_preferences', {
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
 });
 
+/** AI recommendation feedback — persists helpful/not-helpful votes per user+job. */
+export const aiJobRecommendationFeedback = mysqlTable('ai_job_recommendation_feedback', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull(),
+  jobId: varchar('job_id', { length: 36 }).notNull(),
+  feedback: varchar('feedback', { length: 16 }).notNull(), // 'up' | 'down'
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+});
+
 /** Reports — interview/coach/manual/analysis notes. Run `backend/sql/2026-04-19-reports.sql`. */
 export const reportSourceValues = ['interview', 'coach', 'manual', 'analysis'] as const;
 export const reportStatusValues = ['open', 'closed'] as const;

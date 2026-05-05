@@ -22,6 +22,7 @@ const INDIGO = '#4f46e5';
 const DARK = '#0f172a';
 const MUTED = '#64748b';
 const LIGHT_BG = '#f8fafc';
+const SOFT_BORDER = '#e2e8f0';
 
 function bufferFromStream(doc: PDFKit.PDFDocument): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -35,8 +36,27 @@ function bufferFromStream(doc: PDFKit.PDFDocument): Promise<Buffer> {
 export async function generateCvPdf(profile: CvProfile): Promise<Buffer> {
   const doc = new PDFDocument({ size: 'A4', margins: { top: 40, bottom: 40, left: 50, right: 50 } });
   const promise = bufferFromStream(doc);
+  const contentWidth = doc.page.width - 100;
+  const ensureSpace = (needed = 90) => {
+    if (doc.y + needed > doc.page.height - 60) {
+      doc.addPage();
+      doc.y = 48;
+    }
+  };
+  const section = (label: string) => {
+    ensureSpace(42);
+    doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(12).text(label, 50, doc.y);
+    doc.moveDown(0.2);
+    doc.strokeColor(SOFT_BORDER).lineWidth(1).moveTo(50, doc.y + 2).lineTo(50 + contentWidth, doc.y + 2).stroke();
+    doc.moveDown(0.8);
+  };
+  const bullet = (text: string, x = 50, width = contentWidth) => {
+    doc.fillColor('#334155').font('Helvetica-Bold').fontSize(10).text('•', x, doc.y + 1);
+    doc.fillColor(DARK).font('Helvetica').fontSize(10.2).text(text, x + 12, doc.y - 11, { width: width - 12, lineGap: 2 });
+    doc.moveDown(0.3);
+  };
 
-  // Header bar with gradient effect
+  // Header bar
   doc.rect(0, 0, doc.page.width, 100).fill(DARK);
 
   const name = profile.fullName ?? 'Candidate';
@@ -51,95 +71,82 @@ export async function generateCvPdf(profile: CvProfile): Promise<Buffer> {
   // Accent line
   doc.rect(0, 100, doc.page.width, 3).fill(INDIGO);
 
-  let y = 120;
+  doc.y = 120;
 
   // Professional Summary - FULL LENGTH
   if (profile.summary) {
-    doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(12).text('PROFESSIONAL SUMMARY', 50, y);
-    y += 18;
-    doc.rect(50, y - 2, 495, 1).fill('#e2e8f0');
-    y += 10;
-    doc.fillColor(DARK).font('Helvetica').fontSize(10.5).text(profile.summary, 50, y, {
-      width: 495,
+    section('PROFESSIONAL SUMMARY');
+    doc.fillColor(DARK).font('Helvetica').fontSize(10.5).text(profile.summary, 50, doc.y, {
+      width: contentWidth,
       align: 'justify',
       lineGap: 3
     });
-    y = doc.y + 16;
+    doc.moveDown(1);
   }
 
   // Skills Section - CATEGORIZED
   if (profile.skills?.length) {
-    doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(12).text('TECHNICAL SKILLS', 50, y);
-    y += 18;
-    doc.rect(50, y - 2, 495, 1).fill('#e2e8f0');
-    y += 10;
-
-    // Display all skills in 2 columns for better readability
+    section('TECHNICAL SKILLS');
     const skillsPerCol = Math.ceil(profile.skills.length / 2);
-    const colWidth = 250;
+    const colWidth = Math.floor(contentWidth / 2);
     let col = 0;
-    let rowY = y;
+    const startY = doc.y;
+    let rowY = startY;
     let skillIndex = 0;
 
     for (const skill of profile.skills) {
-      doc.fillColor(DARK).font('Helvetica').fontSize(10).text(`• ${skill}`, 50 + (col * colWidth), rowY, { width: colWidth - 10 });
+      doc.fillColor(DARK).font('Helvetica').fontSize(10).text(`• ${skill}`, 50 + (col * colWidth), rowY, { width: colWidth - 12 });
       skillIndex++;
       rowY = doc.y + 2;
 
       if (skillIndex >= skillsPerCol) {
         col = 1;
-        rowY = y;
+        rowY = startY;
       }
     }
-    y = rowY + 16;
+    doc.y = Math.max(rowY + 8, startY + Math.ceil(skillsPerCol * 13));
   }
 
   // Experience Section - FULL DESCRIPTIONS
   if (profile.experience?.length) {
-    doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(12).text('PROFESSIONAL EXPERIENCE', 50, y);
-    y += 18;
-    doc.rect(50, y - 2, 495, 1).fill('#e2e8f0');
-    y += 10;
+    section('PROFESSIONAL EXPERIENCE');
 
     for (const exp of profile.experience) {
+      ensureSpace(110);
       // Job title and company
-      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11).text(exp.title ?? 'Position', 50, y, { width: 495 });
-      y = doc.y + 2;
+      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11).text(exp.title ?? 'Position', 50, doc.y, { width: contentWidth });
+      doc.moveDown(0.1);
 
       const dates = [exp.startDate, exp.endDate || 'Present'].filter(Boolean).join(' – ');
       doc.fillColor(MUTED).font('Helvetica').fontSize(10)
-        .text(`${exp.company ?? 'Company'}  •  ${dates}`, 50, y, { width: 495 });
-      y = doc.y + 8;
+        .text(`${exp.company ?? 'Company'}  •  ${dates}`, 50, doc.y, { width: contentWidth });
+      doc.moveDown(0.4);
 
       if (exp.description) {
-        doc.fillColor(DARK).font('Helvetica').fontSize(10).text(exp.description, 50, y, {
-          width: 495,
-          align: 'justify',
-          lineGap: 2
-        });
-        y = doc.y + 14;
+        const points = exp.description.split(/\n|•|-/).map((p) => p.trim()).filter(Boolean);
+        if (points.length > 1) points.slice(0, 5).forEach((p) => bullet(p));
+        else doc.fillColor(DARK).font('Helvetica').fontSize(10).text(exp.description, 50, doc.y, { width: contentWidth, align: 'justify', lineGap: 2 });
+        doc.moveDown(0.7);
       }
     }
   }
 
   // Education Section - FULL DETAILS
   if (profile.education?.length) {
-    doc.fillColor(INDIGO).font('Helvetica-Bold').fontSize(12).text('EDUCATION', 50, y);
-    y += 18;
-    doc.rect(50, y - 2, 495, 1).fill('#e2e8f0');
-    y += 10;
+    section('EDUCATION');
 
     for (const edu of profile.education) {
+      ensureSpace(52);
       const dates = [edu.startDate, edu.endDate || 'Present'].filter(Boolean).join(' – ');
       doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10.5).text(
         `${edu.degree ?? 'Degree'} — ${edu.school ?? 'Institution'}`,
-        50, y,
-        { width: 495 }
+        50, doc.y,
+        { width: contentWidth }
       );
-      y = doc.y + 2;
+      doc.moveDown(0.1);
       if (dates) {
-        doc.fillColor(MUTED).font('Helvetica').fontSize(9.5).text(dates, 50, y);
-        y = doc.y + 10;
+        doc.fillColor(MUTED).font('Helvetica').fontSize(9.5).text(dates, 50, doc.y);
+        doc.moveDown(0.6);
       }
     }
   }
@@ -158,56 +165,60 @@ export async function generateCvPdf(profile: CvProfile): Promise<Buffer> {
 export async function generateCoverLetterPdf(text: string, meta: CoverLetterMeta = {}): Promise<Buffer> {
   const doc = new PDFDocument({ size: 'A4', margins: { top: 60, bottom: 60, left: 70, right: 70 } });
   const promise = bufferFromStream(doc);
+  const bodyWidth = 455;
+  const ensureSpace = (needed = 70) => {
+    if (doc.y + needed > doc.page.height - 60) {
+      doc.addPage();
+      doc.y = 70;
+    }
+  };
+  const cleanText = text.replace(/\r/g, '').trim();
+  const paragraphs = cleanText.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
 
-  // Header with accent bar
-  doc.rect(70, 50, 4, 80).fill(INDIGO);
+  // Premium letterhead
+  doc.rect(0, 0, doc.page.width, 90).fill(DARK);
+  doc.rect(0, 90, doc.page.width, 2).fill(INDIGO);
 
   const sender = meta.senderName ?? 'Candidate';
   const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
-  doc.fillColor(DARK).font('Helvetica-Bold').fontSize(18).text(sender, 85, 55);
-  doc.fillColor(MUTED).font('Helvetica').fontSize(10).text(date, 85, 78);
+  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(20).text(sender, 70, 34);
+  doc.fillColor('#cbd5e1').font('Helvetica').fontSize(10).text('Professional Application Letter', 70, 60);
+  doc.fillColor(MUTED).font('Helvetica').fontSize(10).text(date, 430, 102, { align: 'right', width: 95 });
 
-  let y = 160;
+  let y = 128;
 
-  // Recipient info
+  // Recipient panel
   if (meta.company) {
-    doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11).text(meta.company, 70, y);
-    y += 18;
+    doc.roundedRect(70, y, bodyWidth, meta.role ? 50 : 34, 8).fill('#f8fafc');
+    doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11).text(meta.company, 82, y + 10);
+    if (meta.role) doc.fillColor(MUTED).font('Helvetica').fontSize(10).text(`Role: ${meta.role}`, 82, y + 27);
+    y += meta.role ? 62 : 44;
   }
-  if (meta.role) {
-    doc.fillColor(MUTED).font('Helvetica').fontSize(10).text(`Re: Application for ${meta.role}`, 70, y);
-    y += 26;
-  }
+  y += 6;
 
-  // Separator line
-  doc.rect(70, y, 455, 1).fill('#e2e8f0');
-  y += 20;
-
-  // Body text with proper paragraph formatting
-  const paragraphs = text.split('\n\n').filter((p) => p.trim());
+  // Body text
   for (const para of paragraphs) {
     const cleanPara = para.replace(/\n/g, ' ').trim();
-
-    // Skip signature lines - handle separately
-    if (cleanPara.toLowerCase().startsWith('yours sincerely')) {
-      continue;
-    }
-
-    doc.fillColor(DARK).font('Helvetica').fontSize(11)
-      .text(cleanPara, 70, y, {
-        width: 455,
-        align: 'justify',
-        lineGap: 5
-      });
-    y = doc.y + 14;
+    if (!cleanPara) continue;
+    if (/^yours sincerely|^kind regards|^best regards/i.test(cleanPara)) continue;
+    ensureSpace(55);
+    doc.fillColor(DARK).font('Helvetica').fontSize(11.2).text(cleanPara, 70, y, {
+      width: bodyWidth,
+      align: 'justify',
+      lineGap: 5,
+    });
+    y = doc.y + 12;
   }
 
   // Closing
-  y += 8;
+  ensureSpace(90);
+  y += 10;
   doc.fillColor(DARK).font('Helvetica').fontSize(11).text('Yours sincerely,', 70, y);
   y += 24;
-  doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11).text(sender, 70, y);
+  doc.fillColor(DARK).font('Helvetica-Bold').fontSize(12).text(sender, 70, y);
+  y += 16;
+  doc.fillColor(MUTED).font('Helvetica').fontSize(9.5).text('Generated by MultivoHub — ATS-safe clean format.', 70, y);
 
   // Footer
   doc.rect(0, doc.page.height - 35, doc.page.width, 35).fill(LIGHT_BG);

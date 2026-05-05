@@ -168,6 +168,7 @@ export const applicationsRouter = router({
       applicationId: z.string(),
       recipientEmail: z.string().email(),
       subject: z.string().optional(),
+      body: z.string().min(20).max(5000).optional(),
     }))
     .mutation(async ({ input }) => {
       const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
@@ -217,6 +218,9 @@ export const applicationsRouter = router({
       ]);
 
       const subject = input.subject ?? `Application for ${appRow[0].jobTitle} at ${appRow[0].company}`;
+      const customHtml = input.body
+        ? (input.body.includes('<') ? input.body : `<p>${input.body.replace(/\n/g, '<br/>')}</p>`)
+        : null;
 
       // BCC the sender so they have a copy in their own inbox
       const bccAddress = userRecord[0].email ?? undefined;
@@ -227,7 +231,9 @@ export const applicationsRouter = router({
         bcc: bccAddress,
         replyTo: userRecord[0].email ?? undefined,
         subject,
-        html: `<p>Dear Hiring Manager,</p><p>Please find attached my CV and cover letter for the ${appRow[0].jobTitle} role at ${appRow[0].company}.</p><p>I look forward to hearing from you.</p><p>Best regards,<br/>${profile?.fullName ?? 'Candidate'}${userRecord[0].email ? `<br/><a href="mailto:${userRecord[0].email}">${userRecord[0].email}</a>` : ''}</p>`,
+        html: customHtml
+          ? customHtml
+          : `<p>Dear Hiring Manager,</p><p>Please find attached my CV and cover letter for the ${appRow[0].jobTitle} role at ${appRow[0].company}.</p><p>I look forward to hearing from you.</p><p>Best regards,<br/>${profile?.fullName ?? 'Candidate'}${userRecord[0].email ? `<br/><a href="mailto:${userRecord[0].email}">${userRecord[0].email}</a>` : ''}</p>`,
         attachments: [
           { filename: 'CV.pdf', content: cvPdf.toString('base64') },
           { filename: 'Cover_Letter.pdf', content: clPdf.toString('base64') },

@@ -985,6 +985,26 @@ export default function JobsDiscovery() {
             {searchQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             Search
           </button>
+          <button
+            onClick={() => {
+              const profile = profileQuery.data as ProfileSnapshot | undefined;
+              const skillsQuery = (profile?.skills ?? []).slice(0, 5).join(' ').slice(0, 120);
+              if (skillsQuery.trim()) {
+                setQuery(skillsQuery);
+                setUrlSearchParams({
+                  q: skillsQuery,
+                  loc: location,
+                  sources: sources.join(','),
+                });
+              }
+            }}
+            disabled={searchQuery.isFetching || !profileQuery.data?.skills?.length}
+            className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+            title="Search jobs based on your skills from profile"
+          >
+            <Sparkles className="h-4 w-4" />
+            Szukaj na podstawie umiejętności
+          </button>
           {searchParams && (
             <button
               onClick={handleClearSearch}

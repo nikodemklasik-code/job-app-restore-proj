@@ -1,0 +1,65 @@
+diff --git a/backend/src/db/schema.ts b/backend/src/db/schema.ts
+index 9c6efd28ba4d2336184b8c43aa2f84e6464a3562..c00a1fae70f6f51c4fd31b6dddf3a47a7831bbe7 100644
+--- a/backend/src/db/schema.ts
++++ b/backend/src/db/schema.ts
+@@ -564,50 +564,60 @@ export const documents = mysqlTable('documents', {
+   content: text('content').notNull(),
+   type: varchar('type', { length: 32 }).notNull(),
+   parentDocumentId: varchar('parent_document_id', { length: 36 }),
+   version: int('version').notNull().default(1),
+   createdAt: timestamp('created_at').defaultNow().notNull(),
+   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+ });
+ 
+ /** Saved jobs — user bookmarks. */
+ export const savedJobs = mysqlTable('saved_jobs', {
+   id: varchar('id', { length: 36 }).primaryKey(),
+   userId: varchar('user_id', { length: 36 }).notNull(),
+   jobId: varchar('job_id', { length: 36 }).notNull(),
+   savedAt: timestamp('saved_at').defaultNow().notNull(),
+ });
+ 
+ /** User job search preferences — remembers last search query and location. */
+ export const userJobPreferences = mysqlTable('user_job_preferences', {
+   userId: varchar('user_id', { length: 36 }).primaryKey(),
+   lastQuery: varchar('last_query', { length: 255 }).default('').notNull(),
+   lastLocation: varchar('last_location', { length: 255 }).default('United Kingdom').notNull(),
+   createdAt: timestamp('created_at').defaultNow().notNull(),
+   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+ });
+ 
++/** AI recommendation feedback — persists helpful/not-helpful votes per user+job. */
++export const aiJobRecommendationFeedback = mysqlTable('ai_job_recommendation_feedback', {
++  id: varchar('id', { length: 36 }).primaryKey(),
++  userId: varchar('user_id', { length: 36 }).notNull(),
++  jobId: varchar('job_id', { length: 36 }).notNull(),
++  feedback: varchar('feedback', { length: 16 }).notNull(), // 'up' | 'down'
++  createdAt: timestamp('created_at').defaultNow().notNull(),
++  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
++});
++
+ /** Reports — interview/coach/manual/analysis notes. Run `backend/sql/2026-04-19-reports.sql`. */
+ export const reportSourceValues = ['interview', 'coach', 'manual', 'analysis'] as const;
+ export const reportStatusValues = ['open', 'closed'] as const;
+ 
+ export const reports = mysqlTable('reports', {
+   id: varchar('id', { length: 36 }).primaryKey(),
+   userId: varchar('user_id', { length: 36 }).notNull(),
+   title: varchar('title', { length: 255 }).notNull(),
+   content: text('content').notNull(),
+   source: varchar('source', { length: 32 }).notNull(),
+   status: varchar('status', { length: 16 }).notNull().default('open'),
+   sourceReferenceId: varchar('source_reference_id', { length: 36 }),
+   createdAt: timestamp('created_at').defaultNow().notNull(),
+   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
+ });
+ 
+ /** Product prefs (notifications, theme intent, assistant tone, blocked domains). Run `backend/sql/user_settings.sql`. */
+ export const themeModeValues = ['light', 'dark', 'system'] as const;
+ export const assistantToneValues = ['concise', 'balanced', 'detailed'] as const;
+ 
+ export const userSettings = mysqlTable('user_settings', {
+   id: varchar('id', { length: 36 }).primaryKey(),
+   userId: varchar('user_id', { length: 36 }).notNull().unique(),
+   emailNotifications: boolean('email_notifications').notNull().default(true),
+   pushNotifications: boolean('push_notifications').notNull().default(true),

@@ -148,7 +148,7 @@ export async function startIndeedLogin(
   userId: string,
   email: string,
   password?: string,
-): Promise<{ requiresCode: boolean; codeSentTo?: string | null; error?: string }> {
+): Promise<{ requiresCode: boolean; codeSentTo?: string | null; storageState?: unknown; error?: string }> {
   try {
     const { browser, context } = await launchBrowser();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -264,7 +264,7 @@ export async function startIndeedLogin(
     if (isLoggedIn) {
       const storageState = await context.storageState();
       await browser.close().catch(() => { });
-      return { requiresCode: false, storageState } as unknown as { requiresCode: boolean };
+      return { requiresCode: false, storageState };
     }
 
     // Code required?

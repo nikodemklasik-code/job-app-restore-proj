@@ -264,6 +264,7 @@ type JobCardExpandedProps = {
         gaps: string[];
         extractedRequirements?: string[];
     };
+    jobPreviewState?: 'loading' | 'loaded' | 'error';
 };
 
 export function JobCardExpanded({
@@ -279,6 +280,7 @@ export function JobCardExpanded({
     isTailoringResume = false,
     isStartingRadarScan = false,
     fitAnalysis,
+    jobPreviewState,
 }: JobCardExpandedProps) {
     const [selectedScoreCategory, setSelectedScoreCategory] = useState<'skills' | 'experience' | 'salary' | 'culture' | null>(null);
 

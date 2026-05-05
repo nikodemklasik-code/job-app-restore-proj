@@ -71,6 +71,14 @@ export const jobSessionsRouter = router({
     }))
     .mutation(async ({ input }) => {
       const result = await startIndeedLogin(input.userId, input.email, input.password);
+      if (result.storageState) {
+        const localId = await getLocalUserId(input.userId);
+        if (localId) {
+          const cookieStr = storageStateToCookieString(result.storageState);
+          const stateJson = storageStateToJson(result.storageState);
+          await upsertSession(localId, 'indeed', cookieStr, stateJson);
+        }
+      }
       return result;
     }),
 
