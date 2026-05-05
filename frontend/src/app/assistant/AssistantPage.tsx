@@ -10,6 +10,24 @@ import { useCareerAssistantStore } from '@/stores/careerAssistantStore';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
+// ─── Voice Conversation Engine States ─────────────────────────────────────────
+
+type VoiceState = 'idle' | 'listening' | 'user_speaking' | 'transcribing' | 'processing' | 'ai_speaking' | 'error';
+
+const VOICE_STATE_LABELS: Record<VoiceState, { label: string; color: string }> = {
+  idle: { label: 'Ready', color: 'text-slate-400' },
+  listening: { label: 'Listening…', color: 'text-blue-300' },
+  user_speaking: { label: 'Speaking detected…', color: 'text-green-300' },
+  transcribing: { label: 'Transcribing…', color: 'text-amber-300' },
+  processing: { label: 'Thinking…', color: 'text-violet-300' },
+  ai_speaking: { label: 'AI responding…', color: 'text-indigo-300' },
+  error: { label: 'Error', color: 'text-red-300' },
+};
+
+const SILENCE_THRESHOLD_MS = 2000;
+const SPEECH_THRESHOLD = 18;
+const MIN_SPEECH_MS = 800;
+
 async function transcribeAudio(blob: Blob): Promise<string> {
   try {
     const form = new FormData();
@@ -48,10 +66,10 @@ async function speakText(text: string): Promise<void> {
 type Mode = 'general' | 'cv' | 'interview' | 'salary';
 
 const MODES: { id: Mode; label: string; color: string; bg: string; desc: string }[] = [
-  { id: 'general',   label: 'General',   color: 'text-violet-300', bg: 'bg-violet-500/20 border-violet-500/40',   desc: 'Any career topic' },
-  { id: 'cv',        label: 'CV',        color: 'text-indigo-300', bg: 'bg-indigo-500/20 border-indigo-500/40',   desc: 'CV feedback & tips' },
-  { id: 'interview', label: 'Interview', color: 'text-amber-300',  bg: 'bg-amber-500/20  border-amber-500/40',    desc: 'Prep & practice' },
-  { id: 'salary',    label: 'Salary',    color: 'text-emerald-300',bg: 'bg-emerald-500/20 border-emerald-500/40', desc: 'Negotiation help' },
+  { id: 'general', label: 'General', color: 'text-violet-300', bg: 'bg-violet-500/20 border-violet-500/40', desc: 'Any career topic' },
+  { id: 'cv', label: 'CV', color: 'text-indigo-300', bg: 'bg-indigo-500/20 border-indigo-500/40', desc: 'CV feedback & tips' },
+  { id: 'interview', label: 'Interview', color: 'text-amber-300', bg: 'bg-amber-500/20  border-amber-500/40', desc: 'Prep & practice' },
+  { id: 'salary', label: 'Salary', color: 'text-emerald-300', bg: 'bg-emerald-500/20 border-emerald-500/40', desc: 'Negotiation help' },
 ];
 
 // ─── Quick actions ────────────────────────────────────────────────────────────
@@ -128,21 +146,19 @@ function Bubble({
   return (
     <div className={`flex items-end gap-3 px-5 py-1 ${isUser ? 'flex-row-reverse' : ''}`}>
       {/* Avatar */}
-      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-lg ${
-        isUser
-          ? 'bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-indigo-500/20'
-          : 'bg-gradient-to-br from-violet-500 to-indigo-600 shadow-violet-500/20'
-      }`}>
+      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-lg ${isUser
+        ? 'bg-gradient-to-br from-indigo-500 to-indigo-700 shadow-indigo-500/20'
+        : 'bg-gradient-to-br from-violet-500 to-indigo-600 shadow-violet-500/20'
+        }`}>
         {isUser ? <User className="h-4 w-4 text-white" /> : <Sparkles className="h-4 w-4 text-white" />}
       </div>
 
       {/* Bubble */}
       <div className={`flex max-w-[76%] flex-col gap-1 ${isUser ? 'items-end' : 'items-start'}`}>
-        <div className={`whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed ${
-          isUser
-            ? 'rounded-br-sm bg-gradient-to-br from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/20'
-            : 'rounded-bl-sm border border-white/[0.09] bg-white/[0.05] text-slate-100 shadow-sm'
-        }`}>
+        <div className={`whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed ${isUser
+          ? 'rounded-br-sm bg-gradient-to-br from-indigo-600 to-indigo-700 text-white shadow-lg shadow-indigo-500/20'
+          : 'rounded-bl-sm border border-white/[0.09] bg-white/[0.05] text-slate-100 shadow-sm'
+          }`}>
           {msg.text}
         </div>
         {!isUser && (
@@ -250,6 +266,20 @@ export default function AssistantPage() {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [showModes, setShowModes] = useState(false);
 
+  // Voice conversation mode (Tier 1 standard)
+  const [voiceMode, setVoiceMode] = useState(false);
+  const [voiceState, setVoiceState] = useState<VoiceState>('idle');
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const voiceRecorderRef = useRef<MediaRecorder | null>(null);
+  const voiceChunksRef = useRef<Blob[]>([]);
+  const voiceStreamRef = useRef<MediaStream | null>(null);
+  const voiceAnalyserRef = useRef<AnalyserNode | null>(null);
+  const voiceAudioCtxRef = useRef<AudioContext | null>(null);
+  const vadFrameRef = useRef<number>(0);
+  const speechStartRef = useRef<number>(0);
+  const silenceStartRef = useRef<number | null>(null);
+  const voiceActiveRef = useRef(false);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -334,6 +364,157 @@ export default function AssistantPage() {
     await sendMessage(text, mode);
   };
 
+  // ── Voice Conversation Engine (Tier 1) ─────────────────────────────────────
+
+  const startVoiceListening = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      voiceStreamRef.current = stream;
+
+      const audioCtx = new AudioContext();
+      voiceAudioCtxRef.current = audioCtx;
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      voiceAnalyserRef.current = analyser;
+
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      voiceChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) voiceChunksRef.current.push(e.data);
+      };
+      voiceRecorderRef.current = recorder;
+      recorder.start(250);
+      voiceActiveRef.current = true;
+      speechStartRef.current = 0;
+      silenceStartRef.current = null;
+      setVoiceState('listening');
+
+      // Start VAD loop
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      const vadLoop = () => {
+        if (!voiceActiveRef.current) return;
+        analyser.getByteFrequencyData(data);
+        const avg = data.reduce((s, v) => s + v, 0) / data.length;
+        const isSpeech = avg > SPEECH_THRESHOLD;
+
+        if (isSpeech) {
+          if (speechStartRef.current === 0) speechStartRef.current = Date.now();
+          silenceStartRef.current = null;
+          setVoiceState('user_speaking');
+        } else {
+          const hasSpeech = speechStartRef.current > 0 && (Date.now() - speechStartRef.current) > MIN_SPEECH_MS;
+          if (hasSpeech) {
+            if (!silenceStartRef.current) {
+              silenceStartRef.current = Date.now();
+            } else if (Date.now() - silenceStartRef.current > SILENCE_THRESHOLD_MS) {
+              // Silence detected after speech — auto-submit
+              void stopVoiceAndSubmit();
+              return;
+            }
+          }
+        }
+        vadFrameRef.current = requestAnimationFrame(vadLoop);
+      };
+      vadFrameRef.current = requestAnimationFrame(vadLoop);
+    } catch {
+      setVoiceState('error');
+    }
+  }, []);
+
+  const stopVoiceAndSubmit = useCallback(async () => {
+    voiceActiveRef.current = false;
+    cancelAnimationFrame(vadFrameRef.current);
+    setVoiceState('transcribing');
+
+    const recorder = voiceRecorderRef.current;
+    if (!recorder || recorder.state === 'inactive') {
+      setVoiceState('idle');
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      recorder.onstop = () => resolve();
+      recorder.stop();
+    });
+
+    // Cleanup stream
+    voiceStreamRef.current?.getTracks().forEach((t) => t.stop());
+    voiceStreamRef.current = null;
+    voiceAudioCtxRef.current?.close();
+    voiceAudioCtxRef.current = null;
+
+    const blob = new Blob(voiceChunksRef.current, { type: 'audio/webm' });
+    voiceChunksRef.current = [];
+
+    if (blob.size < 1000) {
+      setVoiceState('idle');
+      // Restart listening
+      if (voiceMode) void startVoiceListening();
+      return;
+    }
+
+    // Transcribe
+    const transcript = await transcribeAudio(blob);
+    setVoiceTranscript(transcript);
+
+    if (!transcript.trim()) {
+      setVoiceState('idle');
+      if (voiceMode) void startVoiceListening();
+      return;
+    }
+
+    // Send to AI
+    setVoiceState('processing');
+    await sendMessage(transcript, mode);
+
+    // After AI responds, speak the response and restart listening
+    const lastMsg = useCareerAssistantStore.getState().messages;
+    const aiReply = lastMsg[lastMsg.length - 1];
+    if (aiReply?.role === 'assistant') {
+      setVoiceState('ai_speaking');
+      await speakText(aiReply.text);
+    }
+
+    setVoiceState('idle');
+    setVoiceTranscript('');
+
+    // Auto-restart listening
+    if (voiceMode) {
+      setTimeout(() => void startVoiceListening(), 500);
+    }
+  }, [mode, voiceMode, sendMessage, startVoiceListening]);
+
+  const toggleVoiceMode = useCallback(() => {
+    if (voiceMode) {
+      // Turn off
+      voiceActiveRef.current = false;
+      cancelAnimationFrame(vadFrameRef.current);
+      voiceRecorderRef.current?.stop();
+      voiceStreamRef.current?.getTracks().forEach((t) => t.stop());
+      voiceAudioCtxRef.current?.close();
+      setVoiceMode(false);
+      setVoiceState('idle');
+      setVoiceTranscript('');
+    } else {
+      // Turn on
+      setVoiceMode(true);
+      void startVoiceListening();
+    }
+  }, [voiceMode, startVoiceListening]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      voiceActiveRef.current = false;
+      cancelAnimationFrame(vadFrameRef.current);
+      voiceRecorderRef.current?.stop();
+      voiceStreamRef.current?.getTracks().forEach((t) => t.stop());
+      voiceAudioCtxRef.current?.close();
+    };
+  }, []);
+
   const handleQuickStart = async (prompt: string, m: Mode) => {
     setMode(m);
     await sendMessage(prompt, m);
@@ -387,6 +568,20 @@ export default function AssistantPage() {
               <ChevronDown className={`h-3 w-3 transition-transform ${showModes ? 'rotate-180' : ''}`} />
             </button>
 
+            {/* Voice Mode toggle */}
+            <button
+              type="button"
+              onClick={toggleVoiceMode}
+              title={voiceMode ? 'Exit voice mode' : 'Enter voice conversation mode'}
+              className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${voiceMode
+                ? 'border-green-500/40 bg-green-500/20 text-green-300'
+                : 'border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                }`}
+            >
+              {voiceMode ? <Mic className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{voiceMode ? 'Voice On' : 'Voice'}</span>
+            </button>
+
             <button
               onClick={() => clearMessages?.()}
               title="New conversation"
@@ -416,9 +611,8 @@ export default function AssistantPage() {
                   key={m.id}
                   type="button"
                   onClick={() => { setMode(m.id); setShowModes(false); }}
-                  className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${
-                    mode === m.id ? m.bg + ' ' + m.color : 'border-white/10 bg-white/5 text-slate-400 hover:bg-white/10'
-                  }`}
+                  className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${mode === m.id ? m.bg + ' ' + m.color : 'border-white/10 bg-white/5 text-slate-400 hover:bg-white/10'
+                    }`}
                 >
                   {m.label}
                   <span className="text-[10px] opacity-60">{m.desc}</span>
@@ -428,6 +622,83 @@ export default function AssistantPage() {
           </div>
         )}
       </div>
+
+      {/* ═══ Voice Mode Status Bar ═════════════════════════════════════════ */}
+      {voiceMode && (
+        <div className="shrink-0 border-x border-white/10 bg-slate-950/60 px-4 py-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {/* Animated indicator */}
+              {voiceState === 'listening' && (
+                <div className="flex items-center gap-1">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div key={i} className="w-1 rounded-full bg-blue-400" style={{
+                      height: '12px',
+                      animation: `pulse 1.2s ease-in-out ${i * 0.15}s infinite`,
+                    }} />
+                  ))}
+                </div>
+              )}
+              {voiceState === 'user_speaking' && (
+                <div className="flex items-center gap-1">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div key={i} className="w-1.5 rounded-full bg-green-400" style={{
+                      animation: `soundBar 0.4s ease-in-out ${i * 0.08}s infinite alternate`,
+                      height: `${8 + Math.random() * 12}px`,
+                    }} />
+                  ))}
+                </div>
+              )}
+              {voiceState === 'transcribing' && (
+                <div className="h-4 w-4 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
+              )}
+              {voiceState === 'processing' && (
+                <div className="flex gap-1">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="h-2 w-2 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                  ))}
+                </div>
+              )}
+              {voiceState === 'ai_speaking' && (
+                <div className="flex items-center gap-1">
+                  {[0, 1, 2, 3].map((i) => (
+                    <div key={i} className="w-1.5 rounded-full bg-indigo-400" style={{
+                      animation: `soundBar 0.5s ease-in-out ${i * 0.1}s infinite alternate`,
+                      height: `${6 + Math.random() * 10}px`,
+                    }} />
+                  ))}
+                </div>
+              )}
+              {voiceState === 'idle' && (
+                <span className="h-2.5 w-2.5 rounded-full bg-slate-500" />
+              )}
+
+              <span className={`text-sm font-medium ${VOICE_STATE_LABELS[voiceState].color}`}>
+                {VOICE_STATE_LABELS[voiceState].label}
+              </span>
+            </div>
+
+            {voiceTranscript && (
+              <p className="text-xs text-slate-400 truncate max-w-[50%]">
+                &ldquo;{voiceTranscript}&rdquo;
+              </p>
+            )}
+
+            <button
+              onClick={toggleVoiceMode}
+              className="rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1 text-xs font-medium text-red-300 hover:bg-red-500/20 transition"
+            >
+              End Voice
+            </button>
+          </div>
+          <style>{`
+            @keyframes soundBar {
+              from { transform: scaleY(0.4); }
+              to { transform: scaleY(1); }
+            }
+          `}</style>
+        </div>
+      )}
 
       {/* ═══ Error banner ══════════════════════════════════════════════════════ */}
       {error && (
@@ -486,8 +757,8 @@ export default function AssistantPage() {
               rows={1}
               placeholder={
                 isTranscribing ? 'Transcribing…' :
-                isRecording    ? 'Recording — click mic to stop' :
-                                 'Ask anything career-related…'
+                  isRecording ? 'Recording — click mic to stop' :
+                    'Ask anything career-related…'
               }
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -509,11 +780,10 @@ export default function AssistantPage() {
             onClick={toggleRecording}
             disabled={isSending || isTranscribing}
             title={isRecording ? 'Stop recording' : 'Voice input'}
-            className={`flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-2xl border transition-all disabled:opacity-40 ${
-              isRecording
-                ? 'border-rose-500/40 bg-rose-500/15 text-rose-300 shadow-lg shadow-rose-500/20'
-                : 'border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
-            }`}
+            className={`flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-2xl border transition-all disabled:opacity-40 ${isRecording
+              ? 'border-rose-500/40 bg-rose-500/15 text-rose-300 shadow-lg shadow-rose-500/20'
+              : 'border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+              }`}
           >
             {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
           </button>

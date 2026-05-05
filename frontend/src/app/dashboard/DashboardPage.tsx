@@ -96,6 +96,7 @@ export default function DashboardPage() {
   if (snapshotQuery.isError) {
     return (
       <div className="space-y-4">
+        <DashboardSnapshot snapshot={fallbackSnapshot} />
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -115,7 +116,6 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
-        <DashboardSnapshot snapshot={fallbackSnapshot} />
       </div>
     );
   }
