@@ -49,6 +49,21 @@ const STATUS_COLORS: Record<string, string> = {
     rejected: 'bg-red-500/20 text-red-400 border-red-500/30',
 };
 
+const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
+    reed: { label: 'Reed', color: 'bg-rose-500/20 text-rose-400 border-rose-500/30' },
+    adzuna: { label: 'Adzuna', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+    jooble: { label: 'Jooble', color: 'bg-sky-500/20 text-sky-400 border-sky-500/30' },
+    indeed: { label: 'Indeed', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+    'indeed-browser': { label: 'Indeed', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+    gumtree: { label: 'Gumtree', color: 'bg-green-500/20 text-green-400 border-green-500/30' },
+    totaljobs: { label: 'Totaljobs', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
+    'cv-library': { label: 'CV-Library', color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30' },
+    findajob: { label: 'Find a Job', color: 'bg-teal-500/20 text-teal-400 border-teal-500/30' },
+    linkedin: { label: 'LinkedIn', color: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
+    monster: { label: 'Monster', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
+    glassdoor: { label: 'Glassdoor', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+};
+
 function formatSalary(min: number | null, max: number | null): string | null {
     if (!min && !max) return null;
     if (min && max) return `£${Math.round(min / 1000)}k–£${Math.round(max / 1000)}k`;
@@ -157,6 +172,16 @@ export function JobCardCompact({
                                 <Building2 className="w-3.5 h-3.5" />
                                 {job.company}
                             </span>
+
+                            {/* Source badge */}
+                            {job.source && SOURCE_LABELS[job.source] && (
+                                <>
+                                    <span className="w-1 h-1 rounded-full bg-slate-700" />
+                                    <span className={`px-2 py-0.5 rounded-full border text-xs font-medium ${SOURCE_LABELS[job.source].color}`}>
+                                        {SOURCE_LABELS[job.source].label}
+                                    </span>
+                                </>
+                            )}
 
                             {job.location && (
                                 <>
