@@ -52,21 +52,22 @@ type JobResult = {
 
 type SessionStatus = { id: string; provider: string; isActive: boolean; lastTestedAt: Date | null; updatedAt: Date };
 
-const ALL_SOURCES = ['reed', 'adzuna', 'jooble', 'indeed', 'gumtree', 'totaljobs', 'cv-library', 'findajob', 'linkedin', 'monster', 'glassdoor'] as const;
+// Alphabetically sorted providers
+const ALL_SOURCES = ['adzuna', 'cv-library', 'findajob', 'glassdoor', 'gumtree', 'indeed', 'jooble', 'linkedin', 'monster', 'reed', 'totaljobs'] as const;
 type Source = (typeof ALL_SOURCES)[number];
 
 const SOURCE_META: Record<Source, { label: string; color: string; requiresSession: boolean; url: string }> = {
-  reed: { label: 'Reed', color: 'bg-rose-500/20 text-rose-400', requiresSession: false, url: '' },
   adzuna: { label: 'Adzuna', color: 'bg-amber-500/20 text-amber-400', requiresSession: false, url: '' },
-  jooble: { label: 'Jooble', color: 'bg-sky-500/20 text-sky-400', requiresSession: false, url: '' },
-  indeed: { label: 'Indeed', color: 'bg-blue-500/20 text-blue-400', requiresSession: true, url: 'https://www.indeed.co.uk' },
-  gumtree: { label: 'Gumtree', color: 'bg-green-500/20 text-green-400', requiresSession: true, url: 'https://www.gumtree.com/jobs' },
-  totaljobs: { label: 'Totaljobs', color: 'bg-purple-500/20 text-purple-400', requiresSession: false, url: '' },
   'cv-library': { label: 'CV-Library', color: 'bg-indigo-500/20 text-indigo-400', requiresSession: false, url: '' },
   findajob: { label: 'Find a Job', color: 'bg-teal-500/20 text-teal-400', requiresSession: false, url: '' },
+  glassdoor: { label: 'Glassdoor', color: 'bg-emerald-500/20 text-emerald-400', requiresSession: true, url: 'https://www.glassdoor.co.uk' },
+  gumtree: { label: 'Gumtree', color: 'bg-green-500/20 text-green-400', requiresSession: true, url: 'https://www.gumtree.com/jobs' },
+  indeed: { label: 'Indeed', color: 'bg-blue-500/20 text-blue-400', requiresSession: true, url: 'https://www.indeed.co.uk' },
+  jooble: { label: 'Jooble', color: 'bg-sky-500/20 text-sky-400', requiresSession: false, url: '' },
   linkedin: { label: 'LinkedIn', color: 'bg-cyan-500/20 text-cyan-400', requiresSession: true, url: 'https://www.linkedin.com' },
   monster: { label: 'Monster UK', color: 'bg-orange-500/20 text-orange-400', requiresSession: false, url: '' },
-  glassdoor: { label: 'Glassdoor', color: 'bg-emerald-500/20 text-emerald-400', requiresSession: true, url: 'https://www.glassdoor.co.uk' },
+  reed: { label: 'Reed', color: 'bg-rose-500/20 text-rose-400', requiresSession: false, url: '' },
+  totaljobs: { label: 'Totaljobs', color: 'bg-purple-500/20 text-purple-400', requiresSession: false, url: '' },
 };
 
 const SESSION_BOARD_TOOLTIP: Partial<Record<Source, string>> = {
@@ -469,8 +470,8 @@ export default function JobsDiscovery() {
   const [location, setLocation] = useState(() => urlSearchParams.get('loc') || 'United Kingdom');
   const [sources, setSources] = useState<Source[]>(() => {
     const sourcesParam = urlSearchParams.get('sources');
-    // Default to all 11 providers
-    return sourcesParam ? sourcesParam.split(',') as Source[] : ['reed', 'adzuna', 'jooble', 'indeed', 'gumtree', 'totaljobs', 'cv-library', 'findajob', 'linkedin', 'monster', 'glassdoor'];
+    // Default to all 11 providers (alphabetically sorted)
+    return sourcesParam ? sourcesParam.split(',') as Source[] : ['adzuna', 'cv-library', 'findajob', 'glassdoor', 'gumtree', 'indeed', 'jooble', 'linkedin', 'monster', 'reed', 'totaljobs'];
   });
   const [maxDaysOld, setMaxDaysOld] = useState<number | undefined>(undefined);
 
@@ -485,7 +486,7 @@ export default function JobsDiscovery() {
     return {
       query: q,
       location: loc || 'United Kingdom',
-      sources: src ? src.split(',') : ['reed', 'adzuna', 'jooble', 'indeed', 'gumtree', 'totaljobs', 'cv-library', 'findajob', 'linkedin', 'monster', 'glassdoor'],
+      sources: src ? src.split(',') : ['adzuna', 'cv-library', 'findajob', 'glassdoor', 'gumtree', 'indeed', 'jooble', 'linkedin', 'monster', 'reed', 'totaljobs'],
       maxDaysOld,
     };
   }, [urlSearchParams, maxDaysOld]);
@@ -822,7 +823,7 @@ export default function JobsDiscovery() {
     setUrlSearchParams({});
     setQuery('');
     setLocation('United Kingdom');
-    setSources(['reed', 'adzuna', 'jooble', 'indeed', 'gumtree', 'totaljobs', 'cv-library', 'findajob', 'linkedin', 'monster', 'glassdoor']);
+    setSources(['adzuna', 'cv-library', 'findajob', 'glassdoor', 'gumtree', 'indeed', 'jooble', 'linkedin', 'monster', 'reed', 'totaljobs']);
   };
 
   const handleSaveSearch = () => {

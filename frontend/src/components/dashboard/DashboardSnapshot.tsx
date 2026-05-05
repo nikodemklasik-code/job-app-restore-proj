@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
-import { Sparkles, TrendingUp } from 'lucide-react';
+import { Sparkles, TrendingUp, DollarSign, Award, Target } from 'lucide-react';
+import { useUser } from '@clerk/clerk-react';
+import { api } from '@/lib/api';
 import type { DashboardSnapshot as DashboardSnapshotDto } from '@/types/dashboard';
 
 function formatCurrency(cents: number, currency: string): string {
@@ -121,6 +123,116 @@ function CaseStudyPromo() {
   );
 }
 
+// CV Value Card - shows market value signals from Skills Lab
+function CVValueCard() {
+  const { user } = useUser();
+  const userId = user?.id ?? '';
+
+  const coreSignalsQuery = api.skillLab.coreSignals.useQuery(undefined, {
+    enabled: Boolean(userId),
+    staleTime: 30_000
+  });
+
+  const profileQuery = api.profile.getProfile.useQuery(undefined, {
+    enabled: Boolean(userId),
+    staleTime: 30_000,
+  });
+
+  const skillCount = profileQuery.data?.skills?.length ?? 0;
+  const hasStrongProfile = skillCount >= 8;
+
+  if (coreSignalsQuery.isLoading || profileQuery.isLoading) {
+    return (
+      <div className="mvh-card-glow rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-slate-900/40 p-6 animate-pulse">
+        <div className="h-6 w-32 bg-white/10 rounded mb-2" />
+        <div className="h-4 w-48 bg-white/10 rounded" />
+      </div>
+    );
+  }
+
+  const signals = coreSignalsQuery.data;
+
+  return (
+    <Link
+      to="/skills"
+      className="mvh-card-glow group rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-slate-900/40 p-6 transition hover:border-emerald-500/50 hover:from-emerald-500/15"
+    >
+      <div className="flex items-start gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 transition group-hover:bg-emerald-500/30">
+          <DollarSign className="h-6 w-6 text-emerald-300" />
+        </div>
+        <div className="flex-1">
+          <h2 className="text-lg font-semibold text-white">CV Market Value</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            Your profile's market positioning and salary potential
+          </p>
+
+          {signals ? (
+            <div className="mt-4 space-y-3">
+              {/* Salary Potential */}
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <Target className="h-4 w-4 text-emerald-300" />
+                  <p className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
+                    Salary Potential
+                  </p>
+                </div>
+                <p className="text-sm font-medium text-emerald-100">
+                  {signals.salaryImpact.tier}
+                </p>
+                <p className="mt-1 text-xs text-emerald-200/70">
+                  {signals.salaryImpact.rationale}
+                </p>
+              </div>
+
+              {/* Quick Stats */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                  <p className="text-xs text-slate-500">Skills</p>
+                  <p className="text-lg font-bold text-white">{skillCount}</p>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                  <p className="text-xs text-slate-500">Value Signals</p>
+                  <p className="text-lg font-bold text-white">{signals.cvValueSignals.length}</p>
+                </div>
+              </div>
+
+              {/* Top Growth Hook */}
+              {signals.growthHooks.length > 0 && (
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Award className="h-3.5 w-3.5 text-amber-300" />
+                    <p className="text-xs font-semibold text-amber-300">Top Growth Area</p>
+                  </div>
+                  <p className="text-xs text-amber-100">{signals.growthHooks[0]}</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+                <p className="text-sm font-medium text-white">
+                  {hasStrongProfile
+                    ? 'Higher potential (strong skill breadth)'
+                    : 'Medium potential (build 3-5 core skills)'}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {skillCount} skills on profile
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-4 flex items-center gap-2 text-xs font-medium text-emerald-300">
+            <span>View full analysis in Skills Lab</span>
+            <span className="transition group-hover:translate-x-1">→</span>
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto }) {
   const { profile, applications, billing, practice, nextAction } = snapshot;
   const displayName = firstName(profile.fullName);
@@ -185,78 +297,98 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
       </section>
 
 
-      {/* Career Intelligence Tiles */}
-      <section className="grid gap-4 md:grid-cols-2">
-        {/* Match Analysis Tile */}
-        <Link
-          to="/skills"
-          className="mvh-card-glow group rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-slate-900/40 p-6 transition hover:border-indigo-500/50 hover:from-indigo-500/15"
-        >
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 transition group-hover:bg-indigo-500/30">
-              <Sparkles className="h-6 w-6 text-indigo-300" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-lg font-semibold text-white">Match Analysis</h2>
-              <p className="mt-1 text-sm text-slate-400">
-                Understand why you match certain roles and which skills are being evaluated
-              </p>
-              <div className="mt-4 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500">Profile completeness</span>
-                  <span className="font-semibold text-white">{profile.completeness}%</span>
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all"
-                    style={{ width: `${profile.completeness}%` }}
-                  />
-                </div>
-              </div>
-              <div className="mt-4 flex items-center gap-2 text-xs font-medium text-indigo-300">
-                <span>View detailed analysis</span>
-                <span className="transition group-hover:translate-x-1">→</span>
-              </div>
-            </div>
+      {/* Career Intelligence Section */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-white">Career Intelligence</h2>
+            <p className="mt-1 text-sm text-slate-400">
+              AI-powered insights about your market value, skills match, and growth opportunities
+            </p>
           </div>
-        </Link>
+          <Link
+            to="/skills"
+            className="text-sm font-medium text-indigo-300 hover:text-indigo-200 transition"
+          >
+            View Skills Lab →
+          </Link>
+        </div>
 
-        {/* Skills Gap Analysis Tile */}
-        <Link
-          to="/skills"
-          className="mvh-card-glow group rounded-2xl border border-teal-500/30 bg-gradient-to-br from-teal-500/10 to-slate-900/40 p-6 transition hover:border-teal-500/50 hover:from-teal-500/15"
-        >
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-teal-500/20 transition group-hover:bg-teal-500/30">
-              <TrendingUp className="h-6 w-6 text-teal-300" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-lg font-semibold text-white">Skills Gap Analysis</h2>
-              <p className="mt-1 text-sm text-slate-400">
-                Identify missing skills for your target role and get personalized development paths
-              </p>
-              <div className="mt-4 space-y-2">
-                {profile.missingCriticalFields.length > 0 ? (
-                  <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2">
-                    <p className="text-xs font-medium text-amber-300">
-                      {profile.missingCriticalFields.length} gap{profile.missingCriticalFields.length === 1 ? '' : 's'} identified
-                    </p>
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2">
-                    <p className="text-xs font-medium text-emerald-300">
-                      Profile complete — ready for analysis
-                    </p>
-                  </div>
-                )}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {/* CV Market Value Tile */}
+          <CVValueCard />
+
+          {/* Match Analysis Tile */}
+          <Link
+            to="/skills"
+            className="mvh-card-glow group rounded-2xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-slate-900/40 p-6 transition hover:border-indigo-500/50 hover:from-indigo-500/15"
+          >
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-500/20 transition group-hover:bg-indigo-500/30">
+                <Sparkles className="h-6 w-6 text-indigo-300" />
               </div>
-              <div className="mt-4 flex items-center gap-2 text-xs font-medium text-teal-300">
-                <span>Open Skills Lab</span>
-                <span className="transition group-hover:translate-x-1">→</span>
+              <div className="flex-1">
+                <h2 className="text-lg font-semibold text-white">Match Analysis</h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  Understand why you match certain roles and which skills are being evaluated
+                </p>
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500">Profile completeness</span>
+                    <span className="font-semibold text-white">{profile.completeness}%</span>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all"
+                      style={{ width: `${profile.completeness}%` }}
+                    />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center gap-2 text-xs font-medium text-indigo-300">
+                  <span>View detailed analysis</span>
+                  <span className="transition group-hover:translate-x-1">→</span>
+                </div>
               </div>
             </div>
-          </div>
-        </Link>
+          </Link>
+
+          {/* Skills Gap Analysis Tile */}
+          <Link
+            to="/skills"
+            className="mvh-card-glow group rounded-2xl border border-teal-500/30 bg-gradient-to-br from-teal-500/10 to-slate-900/40 p-6 transition hover:border-teal-500/50 hover:from-teal-500/15"
+          >
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-teal-500/20 transition group-hover:bg-teal-500/30">
+                <TrendingUp className="h-6 w-6 text-teal-300" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-lg font-semibold text-white">Skills Gap Analysis</h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  Identify missing skills for your target role and get personalized development paths
+                </p>
+                <div className="mt-4 space-y-2">
+                  {profile.missingCriticalFields.length > 0 ? (
+                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2">
+                      <p className="text-xs font-medium text-amber-300">
+                        {profile.missingCriticalFields.length} gap{profile.missingCriticalFields.length === 1 ? '' : 's'} identified
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2">
+                      <p className="text-xs font-medium text-emerald-300">
+                        Profile complete — ready for analysis
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-4 flex items-center gap-2 text-xs font-medium text-teal-300">
+                  <span>Open Skills Lab</span>
+                  <span className="transition group-hover:translate-x-1">→</span>
+                </div>
+              </div>
+            </div>
+          </Link>
+        </div>
       </section>
       <section className="grid gap-6 xl:grid-cols-3">
         <div className="mvh-card-glow rounded-2xl border border-white/10 bg-white/5 p-5 xl:col-span-2">

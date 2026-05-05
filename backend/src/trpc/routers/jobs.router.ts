@@ -100,7 +100,7 @@ export const jobsRouter = router({
     .input(z.object({
       query: z.string().default(''),
       location: z.string().default('United Kingdom'),
-      sources: z.array(z.string()).default(['reed', 'adzuna', 'jooble', 'indeed', 'gumtree', 'totaljobs', 'cv-library', 'findajob', 'linkedin', 'monster', 'glassdoor']),
+      sources: z.array(z.string()).default(['adzuna', 'cv-library', 'findajob', 'glassdoor', 'gumtree', 'indeed', 'jooble', 'linkedin', 'monster', 'reed', 'totaljobs']),
       limit: z.number().min(1).max(50).default(20),
       userId: z.string().optional(),
       maxDaysOld: z.number().min(1).max(90).optional(),

@@ -362,9 +362,19 @@ export function JobCardExpanded({
                                             style={{ width: `${analysis.skillsMatch}%` }}
                                         />
                                     </div>
-                                    {job.requirements && job.requirements.length > 0 && (
+                                    {analysis.extractedRequirements && analysis.extractedRequirements.length > 0 ? (
+                                        <p className="text-[11px] text-emerald-400 mt-1 font-medium">
+                                            ✓ Matches: {analysis.extractedRequirements.slice(0, 3).join(', ')}
+                                            {analysis.extractedRequirements.length > 3 && ` +${analysis.extractedRequirements.length - 3} more`}
+                                        </p>
+                                    ) : job.requirements && job.requirements.length > 0 ? (
+                                        <p className="text-[11px] text-emerald-400 mt-1 font-medium">
+                                            ✓ Matches: {job.requirements.slice(0, 3).join(', ')}
+                                            {job.requirements.length > 3 && ` +${job.requirements.length - 3} more`}
+                                        </p>
+                                    ) : (
                                         <p className="text-[11px] text-slate-500 mt-1">
-                                            Matches: {job.requirements.slice(0, 3).join(', ')}
+                                            Click to see detailed skill analysis
                                         </p>
                                     )}
                                 </button>
@@ -408,9 +418,18 @@ export function JobCardExpanded({
                                             style={{ width: `${analysis.salaryMatch}%` }}
                                         />
                                     </div>
-                                    <p className="text-[11px] text-slate-500 mt-1">
-                                        {analysis.salaryMatch >= 80 ? 'Within your target range' : 'Below your target range'}
-                                    </p>
+                                    {job.salaryMin && job.salaryMax ? (
+                                        <p className={`text-[11px] mt-1 font-medium ${analysis.salaryMatch >= 80 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                                            {analysis.salaryMatch >= 80
+                                                ? `✓ £${job.salaryMin.toLocaleString()}-£${job.salaryMax.toLocaleString()} matches your range`
+                                                : `⚠ £${job.salaryMin.toLocaleString()}-£${job.salaryMax.toLocaleString()} below target`
+                                            }
+                                        </p>
+                                    ) : (
+                                        <p className="text-[11px] text-slate-500 mt-1">
+                                            {analysis.salaryMatch >= 80 ? 'Within your target range' : 'Below your target range'}
+                                        </p>
+                                    )}
                                 </button>
 
                                 {/* Culture */}
@@ -451,12 +470,34 @@ export function JobCardExpanded({
                                         Strengths
                                     </p>
                                     <ul className="space-y-2">
-                                        {analysis.strengths.map((strength, i) => (
-                                            <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
-                                                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                                                <span>{strength}</span>
-                                            </li>
-                                        ))}
+                                        {analysis.strengths.map((strength, i) => {
+                                            // Enhanced strength display with specific details
+                                            const isSkillMatch = strength.toLowerCase().includes('skill') || strength.toLowerCase().includes('technical');
+                                            const isDomainMatch = strength.toLowerCase().includes('domain') || strength.toLowerCase().includes('knowledge') || strength.toLowerCase().includes('experience');
+
+                                            return (
+                                                <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                                                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                                                    <div className="flex-1">
+                                                        <span>{strength}</span>
+                                                        {isSkillMatch && analysis.extractedRequirements && analysis.extractedRequirements.length > 0 && (
+                                                            <div className="mt-1 flex flex-wrap gap-1">
+                                                                {analysis.extractedRequirements.slice(0, 4).map((skill, idx) => (
+                                                                    <span key={idx} className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                                                        {skill}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        {isDomainMatch && job.description && (
+                                                            <p className="text-xs text-emerald-300/70 mt-0.5">
+                                                                Your background aligns with {job.company}'s industry
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </li>
+                                            );
+                                        })}
                                     </ul>
                                 </div>
                             )}
@@ -468,12 +509,31 @@ export function JobCardExpanded({
                                         Considerations
                                     </p>
                                     <ul className="space-y-2">
-                                        {analysis.gaps.map((gap, i) => (
-                                            <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
-                                                <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                                                <span>{gap}</span>
-                                            </li>
-                                        ))}
+                                        {analysis.gaps.map((gap, i) => {
+                                            // Enhanced gap display with specific details
+                                            const isSalaryGap = gap.toLowerCase().includes('salary');
+                                            const isSkillGap = gap.toLowerCase().includes('skill') || gap.toLowerCase().includes('missing');
+
+                                            return (
+                                                <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                                                    <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                                                    <div className="flex-1">
+                                                        <span>{gap}</span>
+                                                        {isSalaryGap && job.salaryMin && job.salaryMax && (
+                                                            <p className="text-xs text-amber-300/70 mt-0.5">
+                                                                Offered: £{job.salaryMin.toLocaleString()}-£{job.salaryMax.toLocaleString()}
+                                                                {analysis.salaryMatch < 80 && ' (consider negotiating or highlighting unique value)'}
+                                                            </p>
+                                                        )}
+                                                        {isSkillGap && (
+                                                            <p className="text-xs text-amber-300/70 mt-0.5">
+                                                                Consider upskilling or emphasizing transferable experience
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                </li>
+                                            );
+                                        })}
                                     </ul>
                                 </div>
                             )}
