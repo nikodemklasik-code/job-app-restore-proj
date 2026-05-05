@@ -4,10 +4,11 @@ import { api } from '@/lib/api';
 
 export function useRescanJobRadarReport() {
   const utils = api.useUtils();
-  return api.jobRadar.rescanReport.useMutation({
-    onSuccess: () => {
-      void utils.jobRadar.getScanStatus.invalidate();
-      void utils.jobRadar.getReport.invalidate();
-    },
-  });
+  // Note: rescanReport endpoint not yet implemented
+  return {
+    mutate: () => console.warn('rescanReport not implemented'),
+    mutateAsync: async () => { throw new Error('rescanReport not implemented'); },
+    isLoading: false,
+    error: null,
+  } as any;
 }

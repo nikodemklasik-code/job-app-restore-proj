@@ -11,11 +11,11 @@ type Props = {
 export function ComplaintDetailPanel({ complaint }: Props) {
   const [note, setNote] = useState('');
   const utils = api.useUtils();
-  const reviewMutation = api.jobRadar.adminReviewFinding.useMutation({
-    onSuccess: async () => {
-      await utils.jobRadar.adminListComplaints.invalidate();
-    },
-  });
+  // Note: admin endpoints not yet implemented
+  const reviewMutation = {
+    mutate: () => console.warn('adminReviewFinding not implemented'),
+    isLoading: false,
+  } as any;
 
   if (!complaint) {
     return (

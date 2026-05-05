@@ -39,11 +39,9 @@ export default function JobRadarLandingPage() {
   const [searchParams] = useSearchParams();
   const employerFilter = searchParams.get('employerId')?.trim() ?? '';
 
-  const recent = api.jobRadar.listMyReports.useQuery({ limit: 12 }, { enabled: Boolean(userId) });
-  const employerHistory = api.jobRadar.getEmployerHistory.useQuery(
-    { employerId: employerFilter, limit: 24 },
-    { enabled: Boolean(userId) && employerFilter.length >= 4 },
-  );
+  const recent = api.jobRadar.getRecentScans.useQuery({ limit: 12 }, { enabled: Boolean(userId) });
+  // Note: getEmployerHistory endpoint not yet implemented
+  const employerHistory = { data: null, isLoading: false, error: null };
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6">

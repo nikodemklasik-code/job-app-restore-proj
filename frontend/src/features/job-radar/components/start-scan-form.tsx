@@ -23,22 +23,24 @@ export function StartScanForm() {
     e.preventDefault();
     if (!canSubmit) return;
 
-    const result = await mutation.mutateAsync({
-      scanTrigger: sourceUrl.trim() ? 'url_input' : 'manual_search',
-      employerName: employerName.trim() || undefined,
-      jobTitle: jobTitle.trim() || undefined,
-      location: location.trim() || undefined,
-      sourceUrl: sourceUrl.trim() || undefined,
-      forceRescan: false,
-    });
+    const trimmedJobTitle = jobTitle.trim();
+    const trimmedEmployer = employerName.trim();
 
-    if ('report_id' in result && result.report_id && result.status && terminal.has(result.status)) {
-      navigate(`/job-radar/report/${result.report_id}`);
+    if (!trimmedJobTitle || !trimmedEmployer) {
+      console.error('jobTitle and company are required');
       return;
     }
 
-    if ('scan_id' in result) {
-      navigate(`/job-radar/scan/${result.scan_id}`);
+    const result = await mutation.mutateAsync({
+      scanTrigger: sourceUrl.trim() ? 'url_input' : 'manual_search',
+      company: trimmedEmployer,
+      jobTitle: trimmedJobTitle,
+      location: location.trim() || undefined,
+      applyUrl: sourceUrl.trim() || undefined,
+    });
+
+    if ('scanId' in result) {
+      navigate(`/jobs/radar/${result.scanId}`);
     }
   }
 

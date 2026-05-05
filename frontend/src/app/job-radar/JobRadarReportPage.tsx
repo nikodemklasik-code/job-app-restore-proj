@@ -13,8 +13,8 @@ import { RescanReportButton } from '@/features/job-radar/components/rescan-repor
 
 export default function JobRadarReportPage() {
   const { reportId } = useParams<{ reportId: string }>();
-  const id = reportId ?? '';
-  const { data, isLoading, error } = useJobRadarReport(id);
+  const scanId = reportId ?? ''; // URL param is still called reportId for backwards compat
+  const { data, isLoading, error } = useJobRadarReport(scanId);
   const [complaintOpen, setComplaintOpen] = useState(false);
   const [findingId, setFindingId] = useState<string | null>(null);
 
@@ -32,7 +32,7 @@ export default function JobRadarReportPage() {
       />
 
       <div className="flex justify-end">
-        <RescanReportButton reportId={data.report_id} />
+        <RescanReportButton reportId={data.report?.id || scanId} />
       </div>
 
       <ScoreCardsGrid report={data} />
@@ -40,7 +40,7 @@ export default function JobRadarReportPage() {
       <ModelObservationsSection report={data} />
       <FindingsSection
         report={data}
-        onReportFinding={(fid) => {
+        onReportFinding={(fid: string) => {
           setFindingId(fid);
           setComplaintOpen(true);
         }}
@@ -50,7 +50,7 @@ export default function JobRadarReportPage() {
 
       <ComplaintModal
         open={complaintOpen}
-        reportId={data.report_id}
+        reportId={data.report?.id || scanId}
         findingId={findingId}
         onClose={() => setComplaintOpen(false)}
       />

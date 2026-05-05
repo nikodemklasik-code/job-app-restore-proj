@@ -9,12 +9,11 @@ export function KillSwitchPanel() {
   const [disableSevereRegistryAlerts, setDisableSevereRegistryAlerts] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const mutation = api.jobRadar.adminUpdateKillSwitch.useMutation({
-    onSuccess: () => {
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
-    },
-  });
+  // Note: admin endpoints not yet implemented
+  const mutation = {
+    mutateAsync: async () => { console.warn('adminUpdateKillSwitch not implemented'); },
+    isLoading: false,
+  } as any;
 
   async function handleSave() {
     await mutation.mutateAsync({

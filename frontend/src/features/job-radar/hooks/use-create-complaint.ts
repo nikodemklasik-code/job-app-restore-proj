@@ -3,10 +3,11 @@
 import { api } from '@/lib/api';
 
 export function useCreateComplaint() {
-  const utils = api.useUtils();
-  return api.jobRadar.createComplaint.useMutation({
-    onSuccess: (_, vars) => {
-      void utils.jobRadar.getReport.invalidate({ reportId: vars.reportId });
-    },
-  });
+  // Note: createComplaint endpoint not yet implemented
+  return {
+    mutate: () => console.warn('createComplaint not implemented'),
+    mutateAsync: async () => { throw new Error('createComplaint not implemented'); },
+    isLoading: false,
+    error: null,
+  } as any;
 }

@@ -18,14 +18,18 @@ export function StartScanCtaCard(props: Props) {
   const mutation = useStartJobRadarScan();
 
   async function handleStart() {
+    if (!props.jobTitle || !props.employerName) {
+      console.error('jobTitle and employerName are required');
+      return;
+    }
+
     const result = await mutation.mutateAsync({
       scanTrigger: props.sourceUrl ? 'url_input' : 'manual_search',
-      employerName: props.employerName,
+      company: props.employerName,
       jobTitle: props.jobTitle,
       location: props.location,
-      sourceUrl: props.sourceUrl,
-      jobPostId: props.jobPostId ?? undefined,
-      forceRescan: false,
+      applyUrl: props.sourceUrl,
+      jobId: props.jobPostId ?? undefined,
     });
 
     if ('report_id' in result && result.report_id && result.status && terminal.has(result.status)) {
