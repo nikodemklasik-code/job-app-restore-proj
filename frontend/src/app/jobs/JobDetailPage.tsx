@@ -1,4 +1,5 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 import {
     ArrowLeft,
@@ -23,6 +24,8 @@ import { useState } from 'react';
 export default function JobDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { user } = useUser();
+    const userId = user?.id ?? '';
     const [isSaved, setIsSaved] = useState(false);
 
     const jobQuery = api.jobs.getById.useQuery(
@@ -31,8 +34,8 @@ export default function JobDetailPage() {
     );
 
     const fitQuery = api.jobs.explainFit.useQuery(
-        { userId: 'temp-user-id', jobId: id! },
-        { enabled: !!id }
+        { userId, jobId: id! },
+        { enabled: !!id && !!userId }
     );
 
     if (jobQuery.isLoading || fitQuery.isLoading) {

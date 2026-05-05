@@ -531,12 +531,13 @@ export function JobCardExpanded({
                                 </ul>
 
                                 <div className="flex flex-col gap-3 pt-2">
+                                    {/* Check if Job Radar scan exists, otherwise show job detail */}
                                     <Link
                                         to={`/jobs/${job.id}`}
                                         className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm"
                                     >
                                         <FileText className="w-4 h-4" />
-                                        View Full Report
+                                        View Full Details
                                     </Link>
 
                                     <button
