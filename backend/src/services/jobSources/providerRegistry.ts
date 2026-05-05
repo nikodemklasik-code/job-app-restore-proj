@@ -7,6 +7,9 @@ import { GumtreeProvider } from './providers/gumtreeProvider.js';
 import { TotaljobsProvider } from './providers/totaljobsProvider.js';
 import { CvLibraryProvider } from './providers/cvLibraryProvider.js';
 import { FindAJobProvider } from './providers/findAJobProvider.js';
+import { LinkedInProvider } from './providers/linkedinProvider.js';
+import { MonsterProvider } from './providers/monsterProvider.js';
+import { GlassdoorProvider } from './providers/glassdoorProvider.js';
 import { DatabaseProvider } from './providers/databaseProvider.js';
 import { ManualProvider } from './providers/manualProvider.js';
 import { CompanyTargetsProvider } from './providers/companyTargetsProvider.js';
@@ -25,6 +28,9 @@ export function getProviders(): JobSourceProvider[] {
     new TotaljobsProvider(),
     new CvLibraryProvider(),
     new FindAJobProvider(),
+    new LinkedInProvider(),
+    new MonsterProvider(),
+    new GlassdoorProvider(),
     new DatabaseProvider(),
     new ManualProvider(),
     new CompanyTargetsProvider(),
