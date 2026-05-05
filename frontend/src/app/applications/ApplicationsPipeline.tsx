@@ -178,7 +178,7 @@ function ProgressRing({
 
 export default function ApplicationsPipeline() {
   const { user, isLoaded } = useUser();
-  const userId = user?.id ?? '';
+  const userId = user?.id ?? null;
 
   const [activeStage, setActiveStage] = useState<AppStatus | null>(null);
   const [showNewModal, setShowNewModal] = useState(false);
@@ -253,7 +253,7 @@ export default function ApplicationsPipeline() {
     },
   });
 
-  if (!isLoaded) {
+  if (!isLoaded || !userId) {
     return (
       <div className="flex h-48 items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
@@ -605,10 +605,10 @@ export default function ApplicationsPipeline() {
             ) : (
               <>
                 {generateFollowUpMutation.isError && (
-                   <p className="text-sm text-red-400">
-                     Could not generate follow-up email. Please try again.
-                   </p>
-                 )}
+                  <p className="text-sm text-red-400">
+                    Could not generate follow-up email. Please try again.
+                  </p>
+                )}
                 <textarea
                   value={followUpText}
                   onChange={(e) => setFollowUpText(e.target.value)}
@@ -778,7 +778,7 @@ function AppCard({
             className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 py-1.5 text-xs font-medium text-indigo-400 transition hover:bg-indigo-500/20 disabled:opacity-50"
           >
             {generateDocsMutation.isPending &&
-            generateDocsMutation.variables?.applicationId === app.id ? (
+              generateDocsMutation.variables?.applicationId === app.id ? (
               <Loader2 className="h-3 w-3 animate-spin" />
             ) : (
               <FileText className="h-3 w-3" />
@@ -838,11 +838,10 @@ function AppCard({
           <button
             onClick={onToggleMonitoring}
             title={monitoringActive ? 'Disable inbox monitoring for this application' : 'Enable inbox monitoring — app will detect employer replies and update status automatically'}
-            className={`flex w-full items-center justify-center gap-1.5 rounded-xl py-1.5 text-xs font-medium transition ${
-              monitoringActive
-                ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
-                : 'border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10'
-            }`}
+            className={`flex w-full items-center justify-center gap-1.5 rounded-xl py-1.5 text-xs font-medium transition ${monitoringActive
+              ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20'
+              : 'border border-white/10 bg-white/5 text-slate-400 hover:bg-white/10'
+              }`}
           >
             <Mail className="h-3 w-3" />
             {monitoringActive ? 'Inbox monitored ✓' : 'Monitor inbox replies'}

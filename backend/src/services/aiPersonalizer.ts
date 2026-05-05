@@ -9,6 +9,15 @@ interface Profile {
   skills?: string[];
   phone?: string;
   email?: string;
+  experiences?: CandidateExperience[];
+}
+
+interface CandidateExperience {
+  jobTitle: string | null;
+  employerName: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  description?: string | null;
 }
 
 interface Job {
@@ -295,14 +304,14 @@ export interface InterviewInsightsForScoring {
 }
 
 export async function explainJobFit(
-  profile: { skills: string[]; summary?: string },
+  profile: { skills: string[]; summary?: string; experiences?: CandidateExperience[] },
   job: { title: string; description: string; requirements: string[] },
   interviewInsights?: InterviewInsightsForScoring,
-): Promise<{ 
-  score: number; 
-  strengths: string[]; 
-  gaps: string[]; 
-  advice: string; 
+): Promise<{
+  score: number;
+  strengths: string[];
+  gaps: string[];
+  advice: string;
   extractedRequirements?: string[];
   breakdown?: {
     skillsMatch: number;
@@ -335,12 +344,23 @@ export async function explainJobFit(
   Factor this into the score: strong interview performance (+5), weak areas matching job requirements (-5 each).`
     : '';
 
+  const experienceNote = profile.experiences && profile.experiences.length > 0
+    ? `\nEmployment history (${profile.experiences.length} roles):
+${profile.experiences.slice(0, 5).map((exp) =>
+      `- ${exp.jobTitle || 'Role'} at ${exp.employerName || 'Company'} (${exp.startDate || '?'} to ${exp.endDate || 'present'})${exp.description ? ': ' + exp.description.slice(0, 100) : ''}`
+    ).join('\n')}`
+    : '';
+
   const prompt = `Analyse this job fit and respond with JSON only.
 Profile skills: ${profile.skills.join(', ')}
-Summary: ${profile.summary ?? ''}
+Summary: ${profile.summary ?? ''}${experienceNote}
 Job title: ${job.title}
 Job description (first 400 chars): ${job.description.slice(0, 400)}
 Requirements: ${job.requirements.join(', ')}${insightNote}
+
+CRITICAL RULES:
+- If employment history is provided above, experienceMatch must NOT default to 0. Assess actual relevance.
+- If skillsBreakdown.matched is non-empty, skillsMatch must be > 0 (fixes breakdown vs score inconsistency).
 
 Return: { 
   "score": 0-100, 
@@ -366,10 +386,10 @@ breakdown: provide detailed scores for each category based on profile analysis.`
   });
 
   const data = JSON.parse(res.choices[0]?.message?.content ?? '{}') as {
-    score?: number; 
-    strengths?: string[]; 
-    gaps?: string[]; 
-    advice?: string; 
+    score?: number;
+    strengths?: string[];
+    gaps?: string[];
+    advice?: string;
     extractedRequirements?: string[];
     breakdown?: {
       skillsMatch?: number;
