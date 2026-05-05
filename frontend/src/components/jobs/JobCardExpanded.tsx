@@ -615,6 +615,170 @@ export function JobCardExpanded({
                             </div>
                         </div>
                     </div>
+
+                    {/* Full Description with Parsed Sections & Employer Signals */}
+                    {job.description && (
+                        <>
+                            <div className="h-px w-full bg-gradient-to-r from-transparent via-slate-700 to-transparent my-7" />
+
+                            <div className="space-y-6">
+                                {/* Employer Trust/Risk Badges */}
+                                {job.employerSignals && (
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <TrustBadge level={job.employerSignals.trustLevel} score={job.employerSignals.trustScore} />
+                                        {job.employerSignals.benefits.length > 0 && (
+                                            <div className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 px-2.5 py-1 text-xs font-semibold text-blue-400">
+                                                <Sparkles className="h-3.5 w-3.5" />
+                                                {job.employerSignals.benefits.length} Benefits
+                                            </div>
+                                        )}
+                                        {job.employerSignals.ukSignals.filter(s => s.present).length > 0 && (
+                                            <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400">
+                                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                                UK Compliant
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Parsed Description Sections */}
+                                {(() => {
+                                    const insights = parseDescription(job.description);
+
+                                    return (
+                                        <div className="space-y-4">
+                                            {/* Quick Insights Bar */}
+                                            {(insights.experienceRequired || insights.contractType || insights.hasRemoteOption || insights.keyTechStack.length > 0) && (
+                                                <div className="flex flex-wrap gap-2 text-xs">
+                                                    {insights.experienceRequired && (
+                                                        <span className="inline-flex items-center gap-1 rounded-full border border-slate-600/50 bg-slate-700/30 px-2.5 py-1 text-slate-300">
+                                                            <Clock className="h-3 w-3" />
+                                                            {insights.experienceRequired}
+                                                        </span>
+                                                    )}
+                                                    {insights.contractType && (
+                                                        <span className="inline-flex items-center gap-1 rounded-full border border-slate-600/50 bg-slate-700/30 px-2.5 py-1 text-slate-300">
+                                                            <Briefcase className="h-3 w-3" />
+                                                            {insights.contractType}
+                                                        </span>
+                                                    )}
+                                                    {insights.hasRemoteOption && (
+                                                        <span className="inline-flex items-center gap-1 rounded-full border border-blue-600/50 bg-blue-700/30 px-2.5 py-1 text-blue-300">
+                                                            <Laptop className="h-3 w-3" />
+                                                            Remote/Hybrid
+                                                        </span>
+                                                    )}
+                                                    {insights.hasEquity && (
+                                                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-600/50 bg-emerald-700/30 px-2.5 py-1 text-emerald-300">
+                                                            <Star className="h-3 w-3" />
+                                                            Equity
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* Tech Stack */}
+                                            {insights.keyTechStack.length > 0 && (
+                                                <div>
+                                                    <p className="text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-1.5">
+                                                        <Zap className="h-3.5 w-3.5" />
+                                                        Tech Stack
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {insights.keyTechStack.map((tech, i) => (
+                                                            <span key={i} className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-2.5 py-1 text-xs font-medium text-indigo-300">
+                                                                {tech}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Collapsible Description Sections */}
+                                            <div className="space-y-3">
+                                                {insights.sections.map((section, i) => (
+                                                    <CollapsiblePanel
+                                                        key={i}
+                                                        title={`${section.icon} ${section.heading}`}
+                                                        defaultOpen={i === 0}
+                                                    >
+                                                        <div className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
+                                                            {section.content}
+                                                        </div>
+                                                    </CollapsiblePanel>
+                                                ))}
+                                            </div>
+
+                                            {/* Employer Signals Details */}
+                                            {job.employerSignals && (
+                                                <CollapsiblePanel title="🔍 Employer Analysis" defaultOpen={false}>
+                                                    <div className="space-y-4 text-sm">
+                                                        {/* Trust Reasons */}
+                                                        {job.employerSignals.trustReasons.length > 0 && (
+                                                            <div>
+                                                                <p className="text-xs font-semibold text-emerald-400 mb-2">Trust Signals:</p>
+                                                                <ul className="space-y-1 text-xs text-slate-300">
+                                                                    {job.employerSignals.trustReasons.map((reason, i) => (
+                                                                        <li key={i} className="flex items-start gap-2">
+                                                                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                                                                            <span>{reason}</span>
+                                                                        </li>
+                                                                    ))}
+                                                                </ul>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Risk Reasons */}
+                                                        {job.employerSignals.riskReasons.length > 0 && (
+                                                            <div>
+                                                                <p className="text-xs font-semibold text-amber-400 mb-2">Review Points:</p>
+                                                                <ul className="space-y-1 text-xs text-slate-300">
+                                                                    {job.employerSignals.riskReasons.map((reason, i) => (
+                                                                        <li key={i} className="flex items-start gap-2">
+                                                                            <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />
+                                                                            <span>{reason}</span>
+                                                                        </li>
+                                                                    ))}
+                                                                </ul>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Benefits */}
+                                                        {job.employerSignals.benefits.length > 0 && (
+                                                            <div>
+                                                                <p className="text-xs font-semibold text-blue-400 mb-2">Detected Benefits:</p>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {job.employerSignals.benefits.map((benefit, i) => (
+                                                                        <span key={i} className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-2 py-1 text-xs text-blue-300">
+                                                                            {benefit.label}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* UK Signals */}
+                                                        {job.employerSignals.ukSignals.filter(s => s.present).length > 0 && (
+                                                            <div>
+                                                                <p className="text-xs font-semibold text-emerald-400 mb-2">UK Compliance:</p>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {job.employerSignals.ukSignals.filter(s => s.present).map((signal, i) => (
+                                                                        <span key={i} className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-xs text-emerald-300">
+                                                                            {signal.label}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </CollapsiblePanel>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        </>
+                    )}
                 </div>
             </article>
 
