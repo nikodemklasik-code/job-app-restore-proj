@@ -485,7 +485,8 @@ export default function JobsDiscovery() {
   const [location, setLocation] = useState(() => urlSearchParams.get('loc') || 'United Kingdom');
   const [sources, setSources] = useState<Source[]>(() => {
     const sourcesParam = urlSearchParams.get('sources');
-    return sourcesParam ? sourcesParam.split(',') as Source[] : ['reed', 'adzuna', 'jooble'];
+    // Default to all 11 providers
+    return sourcesParam ? sourcesParam.split(',') as Source[] : ['reed', 'adzuna', 'jooble', 'indeed', 'gumtree', 'totaljobs', 'cv-library', 'findajob', 'linkedin', 'monster', 'glassdoor'];
   });
   const [maxDaysOld, setMaxDaysOld] = useState<number | undefined>(undefined);
 
@@ -500,7 +501,7 @@ export default function JobsDiscovery() {
     return {
       query: q,
       location: loc || 'United Kingdom',
-      sources: src ? src.split(',') : ['reed', 'adzuna', 'jooble'],
+      sources: src ? src.split(',') : ['reed', 'adzuna', 'jooble', 'indeed', 'gumtree', 'totaljobs', 'cv-library', 'findajob', 'linkedin', 'monster', 'glassdoor'],
       maxDaysOld,
     };
   }, [urlSearchParams, maxDaysOld]);
@@ -837,7 +838,7 @@ export default function JobsDiscovery() {
     setUrlSearchParams({});
     setQuery('');
     setLocation('United Kingdom');
-    setSources(['reed', 'adzuna', 'jooble']);
+    setSources(['reed', 'adzuna', 'jooble', 'indeed', 'gumtree', 'totaljobs', 'cv-library', 'findajob', 'linkedin', 'monster', 'glassdoor']);
   };
 
   const handleSaveSearch = () => {
