@@ -65,108 +65,42 @@ export default function JobRadarLandingPage() {
             </Link>
           </div>
           <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
-            Prior scans grouped by stable employer id (hash of employer name / URL / saved job).
+            Feature not yet implemented - coming soon!
           </p>
-          {employerHistory.isLoading ? (
-            <p className="mt-3 text-xs text-neutral-500">Loading…</p>
-          ) : employerHistory.data && employerHistory.data.history.length > 0 ? (
-            <ul className="mt-3 space-y-2">
-              {employerHistory.data.history.map((h) => (
-                <li
-                  key={h.report_id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs dark:border-neutral-700 dark:bg-neutral-900"
-                >
-                  <span className="text-neutral-600 dark:text-neutral-400">
-                    {h.created_at ? new Date(h.created_at).toLocaleString() : '—'}
-                  </span>
-                  <span className="text-neutral-700 dark:text-neutral-300">
-                    employer {h.employer_score} · offer {h.offer_score} · risk {h.risk_score}
-                  </span>
-                  <Link
-                    to={`/job-radar/report/${h.report_id}`}
-                    className="font-medium text-indigo-700 hover:underline dark:text-indigo-300"
-                  >
-                    Open
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-3 text-xs text-neutral-500">No prior reports for this employer id.</p>
-          )}
         </section>
       ) : null}
 
       {userId && (
         <section className="mvh-card-glow rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-950">
-          <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Your recent reports</h2>
+          <h2 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Your recent scans</h2>
           <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">
-            Private scans tied to your account. Fit / risk / freshness use Job Radar scores when available.
+            Recent Job Radar scans tied to your account.
           </p>
           {recent.isLoading ? (
             <p className="mt-3 text-xs text-neutral-500">Loading…</p>
           ) : recent.data && recent.data.length > 0 ? (
             <ul className="mt-3 space-y-3">
-              {recent.data.map((row) => {
-                const label =
-                  row.employerName?.trim() ||
-                  row.jobTitle?.trim() ||
-                  row.sourceUrl?.trim()?.slice(0, 48) ||
-                  'Scan';
-                const historyTo =
-                  row.employerId && row.employerId.length >= 4
-                    ? `/job-radar?employerId=${encodeURIComponent(row.employerId)}`
-                    : null;
+              {recent.data.map((row: any) => {
+                const label = `${row.jobTitle} at ${row.company}`;
                 return (
                   <li
-                    key={row.reportId}
+                    key={row.scanId}
                     className="rounded-xl border border-neutral-200 bg-neutral-50/80 p-4 dark:border-neutral-800 dark:bg-neutral-900/80"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="min-w-0 space-y-1">
                         <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">{label}</p>
                         <p className="text-[11px] text-neutral-500">
-                          {row.reportStatus}
-                          {row.freshnessStatus ? ` · freshness ${row.freshnessStatus}` : ''} ·{' '}
-                          {row.startedAt != null ? new Date(row.startedAt).toLocaleString() : '—'}
-                        </p>
-                        <div className="flex flex-wrap gap-2 pt-1 text-[11px] text-neutral-600 dark:text-neutral-400">
-                          {row.employerScore != null ? (
-                            <span className="rounded border border-neutral-200 px-2 py-0.5 dark:border-neutral-700">
-                              Employer {row.employerScore}
-                            </span>
-                          ) : null}
-                          {row.offerScore != null ? (
-                            <span className="rounded border border-neutral-200 px-2 py-0.5 dark:border-neutral-700">
-                              Offer {row.offerScore}
-                            </span>
-                          ) : null}
-                          {row.riskScore != null ? (
-                            <span className="rounded border border-neutral-200 px-2 py-0.5 dark:border-neutral-700">
-                              Risk {row.riskScore}
-                            </span>
-                          ) : null}
-                        </div>
-                        <p className="pt-2 text-xs text-neutral-700 dark:text-neutral-300">
-                          <span className="font-semibold text-neutral-800 dark:text-neutral-200">Why this match: </span>
-                          {whyThisMatch(row)}
+                          {row.status} · {new Date(row.startedAt).toLocaleString()}
                         </p>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-2">
                         <Link
-                          to={`/job-radar/report/${row.reportId}`}
+                          to={`/jobs/radar/${row.scanId}`}
                           className="rounded-md border border-neutral-300 px-2 py-1 text-xs font-medium text-neutral-800 hover:bg-neutral-50 dark:border-neutral-600 dark:text-neutral-200 dark:hover:bg-neutral-800"
                         >
-                          Open report
+                          View scan
                         </Link>
-                        {historyTo ? (
-                          <Link
-                            to={historyTo}
-                            className="text-[11px] font-medium text-indigo-700 hover:underline dark:text-indigo-300"
-                          >
-                            Employer track
-                          </Link>
-                        ) : null}
                       </div>
                     </div>
                   </li>

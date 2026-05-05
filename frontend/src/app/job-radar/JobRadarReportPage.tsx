@@ -32,7 +32,7 @@ export default function JobRadarReportPage() {
       />
 
       <div className="flex justify-end">
-        <RescanReportButton reportId={data.report?.id || scanId} />
+        <RescanReportButton reportId={scanId} />
       </div>
 
       <ScoreCardsGrid report={data} />
@@ -40,7 +40,7 @@ export default function JobRadarReportPage() {
       <ModelObservationsSection report={data} />
       <FindingsSection
         report={data}
-        onReportFinding={(fid: string) => {
+        onReportFinding={(fid: string | null) => {
           setFindingId(fid);
           setComplaintOpen(true);
         }}
@@ -50,7 +50,7 @@ export default function JobRadarReportPage() {
 
       <ComplaintModal
         open={complaintOpen}
-        reportId={data.report?.id || scanId}
+        reportId={scanId}
         findingId={findingId}
         onClose={() => setComplaintOpen(false)}
       />
