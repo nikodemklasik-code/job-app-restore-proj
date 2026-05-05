@@ -10,11 +10,224 @@ import {
     Radar,
     Loader2,
     X,
-    Beaker
+    Beaker,
+    Shield,
+    ShieldAlert,
+    ShieldCheck,
+    Briefcase,
+    Clock,
+    MapPin,
+    Banknote,
+    Laptop,
+    Users,
+    GraduationCap,
+    Zap,
+    ChevronDown,
+    ChevronUp,
+    XCircle,
+    Star,
+    MinusCircle,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { JobCardCompact } from './JobCardCompact';
+
+// ── Employer signals type (mirrors backend jobProtection.ts) ────────────────
+
+type BenefitSignal = {
+    type: string;
+    label: string;
+    source: 'detected_in_listing';
+};
+
+type UkSignal = {
+    type: string;
+    label: string;
+    present: boolean;
+};
+
+type EmployerSignals = {
+    trustScore: number;
+    trustLevel: 'verified' | 'likely_legit' | 'review' | 'risky';
+    riskScore: number;
+    riskLevel: 'low' | 'medium' | 'high';
+    salaryTransparency: 'full' | 'range' | 'none';
+    descriptionQuality: 'detailed' | 'average' | 'thin';
+    requirementsClarity: 'clear' | 'vague' | 'none';
+    workModeClarity: 'explicit' | 'implicit' | 'none';
+    benefits: BenefitSignal[];
+    ukSignals: UkSignal[];
+    trustReasons: string[];
+    riskReasons: string[];
+};
+
+// ── Description parser ──────────────────────────────────────────────────────
+
+type DescriptionSection = {
+    heading: string;
+    icon: string;
+    content: string;
+};
+
+type DescriptionInsights = {
+    experienceRequired: string | null;
+    contractType: string | null;
+    descriptionExcerpt: string | null;
+    hasEquity: boolean;
+    hasRemoteOption: boolean;
+    keyTechStack: string[];
+    sections: DescriptionSection[];
+};
+
+const TECH_KEYWORDS = [
+    'React', 'Vue', 'Angular', 'Next.js', 'TypeScript', 'JavaScript', 'Python',
+    'Node.js', 'Go', 'Rust', 'Java', 'Kotlin', 'Swift', 'C#', '.NET', 'Ruby',
+    'PHP', 'GraphQL', 'REST', 'PostgreSQL', 'MySQL', 'MongoDB', 'Redis',
+    'AWS', 'GCP', 'Azure', 'Docker', 'Kubernetes', 'Terraform', 'CI/CD',
+    'TDD', 'Agile', 'Scrum', 'Linux', 'Git',
+];
+
+const SECTION_PATTERNS: Array<{ pattern: RegExp; heading: string; icon: string }> = [
+    { pattern: /about (the )?(role|position|job|opportunity)/i, heading: 'About the Role', icon: '💼' },
+    { pattern: /about (us|the company|our company|the team)/i, heading: 'About Us', icon: '🏢' },
+    { pattern: /what (you('ll| will) do|we('re| are) looking for|the role involves)/i, heading: 'What You\'ll Do', icon: '🎯' },
+    { pattern: /key (responsibilities|duties|accountabilities)/i, heading: 'Responsibilities', icon: '📋' },
+    { pattern: /responsibilities|your (role|duties|day.to.day)/i, heading: 'Responsibilities', icon: '📋' },
+    { pattern: /requirements?|what (you('ll| will) need|we need|we require)/i, heading: 'Requirements', icon: '✅' },
+    { pattern: /essential (skills?|experience|criteria)/i, heading: 'Requirements', icon: '✅' },
+    { pattern: /nice to have|desirable|bonus (skills?|points?)/i, heading: 'Nice to Have', icon: '⭐' },
+    { pattern: /preferred (skills?|qualifications?|experience)/i, heading: 'Nice to Have', icon: '⭐' },
+    { pattern: /what (we offer|you('ll| will) get|we provide)/i, heading: 'What We Offer', icon: '🎁' },
+    { pattern: /benefits|perks|package|compensation/i, heading: 'Benefits', icon: '🎁' },
+    { pattern: /salary|pay|remuneration/i, heading: 'Salary', icon: '💰' },
+    { pattern: /skills? (required|needed|we('re| are) looking for)/i, heading: 'Required Skills', icon: '🔧' },
+    { pattern: /technical (skills?|requirements?|stack)/i, heading: 'Tech Stack', icon: '⚙️' },
+    { pattern: /qualifications?|education|degree/i, heading: 'Qualifications', icon: '🎓' },
+    { pattern: /about the team|team (structure|size|culture)/i, heading: 'The Team', icon: '👥' },
+    { pattern: /interview (process|stages?|steps?)/i, heading: 'Interview Process', icon: '🗓️' },
+    { pattern: /how to apply|application (process|instructions?)/i, heading: 'How to Apply', icon: '📨' },
+    { pattern: /equal opportunities?|diversity|inclusion/i, heading: 'Diversity & Inclusion', icon: '🤝' },
+];
+
+function parseSections(text: string): DescriptionSection[] {
+    const lines = text.split(/\r?\n/);
+    const sections: DescriptionSection[] = [];
+    let currentHeading: string | null = null;
+    let currentIcon = '📄';
+    let currentLines: string[] = [];
+
+    const isHeadingLine = (line: string): boolean => {
+        const trimmed = line.trim();
+        if (trimmed.length === 0) return false;
+        if (trimmed.length > 80) return false;
+        if (trimmed.endsWith(':')) return true;
+        if (trimmed.length >= 3 && trimmed === trimmed.toUpperCase() && /[A-Z]/.test(trimmed)) return true;
+        return SECTION_PATTERNS.some((p) => p.pattern.test(trimmed));
+    };
+
+    const canonicalise = (line: string): { heading: string; icon: string } => {
+        const trimmed = line.replace(/:$/, '').trim();
+        const match = SECTION_PATTERNS.find((p) => p.pattern.test(trimmed));
+        if (match) return { heading: match.heading, icon: match.icon };
+        const titleCased = trimmed.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+        return { heading: titleCased, icon: '📄' };
+    };
+
+    const flush = () => {
+        const content = currentLines.join('\n').trim();
+        if (currentHeading && content.length > 0) {
+            sections.push({ heading: currentHeading, icon: currentIcon, content });
+        }
+        currentLines = [];
+    };
+
+    for (const line of lines) {
+        if (isHeadingLine(line)) {
+            flush();
+            const { heading, icon } = canonicalise(line);
+            currentHeading = heading;
+            currentIcon = icon;
+        } else {
+            currentLines.push(line);
+        }
+    }
+    flush();
+
+    if (sections.length === 0 && text.trim().length > 0) {
+        return [{ heading: 'About the Role', icon: '💼', content: text.trim() }];
+    }
+
+    return sections;
+}
+
+function parseDescription(description: string): DescriptionInsights {
+    const text = description;
+    const lower = text.toLowerCase();
+
+    const expMatch = text.match(/(\d+)\+?\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i);
+    const experienceRequired = expMatch ? `${expMatch[1]}+ years` : null;
+
+    let contractType: string | null = null;
+    if (/\bpermanent\b|\bfull[- ]?time\b/i.test(text)) contractType = 'Permanent';
+    else if (/\bcontract\b|\bfixed[- ]?term\b/i.test(text)) contractType = 'Contract';
+    else if (/\bfreelance\b|\bself[- ]?employed\b/i.test(text)) contractType = 'Freelance';
+    else if (/\bpart[- ]?time\b/i.test(text)) contractType = 'Part-time';
+
+    const hasEquity = /\bequity\b|\bstock\b|\bshare\s*option|\beso[ps]?\b/i.test(text);
+    const hasRemoteOption = /\bremote\b|\bhybrid\b|\bwork from home\b|\bwfh\b/i.test(lower);
+
+    const keyTechStack = TECH_KEYWORDS.filter((kw) =>
+        new RegExp(`\\b${kw.replace('.', '\\.')}\\b`, 'i').test(text)
+    ).slice(0, 8);
+
+    const sentences = text.split(/(?<=[.!?])\s+/);
+    const firstSentence = sentences.find((s) => s.trim().length > 20) ?? '';
+    const descriptionExcerpt = firstSentence.length > 0
+        ? firstSentence.slice(0, 200) + (firstSentence.length > 200 ? '…' : '')
+        : null;
+
+    const sections = parseSections(text);
+
+    return { experienceRequired, contractType, descriptionExcerpt, hasEquity, hasRemoteOption, keyTechStack, sections };
+}
+
+// ── Trust badge ─────────────────────────────────────────────────────────────
+
+function TrustBadge({ level, score }: { level: EmployerSignals['trustLevel']; score: number }) {
+    const configs = {
+        verified: { Icon: ShieldCheck, label: 'High Trust', cls: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' },
+        likely_legit: { Icon: Shield, label: 'Likely Legitimate', cls: 'text-blue-400 border-blue-500/30 bg-blue-500/10' },
+        review: { Icon: ShieldAlert, label: 'Review Signals', cls: 'text-amber-400 border-amber-500/30 bg-amber-500/10' },
+        risky: { Icon: ShieldAlert, label: 'Risk Signals', cls: 'text-red-400 border-red-500/30 bg-red-500/10' },
+    };
+    const c = configs[level];
+    return (
+        <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${c.cls}`}>
+            <c.Icon className="h-3.5 w-3.5" />
+            {c.label}
+            <span className="ml-1 opacity-60">{score}/100</span>
+        </div>
+    );
+}
+
+// ── Collapsible section ─────────────────────────────────────────────────────
+
+function CollapsiblePanel({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+    const [open, setOpen] = useState(defaultOpen);
+    return (
+        <div className="rounded-xl border border-white/[0.07] overflow-hidden">
+            <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                className="w-full flex items-center justify-between px-3 py-2.5 text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/5 transition"
+            >
+                {title}
+                {open ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </button>
+            {open && <div className="px-3 pb-3 pt-1">{children}</div>}
+        </div>
+    );
+}
 
 type JobCardExpandedProps = {
     job: {
@@ -29,12 +242,14 @@ type JobCardExpandedProps = {
         applyUrl: string;
         fitScore: number;
         postedAt?: string;
+        description?: string;
         requirements?: string[];
         scamAnalysis?: {
             riskScore: number;
             level: 'low' | 'medium' | 'high';
             reasons?: string[];
         };
+        employerSignals?: EmployerSignals;
     };
     applicationStatus?: string;
     isSaved?: boolean;
