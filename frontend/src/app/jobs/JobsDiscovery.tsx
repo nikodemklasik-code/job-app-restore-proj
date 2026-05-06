@@ -1003,7 +1003,7 @@ export default function JobsDiscovery() {
             title="Search jobs based on your skills from profile"
           >
             <Sparkles className="h-4 w-4" />
-            Szukaj na podstawie umiejętności
+            Search by Skills
           </button>
           {searchParams && (
             <button
