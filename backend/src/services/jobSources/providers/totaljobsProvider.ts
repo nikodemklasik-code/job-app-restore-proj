@@ -36,19 +36,23 @@ function extractRequirements(description: string): string[] {
         .slice(0, 8);
 }
 
-async function scrapeTotaljobs(input: DiscoveryInput): Promise<SourceJob[]> {
+async function scrapeTotaljobs(input: DiscoveryInput, cookies?: string): Promise<SourceJob[]> {
     const query = encodeURIComponent(input.query);
     const location = encodeURIComponent(input.location || 'UK');
     const url = `https://www.totaljobs.com/jobs/${query}/in-${location}`;
 
     try {
-        const response = await fetch(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'en-GB,en;q=0.9',
-            },
-        });
+        const headers: Record<string, string> = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-GB,en;q=0.9',
+        };
+
+        if (cookies?.trim()) {
+            headers['Cookie'] = cookies;
+        }
+
+        const response = await fetch(url, { headers });
 
         if (!response.ok) {
             console.warn(`[TotaljobsProvider] HTTP ${response.status} for ${url}`);
@@ -79,25 +83,42 @@ async function scrapeTotaljobs(input: DiscoveryInput): Promise<SourceJob[]> {
             }
         }
 
-        // Fallback: parse HTML job cards
+        // Fallback: parse HTML job cards with improved patterns
         if (jobs.length === 0) {
-            const cardPattern = /data-job-id="([^"]+)"[\s\S]*?class="job-title"[^>]*>([^<]+)<[\s\S]*?class="company"[^>]*>([^<]+)<[\s\S]*?class="location"[^>]*>([^<]+)</g;
-            let match;
-            while ((match = cardPattern.exec(html)) !== null) {
-                jobs.push({
-                    externalId: match[1],
-                    source: 'totaljobs',
-                    title: stripHtml(match[2]),
-                    company: stripHtml(match[3]),
-                    location: stripHtml(match[4]),
-                    description: '',
-                    applyUrl: `https://www.totaljobs.com/job/${match[1]}`,
-                    salaryMin: null,
-                    salaryMax: null,
-                    workMode: null,
-                    requirements: [],
-                    postedAt: new Date().toISOString(),
-                });
+            // Try multiple patterns for TotalJobs structure
+            const patterns = [
+                // Pattern 1: Standard structure with data-job-id
+                /data-job-id="([^"]+)"[\s\S]*?class="job-title"[^>]*>([^<]+)<[\s\S]*?class="company"[^>]*>([^<]+)<[\s\S]*?class="location"[^>]*>([^<]+)</g,
+                // Pattern 2: Alternative structure
+                /<article[^>]*job[^>]*>[\s\S]{0,800}?<h[23][^>]*>[\s\S]*?<a[^>]*href="[^"]*\/job\/([^"\/]+)"[^>]*>([^<]+)<\/a>[\s\S]{0,500}?<[^>]*>([^<]+)<\/[^>]*>[\s\S]{0,300}?<[^>]*>([^<]+)</gi,
+                // Pattern 3: Job card structure
+                /<div[^>]*job-card[^>]*>[\s\S]{0,800}?<a[^>]*href="[^"]*\/job\/([^"\/]+)"[^>]*>([^<]+)<\/a>[\s\S]{0,500}?<[^>]*>([^<]+)<\/[^>]*>[\s\S]{0,300}?<[^>]*>([^<]+)</gi
+            ];
+
+            for (const pattern of patterns) {
+                let match;
+                while ((match = pattern.exec(html)) !== null) {
+                    const jobId = match[1];
+                    const title = match[2];
+                    const company = match[3];
+                    const location = match[4];
+
+                    jobs.push({
+                        externalId: jobId,
+                        source: 'totaljobs',
+                        title: stripHtml(title),
+                        company: stripHtml(company),
+                        location: stripHtml(location),
+                        description: '',
+                        applyUrl: `https://www.totaljobs.com/job/${jobId}`,
+                        salaryMin: null,
+                        salaryMax: null,
+                        workMode: null,
+                        requirements: [],
+                        postedAt: new Date().toISOString(),
+                    });
+                }
+                if (jobs.length > 0) break; // Stop if we found jobs with this pattern
             }
         }
 
@@ -149,14 +170,15 @@ export class TotaljobsProvider implements JobSourceProvider {
     async readiness(): Promise<{ ready: boolean; reason?: string }> {
         return {
             ready: true,
-            reason: 'Totaljobs web scraping enabled',
+            reason: 'Totaljobs web scraping enabled (enhanced with session cookies support)',
         };
     }
 
-    async discover(input: DiscoveryInput, _context?: ProviderContext): Promise<SourceJob[]> {
+    async discover(input: DiscoveryInput, context?: ProviderContext): Promise<SourceJob[]> {
         const start = Date.now();
         try {
-            const jobs = await scrapeTotaljobs(input);
+            const cookies = context?.sessionCookies?.['totaljobs'];
+            const jobs = await scrapeTotaljobs(input, cookies);
             await logProviderEvent({ provider: this.name, eventType: 'search_success', query: input.query, location: input.location, jobsFound: jobs.length, responseTimeMs: Date.now() - start });
             return jobs;
         } catch (error) {

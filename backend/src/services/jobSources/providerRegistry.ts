@@ -14,23 +14,45 @@ import { DatabaseProvider } from './providers/databaseProvider.js';
 import { ManualProvider } from './providers/manualProvider.js';
 import { CompanyTargetsProvider } from './providers/companyTargetsProvider.js';
 import { OpenAiDiscoveryProvider } from './providers/openAiDiscoveryProvider.js';
+import { RapidApiJobsProvider } from './providers/rapidApiJobsProvider.js';
+import { SerpApiJobsProvider } from './providers/serpApiJobsProvider.js';
+import { TheMuseJobsProvider } from './providers/theMuseJobsProvider.js';
+// New API-based providers (no cookies required)
+import { RapidApiProvider } from './providers/rapidApiProvider.js';
+import { GovJobsProvider } from './providers/govJobsProvider.js';
+import { RssFeedProvider } from './providers/rssFeedProvider.js';
+import { AggregatorProvider } from './providers/aggregatorProvider.js';
 
 let _providers: JobSourceProvider[] | null = null;
 
 export function getProviders(): JobSourceProvider[] {
   if (_providers) return _providers;
   _providers = [
+    // API-based providers (reliable, no cookies)
     new ReedProvider(),
     new AdzunaProvider(),
     new JoobleProvider(),
+    new RapidApiProvider(),
+    new GovJobsProvider(),
+    new RssFeedProvider(),
+    new AggregatorProvider(),
+    new RapidApiJobsProvider(),
+    new SerpApiJobsProvider(),
+    new TheMuseJobsProvider(),
+
+    // Cookie/session-based providers (may be unreliable)
     new IndeedBrowserProvider(),
     new GumtreeProvider(),
-    new TotaljobsProvider(),
-    new CvLibraryProvider(),
-    new FindAJobProvider(),
     new LinkedInProvider(),
     new MonsterProvider(),
     new GlassdoorProvider(),
+
+    // Scraping-based providers (may be blocked)
+    new TotaljobsProvider(),
+    new CvLibraryProvider(),
+    new FindAJobProvider(),
+
+    // Internal providers
     new DatabaseProvider(),
     new ManualProvider(),
     new CompanyTargetsProvider(),

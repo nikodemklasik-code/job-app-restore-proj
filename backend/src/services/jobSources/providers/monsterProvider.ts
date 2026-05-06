@@ -53,19 +53,23 @@ function parseSalary(salaryText: string): { min: number | null; max: number | nu
     return { min: null, max: null };
 }
 
-async function scrapeMonster(input: DiscoveryInput): Promise<SourceJob[]> {
+async function scrapeMonster(input: DiscoveryInput, cookies?: string): Promise<SourceJob[]> {
     const query = encodeURIComponent(input.query);
     const location = encodeURIComponent(input.location || 'UK');
     const url = `https://www.monster.co.uk/jobs/search/?q=${query}&where=${location}`;
 
     try {
-        const response = await fetch(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'en-GB,en;q=0.9',
-            },
-        });
+        const headers: Record<string, string> = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-GB,en;q=0.9',
+        };
+
+        if (cookies?.trim()) {
+            headers['Cookie'] = cookies;
+        }
+
+        const response = await fetch(url, { headers });
 
         if (!response.ok) {
             console.warn(`[MonsterProvider] HTTP ${response.status} for ${url}`);
@@ -96,26 +100,46 @@ async function scrapeMonster(input: DiscoveryInput): Promise<SourceJob[]> {
             }
         }
 
-        // Fallback: parse HTML job cards
+        // Fallback: parse HTML job cards with improved regex
         if (jobs.length === 0) {
-            const cardPattern = /data-job-id="([^"]+)"[\s\S]{0,600}?<h2[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>[\s\S]{0,400}?<div[^>]*class="[^"]*company[^"]*"[^>]*>([^<]+)<[\s\S]{0,400}?<div[^>]*class="[^"]*location[^"]*"[^>]*>([^<]+)<[\s\S]{0,400}?<span[^>]*class="[^"]*salary[^"]*"[^>]*>([^<]+)</gi;
-            let match;
-            while ((match = cardPattern.exec(html)) !== null) {
-                const salary = parseSalary(match[6]);
-                jobs.push({
-                    externalId: match[1],
-                    source: 'monster',
-                    title: stripHtml(match[3]),
-                    company: stripHtml(match[4]),
-                    location: stripHtml(match[5]),
-                    description: '',
-                    applyUrl: match[2].startsWith('http') ? match[2] : `https://www.monster.co.uk${match[2]}`,
-                    salaryMin: salary.min,
-                    salaryMax: salary.max,
-                    workMode: null,
-                    requirements: [],
-                    postedAt: new Date().toISOString(),
-                });
+            // Try multiple patterns for Monster's changing HTML structure
+            const patterns = [
+                // Pattern 1: Standard job cards
+                /data-job-id="([^"]+)"[\s\S]{0,600}?<h2[^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>[\s\S]{0,400}?<div[^>]*class="[^"]*company[^"]*"[^>]*>([^<]+)<[\s\S]{0,400}?<div[^>]*class="[^"]*location[^"]*"[^>]*>([^<]+)<[\s\S]{0,400}?<span[^>]*class="[^"]*salary[^"]*"[^>]*>([^<]+)</gi,
+                // Pattern 2: Alternative structure
+                /data-testid="job-([^"]+)"[\s\S]{0,800}?<h3[^>]*>[\s\S]*?<a[^>]*>([^<]+)<\/a>[\s\S]{0,500}?company[^>]*>([^<]+)<[\s\S]{0,500}?location[^>]*>([^<]+)<[\s\S]{0,500}?salary[^>]*>([^<]+)</gi,
+                // Pattern 3: Simplified structure
+                /<article[^>]*job[^>]*>[\s\S]{0,800}?<h[23][^>]*>[\s\S]*?<a[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>[\s\S]{0,500}?<[^>]*>([^<]+)<\/[^>]*>[\s\S]{0,300}?<[^>]*>([^<]+)</gi
+            ];
+
+            for (const pattern of patterns) {
+                let match;
+                while ((match = pattern.exec(html)) !== null) {
+                    const isPattern3 = pattern === patterns[2];
+                    const jobId = isPattern3 ? Date.now().toString() + Math.random().toString(36).substr(2, 9) : match[1];
+                    const url = isPattern3 ? match[1] : match[2];
+                    const title = isPattern3 ? match[2] : match[3];
+                    const company = isPattern3 ? match[3] : match[4];
+                    const location = isPattern3 ? match[4] : match[5];
+                    const salaryText = isPattern3 ? '' : (match[6] || '');
+
+                    const salary = parseSalary(salaryText);
+                    jobs.push({
+                        externalId: jobId,
+                        source: 'monster',
+                        title: stripHtml(title),
+                        company: stripHtml(company),
+                        location: stripHtml(location),
+                        description: '',
+                        applyUrl: url.startsWith('http') ? url : `https://www.monster.co.uk${url}`,
+                        salaryMin: salary.min,
+                        salaryMax: salary.max,
+                        workMode: null,
+                        requirements: [],
+                        postedAt: new Date().toISOString(),
+                    });
+                }
+                if (jobs.length > 0) break; // Stop if we found jobs with this pattern
             }
         }
 
@@ -169,14 +193,15 @@ export class MonsterProvider implements JobSourceProvider {
     async readiness(): Promise<{ ready: boolean; reason?: string }> {
         return {
             ready: true,
-            reason: 'Monster UK web scraping enabled',
+            reason: 'Monster UK web scraping enabled (enhanced with session cookies support)',
         };
     }
 
-    async discover(input: DiscoveryInput, _context?: ProviderContext): Promise<SourceJob[]> {
+    async discover(input: DiscoveryInput, context?: ProviderContext): Promise<SourceJob[]> {
         const start = Date.now();
         try {
-            const jobs = await scrapeMonster(input);
+            const cookies = context?.sessionCookies?.['monster'];
+            const jobs = await scrapeMonster(input, cookies);
             await logProviderEvent({ provider: this.name, eventType: 'search_success', query: input.query, location: input.location, jobsFound: jobs.length, responseTimeMs: Date.now() - start });
             return jobs;
         } catch (error) {

@@ -10,8 +10,6 @@ import { explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.
 import { assessJobScamRisk, assessEmployerSignals } from '../../services/jobProtection.js';
 import { buildCandidateInsights } from '../../services/adaptiveInterviewer.js';
 
-const PUBLIC_JOB_PROVIDERS = ['reed', 'adzuna', 'jooble'];
-
 function mapRequestedProviders(sources: string[]): string[] {
   return sources.map((source) => {
     if (source === 'indeed') return 'indeed-browser';
@@ -74,8 +72,8 @@ async function runManualDiscoveryWithFallbacks(input: {
   limit: number;
   userId?: string;
   providers: string[];
-}, providerContext: { sessionCookies?: { indeed?: string; gumtree?: string }; userId?: string }): Promise<Awaited<ReturnType<typeof JobDiscoveryService.discover>>['jobs']> {
-  const providers = Array.from(new Set([...input.providers, ...PUBLIC_JOB_PROVIDERS]));
+}, providerContext: { sessionCookies?: { indeed?: string; gumtree?: string; glassdoor?: string; linkedin?: string }; userId?: string }): Promise<Awaited<ReturnType<typeof JobDiscoveryService.discover>>['jobs']> {
+  const providers = Array.from(new Set(input.providers));
   const attempts: Array<{ query: string; location: string }> = [];
 
   for (const query of queryFallbacks(input.query)) {
@@ -107,7 +105,15 @@ export const jobsRouter = router({
     }))
     .query(async ({ input }) => {
       try {
-        let sessionCookies: { indeed?: string; gumtree?: string } | undefined;
+        let sessionCookies: {
+          indeed?: string;
+          gumtree?: string;
+          glassdoor?: string;
+          linkedin?: string;
+          monster?: string;
+          totaljobs?: string;
+          cvlibrary?: string;
+        } | undefined;
         if (input.userId) {
           const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
           if (userRecord[0]) {
@@ -119,6 +125,11 @@ export const jobsRouter = router({
               for (const s of sessions) {
                 if (s.provider === 'indeed') sessionCookies.indeed = s.cookies;
                 if (s.provider === 'gumtree') sessionCookies.gumtree = s.cookies;
+                if (s.provider === 'glassdoor') sessionCookies.glassdoor = s.cookies;
+                if (s.provider === 'linkedin') sessionCookies.linkedin = s.cookies;
+                if (s.provider === 'monster') sessionCookies.monster = s.cookies;
+                if (s.provider === 'totaljobs') sessionCookies.totaljobs = s.cookies;
+                if (s.provider === 'cv-library') sessionCookies.cvlibrary = s.cookies;
               }
             }
           }

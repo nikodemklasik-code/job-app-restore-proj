@@ -93,6 +93,11 @@ export async function discoverJobsForProfile(
   // Lazy import to avoid circular dependency with jobDiscoveryService.
   const { JobDiscoveryService } = await import('./jobDiscoveryService.js');
 
+  // Use user-selected providers instead of hardcoded DELEGATE_NAMES
+  const selectedProviders = input.providers && input.providers.length > 0
+    ? input.providers
+    : DELEGATE_NAMES;
+
   let profileData: {
     skills?: string[];
     experiences?: Array<{ jobTitle: string }>;
@@ -198,7 +203,7 @@ export async function discoverJobsForProfile(
       }
 
       const result = await JobDiscoveryService.discover(
-        { ...input, query: enhancedQuery, providers: DELEGATE_NAMES },
+        { ...input, query: enhancedQuery, providers: selectedProviders },
         context,
       );
       allJobs.push(...result.jobs);

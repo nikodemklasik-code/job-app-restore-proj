@@ -53,19 +53,23 @@ function parseSalary(salaryText: string): { min: number | null; max: number | nu
     return { min: null, max: null };
 }
 
-async function scrapeCvLibrary(input: DiscoveryInput): Promise<SourceJob[]> {
+async function scrapeCvLibrary(input: DiscoveryInput, cookies?: string): Promise<SourceJob[]> {
     const query = encodeURIComponent(input.query);
     const location = encodeURIComponent(input.location || 'UK');
     const url = `https://www.cv-library.co.uk/search-jobs?q=${query}&geo=${location}`;
 
     try {
-        const response = await fetch(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'en-GB,en;q=0.9',
-            },
-        });
+        const headers: Record<string, string> = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-GB,en;q=0.9',
+        };
+
+        if (cookies?.trim()) {
+            headers['Cookie'] = cookies;
+        }
+
+        const response = await fetch(url, { headers });
 
         if (!response.ok) {
             console.warn(`[CvLibraryProvider] HTTP ${response.status} for ${url}`);
@@ -96,27 +100,44 @@ async function scrapeCvLibrary(input: DiscoveryInput): Promise<SourceJob[]> {
             }
         }
 
-        // Fallback: parse HTML job cards
+        // Fallback: parse HTML job cards with improved patterns
         if (jobs.length === 0) {
-            // CV-Library structure: <article class="job"> with data attributes
-            const cardPattern = /data-job-id="([^"]+)"[\s\S]{0,500}?<h2[^>]*>[\s\S]*?<a[^>]*>([^<]+)<\/a>[\s\S]{0,300}?company[^>]*>([^<]+)<[\s\S]{0,300}?location[^>]*>([^<]+)<[\s\S]{0,300}?salary[^>]*>([^<]+)</gi;
-            let match;
-            while ((match = cardPattern.exec(html)) !== null) {
-                const salary = parseSalary(match[5]);
-                jobs.push({
-                    externalId: match[1],
-                    source: 'cv-library',
-                    title: stripHtml(match[2]),
-                    company: stripHtml(match[3]),
-                    location: stripHtml(match[4]),
-                    description: '',
-                    applyUrl: `https://www.cv-library.co.uk/job/${match[1]}`,
-                    salaryMin: salary.min,
-                    salaryMax: salary.max,
-                    workMode: null,
-                    requirements: [],
-                    postedAt: new Date().toISOString(),
-                });
+            // Try multiple patterns for CV-Library's structure
+            const patterns = [
+                // Pattern 1: Standard job cards with data-job-id
+                /data-job-id="([^"]+)"[\s\S]{0,500}?<h2[^>]*>[\s\S]*?<a[^>]*>([^<]+)<\/a>[\s\S]{0,300}?company[^>]*>([^<]+)<[\s\S]{0,300}?location[^>]*>([^<]+)<[\s\S]{0,300}?salary[^>]*>([^<]+)</gi,
+                // Pattern 2: Article structure
+                /<article[^>]*class="[^"]*job[^"]*"[^>]*>[\s\S]{0,600}?<h[23][^>]*>[\s\S]*?<a[^>]*href="[^"]*\/job\/([^"\/]+)"[^>]*>([^<]+)<\/a>[\s\S]{0,400}?<[^>]*>([^<]+)<\/[^>]*>[\s\S]{0,300}?<[^>]*>([^<]+)<\/[^>]*>[\s\S]{0,300}?<[^>]*>([^<]+)</gi,
+                // Pattern 3: Simplified structure
+                /<div[^>]*job-item[^>]*>[\s\S]{0,800}?<a[^>]*href="[^"]*\/job\/([^"\/]+)"[^>]*>([^<]+)<\/a>[\s\S]{0,500}?<[^>]*>([^<]+)<\/[^>]*>[\s\S]{0,300}?<[^>]*>([^<]+)</gi
+            ];
+
+            for (const pattern of patterns) {
+                let match;
+                while ((match = pattern.exec(html)) !== null) {
+                    const jobId = match[1];
+                    const title = match[2];
+                    const company = match[3];
+                    const location = match[4];
+                    const salaryText = match[5] || '';
+
+                    const salary = parseSalary(salaryText);
+                    jobs.push({
+                        externalId: jobId,
+                        source: 'cv-library',
+                        title: stripHtml(title),
+                        company: stripHtml(company),
+                        location: stripHtml(location),
+                        description: '',
+                        applyUrl: `https://www.cv-library.co.uk/job/${jobId}`,
+                        salaryMin: salary.min,
+                        salaryMax: salary.max,
+                        workMode: null,
+                        requirements: [],
+                        postedAt: new Date().toISOString(),
+                    });
+                }
+                if (jobs.length > 0) break; // Stop if we found jobs with this pattern
             }
         }
 
@@ -168,14 +189,15 @@ export class CvLibraryProvider implements JobSourceProvider {
     async readiness(): Promise<{ ready: boolean; reason?: string }> {
         return {
             ready: true,
-            reason: 'CV-Library web scraping enabled',
+            reason: 'CV-Library web scraping enabled (enhanced with session cookies support)',
         };
     }
 
-    async discover(input: DiscoveryInput, _context?: ProviderContext): Promise<SourceJob[]> {
+    async discover(input: DiscoveryInput, context?: ProviderContext): Promise<SourceJob[]> {
         const start = Date.now();
         try {
-            const jobs = await scrapeCvLibrary(input);
+            const cookies = context?.sessionCookies?.['cvlibrary'];
+            const jobs = await scrapeCvLibrary(input, cookies);
             await logProviderEvent({
                 provider: this.name,
                 eventType: 'search_success',
