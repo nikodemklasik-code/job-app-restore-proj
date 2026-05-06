@@ -75,6 +75,10 @@ const SESSION_BOARD_TOOLTIP: Partial<Record<Source, string>> = {
     'Indeed needs a saved browser session. Click “Sessions” (cookie icon) above, expand Indeed, sign in with the secure wizard, then tick Indeed here again.',
   gumtree:
     'Gumtree needs a saved browser session. Click “Sessions”, expand Gumtree, complete the login wizard, then enable Gumtree here.',
+  glassdoor:
+    'Glassdoor needs a saved browser session. Click "Sessions", expand Glassdoor, and follow the manual login instructions.',
+  linkedin:
+    'LinkedIn needs a saved browser session. Click "Sessions", expand LinkedIn, and follow the manual login instructions.',
 };
 
 
@@ -258,7 +262,7 @@ function ExplainFitModal({ jobId, userId, onClose }: { jobId: string; userId: st
 type LoginStep = 'idle' | 'enterCredentials' | 'awaitingCode' | 'success' | 'error';
 
 function SessionPanel({ provider, status, userId }: {
-  provider: 'indeed' | 'gumtree';
+  provider: 'indeed' | 'gumtree' | 'glassdoor' | 'linkedin';
   status: SessionStatus | undefined;
   userId: string;
 }) {
@@ -271,6 +275,9 @@ function SessionPanel({ provider, status, userId }: {
   const [msg, setMsg] = useState('');
   const utils = api.useUtils();
   const meta = SOURCE_META[provider];
+
+  // Only Indeed and Gumtree are implemented in backend
+  const isImplemented = provider === 'indeed' || provider === 'gumtree';
 
   const startIndeed = api.jobSessions.startIndeedLogin.useMutation({
     onSuccess: (data) => {
@@ -325,13 +332,13 @@ function SessionPanel({ provider, status, userId }: {
   function handleStart() {
     setMsg('');
     if (provider === 'indeed') startIndeed.mutate({ userId, email, password: password || undefined });
-    else startGumtree.mutate({ userId, email, password: password || undefined });
+    else if (provider === 'gumtree') startGumtree.mutate({ userId, email, password: password || undefined });
   }
 
   function handleCode() {
     setMsg('');
     if (provider === 'indeed') submitIndeedCode.mutate({ userId, code });
-    else submitGumtreeCode.mutate({ userId, code });
+    else if (provider === 'gumtree') submitGumtreeCode.mutate({ userId, code });
   }
 
   return (
@@ -363,26 +370,30 @@ function SessionPanel({ provider, status, userId }: {
                 <p className="text-xs text-emerald-300">Session active — {meta.label} jobs included in search</p>
               </div>
               <div className="flex gap-2">
-                <button
-                  onClick={() => testMutation.mutate({ userId, provider })}
-                  disabled={testMutation.isPending}
-                  className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2 text-xs text-slate-300 hover:bg-white/10 disabled:opacity-60"
-                >
-                  {testMutation.isPending ? 'Testing…' : 'Test connection'}
-                </button>
+                {isImplemented && (
+                  <button
+                    onClick={() => testMutation.mutate({ userId, provider: provider as 'indeed' | 'gumtree' })}
+                    disabled={testMutation.isPending}
+                    className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2 text-xs text-slate-300 hover:bg-white/10 disabled:opacity-60"
+                  >
+                    {testMutation.isPending ? 'Testing…' : 'Test connection'}
+                  </button>
+                )}
                 <button
                   onClick={() => setStep('enterCredentials')}
                   className="flex-1 rounded-xl border border-white/10 bg-white/5 py-2 text-xs text-slate-300 hover:bg-white/10"
                 >
                   Re-login
                 </button>
-                <button
-                  onClick={() => removeMutation.mutate({ userId, provider })}
-                  disabled={removeMutation.isPending}
-                  className="rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 disabled:opacity-60"
-                >
-                  Disconnect
-                </button>
+                {isImplemented && (
+                  <button
+                    onClick={() => removeMutation.mutate({ userId, provider: provider as 'indeed' | 'gumtree' })}
+                    disabled={removeMutation.isPending}
+                    className="rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-400 hover:bg-red-500/10 disabled:opacity-60"
+                  >
+                    Disconnect
+                  </button>
+                )}
               </div>
               {testMutation.data && (
                 <p className={`text-xs ${testMutation.data.ok ? 'text-emerald-400' : 'text-amber-400'}`}>
@@ -390,7 +401,7 @@ function SessionPanel({ provider, status, userId }: {
                 </p>
               )}
             </div>
-          ) : step === 'awaitingCode' ? (
+          ) : step === 'awaitingCode' && isImplemented ? (
             /* Step: enter verification code */
             <div className="space-y-3">
               <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-3 text-xs text-indigo-300">
@@ -417,6 +428,23 @@ function SessionPanel({ provider, status, userId }: {
                   {isLoading ? 'Verifying…' : 'Verify code'}
                 </button>
               </div>
+            </div>
+          ) : !isImplemented ? (
+            /* Not implemented providers */
+            <div className="space-y-3">
+              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-300">
+                <p className="font-semibold mb-1">{meta.label} Session Setup</p>
+                <p className="text-amber-200/70">Automatic login for {meta.label} is coming soon. For now, you can manually visit <a href={meta.url} target="_blank" rel="noopener noreferrer" className="text-amber-100 underline hover:text-white">{meta.url}</a> and log in to your account in your browser.</p>
+              </div>
+              <button
+                onClick={() => window.open(meta.url, '_blank')}
+                className="w-full rounded-xl bg-amber-600 py-2.5 text-sm font-semibold text-white hover:bg-amber-700 flex items-center justify-center gap-2"
+              >
+                Open {meta.label}
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </button>
             </div>
           ) : (
             /* Step: enter credentials */
@@ -872,11 +900,15 @@ export default function JobsDiscovery() {
   const jobIds = visibleJobs.map((j) => j.id);
   const indeedStatus = sessions.find((s) => s.provider === 'indeed');
   const gumtreeStatus = sessions.find((s) => s.provider === 'gumtree');
+  const glassdoorStatus = sessions.find((s) => s.provider === 'glassdoor');
+  const linkedinStatus = sessions.find((s) => s.provider === 'linkedin');
 
-  const usesSessionBoardInSearch = sources.includes('indeed') || sources.includes('gumtree');
+  const usesSessionBoardInSearch = sources.includes('indeed') || sources.includes('gumtree') || sources.includes('glassdoor') || sources.includes('linkedin');
   const sessionBoardGap =
     (sources.includes('indeed') && !indeedStatus?.isActive) ||
-    (sources.includes('gumtree') && !gumtreeStatus?.isActive);
+    (sources.includes('gumtree') && !gumtreeStatus?.isActive) ||
+    (sources.includes('glassdoor') && !glassdoorStatus?.isActive) ||
+    (sources.includes('linkedin') && !linkedinStatus?.isActive);
   const sessionBoardsReady = usesSessionBoardInSearch && !sessionBoardGap;
 
   const jobStatusQuery = api.jobs.getUserJobStatuses.useQuery(
@@ -945,10 +977,12 @@ export default function JobsDiscovery() {
       {/* Session panels */}
       {showSessions && userId && (
         <div className="space-y-2">
-          <p className="text-xs text-slate-500 uppercase tracking-wider">Provider sessions — Indeed &amp; Gumtree require your browser cookies</p>
+          <p className="text-xs text-slate-500 uppercase tracking-wider">Provider sessions — Cookie-based job boards require browser authentication</p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <SessionPanel provider="indeed" status={indeedStatus} userId={userId} />
             <SessionPanel provider="gumtree" status={gumtreeStatus} userId={userId} />
+            <SessionPanel provider="glassdoor" status={glassdoorStatus} userId={userId} />
+            <SessionPanel provider="linkedin" status={linkedinStatus} userId={userId} />
           </div>
         </div>
       )}
