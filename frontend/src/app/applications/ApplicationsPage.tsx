@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import {
   FileText,
@@ -74,6 +74,19 @@ export default function ApplicationsPage() {
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
   const [employerEmail, setEmployerEmail] = useState('');
+  const [flippedCards, setFlippedCards] = useState<Set<string>>(new Set());
+
+  const toggleCardFlip = (applicationId: string) => {
+    setFlippedCards(prev => {
+      const next = new Set(prev);
+      if (next.has(applicationId)) {
+        next.delete(applicationId);
+      } else {
+        next.add(applicationId);
+      }
+      return next;
+    });
+  };
 
   const applicationsQuery = api.applications.getAll.useQuery({ userId }, { enabled: !!userId });
 
@@ -91,6 +104,26 @@ export default function ApplicationsPage() {
     { id: selectedApplication?.jobId ?? '' },
     { enabled: !!selectedApplication?.jobId }
   );
+
+  // Try to extract email from job description (only once per job)
+  useEffect(() => {
+    if (linkedJobQuery.data?.description) {
+      const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
+      const emails = linkedJobQuery.data.description.match(emailRegex);
+      if (emails && emails.length > 0) {
+        // Use first email found
+        setEmployerEmail(emails[0]);
+      }
+    }
+  }, [linkedJobQuery.data?.id]); // Only run when job changes
+
+  // Auto-fill subject when application changes
+  useEffect(() => {
+    if (selectedApplication) {
+      setEmailSubject(`Application for ${selectedApplication.jobTitle}`);
+      setEmailBody(''); // Reset body when switching applications
+    }
+  }, [selectedApplication?.id, selectedApplication?.jobTitle]);
 
   const generateDocumentsMutation = api.applications.generateDocuments.useMutation({
     onSuccess: () => void applicationsQuery.refetch(),
@@ -197,7 +230,10 @@ export default function ApplicationsPage() {
             applications.map((application: any) => (
               <Card
                 key={application.id}
-                className="mvh-card-glow p-5"
+                className={`mvh-card-glow p-5 transition-all ${selectedApplicationId === application.id
+                  ? 'ring-2 ring-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20'
+                  : ''
+                  }`}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -207,10 +243,13 @@ export default function ApplicationsPage() {
 
                   <button
                     onClick={() => setSelectedApplicationId(application.id)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                    className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-colors ${selectedApplicationId === application.id
+                      ? 'border-indigo-500 bg-indigo-500 text-white'
+                      : 'border-slate-200 text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800'
+                      }`}
                   >
                     <Eye className="h-3.5 w-3.5" />
-                    Open
+                    {selectedApplicationId === application.id ? 'Selected' : 'Open'}
                   </button>
                 </div>
 
