@@ -1,0 +1,10 @@
+      - name: Sync SQL migrations
+        run: |
+          rsync -avz backend/sql/ \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${REMOTE_BASE}/backend/sql/"
+
+      - name: Run database migrations
+        run: |
+          ssh "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "cd ${REMOTE_BASE} && bash scripts/run-migrations-on-vps.sh" \
+            || { echo "⚠️ Migration step failed — check database connectivity"; exit 1; }

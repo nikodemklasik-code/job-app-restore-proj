@@ -18,6 +18,7 @@
     "lucide-react": "^0.500.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-hot-toast": "^2.4.1",
     "react-router-dom": "^7.0.0",
     "superjson": "^2.0.0",
     "tailwind-merge": "^2.5.0",
