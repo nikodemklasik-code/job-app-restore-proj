@@ -84,7 +84,7 @@ export async function generateCoverLetter(
   const extracted = extractJobSignals(job);
   const evidenceLines = buildEvidenceLines(profile, job);
 
-  const prompt = `Write a tailored UK cover letter for this role.
+  const prompt = `Write a professional, tailored UK cover letter for this role.
 
 Role: ${job.title} at ${job.company}
 ${job.location ? `Location: ${job.location}` : ''}
@@ -99,12 +99,15 @@ Evidence lines: ${evidenceLines.join(' | ') || 'No explicit evidence lines'}${si
 
 Rules:
 - British English only.
-- 3 short paragraphs plus a concise sign-off.
-- Sound specific and credible, not gushy.
-- Do not invent achievements, employers, numbers, tools, certifications or sector experience.
-- Avoid generic filler such as "I am excited", "I am writing to apply", "dynamic team", "fast-paced environment" unless the wording is needed.
+- Write 3 FULL paragraphs (each 3-5 sentences) demonstrating genuine fit and relevant experience.
+- First paragraph: Express interest in the specific role and company, highlighting 1-2 key qualifications that align with their needs.
+- Second paragraph: Provide concrete evidence of relevant experience, skills, and achievements that match the job requirements. Reference specific aspects of the job description.
+- Third paragraph: Explain what you can contribute to the company and express enthusiasm for discussing the opportunity further.
+- Sound specific, professional and credible. Use confident but measured tone.
+- Do not invent achievements, employers, numbers, tools, certifications or sector experience not in the profile.
+- Avoid generic filler such as "I am excited", "I am writing to apply", "dynamic team", "fast-paced environment".
 - Anchor the letter in the strongest overlaps between profile and role.
-- Keep it under 260 words.
+- Target 280-350 words for a complete, professional letter.
 - End with exactly: "Yours sincerely,\n${profile.fullName ?? 'Candidate'}".`;
 
   const client = tryGetOpenAiClient();
@@ -114,10 +117,10 @@ Rules:
   try {
     const resp = await client.chat.completions.create({
       model: getDefaultTextModel(),
-      max_tokens: 650,
+      max_tokens: 800,
       temperature: 0.4,
       messages: [
-        { role: 'system', content: 'You write sharp, tailored UK job application cover letters. Be concrete, restrained and credible.' },
+        { role: 'system', content: 'You write professional, detailed UK job application cover letters. Be concrete, specific, and credible. Write full paragraphs with substance.' },
         { role: 'user', content: prompt },
       ],
     });
@@ -133,17 +136,23 @@ function fallbackCoverLetter(profile: Profile, job: Job): string {
   const extracted = extractJobSignals(job);
   const skills = uniqueStrings(profile.skills ?? []);
   const matchedSkills = skills.filter((skill) => extracted.keywords.some((keyword) => keyword.toLowerCase() === skill.toLowerCase())).slice(0, 3);
-  const opening = matchedSkills.length > 0
-    ? `Your ${job.title} role at ${job.company} stands out because it aligns closely with my background in ${matchedSkills.join(', ')}.`
-    : `I would bring relevant experience and a practical, delivery-focused approach to the ${job.title} role at ${job.company}.`;
-  const middle = summary
-    ? `My background includes ${summary.charAt(0).toLowerCase() + summary.slice(1)}.`
-    : `My experience includes ${skills.slice(0, 4).join(', ') || 'relevant delivery, communication and problem-solving skills'}.`;
-  const close = extracted.requirements[0]
-    ? `I would be keen to discuss how my experience can support your priorities around ${extracted.requirements[0].replace(/\.$/, '')}.`
-    : 'I would welcome the chance to discuss how I could contribute in the role.';
 
-  return `${opening}\n\n${middle} ${close}\n\nYours sincerely,\n${profile.fullName ?? 'Candidate'}`;
+  // Paragraph 1: Opening with specific interest
+  const opening = matchedSkills.length > 0
+    ? `I am writing to express my strong interest in the ${job.title} position at ${job.company}. Your role particularly appeals to me because it aligns closely with my professional background in ${matchedSkills.join(', ')}, and I am confident I can make a meaningful contribution to your team.`
+    : `I am writing to express my interest in the ${job.title} position at ${job.company}. With my practical, delivery-focused approach and relevant professional experience, I am confident I can contribute effectively to your organisation's objectives.`;
+
+  // Paragraph 2: Evidence and experience
+  const middle = summary
+    ? `My background includes ${summary.charAt(0).toLowerCase() + summary.slice(1)}. Throughout my career, I have developed strong capabilities in ${skills.slice(0, 4).join(', ')}, which directly support the requirements outlined in your job description. I have consistently demonstrated the ability to manage complex cases, maintain accurate documentation, and deliver results in compliance-focused environments.`
+    : `My professional experience encompasses ${skills.slice(0, 4).join(', ') || 'relevant delivery, communication and problem-solving skills'}. I have developed a strong track record of managing sensitive situations with professionalism, maintaining detailed records, and working effectively with diverse stakeholders to achieve positive outcomes.`;
+
+  // Paragraph 3: Value proposition and closing
+  const close = extracted.requirements[0]
+    ? `I am particularly drawn to ${job.company}'s approach to ${extracted.requirements[0].replace(/\.$/, '')}, and I would welcome the opportunity to discuss how my experience and skills can support your team's priorities. I am available for an interview at your convenience and look forward to exploring how I can contribute to your continued success.`
+    : `I am enthusiastic about the opportunity to bring my skills and experience to ${job.company}, and I would welcome the chance to discuss how I can contribute to your team. I am available for an interview at your convenience and look forward to speaking with you about this exciting opportunity.`;
+
+  return `${opening}\n\n${middle}\n\n${close}\n\nYours sincerely,\n${profile.fullName ?? 'Candidate'}`;
 }
 
 export async function generateCvSummary(profile: Profile, job: Job): Promise<string> {
