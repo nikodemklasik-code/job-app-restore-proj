@@ -275,6 +275,7 @@ function SessionPanel({ provider, status, userId }: {
   const [codeSentTo, setCodeSentTo] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
   const [cookies, setCookies] = useState('');
+  const [useVisibleBrowser, setUseVisibleBrowser] = useState(false);
   const utils = api.useUtils();
   const meta = SOURCE_META[provider];
 
@@ -318,6 +319,30 @@ function SessionPanel({ provider, status, userId }: {
     onError: () => { setMsg('Connection failed. Please check your credentials and try again.'); setStep('error'); },
   });
 
+  const startGlassdoor = api.jobSessions.startGlassdoorLogin.useMutation({
+    onSuccess: (data) => {
+      if (data.error) { setMsg(data.error); setStep('error'); return; }
+      if (data.success) { setStep('success'); void utils.jobSessions.getStatus.invalidate(); return; }
+      if (data.requiresOAuth) {
+        setMsg('OAuth required - try visible browser mode or paste cookies manually');
+        setStep('error');
+      }
+    },
+    onError: () => { setMsg('Connection failed. Please try again.'); setStep('error'); },
+  });
+
+  const startLinkedIn = api.jobSessions.startLinkedInLogin.useMutation({
+    onSuccess: (data) => {
+      if (data.error) { setMsg(data.error); setStep('error'); return; }
+      if (data.success) { setStep('success'); void utils.jobSessions.getStatus.invalidate(); return; }
+      if (data.requiresOAuth) {
+        setMsg('OAuth required - try visible browser mode or paste cookies manually');
+        setStep('error');
+      }
+    },
+    onError: () => { setMsg('Connection failed. Please try again.'); setStep('error'); },
+  });
+
   const testMutation = api.jobSessions.testSession.useMutation({
     onSuccess: () => { void utils.jobSessions.getStatus.invalidate(); },
   });
@@ -335,12 +360,19 @@ function SessionPanel({ provider, status, userId }: {
     onSuccess: () => { void utils.jobSessions.getStatus.invalidate(); setStep('idle'); },
   });
 
-  const isLoading = startIndeed.isPending || submitIndeedCode.isPending || startGumtree.isPending || submitGumtreeCode.isPending || saveCookiesMutation.isPending;
+  const isLoading = startIndeed.isPending || submitIndeedCode.isPending || startGumtree.isPending || submitGumtreeCode.isPending || startGlassdoor.isPending || startLinkedIn.isPending || saveCookiesMutation.isPending;
 
   function handleStart() {
     setMsg('');
-    if (provider === 'indeed') startIndeed.mutate({ userId, email, password: password || undefined });
-    else if (provider === 'gumtree') startGumtree.mutate({ userId, email, password: password || undefined });
+    if (provider === 'indeed') {
+      startIndeed.mutate({ userId, email, password: password || undefined });
+    } else if (provider === 'gumtree') {
+      startGumtree.mutate({ userId, email, password: password || undefined });
+    } else if (provider === 'glassdoor') {
+      startGlassdoor.mutate({ userId, email: email || undefined, password: password || undefined, useVisibleBrowser });
+    } else if (provider === 'linkedin') {
+      startLinkedIn.mutate({ userId, email: email || undefined, password: password || undefined, useVisibleBrowser });
+    }
   }
 
   function handleSaveCookies() {
@@ -443,17 +475,68 @@ function SessionPanel({ provider, status, userId }: {
             <div className="space-y-3">
               {provider === 'glassdoor' || provider === 'linkedin' ? (
                 <div className="space-y-3">
-                  <p className="text-xs text-slate-400">{meta.cookieHelp}</p>
+                  {/* Hybrid approach: Try automation first, then manual cookies */}
+                  <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-3 text-xs text-indigo-300">
+                    <p className="font-semibold mb-1">🤖 Automatic Login (Recommended)</p>
+                    <p className="text-indigo-200/70">We'll try to log you in automatically. If it fails, you can paste cookies manually below.</p>
+                  </div>
+
+                  <label className="flex items-center gap-2 text-xs text-slate-400">
+                    <input
+                      type="checkbox"
+                      checked={useVisibleBrowser}
+                      onChange={(e) => setUseVisibleBrowser(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-white/20 bg-white/10 text-indigo-600"
+                    />
+                    Open visible browser (for OAuth/Google login)
+                  </label>
+
+                  <input
+                    type="email"
+                    placeholder={`${meta.label} email (optional for visible mode)`}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Password (optional)"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  />
+                  <button
+                    onClick={handleStart}
+                    disabled={isLoading}
+                    className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2"
+                  >
+                    {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Connecting…</> : `Try Auto-Login`}
+                  </button>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-white/10"></div>
+                    </div>
+                    <div className="relative flex justify-center text-xs">
+                      <span className="bg-[#020617] px-2 text-slate-500">OR</span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-300">
+                    <p className="font-semibold mb-1">📋 Manual Cookie Paste (Fallback)</p>
+                    <p className="text-amber-200/70">If auto-login fails, paste your cookies manually:</p>
+                  </div>
+
                   <ol className="list-decimal space-y-1 pl-4 text-xs text-slate-500">
                     <li>
                       Open{' '}
                       <a href={meta.loginUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-300 underline underline-offset-2">
                         {meta.loginUrl}
                       </a>{' '}
-                      and sign in. Using Google is OK when the provider offers it.
+                      and sign in (Google sign-in is OK)
                     </li>
-                    <li>After login, copy only the Cookie request header for that provider domain from your browser developer tools or cookie exporter.</li>
-                    <li>Paste it below. We store cookies only for this provider session; never paste your Google cookies.</li>
+                    <li>Copy the Cookie header from browser DevTools (Network tab)</li>
+                    <li>Paste it below</li>
                   </ol>
                   <textarea
                     placeholder={`${meta.label} Cookie header, e.g. li_at=...; JSESSIONID=...`}
@@ -468,11 +551,10 @@ function SessionPanel({ provider, status, userId }: {
                   <button
                     onClick={handleSaveCookies}
                     disabled={cookies.trim().length < 10 || isLoading}
-                    className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2"
+                    className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 flex items-center justify-center gap-2"
                   >
                     {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Saving…</> : `Save ${meta.label} cookies`}
                   </button>
-                  <p className="text-xs text-slate-600 text-center">If you logged in with Google, paste the resulting {meta.label} cookies — not Google account cookies.</p>
                 </div>
               ) : (
                 <>
