@@ -367,6 +367,14 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
   const skillsMatch = Math.min(100, Math.max(0, profile.completeness));
   const gapPercent = Math.max(0, 100 - skillsMatch);
 
+  // Safe activity with defaults
+  const safeActivity = activity ?? {
+    lastLoginAt: null,
+    lastJobSearchAt: null,
+    lastJobSearchLabel: null,
+    lastMarketResearchAt: null,
+  };
+
   return (
     <div className="space-y-8">
       <section className="mvh-card-glow rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.08] via-white/[0.04] to-indigo-500/[0.08] p-6">
@@ -533,22 +541,22 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
                 <User className="mt-0.5 h-4 w-4 text-indigo-300" />
                 <div>
                   <span className="block text-slate-500">Last login session</span>
-                  <span className="mt-1 block font-medium text-white">{formatDate(activity.lastLoginAt)}</span>
+                  <span className="mt-1 block font-medium text-white">{formatDate(safeActivity.lastLoginAt)}</span>
                 </div>
               </div>
               <div className="flex items-start gap-3 rounded-xl bg-black/20 px-3 py-3">
                 <Search className="mt-0.5 h-4 w-4 text-emerald-300" />
                 <div>
                   <span className="block text-slate-500">Last job search</span>
-                  <span className="mt-1 block font-medium text-white">{formatDate(activity.lastJobSearchAt)}</span>
-                  {activity.lastJobSearchLabel ? <span className="mt-1 block text-xs text-slate-500">{activity.lastJobSearchLabel}</span> : null}
+                  <span className="mt-1 block font-medium text-white">{formatDate(safeActivity.lastJobSearchAt)}</span>
+                  {safeActivity.lastJobSearchLabel ? <span className="mt-1 block text-xs text-slate-500">{safeActivity.lastJobSearchLabel}</span> : null}
                 </div>
               </div>
               <div className="flex items-start gap-3 rounded-xl bg-black/20 px-3 py-3">
                 <LayoutGrid className="mt-0.5 h-4 w-4 text-sky-300" />
                 <div>
                   <span className="block text-slate-500">Last labour-market research</span>
-                  <span className="mt-1 block font-medium text-white">{formatDate(activity.lastMarketResearchAt)}</span>
+                  <span className="mt-1 block font-medium text-white">{formatDate(safeActivity.lastMarketResearchAt)}</span>
                 </div>
               </div>
               <div className="flex items-start gap-3 rounded-xl bg-black/20 px-3 py-3">

@@ -588,7 +588,7 @@ function SessionPanel({ provider, status, userId }: {
                   {provider === 'indeed' || provider === 'gumtree' ? 'Manual cookie fallback' : 'Manual cookie login'}
                 </p>
                 <p className="text-xs text-slate-400">{meta.cookieHelp}</p>
-              <CookieCopyGuide />
+                <CookieCopyGuide />
                 <ol className="list-decimal space-y-1 pl-4 text-xs text-slate-500">
                   <li>
                     Open{' '}
@@ -1187,7 +1187,7 @@ export default function JobsDiscovery() {
             title="Search jobs based on your skills from profile"
           >
             <Sparkles className="h-4 w-4" />
-            Szukaj na podstawie umiejętności
+            Search by Skills
           </button>
           {searchParams && (
             <button
