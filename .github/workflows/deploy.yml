@@ -209,6 +209,17 @@ jobs:
           rsync -avz docs/job-radar/ \
             "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${REMOTE_BASE}/docs/job-radar/"
 
+      - name: Sync SQL migrations
+        run: |
+          rsync -avz backend/sql/ \
+            "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${REMOTE_BASE}/backend/sql/"
+
+      - name: Run database migrations
+        run: |
+          ssh "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "cd ${REMOTE_BASE} && bash scripts/run-migrations-on-vps.sh" \
+            || { echo "⚠️ Migration step failed — check database connectivity"; exit 1; }
+
       - name: Install production deps on VPS and reload PM2
         run: |
           ssh "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" "bash -lc 'set -e; cd \"${REMOTE_BASE}\"; npm install --omit=dev --prefix backend; pm2 reload infra/ecosystem.config.cjs --update-env || pm2 start infra/ecosystem.config.cjs; pm2 save'"
