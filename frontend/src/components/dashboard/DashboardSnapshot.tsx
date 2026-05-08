@@ -149,11 +149,82 @@ function StatusBadge({ status }: { status: DashboardSnapshotDto['applications'][
   );
 }
 
-function estimateAnnualValue(skillCount: number, profileCompleteness: number): number {
-  const base = 30_000;
-  const skillPremium = Math.min(skillCount, 20) * 1_250;
-  const profilePremium = Math.round(profileCompleteness * 250);
-  return Math.round((base + skillPremium + profilePremium) / 1_000) * 1_000;
+
+type CareerProfileEvidence = {
+  skills: string[];
+  experiences: unknown[];
+  educations: unknown[];
+  trainings: unknown[];
+  languages: unknown[];
+  workValues: string[];
+  targetRole: string | null;
+  targetSeniority: string | null;
+};
+
+const EMPTY_CAREER_EVIDENCE: CareerProfileEvidence = {
+  skills: [],
+  experiences: [],
+  educations: [],
+  trainings: [],
+  languages: [],
+  workValues: [],
+  targetRole: null,
+  targetSeniority: null,
+};
+
+function getCareerEvidence(profileData: unknown, dashboardProfile: DashboardSnapshotDto['profile']): CareerProfileEvidence {
+  const source = profileData && typeof profileData === 'object' ? profileData as Record<string, unknown> : {};
+  const careerGoals = source.careerGoals && typeof source.careerGoals === 'object' ? source.careerGoals as Record<string, unknown> : {};
+  const asArray = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
+  const stringArray = (value: unknown): string[] => asArray(value).filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+
+  return {
+    skills: stringArray(source.skills),
+    experiences: asArray(source.experiences),
+    educations: asArray(source.educations),
+    trainings: asArray(source.trainings),
+    languages: asArray(source.languages),
+    workValues: stringArray(careerGoals.workValues),
+    targetRole: typeof careerGoals.targetJobTitle === 'string' && careerGoals.targetJobTitle.trim() ? careerGoals.targetJobTitle : dashboardProfile.targetRole,
+    targetSeniority: typeof careerGoals.targetSeniority === 'string' && careerGoals.targetSeniority.trim() ? careerGoals.targetSeniority : null,
+  };
+}
+
+function estimateAnnualValue(evidence: CareerProfileEvidence, profileCompleteness: number): number {
+  const base = 28_000;
+  const experiencePremium = Math.min(evidence.experiences.length, 8) * 3_000;
+  const educationPremium = Math.min(evidence.educations.length, 4) * 1_500;
+  const skillPremium = Math.min(evidence.skills.length, 24) * 900;
+  const languagePremium = Math.min(evidence.languages.length, 5) * 1_000;
+  const trainingPremium = Math.min(evidence.trainings.length, 8) * 750;
+  const goalPremium = evidence.targetRole ? 2_000 : 0;
+  const profilePremium = Math.round(profileCompleteness * 120);
+  return Math.round((base + experiencePremium + educationPremium + skillPremium + languagePremium + trainingPremium + goalPremium + profilePremium) / 1_000) * 1_000;
+}
+
+function evidenceReadiness(evidence: CareerProfileEvidence, profileCompleteness: number): number {
+  const raw =
+    Math.min(evidence.experiences.length, 5) * 8
+    + Math.min(evidence.educations.length, 3) * 6
+    + Math.min(evidence.skills.length, 18) * 2
+    + Math.min(evidence.languages.length, 4) * 3
+    + Math.min(evidence.trainings.length, 6) * 3
+    + (evidence.targetRole ? 8 : 0)
+    + (evidence.targetSeniority ? 6 : 0)
+    + Math.min(evidence.workValues.length, 5) * 2;
+  return Math.min(100, Math.max(0, Math.round((raw * 0.72) + (profileCompleteness * 0.28))));
+}
+
+function missingEvidenceItems(evidence: CareerProfileEvidence, dashboardGaps: string[]): string[] {
+  const items = new Set<string>();
+  if (!evidence.targetRole) items.add('Target Role');
+  if (!evidence.targetSeniority || dashboardGaps.includes('seniority')) items.add('Seniority');
+  if (evidence.workValues.length === 0 || dashboardGaps.includes('workValues')) items.add('Work Values');
+  if (evidence.experiences.length === 0) items.add('Work Experience');
+  if (evidence.skills.length < 5) items.add('Role Skills');
+  if (evidence.educations.length === 0) items.add('Education');
+  if (evidence.trainings.length === 0) items.add('Certificates / Courses');
+  return Array.from(items);
 }
 
 function FlipCard(props: {
@@ -234,7 +305,8 @@ function FlipCard(props: {
   );
 }
 
-function CVValueCard({ profileCompleteness }: { profileCompleteness: number }) {
+
+function CareerIntelligenceSection({ profile }: { profile: DashboardSnapshotDto['profile'] }) {
   const { user } = useUser();
   const userId = user?.id ?? '';
 
@@ -248,27 +320,87 @@ function CVValueCard({ profileCompleteness }: { profileCompleteness: number }) {
     staleTime: 30_000,
   });
 
-  const skillCount = profileQuery.data?.skills?.length ?? 0;
+  const evidence = profileQuery.data ? getCareerEvidence(profileQuery.data, profile) : EMPTY_CAREER_EVIDENCE;
   const signals = coreSignalsQuery.data;
-  const estimatedValue = estimateAnnualValue(skillCount, profileCompleteness);
+  const estimatedValue = estimateAnnualValue(evidence, profile.completeness);
+  const skillsMatch = evidenceReadiness(evidence, profile.completeness);
+  const gapPercent = Math.max(0, 100 - skillsMatch);
+  const gaps = missingEvidenceItems(evidence, profile.missingCriticalFields);
+  const benchmarkLabel = evidence.targetRole
+    ? `${evidence.targetRole}${evidence.targetSeniority ? ` · ${evidence.targetSeniority}` : ''}`
+    : 'target dream job';
 
   return (
-    <FlipCard
-      tone="amber"
-      icon={<span className="text-2xl font-bold text-amber-300">£</span>}
-      title="CV Market Value"
-      subtitle="Estimated annual CV value in the UK market"
-      metric={`£${estimatedValue.toLocaleString('en-GB')}`}
-      metricLabel="estimated annual gross salary"
-      frontNote={signals?.salaryImpact.rationale ?? 'Uses profile completeness, experience, education, skills, languages, certificates, courses and CV evidence as available.'}
-      backTitle="How CV Market Value is estimated"
-      backItems={[
-        { label: 'Skills breadth', value: `${skillCount} skills`, note: 'More role-relevant skills increase market strength.' },
-        { label: 'Profile evidence', value: `${profileCompleteness}%`, note: 'Experience, education, documents and goal fields improve confidence.' },
-        { label: 'Market signals', value: signals?.salaryImpact.tier ?? 'Pending', note: signals?.cvValueSignals[0] ?? 'Skills Lab signals are used when available.' },
-      ]}
-      backFooter={<>* Estimated gross annual amount in GBP. This is an indicative planning range, not a job offer, salary promise, financial advice, or guaranteed outcome.</>}
-    />
+    <section className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-white">Career Intelligence</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            Reversible cards: click a card to see evidence, assumptions and legal-safe estimate notes.
+          </p>
+        </div>
+        <Link to="/skills" className="text-sm font-medium text-indigo-300 transition hover:text-indigo-200">
+          View Skills Lab →
+        </Link>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <FlipCard
+          tone="amber"
+          icon={<span className="text-2xl font-bold text-amber-300">£</span>}
+          title="CV Market Value"
+          subtitle="Estimated annual CV value in the UK market"
+          metric={`£${estimatedValue.toLocaleString('en-GB')}`}
+          metricLabel="estimated annual gross salary"
+          frontNote={signals?.salaryImpact.rationale ?? 'Uses profile completeness, experience, education, skills, languages, certificates, courses and CV evidence as available.'}
+          backTitle="How CV Market Value is estimated"
+          backItems={[
+            { label: 'Experience', value: `${evidence.experiences.length} entries`, note: 'Work history and recency increase the seniority and salary-confidence signal.' },
+            { label: 'Education', value: `${evidence.educations.length} entries`, note: 'Degrees and fields of study are counted as formal evidence.' },
+            { label: 'Skills', value: `${evidence.skills.length} skills`, note: 'Role-relevant hard, tool, domain and soft skills increase market strength.' },
+            { label: 'Languages', value: `${evidence.languages.length} languages`, note: 'Language coverage and certificates add extra employability evidence.' },
+            { label: 'Certificates / Courses', value: `${evidence.trainings.length} entries`, note: 'Training, courses and credentials strengthen current-market credibility.' },
+            { label: 'Market signals', value: signals?.salaryImpact.tier ?? 'Pending', note: signals?.cvValueSignals[0] ?? 'Skills Lab signals are used when available.' },
+          ]}
+          backFooter={<>* Estimated gross annual amount in GBP. This is an indicative planning range, not a job offer, salary promise, financial advice, or guaranteed outcome.</>}
+        />
+
+        <FlipCard
+          tone="indigo"
+          icon={<Sparkles className="h-6 w-6 text-indigo-300" />}
+          title="Skills Market Value"
+          subtitle="Match to your dream job target"
+          metric={`${skillsMatch}%`}
+          metricLabel={`estimated match to ${benchmarkLabel}`}
+          frontNote="Compares known profile skills, experience, education, languages and training against the dream-role benchmark stored in Profile and Skills Lab."
+          backTitle="Why this match is not higher or lower"
+          backItems={[
+            { label: 'Experience evidence', value: `${Math.min(40, evidence.experiences.length * 8)}%`, note: 'Work experience and seniority signals from Profile and CV.' },
+            { label: 'Skills coverage', value: `${Math.min(36, evidence.skills.length * 2)}%`, note: 'Declared skills, certifications, courses and training evidence.' },
+            { label: 'Education / languages', value: `${Math.min(18, (evidence.educations.length * 6) + (evidence.languages.length * 3))}%`, note: 'Education, language and certificate evidence that supports similar role requirements.' },
+            { label: 'Goal alignment', value: `${(evidence.targetRole ? 8 : 0) + (evidence.targetSeniority ? 6 : 0)}%`, note: 'Dream role and target seniority from Profile goals.' },
+          ]}
+          backFooter={<>* Estimated against several comparable target-role requirements where available. It is an indicative fit score, not an employer decision.</>}
+        />
+
+        <FlipCard
+          tone="teal"
+          icon={<TrendingUp className="h-6 w-6 text-teal-300" />}
+          title="Skills Gap Analysis"
+          subtitle="Missing evidence for your target role"
+          metric={`${gapPercent}%`}
+          metricLabel="estimated gap to close"
+          frontNote={gaps.length > 0 ? `Top missing signal: ${gaps[0]}` : 'No critical gaps detected in the tracked profile signals.'}
+          backTitle="What is missing and where to improve it"
+          backItems={(gaps.length > 0 ? gaps : ['No critical gaps']).map((field) => {
+            if (field === 'No critical gaps') return { label: field, value: 'OK', note: 'Tracked Profile and Skills Lab evidence is present.' };
+            const copy = gapCopy(field === 'Seniority' ? 'seniority' : field === 'Work Values' ? 'workValues' : field);
+            return { label: copy.title, value: 'Missing', note: copy.description };
+          })}
+          backFooter={<><Link to="/skills" onClick={(event) => event.stopPropagation()} className="font-semibold text-teal-300 hover:text-teal-200">Open Skills Lab</Link> to raise missing skills. * Gap is an estimate based on profile/CV evidence and comparable role requirements.</>}
+        />
+      </div>
+    </section>
   );
 }
 
@@ -351,6 +483,36 @@ function gapCopy(field: string): { title: string; description: string; href: str
       href: '/profile',
       cta: 'Add Work Values',
     },
+    'Target Role': {
+      title: 'Target Role',
+      description: 'Target Role is the dream job benchmark used to compare your CV, skills and applications. Complete it in Career Goals on Profile.',
+      href: '/profile',
+      cta: 'Set Target Role',
+    },
+    'Work Experience': {
+      title: 'Work Experience',
+      description: 'Work Experience supplies the evidence used to estimate seniority, salary confidence and role fit. Add roles in Profile Evidence.',
+      href: '/profile',
+      cta: 'Add Experience',
+    },
+    'Role Skills': {
+      title: 'Role Skills',
+      description: 'Role Skills are compared with similar target-role requirements. Add missing skills in Profile, then strengthen them in Skills Lab.',
+      href: '/skills',
+      cta: 'Open Skills Lab',
+    },
+    Education: {
+      title: 'Education',
+      description: 'Education improves the evidence base for CV value and target-role matching. Add schools, degrees or relevant study in Profile.',
+      href: '/profile',
+      cta: 'Add Education',
+    },
+    'Certificates / Courses': {
+      title: 'Certificates / Courses',
+      description: 'Certificates and courses prove current capability and help close skills gaps for the target role. Add them in Profile Evidence or Skills Lab.',
+      href: '/skills',
+      cta: 'Open Skills Lab',
+    },
   };
 
   return copy[field] ?? {
@@ -364,9 +526,6 @@ function gapCopy(field: string): { title: string; description: string; href: str
 export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto }) {
   const { profile, applications, practice, nextAction, activity } = snapshot;
   const displayName = firstName(profile.fullName);
-  const skillsMatch = Math.min(100, Math.max(0, profile.completeness));
-  const gapPercent = Math.max(0, 100 - skillsMatch);
-
   return (
     <div className="space-y-8">
       <section className="mvh-card-glow rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.08] via-white/[0.04] to-indigo-500/[0.08] p-6">
@@ -390,58 +549,9 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
         <Newsroom items={snapshot.newsroom} />
       </section>
 
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-white">Career Intelligence</h2>
-            <p className="mt-1 text-sm text-slate-400">
-              Reversible cards: click a card to see the explanation, assumptions and legal-safe estimate notes.
-            </p>
-          </div>
-          <Link to="/skills" className="text-sm font-medium text-indigo-300 transition hover:text-indigo-200">
-            View Skills Lab →
-          </Link>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <CVValueCard profileCompleteness={profile.completeness} />
-
-          <FlipCard
-            tone="indigo"
-            icon={<Sparkles className="h-6 w-6 text-indigo-300" />}
-            title="Skills Market Value"
-            subtitle="Match to your dream job target"
-            metric={`${skillsMatch}%`}
-            metricLabel="estimated target-role match"
-            frontNote="Compares known profile skills and experience against target-role expectations collected from similar employer requirements."
-            backTitle="Why this match is not higher or lower"
-            backItems={[
-              { label: 'Experience evidence', value: `${Math.round(profile.completeness * 0.3)}%`, note: 'Experience and seniority signals from Profile and CV.' },
-              { label: 'Skills coverage', value: `${Math.round(profile.completeness * 0.45)}%`, note: 'Declared skills, certifications, courses and training evidence.' },
-              { label: 'Goal alignment', value: `${Math.round(profile.completeness * 0.25)}%`, note: 'Target role, work values, language and education fit.' },
-            ]}
-            backFooter={<>* Estimated against several similar target-role job requirements where available. It is an indicative fit score, not an employer decision.</>}
-          />
-
-          <FlipCard
-            tone="teal"
-            icon={<TrendingUp className="h-6 w-6 text-teal-300" />}
-            title="Skills Gap Analysis"
-            subtitle="Missing skills for your target role"
-            metric={`${gapPercent}%`}
-            metricLabel="estimated gap to close"
-            frontNote={profile.missingCriticalFields.length > 0 ? `Top missing signal: ${gapCopy(profile.missingCriticalFields[0]).title}` : 'No critical gaps detected in the tracked profile signals.'}
-            backTitle="What is missing and where to improve it"
-            backItems={(profile.missingCriticalFields.length > 0 ? profile.missingCriticalFields : ['No critical gaps']).map((field) => {
-              const copy = gapCopy(field);
-              return { label: copy.title, value: field === 'No critical gaps' ? 'OK' : 'Missing', note: copy.description };
-            })}
-            backFooter={<><Link to="/skills" onClick={(event) => event.stopPropagation()} className="font-semibold text-teal-300 hover:text-teal-200">Open Skills Lab</Link> to raise missing skills. * Gap is an estimate based on profile/CV evidence and comparable role requirements.</>}
-          />
-        </div>
-      </section>
-
       <WorkspaceTiles applications={applications} practice={practice} />
+
+      <CareerIntelligenceSection profile={profile} />
 
       <section className="grid gap-6 xl:grid-cols-3">
         <div className="mvh-card-glow rounded-2xl border border-white/10 bg-white/5 p-5 xl:col-span-2">

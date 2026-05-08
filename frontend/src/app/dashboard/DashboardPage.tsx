@@ -47,8 +47,8 @@ function buildFallbackSnapshot(user: ReturnType<typeof useUser>['user']): Dashbo
       lastCompletedAt: null,
     },
     nextAction: {
-      label: 'Open Profile',
-      href: '/profile',
+      label: 'Review Workspace',
+      href: '/dashboard',
       reason:
         'Dashboard data is temporarily unavailable. You can still continue from Profile, Documents, Jobs, Applications, Interview, Coach, or AI Assistant.',
     },
@@ -97,8 +97,8 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <div className="h-32 animate-pulse rounded-3xl bg-white/5" />
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, index) => (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, index) => (
             <div key={index} className="h-32 animate-pulse rounded-2xl bg-white/5" />
           ))}
         </div>
