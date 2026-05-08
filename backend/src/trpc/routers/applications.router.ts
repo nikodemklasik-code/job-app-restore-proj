@@ -4,7 +4,7 @@ import { eq, desc } from 'drizzle-orm';
 import { TRPCError } from '@trpc/server';
 import { publicProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
-import { applications, applicationLogs, profiles, skills, users, experiences, educations } from '../../db/schema.js';
+import { applications, applicationLogs, profiles, skills, users, experiences, educations, trainings, careerGoals } from '../../db/schema.js';
 import { generateCoverLetter, generateCvSummary, scoreJobFit, generateFollowUp } from '../../services/aiPersonalizer.js';
 import { generateCvPdf, generateCoverLetterPdf, generateCandidateReport, generateAtsCvPdf, calculateAtsScore } from '../../services/pdfGenerator.js';
 import { getLearnedSignals, recordOutcome } from '../../services/learningService.js';
@@ -12,6 +12,79 @@ import { analyzeJobDescription, matchProfileToJob } from '../../services/jobAnal
 import { Resend } from 'resend';
 
 const getResend = () => new Resend(process.env.RESEND_API_KEY);
+
+/**
+ * Fetches complete profile data including experiences, educations, skills,
+ * trainings and languages (from careerGoals.strategyJson).
+ * Filters out empty / placeholder entries.
+ */
+async function fetchFullProfileForCv(localUserId: string, userEmail: string) {
+  const profileRecord = await db.select().from(profiles).where(eq(profiles.userId, localUserId)).limit(1);
+  const profile = profileRecord[0];
+
+  if (!profile) {
+    return null;
+  }
+
+  const [skillRecords, experienceRecords, educationRecords, trainingRecords, careerGoalRecord] = await Promise.all([
+    db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profile.id)),
+    db.select().from(experiences).where(eq(experiences.profileId, profile.id)).orderBy(desc(experiences.startDate)),
+    db.select().from(educations).where(eq(educations.profileId, profile.id)).orderBy(desc(educations.startDate)),
+    db.select().from(trainings).where(eq(trainings.profileId, profile.id)),
+    db.select().from(careerGoals).where(eq(careerGoals.userId, localUserId)).limit(1),
+  ]);
+
+  // Extract languages from strategyJson (stored via profilePreferences router)
+  let languages: Array<{ name?: string; proficiency?: string }> = [];
+  const strategy = careerGoalRecord[0]?.strategyJson as Record<string, unknown> | undefined;
+  if (strategy && Array.isArray(strategy.languages)) {
+    languages = (strategy.languages as Array<Record<string, unknown>>).map((l) => ({
+      name: typeof l.name === 'string' ? l.name : undefined,
+      proficiency: typeof l.proficiency === 'string' ? l.proficiency : undefined,
+    }));
+  }
+
+  // Filter out "Unknown" / empty experience entries
+  const isReal = (v?: string | null) => !!(v && v.trim() && v.trim().toLowerCase() !== 'unknown');
+
+  const validExperiences = experienceRecords.filter(
+    (e) => isReal(e.jobTitle) || isReal(e.employerName) || isReal(e.description)
+  );
+  const validEducations = educationRecords.filter(
+    (e) => isReal(e.degree) || isReal(e.schoolName)
+  );
+
+  return {
+    fullName: profile.fullName ?? '',
+    email: userEmail,
+    phone: profile.phone ?? '',
+    location: profile.location ?? '',
+    headline: profile.headline ?? '',
+    summary: profile.summary ?? '',
+    skills: skillRecords.map((s) => s.name).filter(isReal),
+    experience: validExperiences.map((e) => ({
+      title: e.jobTitle,
+      company: e.employerName,
+      startDate: e.startDate,
+      endDate: e.endDate ?? undefined,
+      description: e.description ?? undefined,
+      achievements: e.achievements ? (Array.isArray(e.achievements) ? e.achievements : JSON.parse(e.achievements as string)) : [],
+    })),
+    education: validEducations.map((e) => ({
+      degree: e.degree,
+      school: e.schoolName,
+      fieldOfStudy: e.fieldOfStudy ?? undefined,
+      startDate: e.startDate,
+      endDate: e.endDate ?? undefined,
+    })),
+    trainings: trainingRecords.filter((t) => isReal(t.title)).map((t) => ({
+      title: t.title,
+      providerName: t.providerName,
+      issuedAt: t.issuedAt,
+    })),
+    languages: languages.filter((l) => isReal(l.name)),
+  };
+}
 
 export const applicationsRouter = router({
   getAll: publicProcedure
@@ -180,38 +253,14 @@ export const applicationsRouter = router({
 
       if (!appRow[0].coverLetterSnapshot) throw new Error('Generate documents first');
 
-      const profileRecord = await db.select().from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1);
-      const profile = profileRecord[0];
-      const skillRecords = profile ? await db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profile.id)) : [];
-
-      // Fetch experience and education for complete CV
-      const experienceRecords = profile ? await db.select().from(experiences).where(eq(experiences.profileId, profile.id)).orderBy(desc(experiences.startDate)) : [];
-      const educationRecords = profile ? await db.select().from(educations).where(eq(educations.profileId, profile.id)).orderBy(desc(educations.startDate)) : [];
+      const fullCvProfile = await fetchFullProfileForCv(userRecord[0].id, userRecord[0].email);
+      if (!fullCvProfile) throw new Error('Profile not found — complete your profile first');
 
       // Generate PDFs
       const [cvPdf, clPdf] = await Promise.all([
-        generateCvPdf({
-          fullName: profile?.fullName ?? '',
-          email: userRecord[0].email,
-          phone: profile?.phone ?? '',
-          summary: profile?.summary ?? '',
-          skills: skillRecords.map((s) => s.name),
-          experience: experienceRecords.map((e) => ({
-            title: e.jobTitle,
-            company: e.employerName,
-            startDate: e.startDate,
-            endDate: e.endDate ?? undefined,
-            description: e.description ?? undefined,
-          })),
-          education: educationRecords.map((e) => ({
-            degree: e.degree,
-            school: e.schoolName,
-            startDate: e.startDate,
-            endDate: e.endDate ?? undefined,
-          })),
-        }),
+        generateCvPdf(fullCvProfile),
         generateCoverLetterPdf(appRow[0].coverLetterSnapshot, {
-          senderName: profile?.fullName ?? '',
+          senderName: fullCvProfile.fullName,
           company: appRow[0].company,
           role: appRow[0].jobTitle,
         }),
@@ -226,14 +275,14 @@ export const applicationsRouter = router({
       const bccAddress = userRecord[0].email ?? undefined;
 
       await getResend().emails.send({
-        from: `${profile?.fullName ?? 'Candidate'} via MultivoHub <applications@multivohub.com>`,
+        from: `${fullCvProfile.fullName || 'Candidate'} via MultivoHub <applications@multivohub.com>`,
         to: input.recipientEmail,
         bcc: bccAddress,
         replyTo: userRecord[0].email ?? undefined,
         subject,
         html: customHtml
           ? customHtml
-          : `<p>Dear Hiring Manager,</p><p>Please find attached my CV and cover letter for the ${appRow[0].jobTitle} role at ${appRow[0].company}.</p><p>I look forward to hearing from you.</p><p>Best regards,<br/>${profile?.fullName ?? 'Candidate'}${userRecord[0].email ? `<br/><a href="mailto:${userRecord[0].email}">${userRecord[0].email}</a>` : ''}</p>`,
+          : `<p>Dear Hiring Manager,</p><p>Please find attached my CV and cover letter for the ${appRow[0].jobTitle} role at ${appRow[0].company}.</p><p>I look forward to hearing from you.</p><p>Best regards,<br/>${fullCvProfile.fullName || 'Candidate'}${userRecord[0].email ? `<br/><a href="mailto:${userRecord[0].email}">${userRecord[0].email}</a>` : ''}</p>`,
         attachments: [
           { filename: 'CV.pdf', content: cvPdf.toString('base64') },
           { filename: 'Cover_Letter.pdf', content: clPdf.toString('base64') },
@@ -330,34 +379,10 @@ export const applicationsRouter = router({
       const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       if (!userRecord[0]) throw new Error('User not found');
 
-      const profileRecord = await db.select().from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1);
-      const profile = profileRecord[0];
-      if (!profile) throw new Error('Complete your profile first');
+      const fullCvProfile = await fetchFullProfileForCv(userRecord[0].id, userRecord[0].email);
+      if (!fullCvProfile) throw new Error('Complete your profile first');
 
-      const skillRecords = await db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profile.id));
-      const experienceRecords = await db.select().from(experiences).where(eq(experiences.profileId, profile.id)).orderBy(desc(experiences.startDate));
-      const educationRecords = await db.select().from(educations).where(eq(educations.profileId, profile.id)).orderBy(desc(educations.startDate));
-
-      const pdfBuffer = await generateCvPdf({
-        fullName: profile.fullName,
-        email: userRecord[0].email,
-        phone: profile.phone ?? '',
-        summary: profile.summary ?? '',
-        skills: skillRecords.map((s) => s.name),
-        experience: experienceRecords.map((e) => ({
-          title: e.jobTitle,
-          company: e.employerName,
-          startDate: e.startDate,
-          endDate: e.endDate ?? undefined,
-          description: e.description ?? undefined,
-        })),
-        education: educationRecords.map((e) => ({
-          degree: e.degree,
-          school: e.schoolName,
-          startDate: e.startDate,
-          endDate: e.endDate ?? undefined,
-        })),
-      });
+      const pdfBuffer = await generateCvPdf(fullCvProfile);
 
       return { base64: pdfBuffer.toString('base64') };
     }),

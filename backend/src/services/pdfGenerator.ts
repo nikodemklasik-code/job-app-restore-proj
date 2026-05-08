@@ -5,10 +5,14 @@ interface CvProfile {
   fullName?: string;
   email?: string;
   phone?: string;
+  location?: string;
+  headline?: string;
   summary?: string;
   skills?: string[];
-  experience?: Array<{ title?: string; company?: string; startDate?: string; endDate?: string; description?: string }>;
-  education?: Array<{ degree?: string; school?: string; startDate?: string; endDate?: string }>;
+  experience?: Array<{ title?: string; company?: string; startDate?: string; endDate?: string; description?: string; achievements?: string[] }>;
+  education?: Array<{ degree?: string; school?: string; fieldOfStudy?: string; startDate?: string; endDate?: string }>;
+  trainings?: Array<{ title?: string; providerName?: string; issuedAt?: string }>;
+  languages?: Array<{ name?: string; proficiency?: string }>;
 }
 
 interface CoverLetterMeta {
@@ -56,16 +60,26 @@ export async function generateCvPdf(profile: CvProfile): Promise<Buffer> {
     doc.moveDown(0.3);
   };
 
+  // Helpers to skip empty/placeholder values
+  const hasVal = (v?: string | null) => !!(v && v.trim() && v.trim().toLowerCase() !== 'unknown');
+  const safeText = (v?: string | null, fallback = '') => (hasVal(v) ? String(v).trim() : fallback);
+
   // Header bar
   doc.rect(0, 0, doc.page.width, 100).fill(DARK);
 
-  const name = profile.fullName ?? 'Candidate';
-  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(24).text(name, 50, 30, { width: 400 });
+  const name = safeText(profile.fullName, 'Candidate');
+  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(24).text(name, 50, 24, { width: 400 });
 
-  // Contact info with icons
-  const contact = [profile.email, profile.phone].filter(Boolean).join('  •  ');
-  if (contact) {
-    doc.fillColor('#94a3b8').font('Helvetica').fontSize(11).text(contact, 50, 62);
+  // Headline under name (role / tagline from profile)
+  if (hasVal(profile.headline)) {
+    doc.fillColor('#cbd5e1').font('Helvetica').fontSize(11).text(profile.headline!, 50, 54, { width: 450 });
+  }
+
+  // Contact info - location | email | phone
+  const contactParts = [profile.location, profile.email, profile.phone].filter(hasVal);
+  if (contactParts.length) {
+    const contactY = hasVal(profile.headline) ? 74 : 62;
+    doc.fillColor('#94a3b8').font('Helvetica').fontSize(10).text(contactParts.join('  •  '), 50, contactY);
   }
 
   // Accent line
@@ -73,10 +87,10 @@ export async function generateCvPdf(profile: CvProfile): Promise<Buffer> {
 
   doc.y = 120;
 
-  // Professional Summary - FULL LENGTH
-  if (profile.summary) {
+  // Professional Summary
+  if (hasVal(profile.summary)) {
     section('PROFESSIONAL SUMMARY');
-    doc.fillColor(DARK).font('Helvetica').fontSize(10.5).text(profile.summary, 50, doc.y, {
+    doc.fillColor(DARK).font('Helvetica').fontSize(10.5).text(profile.summary!, 50, doc.y, {
       width: contentWidth,
       align: 'justify',
       lineGap: 3
@@ -84,17 +98,18 @@ export async function generateCvPdf(profile: CvProfile): Promise<Buffer> {
     doc.moveDown(1);
   }
 
-  // Skills Section - CATEGORIZED
-  if (profile.skills?.length) {
-    section('TECHNICAL SKILLS');
-    const skillsPerCol = Math.ceil(profile.skills.length / 2);
+  // Skills Section
+  const validSkills = (profile.skills ?? []).filter(hasVal);
+  if (validSkills.length) {
+    section('CORE SKILLS');
+    const skillsPerCol = Math.ceil(validSkills.length / 2);
     const colWidth = Math.floor(contentWidth / 2);
     let col = 0;
     const startY = doc.y;
     let rowY = startY;
     let skillIndex = 0;
 
-    for (const skill of profile.skills) {
+    for (const skill of validSkills) {
       doc.fillColor(DARK).font('Helvetica').fontSize(10).text(`• ${skill}`, 50 + (col * colWidth), rowY, { width: colWidth - 12 });
       skillIndex++;
       rowY = doc.y + 2;
@@ -105,50 +120,100 @@ export async function generateCvPdf(profile: CvProfile): Promise<Buffer> {
       }
     }
     doc.y = Math.max(rowY + 8, startY + Math.ceil(skillsPerCol * 13));
+    doc.moveDown(0.6);
   }
 
-  // Experience Section - FULL DESCRIPTIONS
-  if (profile.experience?.length) {
-    section('PROFESSIONAL EXPERIENCE');
+  // Experience Section - skip entries with no real data
+  const validExperience = (profile.experience ?? []).filter(
+    (e) => hasVal(e.title) || hasVal(e.company) || hasVal(e.description)
+  );
+  if (validExperience.length) {
+    section('WORK EXPERIENCE');
 
-    for (const exp of profile.experience) {
+    for (const exp of validExperience) {
       ensureSpace(110);
-      // Job title and company
-      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11).text(exp.title ?? 'Position', 50, doc.y, { width: contentWidth });
-      doc.moveDown(0.1);
-
-      const dates = [exp.startDate, exp.endDate || 'Present'].filter(Boolean).join(' – ');
-      doc.fillColor(MUTED).font('Helvetica').fontSize(10)
-        .text(`${exp.company ?? 'Company'}  •  ${dates}`, 50, doc.y, { width: contentWidth });
-      doc.moveDown(0.4);
-
-      if (exp.description) {
-        const points = exp.description.split(/\n|•|-/).map((p) => p.trim()).filter(Boolean);
-        if (points.length > 1) points.slice(0, 5).forEach((p) => bullet(p));
-        else doc.fillColor(DARK).font('Helvetica').fontSize(10).text(exp.description, 50, doc.y, { width: contentWidth, align: 'justify', lineGap: 2 });
-        doc.moveDown(0.7);
+      const titleCompany = [safeText(exp.title), safeText(exp.company)].filter(Boolean).join(' | ');
+      if (titleCompany) {
+        doc.fillColor(DARK).font('Helvetica-Bold').fontSize(11).text(titleCompany, 50, doc.y, { width: contentWidth });
+        doc.moveDown(0.1);
       }
+
+      const start = safeText(exp.startDate);
+      const end = safeText(exp.endDate) || (start ? 'Present' : '');
+      const dates = [start, end].filter(Boolean).join(' – ');
+      if (dates) {
+        doc.fillColor(MUTED).font('Helvetica').fontSize(10).text(dates, 50, doc.y, { width: contentWidth });
+        doc.moveDown(0.4);
+      }
+
+      if (hasVal(exp.description)) {
+        const points = exp.description!.split(/\n|•|- /).map((p) => p.trim()).filter(Boolean);
+        if (points.length > 1) points.slice(0, 6).forEach((p) => bullet(p));
+        else doc.fillColor(DARK).font('Helvetica').fontSize(10).text(exp.description!, 50, doc.y, { width: contentWidth, align: 'justify', lineGap: 2 });
+      }
+
+      // Achievements as extra bullets
+      if (exp.achievements && exp.achievements.length) {
+        exp.achievements.filter(hasVal).slice(0, 4).forEach((a) => bullet(a));
+      }
+
+      doc.moveDown(0.7);
     }
   }
 
-  // Education Section - FULL DETAILS
-  if (profile.education?.length) {
+  // Education Section - skip empty entries
+  const validEducation = (profile.education ?? []).filter(
+    (e) => hasVal(e.degree) || hasVal(e.school)
+  );
+  if (validEducation.length) {
     section('EDUCATION');
 
-    for (const edu of profile.education) {
+    for (const edu of validEducation) {
       ensureSpace(52);
-      const dates = [edu.startDate, edu.endDate || 'Present'].filter(Boolean).join(' – ');
-      doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10.5).text(
-        `${edu.degree ?? 'Degree'} — ${edu.school ?? 'Institution'}`,
-        50, doc.y,
-        { width: contentWidth }
-      );
-      doc.moveDown(0.1);
+      const parts = [safeText(edu.degree), safeText(edu.school)].filter(Boolean);
+      if (parts.length) {
+        doc.fillColor(DARK).font('Helvetica-Bold').fontSize(10.5).text(parts.join(' — '), 50, doc.y, { width: contentWidth });
+        doc.moveDown(0.1);
+      }
+      if (hasVal(edu.fieldOfStudy)) {
+        doc.fillColor(DARK).font('Helvetica').fontSize(10).text(edu.fieldOfStudy!, 50, doc.y, { width: contentWidth });
+        doc.moveDown(0.1);
+      }
+      const dates = [safeText(edu.startDate), safeText(edu.endDate) || (safeText(edu.startDate) ? 'Present' : '')].filter(Boolean).join(' – ');
       if (dates) {
         doc.fillColor(MUTED).font('Helvetica').fontSize(9.5).text(dates, 50, doc.y);
         doc.moveDown(0.6);
+      } else {
+        doc.moveDown(0.4);
       }
     }
+  }
+
+  // Certifications & Training
+  const validTrainings = (profile.trainings ?? []).filter((t) => hasVal(t.title));
+  if (validTrainings.length) {
+    section('CERTIFICATIONS & TRAINING');
+    for (const t of validTrainings) {
+      ensureSpace(30);
+      const parts = [safeText(t.title), safeText(t.providerName)].filter(Boolean);
+      doc.fillColor(DARK).font('Helvetica').fontSize(10).text(`• ${parts.join(' — ')}`, 50, doc.y, { width: contentWidth });
+      if (hasVal(t.issuedAt)) {
+        doc.fillColor(MUTED).font('Helvetica').fontSize(9).text(t.issuedAt!, 50, doc.y);
+      }
+      doc.moveDown(0.3);
+    }
+    doc.moveDown(0.4);
+  }
+
+  // Languages
+  const validLanguages = (profile.languages ?? []).filter((l) => hasVal(l.name));
+  if (validLanguages.length) {
+    section('LANGUAGES');
+    const langText = validLanguages
+      .map((l) => hasVal(l.proficiency) ? `${l.name} (${l.proficiency})` : l.name)
+      .join('  •  ');
+    doc.fillColor(DARK).font('Helvetica').fontSize(10).text(langText, 50, doc.y, { width: contentWidth });
+    doc.moveDown(0.6);
   }
 
   // Footer
