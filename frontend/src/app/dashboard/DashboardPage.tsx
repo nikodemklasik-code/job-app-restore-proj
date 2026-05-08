@@ -52,6 +52,23 @@ function buildFallbackSnapshot(user: ReturnType<typeof useUser>['user']): Dashbo
       reason:
         'Dashboard data is temporarily unavailable. You can still continue from Profile, Documents, Jobs, Applications, Interview, Coach, or AI Assistant.',
     },
+    newsroom: [
+      {
+        id: 'fallback-workspace-status',
+        type: 'recruitment',
+        title: 'Workspace feed is reconnecting',
+        description: 'Live jobs, employer intelligence, and recruitment updates will appear here when the dashboard API is available.',
+        href: '/applications',
+        occurredAt: new Date().toISOString(),
+        ctaLabel: 'Review workspace',
+      },
+    ],
+    activity: {
+      lastLoginAt: null,
+      lastJobSearchAt: null,
+      lastJobSearchLabel: null,
+      lastMarketResearchAt: null,
+    },
     generatedAt: new Date().toISOString(),
   };
 }

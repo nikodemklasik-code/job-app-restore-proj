@@ -20,6 +20,16 @@ export type ApplicationSummary = {
   needsReviewCount: number;
 };
 
+export type DashboardNewsroomItem = {
+  id: string;
+  type: 'job' | 'employer' | 'recruitment';
+  title: string;
+  description: string;
+  href: string;
+  occurredAt: string;
+  ctaLabel: string;
+};
+
 export type BillingSummary = {
   currency: 'GBP';
   postedDebitCents: number;
@@ -51,6 +61,13 @@ export type DashboardSnapshot = {
     label: string;
     href: string;
     reason: string;
+  };
+  newsroom: DashboardNewsroomItem[];
+  activity: {
+    lastLoginAt: string | null;
+    lastJobSearchAt: string | null;
+    lastJobSearchLabel: string | null;
+    lastMarketResearchAt: string | null;
   };
   generatedAt: string;
 };

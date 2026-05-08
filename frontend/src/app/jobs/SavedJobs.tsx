@@ -4,7 +4,7 @@ import { JobCardCompact } from '@/components/jobs/JobCardCompact';
 import { JobCardExpanded } from '@/components/jobs/JobCardExpanded';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 export default function SavedJobs() {
   const navigate = useNavigate();

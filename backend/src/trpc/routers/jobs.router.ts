@@ -9,6 +9,8 @@ import { discoverJobsForProfile } from '../../services/jobSources/profileDrivenD
 import { explainJobFit, getCompanyProfile } from '../../services/aiPersonalizer.js';
 import { assessJobScamRisk, assessEmployerSignals } from '../../services/jobProtection.js';
 import { buildCandidateInsights } from '../../services/adaptiveInterviewer.js';
+import { decryptSessionCookies } from '../../services/jobSources/sessionCookieCrypto.js';
+import type { DiscoveryResult, ProviderDiagnostic } from '../../services/jobSources/types.js';
 
 function mapRequestedProviders(sources: string[]): string[] {
   return sources.map((source) => {
@@ -66,13 +68,84 @@ function queryFallbacks(query: string): string[] {
   return Array.from(new Set(fallbackTerms.filter(Boolean)));
 }
 
+
+type JobsSearchProviderDiagnostic = ProviderDiagnostic & {
+  label: string;
+  status: 'ok' | 'empty' | 'missing_session' | 'expired' | 'blocked' | 'http_error' | 'error';
+  message: string;
+};
+
+const PROVIDER_LABELS: Record<string, string> = {
+  'indeed-browser': 'Indeed',
+  indeed: 'Indeed',
+  gumtree: 'Gumtree',
+  glassdoor: 'Glassdoor',
+  linkedin: 'LinkedIn',
+};
+
+function publicProviderName(provider: string): string {
+  return provider === 'indeed' ? 'indeed-browser' : provider;
+}
+
+function classifyProviderDiagnostic(diagnostic: ProviderDiagnostic): JobsSearchProviderDiagnostic['status'] {
+  const error = diagnostic.error?.toLowerCase() ?? '';
+  if (!diagnostic.error) return diagnostic.count > 0 ? 'ok' : 'empty';
+  if (error.includes('missing') || error.includes('requires authentication') || error.includes('no session')) return 'missing_session';
+  if (error.includes('expired') || error.includes('login page') || error.includes('re-authenticate')) return 'expired';
+  if (error.includes('blocked') || error.includes('captcha') || error.includes('cloudflare') || /\b(403|429|999)\b/.test(error)) return 'blocked';
+  if (/\b[45]\d{2}\b/.test(error)) return 'http_error';
+  return 'error';
+}
+
+function buildProviderDiagnosticMessage(diagnostic: ProviderDiagnostic, status: JobsSearchProviderDiagnostic['status']): string {
+  const label = PROVIDER_LABELS[diagnostic.provider] ?? diagnostic.provider;
+  if (status === 'ok') return `${label}: ${diagnostic.count} jobs found`;
+  if (status === 'empty') return `${label}: no jobs returned for this query`;
+  if (status === 'missing_session') return `${label}: session cookies missing`;
+  if (status === 'expired') return `${label}: cookies expired — reconnect the session`;
+  if (status === 'blocked') return `${label}: bot-block / automated verification blocked${diagnostic.error ? ` (${diagnostic.error})` : ''}`;
+  if (status === 'http_error') return `${label}: ${diagnostic.error}`;
+  return `${label}: ${diagnostic.error ?? 'provider error'}`;
+}
+
+function buildProviderDiagnostics(
+  diagnostics: ProviderDiagnostic[],
+  requestedSources: string[],
+  fallbackError?: unknown,
+): JobsSearchProviderDiagnostic[] {
+  if (fallbackError && diagnostics.length === 0) {
+    return requestedSources.map((source) => {
+      const provider = publicProviderName(source);
+      const diagnostic: ProviderDiagnostic = {
+        provider,
+        query: '',
+        location: '',
+        count: 0,
+        durationMs: null,
+        error: String(fallbackError),
+      };
+      return { ...diagnostic, label: PROVIDER_LABELS[provider] ?? provider, status: 'error', message: buildProviderDiagnosticMessage(diagnostic, 'error') };
+    });
+  }
+
+  return diagnostics.map((diagnostic) => {
+    const status = classifyProviderDiagnostic(diagnostic);
+    return {
+      ...diagnostic,
+      label: PROVIDER_LABELS[diagnostic.provider] ?? diagnostic.provider,
+      status,
+      message: buildProviderDiagnosticMessage(diagnostic, status),
+    };
+  });
+}
+
 async function runManualDiscoveryWithFallbacks(input: {
   query: string;
   location: string;
   limit: number;
   userId?: string;
   providers: string[];
-}, providerContext: { sessionCookies?: { indeed?: string; gumtree?: string; glassdoor?: string; linkedin?: string }; userId?: string }): Promise<Awaited<ReturnType<typeof JobDiscoveryService.discover>>['jobs']> {
+}, providerContext: { sessionCookies?: { indeed?: string; gumtree?: string; glassdoor?: string; linkedin?: string }; userId?: string }): Promise<DiscoveryResult> {
   const providers = Array.from(new Set(input.providers));
   const attempts: Array<{ query: string; location: string }> = [];
 
@@ -87,10 +160,13 @@ async function runManualDiscoveryWithFallbacks(input: {
       { ...input, query: attempt.query, location: attempt.location, providers },
       providerContext,
     );
-    if (result.jobs.length > 0) return result.jobs;
+    if (result.jobs.length > 0) return result;
   }
 
-  return [];
+  return await JobDiscoveryService.discover(
+    { ...input, query: attempts[0]?.query ?? input.query, location: attempts[0]?.location ?? input.location, providers },
+    providerContext,
+  );
 }
 
 export const jobsRouter = router({
@@ -123,13 +199,14 @@ export const jobsRouter = router({
             if (sessions.length > 0) {
               sessionCookies = {};
               for (const s of sessions) {
-                if (s.provider === 'indeed') sessionCookies.indeed = s.cookies;
-                if (s.provider === 'gumtree') sessionCookies.gumtree = s.cookies;
-                if (s.provider === 'glassdoor') sessionCookies.glassdoor = s.cookies;
-                if (s.provider === 'linkedin') sessionCookies.linkedin = s.cookies;
-                if (s.provider === 'monster') sessionCookies.monster = s.cookies;
-                if (s.provider === 'totaljobs') sessionCookies.totaljobs = s.cookies;
-                if (s.provider === 'cv-library') sessionCookies.cvlibrary = s.cookies;
+                const cookies = decryptSessionCookies(s.cookies);
+                if (s.provider === 'indeed') sessionCookies.indeed = cookies;
+                if (s.provider === 'gumtree') sessionCookies.gumtree = cookies;
+                if (s.provider === 'glassdoor') sessionCookies.glassdoor = cookies;
+                if (s.provider === 'linkedin') sessionCookies.linkedin = cookies;
+                if (s.provider === 'monster') sessionCookies.monster = cookies;
+                if (s.provider === 'totaljobs') sessionCookies.totaljobs = cookies;
+                if (s.provider === 'cv-library') sessionCookies.cvlibrary = cookies;
               }
             }
           }
@@ -145,15 +222,17 @@ export const jobsRouter = router({
           providers: mapRequestedProviders(input.sources),
         };
 
-        let discoveryJobs = input.userId && trimmedQuery.length === 0
-          ? await discoverJobsForProfile(discoveryInput, providerContext)
-          : (await JobDiscoveryService.discover(discoveryInput, providerContext)).jobs;
+        let discoveryResult = input.userId && trimmedQuery.length === 0
+          ? { jobs: await discoverJobsForProfile(discoveryInput, providerContext), failures: [], totalRaw: 0, deduped: 0, diagnostics: undefined }
+          : await JobDiscoveryService.discover(discoveryInput, providerContext);
+        let discoveryJobs = discoveryResult.jobs;
 
         // If a manual search returns zero, retry with public suppliers, location
         // variants and role synonyms before showing emptiness. This is especially
         // important for hospitality queries such as "waiter" in Manchester.
         if (discoveryJobs.length === 0 && trimmedQuery.length > 0) {
-          discoveryJobs = await runManualDiscoveryWithFallbacks(discoveryInput, providerContext);
+          discoveryResult = await runManualDiscoveryWithFallbacks(discoveryInput, providerContext);
+          discoveryJobs = discoveryResult.jobs;
         }
 
         // Filter by age if requested
@@ -210,35 +289,45 @@ export const jobsRouter = router({
           return { ...job, fitScore, id: jobId, scamAnalysis, employerSignals };
         }));
 
-        return result.sort((a, b) => b.fitScore - a.fitScore).slice(0, input.limit);
+        const providerDiagnostics = buildProviderDiagnostics(discoveryResult.diagnostics?.providerDiagnostics ?? [], input.sources);
+
+        return {
+          jobs: result.sort((a, b) => b.fitScore - a.fitScore).slice(0, input.limit),
+          providerDiagnostics,
+          diagnostics: discoveryResult.diagnostics,
+        };
       } catch (err) {
         console.error('[jobs.search]', err);
         const cached = await db.select().from(jobs).orderBy(desc(jobs.createdAt)).limit(input.limit);
-        return cached.map((j) => ({
-          id: j.id, externalId: j.externalId ?? '', source: j.source,
-          title: j.title, company: j.company, location: j.location ?? '',
-          description: j.description ?? '', applyUrl: j.applyUrl ?? '',
-          salaryMin: j.salaryMin ? Number(j.salaryMin) : null,
-          salaryMax: j.salaryMax ? Number(j.salaryMax) : null,
-          workMode: j.workMode, requirements: (j.requirements as string[]) ?? [],
-          postedAt: j.createdAt.toISOString(), fitScore: j.fitScore ?? 60,
-          scamAnalysis: assessJobScamRisk({
-            title: j.title,
-            company: j.company,
-            description: j.description ?? '',
-            applyUrl: j.applyUrl ?? '',
+        return {
+          jobs: cached.map((j) => ({
+            id: j.id, externalId: j.externalId ?? '', source: j.source,
+            title: j.title, company: j.company, location: j.location ?? '',
+            description: j.description ?? '', applyUrl: j.applyUrl ?? '',
             salaryMin: j.salaryMin ? Number(j.salaryMin) : null,
             salaryMax: j.salaryMax ? Number(j.salaryMax) : null,
-          }),
-          employerSignals: assessEmployerSignals({
-            title: j.title,
-            company: j.company,
-            description: j.description ?? '',
-            applyUrl: j.applyUrl ?? '',
-            salaryMin: j.salaryMin ? Number(j.salaryMin) : null,
-            salaryMax: j.salaryMax ? Number(j.salaryMax) : null,
-          }),
-        }));
+            workMode: j.workMode, requirements: (j.requirements as string[]) ?? [],
+            postedAt: j.createdAt.toISOString(), fitScore: j.fitScore ?? 60,
+            scamAnalysis: assessJobScamRisk({
+              title: j.title,
+              company: j.company,
+              description: j.description ?? '',
+              applyUrl: j.applyUrl ?? '',
+              salaryMin: j.salaryMin ? Number(j.salaryMin) : null,
+              salaryMax: j.salaryMax ? Number(j.salaryMax) : null,
+            }),
+            employerSignals: assessEmployerSignals({
+              title: j.title,
+              company: j.company,
+              description: j.description ?? '',
+              applyUrl: j.applyUrl ?? '',
+              salaryMin: j.salaryMin ? Number(j.salaryMin) : null,
+              salaryMax: j.salaryMax ? Number(j.salaryMax) : null,
+            }),
+          })),
+          providerDiagnostics: buildProviderDiagnostics([], input.sources, err),
+          diagnostics: undefined,
+        };
       }
     }),
 

@@ -8,12 +8,15 @@ import {
   billingLedger,
   careerGoals,
   documentUploads,
+  employerAnalysis,
   experiences,
   interviewSessions,
+  jobs,
   pendingCharges,
   profiles,
   skills,
   users,
+  userJobPreferences,
 } from '../../db/schema.js';
 import { getAccountState as getAccountStateService } from '../../services/creditsBilling.js';
 import { computeBillingSummary } from './billing.router.js';
@@ -24,6 +27,16 @@ import {
 } from './dashboard-snapshot.mapper.js';
 
 const STALE_MS = 7 * 24 * 60 * 60 * 1000;
+
+const newsroomItemSchema = z.object({
+  id: z.string(),
+  type: z.enum(['job', 'employer', 'recruitment']),
+  title: z.string(),
+  description: z.string(),
+  href: z.string(),
+  occurredAt: z.string(),
+  ctaLabel: z.string(),
+});
 
 const snapshotOutputSchema = z.object({
   userId: z.string(),
@@ -75,6 +88,13 @@ const snapshotOutputSchema = z.object({
     label: z.string(),
     href: z.string(),
     reason: z.string(),
+  }),
+  newsroom: z.array(newsroomItemSchema),
+  activity: z.object({
+    lastLoginAt: z.string().nullable(),
+    lastJobSearchAt: z.string().nullable(),
+    lastJobSearchLabel: z.string().nullable(),
+    lastMarketResearchAt: z.string().nullable(),
   }),
   generatedAt: z.string(),
 });
@@ -139,6 +159,74 @@ function computeProfileCompleteness(input: {
   return { completeness, missingCriticalFields };
 }
 
+type NewsroomItem = z.infer<typeof newsroomItemSchema>;
+
+function buildNewsroom(input: {
+  recentJobs: Array<{ id: string; title: string; company: string; location: string | null; source: string; createdAt: Date }>;
+  employerUpdates: Array<{ id: string; jobId: string; companyName: string; summary: string | null; overallScore: number | null; updatedAt: Date }>;
+  recentApplications: Array<{ id: string; company: string; jobTitle: string; status: string; updatedAt: Date }>;
+  needsReviewCount: number;
+}): NewsroomItem[] {
+  const feed: NewsroomItem[] = [];
+
+  for (const job of input.recentJobs) {
+    feed.push({
+      id: `job-${job.id}`,
+      type: 'job',
+      title: `New role: ${job.title}`,
+      description: `${job.company}${job.location ? ` · ${job.location}` : ''} · ${job.source}`,
+      href: `/jobs?jobId=${encodeURIComponent(job.id)}`,
+      occurredAt: job.createdAt.toISOString(),
+      ctaLabel: 'Open job',
+    });
+  }
+
+  for (const update of input.employerUpdates) {
+    feed.push({
+      id: `employer-${update.id}`,
+      type: 'employer',
+      title: `Employer intel: ${update.companyName}`,
+      description: update.summary?.trim()
+        ? update.summary.trim()
+        : `Latest employer analysis score: ${update.overallScore ?? 'pending'}/5`,
+      href: `/jobs?jobId=${encodeURIComponent(update.jobId)}`,
+      occurredAt: update.updatedAt.toISOString(),
+      ctaLabel: 'View employer',
+    });
+  }
+
+  for (const application of input.recentApplications) {
+    feed.push({
+      id: `application-${application.id}`,
+      type: 'recruitment',
+      title: `Recruitment update: ${application.company}`,
+      description: `${application.jobTitle} moved to ${mapApplicationStatusToDashboard(application.status)}.`,
+      href: `/applications?applicationId=${encodeURIComponent(application.id)}`,
+      occurredAt: application.updatedAt.toISOString(),
+      ctaLabel: 'Review application',
+    });
+  }
+
+  if (input.needsReviewCount > 0) {
+    feed.push({
+      id: 'recruitment-follow-up-needed',
+      type: 'recruitment',
+      title: 'Follow-up review needed',
+      description:
+        input.needsReviewCount === 1
+          ? '1 application has been quiet for more than 7 days.'
+          : `${input.needsReviewCount} applications have been quiet for more than 7 days.`,
+      href: '/review',
+      occurredAt: new Date().toISOString(),
+      ctaLabel: 'Review now',
+    });
+  }
+
+  return feed
+    .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
+    .slice(0, 6);
+}
+
 function computeNextAction(input: {
   completeness: number;
   needsReviewCount: number;
@@ -196,6 +284,7 @@ export const dashboardRouter = router({
         targetSalaryMin: careerGoals.targetSalaryMin,
         targetSalaryMax: careerGoals.targetSalaryMax,
         targetSalary: careerGoals.targetSalary,
+        lastSeenAt: users.lastSeenAt,
         targetSeniority: careerGoals.targetSeniority,
         workValues: careerGoals.workValues,
       })
@@ -268,6 +357,43 @@ export const dashboardRouter = router({
       .where(eq(applications.userId, userId))
       .orderBy(desc(applications.updatedAt))
       .limit(5);
+
+    const [recentJobs, employerUpdates, jobPreferences] = await Promise.all([
+      db
+        .select({
+          id: jobs.id,
+          title: jobs.title,
+          company: jobs.company,
+          location: jobs.location,
+          source: jobs.source,
+          createdAt: jobs.createdAt,
+        })
+        .from(jobs)
+        .where(eq(jobs.isActive, true))
+        .orderBy(desc(jobs.createdAt))
+        .limit(3),
+      db
+        .select({
+          id: employerAnalysis.id,
+          jobId: employerAnalysis.jobId,
+          companyName: employerAnalysis.companyName,
+          summary: employerAnalysis.summary,
+          overallScore: employerAnalysis.overallScore,
+          updatedAt: employerAnalysis.updatedAt,
+        })
+        .from(employerAnalysis)
+        .orderBy(desc(employerAnalysis.updatedAt))
+        .limit(3),
+      db
+        .select({
+          lastQuery: userJobPreferences.lastQuery,
+          lastLocation: userJobPreferences.lastLocation,
+          updatedAt: userJobPreferences.updatedAt,
+        })
+        .from(userJobPreferences)
+        .where(eq(userJobPreferences.userId, userId))
+        .limit(1),
+    ]);
 
     const staleThreshold = new Date(Date.now() - STALE_MS);
 
@@ -380,6 +506,20 @@ export const dashboardRouter = router({
         needsReviewCount: Number(needsReviewRow?.c ?? 0),
         appliedLikeCount: byStatus.applied + byStatus.interview + byStatus.offer,
       }),
+      newsroom: buildNewsroom({
+        recentJobs,
+        employerUpdates,
+        recentApplications,
+        needsReviewCount: Number(needsReviewRow?.c ?? 0),
+      }),
+      activity: {
+        lastLoginAt: userRow.lastSeenAt ? userRow.lastSeenAt.toISOString() : null,
+        lastJobSearchAt: jobPreferences[0]?.updatedAt ? jobPreferences[0].updatedAt.toISOString() : null,
+        lastJobSearchLabel: jobPreferences[0]
+          ? `${jobPreferences[0].lastQuery || 'Any role'} · ${jobPreferences[0].lastLocation || 'United Kingdom'}`
+          : null,
+        lastMarketResearchAt: employerUpdates[0]?.updatedAt ? employerUpdates[0].updatedAt.toISOString() : null,
+      },
       generatedAt: new Date().toISOString(),
     };
 

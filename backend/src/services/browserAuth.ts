@@ -128,6 +128,267 @@ async function clickFirst(page: any, selectors: string[]): Promise<boolean> {
   return false;
 }
 
+
+export type BrowserAuthProvider = 'indeed' | 'gumtree' | 'glassdoor' | 'linkedin';
+
+type BrowserLoginResult = {
+  success: boolean;
+  requiresCode?: boolean;
+  codeSentTo?: string | null;
+  storageState?: unknown;
+  error?: string;
+};
+
+type BrowserAuthConfig = {
+  provider: BrowserAuthProvider;
+  label: string;
+  loginUrl: string;
+  successHost: string;
+  blockedPathHints: string[];
+  emailSelectors: string[];
+  passwordSelectors: string[];
+  submitSelectors: string[];
+  postLoginUrl?: string;
+  requiredCookieNames?: string[];
+};
+
+const BROWSER_AUTH_CONFIG: Record<BrowserAuthProvider, BrowserAuthConfig> = {
+  indeed: {
+    provider: 'indeed',
+    label: 'Indeed',
+    loginUrl: 'https://secure.indeed.com/auth?hl=en_GB&co=GB',
+    successHost: 'indeed',
+    blockedPathHints: ['/auth', 'secure.indeed.com/auth'],
+    emailSelectors: ['input[type="email"]', 'input[name="__email"]', 'input[name="email"]', 'input[id*="email"]', '#ifl-InputFormField-3'],
+    passwordSelectors: ['input[type="password"]', 'input[name="password"]', 'input[name="__password"]'],
+    submitSelectors: ['button[type="submit"]', 'input[type="submit"]', 'button:has-text("Continue")', 'button:has-text("Sign in")', 'button:has-text("Next")'],
+    postLoginUrl: 'https://secure.indeed.com/account/view?hl=en_GB&co=GB',
+  },
+  gumtree: {
+    provider: 'gumtree',
+    label: 'Gumtree',
+    loginUrl: 'https://www.gumtree.com/login',
+    successHost: 'gumtree.com',
+    blockedPathHints: ['/login', '/register'],
+    emailSelectors: ['input[type="email"]', 'input[name="email"]', 'input[id="email"]', '#email'],
+    passwordSelectors: ['input[type="password"]', 'input[name="password"]', '#password'],
+    submitSelectors: ['button[type="submit"]', 'button:has-text("Log in")', 'button:has-text("Sign in")', 'button:has-text("Continue")', 'input[type="submit"]'],
+    postLoginUrl: 'https://www.gumtree.com/my-account',
+  },
+  glassdoor: {
+    provider: 'glassdoor',
+    label: 'Glassdoor',
+    loginUrl: 'https://www.glassdoor.co.uk/profile/login_input.htm',
+    successHost: 'glassdoor.co.uk',
+    blockedPathHints: ['login', 'signin'],
+    emailSelectors: ['input[type="email"]', 'input[name="username"]', 'input[name="email"]', '#inlineUserEmail', '#modalUserEmail'],
+    passwordSelectors: ['input[type="password"]', 'input[name="password"]', '#inlineUserPassword', '#modalUserPassword'],
+    submitSelectors: ['button[type="submit"]', 'button:has-text("Sign in")', 'button:has-text("Continue")', 'button:has-text("Next")'],
+    postLoginUrl: 'https://www.glassdoor.co.uk/member/profile/accountSettings',
+  },
+  linkedin: {
+    provider: 'linkedin',
+    label: 'LinkedIn',
+    loginUrl: 'https://www.linkedin.com/login',
+    successHost: 'linkedin.com',
+    blockedPathHints: ['/login', '/checkpoint', '/uas/login'],
+    emailSelectors: ['input[name="session_key"]', 'input[type="email"]', '#username'],
+    passwordSelectors: ['input[name="session_password"]', 'input[type="password"]', '#password'],
+    submitSelectors: ['button[type="submit"]', 'button:has-text("Sign in")', 'button:has-text("Continue")'],
+    postLoginUrl: 'https://www.linkedin.com/feed/',
+    requiredCookieNames: ['li_at'],
+  },
+};
+
+function providerKey(provider: BrowserAuthProvider, userId: string): string {
+  return `${provider}:${userId}`;
+}
+
+function storageStateHasCookie(storageState: unknown, cookieNames: string[] | undefined): boolean {
+  if (!cookieNames?.length) return true;
+  const state = storageState as { cookies?: Array<{ name: string }> };
+  const names = new Set((state.cookies ?? []).map((cookie) => cookie.name.toLowerCase()));
+  return cookieNames.some((name) => names.has(name.toLowerCase()));
+}
+
+async function captureStorageIfLoggedIn(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  page: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  context: any,
+  config: BrowserAuthConfig,
+): Promise<unknown | null> {
+  if (config.postLoginUrl) {
+    await page.goto(config.postLoginUrl, { waitUntil: 'domcontentloaded', timeout: 30000 }).catch(() => { });
+    await humanDelay(900, 1600);
+  }
+
+  const url = String(page.url()).toLowerCase();
+  const onProviderHost = url.includes(config.successHost);
+  const blockedByAuthPath = config.blockedPathHints.some((hint) => url.includes(hint.toLowerCase()));
+  const storageState = await context.storageState();
+
+  if (onProviderHost && !blockedByAuthPath && storageStateHasCookie(storageState, config.requiredCookieNames)) {
+    return storageState;
+  }
+
+  if (storageStateHasCookie(storageState, config.requiredCookieNames) && !blockedByAuthPath) {
+    return storageState;
+  }
+
+  return null;
+}
+
+function detectCodeDestination(content: string, fallbackEmail: string): string | null {
+  const phoneMatch = content.match(/(?:sent|text).{0,30}([\+\(\)\d\s\-]{6,})/i);
+  const emailMatch = content.match(/(?:sent|email|code).{0,40}([a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,})/i);
+  if (emailMatch?.[1]) return emailMatch[1].trim();
+  if (phoneMatch?.[1]) return phoneMatch[1].trim();
+  return fallbackEmail;
+}
+
+function pageRequiresCode(content: string): boolean {
+  return (
+    content.includes('check your email for a code') ||
+    content.includes('we sent a code') ||
+    content.includes('we sent an email') ||
+    content.includes('we sent a text') ||
+    content.includes('enter code') ||
+    content.includes('one-time code') ||
+    content.includes('verification code') ||
+    content.includes('security verification') ||
+    content.includes('two-step verification')
+  );
+}
+
+function pageHasBotChallenge(content: string): boolean {
+  return (
+    content.includes('captcha') ||
+    content.includes('robot') ||
+    content.includes('verify you are human') ||
+    content.includes('unusual activity') ||
+    content.includes('security check') ||
+    content.includes('cloudflare')
+  );
+}
+
+export async function startProviderLogin(
+  provider: BrowserAuthProvider,
+  userId: string,
+  email: string,
+  password?: string,
+): Promise<BrowserLoginResult> {
+  if (provider === 'indeed') {
+    const result = await startIndeedLogin(userId, email, password);
+    return { success: Boolean(result.storageState), ...result };
+  }
+  if (provider === 'gumtree') return loginGumtree(userId, email, password);
+
+  const config = BROWSER_AUTH_CONFIG[provider];
+  try {
+    const { browser, context } = await launchBrowser();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const page: any = await context.newPage();
+
+    await page.goto(config.loginUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    await humanDelay(1000, 2000);
+    await clickFirst(page, [
+      '#onetrust-accept-btn-handler',
+      'button[id*="onetrust-accept"]',
+      'button:has-text("Accept all")',
+      'button:has-text("Accept cookies")',
+      'button:has-text("Agree")',
+    ]).catch(() => { });
+
+    const emailFilled = await fillFirst(page, config.emailSelectors, email);
+    if (!emailFilled) {
+      await browser.close().catch(() => { });
+      return { success: false, error: `Could not find ${config.label} email field. Use manual Cookie fallback if the provider changed its login page.` };
+    }
+
+    await humanDelay(400, 900);
+    await clickFirst(page, config.submitSelectors);
+    await humanDelay(1200, 2200);
+
+    if (password) {
+      const passwordFilled = await fillFirst(page, config.passwordSelectors, password);
+      if (passwordFilled) {
+        await humanDelay(400, 900);
+        await clickFirst(page, config.submitSelectors);
+        await humanDelay(2500, 4500);
+      }
+    }
+
+    const storageState = await captureStorageIfLoggedIn(page, context, config);
+    if (storageState) {
+      await browser.close().catch(() => { });
+      return { success: true, storageState };
+    }
+
+    const content = (await page.content()).toLowerCase();
+    if (pageHasBotChallenge(content)) {
+      await browser.close().catch(() => { });
+      return { success: false, error: `${config.label} is showing a CAPTCHA/security challenge. Manual Cookie fallback is the safest alternative.` };
+    }
+
+    if (pageRequiresCode(content) || (await page.locator('input[autocomplete="one-time-code"], input[inputmode="numeric"]').count()) > 0) {
+      pendingLogins.set(providerKey(provider, userId), {
+        state: { storageState: null, page, browser, context },
+        expiresAt: Date.now() + 10 * 60 * 1000,
+      });
+      return { success: false, requiresCode: true, codeSentTo: detectCodeDestination(content, email) };
+    }
+
+    await browser.close().catch(() => { });
+    return {
+      success: false,
+      error: `${config.label} login did not complete automatically. Best fallback: sign in in your browser and paste the provider Cookie header.`,
+    };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+export async function submitProviderCode(
+  provider: BrowserAuthProvider,
+  userId: string,
+  code: string,
+): Promise<{ success: boolean; storageState?: unknown; error?: string }> {
+  if (provider === 'indeed') return submitIndeedCode(userId, code);
+  if (provider === 'gumtree') return submitGumtreeCode(userId, code);
+
+  const config = BROWSER_AUTH_CONFIG[provider];
+  const entry = pendingLogins.get(providerKey(provider, userId));
+  if (!entry) return { success: false, error: 'Login session expired — please start again' };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { page, browser, context } = entry.state as any;
+  pendingLogins.delete(providerKey(provider, userId));
+
+  try {
+    await fillFirst(page, [
+      'input[autocomplete="one-time-code"]',
+      'input[inputmode="numeric"]',
+      'input[name*="otp"]',
+      'input[name*="code"]',
+      'input[id*="code"]',
+      'input[type="tel"]',
+    ], code);
+    await humanDelay(400, 800);
+    await clickFirst(page, ['button[type="submit"]', 'button:has-text("Verify")', 'button:has-text("Continue")', 'button:has-text("Submit")']);
+    await humanDelay(2500, 4500);
+
+    const storageState = await captureStorageIfLoggedIn(page, context, config);
+    await browser.close().catch(() => { });
+    if (storageState) return { success: true, storageState };
+    return { success: false, error: `${config.label} verification did not complete — try automatic login again or use manual Cookie fallback.` };
+  } catch (err) {
+    await browser.close().catch(() => { });
+    return { success: false, error: String(err) };
+  }
+}
+
+
 // ── Indeed ────────────────────────────────────────────────────────────────────
 
 /** Human-like random delay between min and max ms */

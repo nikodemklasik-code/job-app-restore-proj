@@ -358,7 +358,9 @@ export const userJobSessions = mysqlTable('user_job_sessions', {
   cookies: text('cookies').notNull(), // raw Cookie header string
   storageState: text('storage_state'), // Playwright storageState JSON (full session)
   isActive: boolean('is_active').default(true).notNull(),
+  sessionStatus: varchar('session_status', { length: 30 }).default('active').notNull(),
   lastTestedAt: timestamp('last_tested_at'),
+  lastHealthReason: varchar('last_health_reason', { length: 500 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().onUpdateNow().notNull(),
 });

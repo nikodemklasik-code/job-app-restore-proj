@@ -12,7 +12,7 @@ import {
   Mail,
   Loader2,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -56,8 +56,21 @@ function statusIcon(status: string) {
 export default function ApplicationsPage() {
   const { user } = useUser();
   const userId = user?.id ?? '';
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
+  const [selectedApplicationId, setSelectedApplicationIdState] = useState<string | null>(() =>
+    searchParams.get('applicationId'),
+  );
+  const setSelectedApplicationId = (applicationId: string | null) => {
+    setSelectedApplicationIdState(applicationId);
+    const nextParams = new URLSearchParams(searchParams);
+    if (applicationId) {
+      nextParams.set('applicationId', applicationId);
+    } else {
+      nextParams.delete('applicationId');
+    }
+    setSearchParams(nextParams, { replace: true });
+  };
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
   const [employerEmail, setEmployerEmail] = useState('');

@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import type { JobSourceProvider, DiscoveryInput, ProviderContext, SourceJob } from '../types.js';
+import { buildProviderRequestHeaders, isProviderBlockedHtml, isProviderLoggedOutHtml } from '../sessionCookies.js';
 
 // Rotate user agents
 const FETCH_USER_AGENTS = [
@@ -60,25 +61,16 @@ export class GumtreeProvider implements JobSourceProvider {
 
   async discover(input: DiscoveryInput, context?: ProviderContext): Promise<SourceJob[]> {
     const cookies = context?.sessionCookies?.['gumtree'];
-    if (!cookies?.trim()) return [];
+    if (!cookies?.trim()) throw new Error('Gumtree session cookies missing — connect this provider before searching');
 
     const url = `https://www.gumtree.com/search?search_category=jobs&q=${encodeURIComponent(input.query)}&search_location=${encodeURIComponent(input.location || 'United Kingdom')}&distance=60`;
 
     const ua = pickFetchUA();
     const res = await fetch(url, {
       headers: {
+        ...buildProviderRequestHeaders('gumtree', cookies),
         'User-Agent': ua,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-GB,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
         'Referer': 'https://www.gumtree.com/',
-        'Cookie': cookies,
-        'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"Windows"',
-        'sec-fetch-dest': 'document',
-        'sec-fetch-mode': 'navigate',
-        'sec-fetch-site': 'same-origin',
       },
     });
 
@@ -90,12 +82,11 @@ export class GumtreeProvider implements JobSourceProvider {
     const html = await res.text();
 
     // Detect login wall
-    if (
-      html.includes('id="signin-form"') ||
-      html.includes('gumtree.com/login') ||
-      html.toLowerCase().includes('sign in to gumtree')
-    ) {
+    if (isProviderLoggedOutHtml('gumtree', html)) {
       throw new Error('Gumtree session expired — please re-authenticate');
+    }
+    if (isProviderBlockedHtml(html)) {
+      throw new Error('Gumtree blocked automated scraping — refresh cookies or try again later');
     }
 
     return parseGumtreeHtml(html, input.limit);

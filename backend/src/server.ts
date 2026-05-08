@@ -29,6 +29,7 @@ import { appRouter } from './trpc/routers/index.js';
 import { createContext } from './trpc/trpc.js';
 import { createJobRadarOpenApiRouter } from './modules/job-radar/api/job-radar.express.router.js';
 import { runRetentionJob } from './services/retentionJob.js';
+import { startJobSessionHealthCheckJob } from './services/jobSources/sessionHealthCheckJob.js';
 import { resolveExpressTrustProxy } from './runtime/express-trust-proxy.js';
 
 const app = express();
@@ -423,4 +424,5 @@ app.listen(port, () => {
 });
 
 setInterval(() => { void runRetentionJob(); }, 24 * 60 * 60 * 1000);
+startJobSessionHealthCheckJob();
 setTimeout(() => { void runRetentionJob(); }, 30_000);
