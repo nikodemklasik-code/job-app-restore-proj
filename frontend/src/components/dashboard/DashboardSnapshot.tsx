@@ -524,7 +524,12 @@ function gapCopy(field: string): { title: string; description: string; href: str
 }
 
 export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto }) {
-  const { profile, applications, practice, nextAction, activity } = snapshot;
+  const { profile, applications, practice, nextAction, activity = {
+    lastLoginAt: null,
+    lastJobSearchAt: null,
+    lastJobSearchLabel: null,
+    lastMarketResearchAt: null,
+  } } = snapshot;
   const displayName = firstName(profile.fullName);
   return (
     <div className="space-y-8">

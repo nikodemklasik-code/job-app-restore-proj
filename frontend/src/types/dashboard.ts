@@ -63,7 +63,7 @@ export type DashboardSnapshot = {
     reason: string;
   };
   newsroom: DashboardNewsroomItem[];
-  activity: {
+  activity?: {
     lastLoginAt: string | null;
     lastJobSearchAt: string | null;
     lastJobSearchLabel: string | null;
