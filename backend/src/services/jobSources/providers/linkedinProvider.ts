@@ -1,5 +1,6 @@
 import type { JobSourceProvider, DiscoveryInput, ProviderContext, SourceJob } from '../types.js';
 import { logProviderEvent } from '../providerMonitoring.js';
+import { buildProviderRequestHeaders, isProviderBlockedHtml, isProviderLoggedOutHtml } from '../sessionCookies.js';
 
 function norm(v: unknown): string {
     return String(v ?? '').trim();
@@ -38,8 +39,7 @@ function extractRequirements(description: string): string[] {
 
 async function scrapeLinkedIn(input: DiscoveryInput, cookies?: string): Promise<SourceJob[]> {
     if (!cookies?.trim()) {
-        console.warn('[LinkedInProvider] No session cookies provided - LinkedIn requires authentication');
-        return [];
+        throw new Error('LinkedIn session cookies missing — connect this provider before searching');
     }
 
     const query = encodeURIComponent(input.query);
@@ -49,19 +49,22 @@ async function scrapeLinkedIn(input: DiscoveryInput, cookies?: string): Promise<
     try {
         const response = await fetch(url, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'en-GB,en;q=0.9',
-                'Cookie': cookies,
+                ...buildProviderRequestHeaders('linkedin', cookies),
+                'Referer': 'https://www.linkedin.com/jobs/',
             },
         });
 
         if (!response.ok) {
-            console.warn(`[LinkedInProvider] HTTP ${response.status} for ${url}`);
-            return [];
+            throw new Error(`LinkedIn HTTP ${response.status}`);
         }
 
         const html = await response.text();
+        if (isProviderLoggedOutHtml('linkedin', html)) {
+            throw new Error('LinkedIn session expired — please re-authenticate');
+        }
+        if (isProviderBlockedHtml(html)) {
+            throw new Error('LinkedIn blocked automated scraping — refresh cookies or try again later');
+        }
         const jobs: SourceJob[] = [];
 
         // LinkedIn embeds job data in JSON within script tags
@@ -104,7 +107,7 @@ async function scrapeLinkedIn(input: DiscoveryInput, cookies?: string): Promise<
         return jobs.slice(0, input.limit || 20);
     } catch (error) {
         console.error('[LinkedInProvider] Scraping failed:', error);
-        return [];
+        throw error;
     }
 }
 
@@ -145,7 +148,7 @@ export class LinkedInProvider implements JobSourceProvider {
             return jobs;
         } catch (error) {
             await logProviderEvent({ provider: this.name, eventType: 'search_failure', query: input.query, location: input.location, jobsFound: 0, responseTimeMs: Date.now() - start, errorMessage: error instanceof Error ? error.message : String(error) });
-            return [];
+            throw error instanceof Error ? error : new Error(String(error));
         }
     }
 }

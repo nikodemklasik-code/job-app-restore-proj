@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import type { JobSourceProvider, DiscoveryInput, ProviderContext, SourceJob } from '../types.js';
+import { buildProviderRequestHeaders, isProviderBlockedHtml, isProviderLoggedOutHtml } from '../sessionCookies.js';
 
 // Rotate user agents to reduce bot detection on fetch requests
 const FETCH_USER_AGENTS = [
@@ -23,7 +24,7 @@ export class IndeedBrowserProvider implements JobSourceProvider {
 
   async discover(input: DiscoveryInput, context?: ProviderContext): Promise<SourceJob[]> {
     const cookies = context?.sessionCookies?.['indeed'];
-    if (!cookies?.trim()) return [];
+    if (!cookies?.trim()) throw new Error('Indeed session cookies missing — connect this provider before searching');
 
     // Build query — include seniority hint if present in the query string
     const params = new URLSearchParams({
@@ -38,19 +39,9 @@ export class IndeedBrowserProvider implements JobSourceProvider {
     const ua = pickFetchUA();
     const res = await fetch(`https://www.indeed.co.uk/jobs?${params.toString()}`, {
       headers: {
+        ...buildProviderRequestHeaders('indeed', cookies),
         'User-Agent': ua,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-GB,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
         'Referer': 'https://www.indeed.co.uk/',
-        'Cookie': cookies,
-        'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"Windows"',
-        'sec-fetch-dest': 'document',
-        'sec-fetch-mode': 'navigate',
-        'sec-fetch-site': 'same-origin',
-        'upgrade-insecure-requests': '1',
       },
     });
 
@@ -62,13 +53,11 @@ export class IndeedBrowserProvider implements JobSourceProvider {
     const html = await res.text();
 
     // Detect login wall / CAPTCHA
-    if (
-      html.includes('id="signin-form"') ||
-      html.includes('secure.indeed.com/auth') ||
-      html.includes('captcha') ||
-      html.toLowerCase().includes('sign in to indeed')
-    ) {
+    if (isProviderLoggedOutHtml('indeed', html)) {
       throw new Error('Indeed session expired — please re-authenticate');
+    }
+    if (isProviderBlockedHtml(html)) {
+      throw new Error('Indeed blocked automated scraping — refresh cookies or try again later');
     }
 
     return parseIndeedHtml(html);

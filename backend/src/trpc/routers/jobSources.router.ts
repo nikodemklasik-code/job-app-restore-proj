@@ -7,6 +7,7 @@ import { users, userJobSessions, jobSourceSettings } from '../../db/schema.js';
 import { JOB_SOURCE_CATALOG } from '../../../../shared/jobSources.js';
 import { getProviders } from '../../services/jobSources/providerRegistry.js';
 import { JobDiscoveryService } from '../../services/jobSources/jobDiscoveryService.js';
+import { decryptSessionCookies } from '../../services/jobSources/sessionCookieCrypto.js';
 
 export const jobSourcesRouter = router({
   list: publicProcedure
@@ -157,7 +158,7 @@ export const jobSourcesRouter = router({
         if (sessions.length > 0) {
           context.sessionCookies = {};
           for (const s of sessions) {
-            context.sessionCookies[s.provider] = s.cookies;
+            context.sessionCookies[s.provider] = decryptSessionCookies(s.cookies);
           }
         }
       }

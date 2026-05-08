@@ -1,5 +1,6 @@
 import type { JobSourceProvider, DiscoveryInput, ProviderContext, SourceJob } from '../types.js';
 import { logProviderEvent } from '../providerMonitoring.js';
+import { buildProviderRequestHeaders, isProviderBlockedHtml, isProviderLoggedOutHtml } from '../sessionCookies.js';
 
 function norm(v: unknown): string {
     return String(v ?? '').trim();
@@ -62,8 +63,7 @@ function parseSalary(salaryText: string): { min: number | null; max: number | nu
 
 async function scrapeGlassdoor(input: DiscoveryInput, cookies?: string): Promise<SourceJob[]> {
     if (!cookies?.trim()) {
-        console.warn('[GlassdoorProvider] No session cookies provided - Glassdoor requires authentication');
-        return [];
+        throw new Error('Glassdoor session cookies missing — connect this provider before searching');
     }
 
     const query = encodeURIComponent(input.query);
@@ -73,19 +73,22 @@ async function scrapeGlassdoor(input: DiscoveryInput, cookies?: string): Promise
     try {
         const response = await fetch(url, {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'en-GB,en;q=0.9',
-                'Cookie': cookies,
+                ...buildProviderRequestHeaders('glassdoor', cookies),
+                'Referer': 'https://www.glassdoor.co.uk/',
             },
         });
 
         if (!response.ok) {
-            console.warn(`[GlassdoorProvider] HTTP ${response.status} for ${url}`);
-            return [];
+            throw new Error(`Glassdoor HTTP ${response.status}`);
         }
 
         const html = await response.text();
+        if (isProviderLoggedOutHtml('glassdoor', html)) {
+            throw new Error('Glassdoor session expired — please re-authenticate');
+        }
+        if (isProviderBlockedHtml(html)) {
+            throw new Error('Glassdoor blocked automated scraping — refresh cookies or try again later');
+        }
         const jobs: SourceJob[] = [];
 
         // Glassdoor embeds job data in JSON within script tags
@@ -129,7 +132,7 @@ async function scrapeGlassdoor(input: DiscoveryInput, cookies?: string): Promise
         return jobs.slice(0, input.limit || 20);
     } catch (error) {
         console.error('[GlassdoorProvider] Scraping failed:', error);
-        return [];
+        throw error;
     }
 }
 
@@ -171,7 +174,7 @@ export class GlassdoorProvider implements JobSourceProvider {
             return jobs;
         } catch (error) {
             await logProviderEvent({ provider: this.name, eventType: 'search_failure', query: input.query, location: input.location, jobsFound: 0, responseTimeMs: Date.now() - start, errorMessage: error instanceof Error ? error.message : String(error) });
-            return [];
+            throw error instanceof Error ? error : new Error(String(error));
         }
     }
 }

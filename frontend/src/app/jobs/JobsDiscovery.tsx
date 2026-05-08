@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useUser } from '@clerk/clerk-react';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import { api } from '@/lib/api';
 import {
   clearPendingCvJobsSearchMarker,
@@ -50,8 +50,37 @@ type JobResult = {
 
 // Removed unused FitAnalysis type - defined in backend
 
-type SessionStatus = { id: string; provider: string; isActive: boolean; lastTestedAt: Date | null; updatedAt: Date };
+type SessionStatus = { id: string; provider: string; isActive: boolean; sessionStatus?: 'active' | 'needs_refresh' | 'blocked' | 'expired'; lastTestedAt: Date | null; lastHealthReason?: string | null; updatedAt: Date };
+
+type ProviderDiagnostic = {
+  provider: string;
+  label: string;
+  status: 'ok' | 'empty' | 'missing_session' | 'expired' | 'blocked' | 'http_error' | 'error';
+  message: string;
+  count: number;
+  durationMs: number | null;
+  error?: string;
+};
+
+type JobsSearchResponse = { jobs: JobResult[]; providerDiagnostics?: ProviderDiagnostic[]; diagnostics?: unknown };
+
+function normalizeJobsSearchData(data: unknown): JobsSearchResponse {
+  if (Array.isArray(data)) return { jobs: data as JobResult[], providerDiagnostics: [] };
+  const maybe = data as Partial<JobsSearchResponse> | undefined;
+  return {
+    jobs: Array.isArray(maybe?.jobs) ? maybe.jobs : [],
+    providerDiagnostics: Array.isArray(maybe?.providerDiagnostics) ? maybe.providerDiagnostics : [],
+    diagnostics: maybe?.diagnostics,
+  };
+}
 type SessionProvider = 'indeed' | 'gumtree' | 'glassdoor' | 'linkedin';
+
+function formatSessionTimestamp(value: Date | string | null | undefined): string {
+  if (!value) return 'Not tested yet';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not tested yet';
+  return date.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+}
 
 // Alphabetically sorted providers
 const ALL_SOURCES = ['adzuna', 'cv-library', 'findajob', 'glassdoor', 'gumtree', 'indeed', 'jooble', 'linkedin', 'monster', 'reed', 'totaljobs'] as const;
@@ -62,8 +91,8 @@ const SOURCE_META: Record<Source, { label: string; color: string; requiresSessio
   'cv-library': { label: 'CV-Library', color: 'bg-indigo-500/20 text-indigo-400', requiresSession: false, url: '' },
   findajob: { label: 'Find a Job', color: 'bg-teal-500/20 text-teal-400', requiresSession: false, url: '' },
   glassdoor: { label: 'Glassdoor', color: 'bg-emerald-500/20 text-emerald-400', requiresSession: true, url: 'https://www.glassdoor.co.uk', loginUrl: 'https://www.glassdoor.co.uk/index.htm', cookieHelp: 'Open Glassdoor, sign in (Google sign-in is OK), confirm https://www.glassdoor.co.uk/member/profile/accountSettings opens, then paste your Glassdoor Cookie header here.' },
-  gumtree: { label: 'Gumtree', color: 'bg-green-500/20 text-green-400', requiresSession: true, url: 'https://www.gumtree.com/jobs' },
-  indeed: { label: 'Indeed', color: 'bg-blue-500/20 text-blue-400', requiresSession: true, url: 'https://www.indeed.co.uk' },
+  gumtree: { label: 'Gumtree', color: 'bg-green-500/20 text-green-400', requiresSession: true, url: 'https://www.gumtree.com/jobs', loginUrl: 'https://www.gumtree.com/login', cookieHelp: 'Open Gumtree, sign in, confirm your account area opens, then paste your Gumtree Cookie header here if the automatic wizard is blocked.' },
+  indeed: { label: 'Indeed', color: 'bg-blue-500/20 text-blue-400', requiresSession: true, url: 'https://www.indeed.co.uk', loginUrl: 'https://secure.indeed.com/auth', cookieHelp: 'Open Indeed, sign in, confirm your account page opens, then paste your Indeed Cookie header here if the automatic wizard is blocked.' },
   jooble: { label: 'Jooble', color: 'bg-sky-500/20 text-sky-400', requiresSession: false, url: '' },
   linkedin: { label: 'LinkedIn', color: 'bg-cyan-500/20 text-cyan-400', requiresSession: true, url: 'https://www.linkedin.com', loginUrl: 'https://www.linkedin.com/', cookieHelp: 'Open LinkedIn, sign in (Google sign-in is OK if LinkedIn offers it on your account), confirm your feed opens, then paste your LinkedIn Cookie header here.' },
   monster: { label: 'Monster UK', color: 'bg-orange-500/20 text-orange-400', requiresSession: false, url: '' },
@@ -258,6 +287,80 @@ function ExplainFitModal({ jobId, userId, onClose }: { jobId: string; userId: st
   );
 }
 
+
+function CookieCopyGuide() {
+  const browsers = [
+    { name: 'Chrome', shortcut: 'F12 → Network', hint: 'Right click request → Copy → Copy request headers' },
+    { name: 'Edge', shortcut: 'F12 → Network', hint: 'Open Headers tab and copy only Cookie:' },
+    { name: 'Safari', shortcut: 'Develop → Show Web Inspector', hint: 'Network → authenticated request → Request Headers' },
+  ];
+
+  return (
+    <div className="space-y-2 rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-3">
+      <p className="text-xs font-semibold uppercase tracking-wider text-indigo-200">Visual cookie-copy guide</p>
+      <div className="grid gap-2 sm:grid-cols-3">
+        {browsers.map((browser) => (
+          <div key={browser.name} className="rounded-lg border border-white/10 bg-slate-950/60 p-2">
+            <div className="mb-2 flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-red-400" />
+              <span className="h-2 w-2 rounded-full bg-amber-400" />
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              <span className="ml-2 text-[10px] font-semibold text-white">{browser.name}</span>
+            </div>
+            <div className="rounded bg-black/40 p-2 font-mono text-[10px] text-slate-300">
+              <div>{browser.shortcut}</div>
+              <div className="mt-1 text-indigo-200">Cookie: provider_session=…;</div>
+            </div>
+            <p className="mt-2 text-[10px] leading-relaxed text-slate-400">{browser.hint}</p>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-slate-500">Copy only the Cookie header from the job-board domain after login. Do not paste Google account cookies.</p>
+    </div>
+  );
+}
+
+function ProviderDiagnosticsPanel({ diagnostics }: { diagnostics: ProviderDiagnostic[] }) {
+  if (diagnostics.length === 0) return null;
+  const visible = diagnostics.filter((diagnostic) => diagnostic.status !== 'ok' || diagnostic.count === 0);
+  if (visible.length === 0) return null;
+
+  const statusClass: Record<ProviderDiagnostic['status'], string> = {
+    ok: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-100',
+    empty: 'border-slate-500/25 bg-slate-500/10 text-slate-200',
+    missing_session: 'border-amber-500/30 bg-amber-500/10 text-amber-100',
+    expired: 'border-red-500/30 bg-red-500/10 text-red-100',
+    blocked: 'border-orange-500/30 bg-orange-500/10 text-orange-100',
+    http_error: 'border-red-500/30 bg-red-500/10 text-red-100',
+    error: 'border-red-500/30 bg-red-500/10 text-red-100',
+  };
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-semibold text-white">Provider diagnostics</h3>
+          <p className="text-xs text-slate-500">Automatic search status per job board — no more silent empty results.</p>
+        </div>
+        <button type="button" onClick={() => window.dispatchEvent(new Event('multivohub:open-job-sessions'))} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5">
+          Fix sessions
+        </button>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {visible.map((diagnostic) => (
+          <div key={`${diagnostic.provider}-${diagnostic.status}-${diagnostic.message}`} className={`rounded-xl border px-3 py-2 text-xs ${statusClass[diagnostic.status]}`}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-semibold">{diagnostic.label}</span>
+              <span className="uppercase tracking-wide opacity-75">{diagnostic.status.replace('_', ' ')}</span>
+            </div>
+            <p className="mt-1 leading-relaxed opacity-90">{diagnostic.message}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Session setup panel for Indeed / Gumtree — auto login wizard ─────────────
 
 type LoginStep = 'idle' | 'enterCredentials' | 'awaitingCode' | 'success' | 'error';
@@ -275,7 +378,6 @@ function SessionPanel({ provider, status, userId }: {
   const [codeSentTo, setCodeSentTo] = useState<string | null>(null);
   const [msg, setMsg] = useState('');
   const [cookies, setCookies] = useState('');
-  const [useVisibleBrowser, setUseVisibleBrowser] = useState(false);
   const utils = api.useUtils();
   const meta = SOURCE_META[provider];
 
@@ -319,30 +421,6 @@ function SessionPanel({ provider, status, userId }: {
     onError: () => { setMsg('Connection failed. Please check your credentials and try again.'); setStep('error'); },
   });
 
-  const startGlassdoor = api.jobSessions.startGlassdoorLogin.useMutation({
-    onSuccess: (data) => {
-      if (data.error) { setMsg(data.error); setStep('error'); return; }
-      if (data.success) { setStep('success'); void utils.jobSessions.getStatus.invalidate(); return; }
-      if (data.requiresOAuth) {
-        setMsg('OAuth required - try visible browser mode or paste cookies manually');
-        setStep('error');
-      }
-    },
-    onError: () => { setMsg('Connection failed. Please try again.'); setStep('error'); },
-  });
-
-  const startLinkedIn = api.jobSessions.startLinkedInLogin.useMutation({
-    onSuccess: (data) => {
-      if (data.error) { setMsg(data.error); setStep('error'); return; }
-      if (data.success) { setStep('success'); void utils.jobSessions.getStatus.invalidate(); return; }
-      if (data.requiresOAuth) {
-        setMsg('OAuth required - try visible browser mode or paste cookies manually');
-        setStep('error');
-      }
-    },
-    onError: () => { setMsg('Connection failed. Please try again.'); setStep('error'); },
-  });
-
   const testMutation = api.jobSessions.testSession.useMutation({
     onSuccess: () => { void utils.jobSessions.getStatus.invalidate(); },
   });
@@ -351,28 +429,23 @@ function SessionPanel({ provider, status, userId }: {
     onSuccess: () => {
       setCookies('');
       setStep('success');
+      setMsg('Cookies saved — verifying the provider session now.');
       void utils.jobSessions.getStatus.invalidate();
+      testMutation.mutate({ userId, provider });
     },
-    onError: () => { setMsg('Could not save cookies. Please paste the full Cookie header and try again.'); setStep('error'); },
+    onError: (error) => { setMsg(error.message || 'Could not save cookies. Please paste the full provider Cookie header and try again.'); setStep('error'); },
   });
 
   const removeMutation = api.jobSessions.remove.useMutation({
     onSuccess: () => { void utils.jobSessions.getStatus.invalidate(); setStep('idle'); },
   });
 
-  const isLoading = startIndeed.isPending || submitIndeedCode.isPending || startGumtree.isPending || submitGumtreeCode.isPending || startGlassdoor.isPending || startLinkedIn.isPending || saveCookiesMutation.isPending;
+  const isLoading = startIndeed.isPending || submitIndeedCode.isPending || startGumtree.isPending || submitGumtreeCode.isPending || saveCookiesMutation.isPending || testMutation.isPending;
 
   function handleStart() {
     setMsg('');
-    if (provider === 'indeed') {
-      startIndeed.mutate({ userId, email, password: password || undefined });
-    } else if (provider === 'gumtree') {
-      startGumtree.mutate({ userId, email, password: password || undefined });
-    } else if (provider === 'glassdoor') {
-      startGlassdoor.mutate({ userId, email: email || undefined, password: password || undefined, useVisibleBrowser });
-    } else if (provider === 'linkedin') {
-      startLinkedIn.mutate({ userId, email: email || undefined, password: password || undefined, useVisibleBrowser });
-    }
+    if (provider === 'indeed') startIndeed.mutate({ userId, email, password: password || undefined });
+    else if (provider === 'gumtree') startGumtree.mutate({ userId, email, password: password || undefined });
   }
 
   function handleSaveCookies() {
@@ -396,9 +469,9 @@ function SessionPanel({ provider, status, userId }: {
           <Cookie className="h-4 w-4 text-slate-400" />
           <span className="text-sm font-medium text-white">{meta.label}</span>
           {status?.isActive
-            ? <span className="flex items-center gap-1 text-xs text-emerald-400"><CheckCircle2 className="h-3.5 w-3.5" />Connected</span>
+            ? <span className="flex items-center gap-1 text-xs text-emerald-400"><CheckCircle2 className="h-3.5 w-3.5" />{status.sessionStatus === 'blocked' ? 'Blocked but saved' : 'Connected'}</span>
             : status
-              ? <span className="flex items-center gap-1 text-xs text-amber-400"><AlertCircle className="h-3.5 w-3.5" />Expired</span>
+              ? <span className="flex items-center gap-1 text-xs text-amber-400"><AlertCircle className="h-3.5 w-3.5" />{status.sessionStatus === 'expired' ? 'Expired' : 'Needs refresh'}</span>
               : <span className="flex items-center gap-1 text-xs text-slate-500"><XCircle className="h-3.5 w-3.5" />Not connected</span>
           }
         </div>
@@ -413,6 +486,11 @@ function SessionPanel({ provider, status, userId }: {
               <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
                 <p className="text-xs text-emerald-300">Session active — {meta.label} jobs included in search</p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-slate-400">
+                <p>Last tested: <span className="text-slate-200">{formatSessionTimestamp(status?.lastTestedAt)}</span></p>
+                <p className="mt-1">Saved/updated: <span className="text-slate-200">{formatSessionTimestamp(status?.updatedAt)}</span></p>
+                {status?.lastHealthReason && <p className="mt-1 text-slate-500">Health-check: {status.lastHealthReason}</p>}
               </div>
               <div className="flex gap-2">
                 <button
@@ -436,6 +514,9 @@ function SessionPanel({ provider, status, userId }: {
                   Disconnect
                 </button>
               </div>
+              {msg && (
+                <p className="text-xs text-slate-400">{msg}</p>
+              )}
               {testMutation.data && (
                 <p className={`text-xs ${testMutation.data.ok ? 'text-emerald-400' : 'text-amber-400'}`}>
                   {testMutation.data.reason}
@@ -473,93 +554,10 @@ function SessionPanel({ provider, status, userId }: {
           ) : (
             /* Step: enter credentials */
             <div className="space-y-3">
-              {provider === 'glassdoor' || provider === 'linkedin' ? (
-                <div className="space-y-3">
-                  {/* Hybrid approach: Try automation first, then manual cookies */}
-                  <div className="rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-3 text-xs text-indigo-300">
-                    <p className="font-semibold mb-1">🤖 Automatic Login (Recommended)</p>
-                    <p className="text-indigo-200/70">We'll try to log you in automatically. If it fails, you can paste cookies manually below.</p>
-                  </div>
-
-                  <label className="flex items-center gap-2 text-xs text-slate-400">
-                    <input
-                      type="checkbox"
-                      checked={useVisibleBrowser}
-                      onChange={(e) => setUseVisibleBrowser(e.target.checked)}
-                      className="h-3.5 w-3.5 rounded border-white/20 bg-white/10 text-indigo-600"
-                    />
-                    Open visible browser (for OAuth/Google login)
-                  </label>
-
-                  <input
-                    type="email"
-                    placeholder={`${meta.label} email (optional for visible mode)`}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  />
-                  <input
-                    type="password"
-                    placeholder="Password (optional)"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  />
-                  <button
-                    onClick={handleStart}
-                    disabled={isLoading}
-                    className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2"
-                  >
-                    {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Connecting…</> : `Try Auto-Login`}
-                  </button>
-
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-white/10"></div>
-                    </div>
-                    <div className="relative flex justify-center text-xs">
-                      <span className="bg-[#020617] px-2 text-slate-500">OR</span>
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-300">
-                    <p className="font-semibold mb-1">📋 Manual Cookie Paste (Fallback)</p>
-                    <p className="text-amber-200/70">If auto-login fails, paste your cookies manually:</p>
-                  </div>
-
-                  <ol className="list-decimal space-y-1 pl-4 text-xs text-slate-500">
-                    <li>
-                      Open{' '}
-                      <a href={meta.loginUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-300 underline underline-offset-2">
-                        {meta.loginUrl}
-                      </a>{' '}
-                      and sign in (Google sign-in is OK)
-                    </li>
-                    <li>Copy the Cookie header from browser DevTools (Network tab)</li>
-                    <li>Paste it below</li>
-                  </ol>
-                  <textarea
-                    placeholder={`${meta.label} Cookie header, e.g. li_at=...; JSESSIONID=...`}
-                    value={cookies}
-                    onChange={(e) => setCookies(e.target.value)}
-                    rows={4}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 font-mono"
-                  />
-                  {msg && step === 'error' && (
-                    <p className="text-xs text-red-400 rounded-lg bg-red-500/10 px-3 py-2">{msg}</p>
-                  )}
-                  <button
-                    onClick={handleSaveCookies}
-                    disabled={cookies.trim().length < 10 || isLoading}
-                    className="w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 flex items-center justify-center gap-2"
-                  >
-                    {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Saving…</> : `Save ${meta.label} cookies`}
-                  </button>
-                </div>
-              ) : (
-                <>
+              {(provider === 'indeed' || provider === 'gumtree') && (
+                <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
                   <p className="text-xs text-slate-400">
-                    Enter your {meta.label} credentials. The server will log in automatically via a secure headless browser — your password is never stored.
+                    Try automatic login first. The server opens a secure browser session for {meta.label}; your password is never stored.
                   </p>
                   <input
                     type="email"
@@ -575,9 +573,6 @@ function SessionPanel({ provider, status, userId }: {
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   />
-                  {msg && step === 'error' && (
-                    <p className="text-xs text-red-400 rounded-lg bg-red-500/10 px-3 py-2">{msg}</p>
-                  )}
                   <button
                     onClick={handleStart}
                     disabled={!email || isLoading}
@@ -585,8 +580,45 @@ function SessionPanel({ provider, status, userId }: {
                   >
                     {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Connecting…</> : `Connect ${meta.label}`}
                   </button>
-                  <p className="text-xs text-slate-600 text-center">Your password is used only to connect and is never stored by us.</p>
-                </>
+                </div>
+              )}
+
+              <div className="space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  {provider === 'indeed' || provider === 'gumtree' ? 'Manual cookie fallback' : 'Manual cookie login'}
+                </p>
+                <p className="text-xs text-slate-400">{meta.cookieHelp}</p>
+              <CookieCopyGuide />
+                <ol className="list-decimal space-y-1 pl-4 text-xs text-slate-500">
+                  <li>
+                    Open{' '}
+                    <a href={meta.loginUrl ?? meta.url} target="_blank" rel="noopener noreferrer" className="text-indigo-300 underline underline-offset-2">
+                      {meta.loginUrl ?? meta.url}
+                    </a>{' '}
+                    and sign in. Using Google is OK when the provider offers it.
+                  </li>
+                  <li>After login, copy only the Cookie request header from an authenticated {meta.label} page/request.</li>
+                  <li>Paste provider cookies below. Do not paste Google account cookies; the backend rejects obvious Google-only cookies.</li>
+                </ol>
+                <textarea
+                  placeholder={`${meta.label} Cookie header, e.g. ${provider === 'linkedin' ? 'li_at=...; JSESSIONID=...' : 'cookie_a=...; cookie_b=...'}`}
+                  value={cookies}
+                  onChange={(e) => setCookies(e.target.value)}
+                  rows={4}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 font-mono"
+                />
+                <button
+                  onClick={handleSaveCookies}
+                  disabled={cookies.trim().length < 10 || isLoading}
+                  className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Saving…</> : `Save ${meta.label} cookies`}
+                </button>
+                <p className="text-xs text-slate-600 text-center">If you logged in with Google, paste the resulting {meta.label} cookies from {meta.label} — not Google cookies.</p>
+              </div>
+
+              {msg && step === 'error' && (
+                <p className="text-xs text-red-400 rounded-lg bg-red-500/10 px-3 py-2">{msg}</p>
               )}
             </div>
           )}
@@ -999,11 +1031,9 @@ export default function JobsDiscovery() {
     });
   };
 
-  if (!isLoaded) {
-    return <div className="flex h-48 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-indigo-600" /></div>;
-  }
-
-  const jobResults = (searchQuery.data ?? []) as JobResult[];
+  const searchData = normalizeJobsSearchData(searchQuery.data);
+  const jobResults = searchData.jobs;
+  const providerDiagnostics = searchData.providerDiagnostics ?? [];
   const visibleJobs = useMemo(
     () => jobResults.filter((j) => j.fitScore >= minJobFitPercent),
     [jobResults, minJobFitPercent],
@@ -1026,6 +1056,16 @@ export default function JobsDiscovery() {
     { enabled: !!userId && jobIds.length > 0 }
   );
   const jobStatusMap = (jobStatusQuery.data ?? {}) as Record<string, string>;
+
+  useEffect(() => {
+    const openSessions = () => setShowSessions(true);
+    window.addEventListener('multivohub:open-job-sessions', openSessions);
+    return () => window.removeEventListener('multivohub:open-job-sessions', openSessions);
+  }, []);
+
+  if (!isLoaded) {
+    return <div className="flex h-48 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-indigo-600" /></div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -1147,7 +1187,7 @@ export default function JobsDiscovery() {
             title="Search jobs based on your skills from profile"
           >
             <Sparkles className="h-4 w-4" />
-            Search by Skills
+            Szukaj na podstawie umiejętności
           </button>
           {searchParams && (
             <button
@@ -1300,6 +1340,8 @@ export default function JobsDiscovery() {
             </p>
           )}
         </div>
+
+        <ProviderDiagnosticsPanel diagnostics={providerDiagnostics} />
 
         {jobResults.length > 0 && visibleJobs.length === 0 && (
           <p className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
