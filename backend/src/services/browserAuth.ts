@@ -283,70 +283,22 @@ export async function startProviderLogin(
     return { success: Boolean(result.storageState), ...result };
   }
   if (provider === 'gumtree') return loginGumtree(userId, email, password);
-
-  const config = BROWSER_AUTH_CONFIG[provider];
-  try {
-    const { browser, context } = await launchBrowser();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const page: any = await context.newPage();
-
-    await page.goto(config.loginUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    await humanDelay(1000, 2000);
-    await clickFirst(page, [
-      '#onetrust-accept-btn-handler',
-      'button[id*="onetrust-accept"]',
-      'button:has-text("Accept all")',
-      'button:has-text("Accept cookies")',
-      'button:has-text("Agree")',
-    ]).catch(() => { });
-
-    const emailFilled = await fillFirst(page, config.emailSelectors, email);
-    if (!emailFilled) {
-      await browser.close().catch(() => { });
-      return { success: false, error: `Could not find ${config.label} email field. Use manual Cookie fallback if the provider changed its login page.` };
+  if (provider === 'glassdoor') {
+    const result = await loginGlassdoor(userId, email, password, false);
+    if (result.requiresOAuth) {
+      return { success: false, error: 'Glassdoor requires OAuth (Google/Apple). Please use manual Cookie fallback: sign in via your browser and paste cookies.' };
     }
-
-    await humanDelay(400, 900);
-    await clickFirst(page, config.submitSelectors);
-    await humanDelay(1200, 2200);
-
-    if (password) {
-      const passwordFilled = await fillFirst(page, config.passwordSelectors, password);
-      if (passwordFilled) {
-        await humanDelay(400, 900);
-        await clickFirst(page, config.submitSelectors);
-        await humanDelay(2500, 4500);
-      }
-    }
-
-    const storageState = await captureStorageIfLoggedIn(page, context, config);
-    if (storageState) {
-      await browser.close().catch(() => { });
-      return { success: true, storageState };
-    }
-
-    const content = (await page.content()).toLowerCase();
-    if (pageHasBotChallenge(content)) {
-      await browser.close().catch(() => { });
-      return { success: false, error: `${config.label} is showing a CAPTCHA/security challenge. Manual Cookie fallback is the safest alternative.` };
-    }
-
-    if (pageRequiresCode(content) || (await page.locator('input[autocomplete="one-time-code"], input[inputmode="numeric"]').count()) > 0) {
-      pendingLogins.set(providerKey(provider, userId), {
-        state: { storageState: null, page, browser, context },
-        expiresAt: Date.now() + 10 * 60 * 1000,
-      });
-      return { success: false, requiresCode: true, codeSentTo: detectCodeDestination(content, email) };
-    }
-
-    await browser.close().catch(() => { });
-    return {
-      success: false,
-      error: `${config.label} login did not complete automatically. Best fallback: sign in in your browser and paste the provider Cookie header.`,
-    };
-  } catch (err) {
-    return { success: false, error: String(err) };
+    return { success: result.success, storageState: result.storageState, error: result.error };
   }
+  if (provider === 'linkedin') {
+    const result = await loginLinkedIn(userId, email, password, false);
+    if (result.requiresOAuth) {
+      return { success: false, error: 'LinkedIn has strong bot detection. Please use manual Cookie fallback: sign in via your browser and paste cookies.' };
+    }
+    return { success: result.success, storageState: result.storageState, error: result.error };
+  }
+
+  return { success: false, error: `Provider ${provider} is not supported` };
 }
 
 export async function submitProviderCode(
