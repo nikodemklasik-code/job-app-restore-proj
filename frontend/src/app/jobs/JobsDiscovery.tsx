@@ -106,9 +106,9 @@ const SESSION_BOARD_TOOLTIP: Partial<Record<Source, string>> = {
   gumtree:
     'Gumtree needs a saved browser session. Click “Sessions”, expand Gumtree, complete the login wizard, then enable Gumtree here.',
   glassdoor:
-    'Glassdoor needs saved cookies. Click “Sessions”, expand Glassdoor, log in at Glassdoor (Google sign-in is fine), then paste the Cookie header.',
+    'Glassdoor needs a saved browser session. Click “Sessions”, expand Glassdoor, try Automatic login first, then use Cookie fallback only if blocked.',
   linkedin:
-    'LinkedIn needs saved cookies. Click “Sessions”, expand LinkedIn, log in at LinkedIn (Google sign-in is fine if available), then paste the Cookie header.',
+    'LinkedIn needs a saved browser session. Click “Sessions”, expand LinkedIn, try Automatic login first, then use Cookie fallback only if blocked.',
 };
 
 
@@ -124,6 +124,18 @@ function deriveJobSearchQueryFromProfile(profile: ProfileSnapshot | undefined): 
   const summary = profile.personalInfo?.summary?.trim();
   if (summary) return summary.split(/\s+/).slice(0, 14).join(' ').slice(0, 120);
   return '';
+}
+
+function deriveSkillsBasedJobSearchQuery(profile: ProfileSnapshot | undefined): string {
+  if (!profile) return '';
+  const skills = (profile.skills ?? []).map((skill) => skill.trim()).filter(Boolean);
+  const targetRole = profile.careerGoals?.targetJobTitle?.trim() || profile.experiences?.[0]?.jobTitle?.trim() || '';
+
+  if (targetRole && skills.length > 0) {
+    return `${targetRole} ${skills.slice(0, 3).join(' ')}`.slice(0, 120);
+  }
+  if (targetRole) return targetRole.slice(0, 120);
+  return skills.slice(0, 5).join(' ').slice(0, 120);
 }
 
 // ── Job results grid: placeholder tiles (same shell as JobCard, empty content) ─
@@ -361,7 +373,7 @@ function ProviderDiagnosticsPanel({ diagnostics }: { diagnostics: ProviderDiagno
   );
 }
 
-// ── Session setup panel for Indeed / Gumtree — auto login wizard ─────────────
+// ── Session setup panel — automatic login first, manual cookies fallback ─────
 
 type LoginStep = 'idle' | 'enterCredentials' | 'awaitingCode' | 'success' | 'error';
 
@@ -381,44 +393,40 @@ function SessionPanel({ provider, status, userId }: {
   const utils = api.useUtils();
   const meta = SOURCE_META[provider];
 
-  const startIndeed = api.jobSessions.startIndeedLogin.useMutation({
-    onSuccess: (data) => {
-      if ('error' in data && data.error) { setMsg(data.error); setStep('error'); return; }
-      if ('requiresCode' in data && data.requiresCode) {
-        setCodeSentTo((data as { codeSentTo?: string | null }).codeSentTo ?? null);
-        setStep('awaitingCode');
-      } else {
-        // Already logged in (returned storageState directly)
-        setStep('success');
-        void utils.jobSessions.getStatus.invalidate();
-      }
-    },
-    onError: () => { setMsg('Connection failed. Please check your credentials and try again.'); setStep('error'); },
-  });
-
-  const submitIndeedCode = api.jobSessions.submitIndeedCode.useMutation({
-    onSuccess: (data) => {
-      if (data.success) { setStep('success'); void utils.jobSessions.getStatus.invalidate(); }
-      else { setMsg(data.error ?? 'Code rejected'); setStep('error'); }
-    },
-    onError: () => { setMsg('Connection failed. Please check your credentials and try again.'); setStep('error'); },
-  });
-
-  const startGumtree = api.jobSessions.startGumtreeLogin.useMutation({
+  const startAutoLogin = api.jobSessions.startProviderLogin.useMutation({
     onSuccess: (data) => {
       if (data.error) { setMsg(data.error); setStep('error'); return; }
-      if (data.success) { setStep('success'); void utils.jobSessions.getStatus.invalidate(); return; }
-      if (data.requiresCode) { setCodeSentTo(data.codeSentTo ?? null); setStep('awaitingCode'); }
+      if (data.requiresCode) {
+        setCodeSentTo(data.codeSentTo ?? null);
+        setStep('awaitingCode');
+        return;
+      }
+      if (data.success || data.storageState) {
+        setStep('success');
+        setMsg('Automatic login captured provider cookies — verifying session now.');
+        void utils.jobSessions.getStatus.invalidate();
+        testMutation.mutate({ userId, provider });
+        return;
+      }
+      setMsg('Automatic login did not finish. Use manual Cookie fallback below.');
+      setStep('error');
     },
-    onError: () => { setMsg('Connection failed. Please check your credentials and try again.'); setStep('error'); },
+    onError: (error) => { setMsg(error.message || 'Automatic login failed. Use manual Cookie fallback below.'); setStep('error'); },
   });
 
-  const submitGumtreeCode = api.jobSessions.submitGumtreeCode.useMutation({
+  const submitAutoCode = api.jobSessions.submitProviderCode.useMutation({
     onSuccess: (data) => {
-      if (data.success) { setStep('success'); void utils.jobSessions.getStatus.invalidate(); }
-      else { setMsg(data.error ?? 'Code rejected'); setStep('error'); }
+      if (data.success) {
+        setStep('success');
+        setMsg('Verification complete — provider cookies captured automatically.');
+        void utils.jobSessions.getStatus.invalidate();
+        testMutation.mutate({ userId, provider });
+      } else {
+        setMsg(data.error ?? 'Code rejected. Use manual Cookie fallback if this continues.');
+        setStep('error');
+      }
     },
-    onError: () => { setMsg('Connection failed. Please check your credentials and try again.'); setStep('error'); },
+    onError: (error) => { setMsg(error.message || 'Connection failed. Please try again or use manual Cookie fallback.'); setStep('error'); },
   });
 
   const testMutation = api.jobSessions.testSession.useMutation({
@@ -440,12 +448,11 @@ function SessionPanel({ provider, status, userId }: {
     onSuccess: () => { void utils.jobSessions.getStatus.invalidate(); setStep('idle'); },
   });
 
-  const isLoading = startIndeed.isPending || submitIndeedCode.isPending || startGumtree.isPending || submitGumtreeCode.isPending || saveCookiesMutation.isPending || testMutation.isPending;
+  const isLoading = startAutoLogin.isPending || submitAutoCode.isPending || saveCookiesMutation.isPending || testMutation.isPending;
 
   function handleStart() {
     setMsg('');
-    if (provider === 'indeed') startIndeed.mutate({ userId, email, password: password || undefined });
-    else if (provider === 'gumtree') startGumtree.mutate({ userId, email, password: password || undefined });
+    startAutoLogin.mutate({ userId, provider, email, password: password || undefined });
   }
 
   function handleSaveCookies() {
@@ -455,8 +462,7 @@ function SessionPanel({ provider, status, userId }: {
 
   function handleCode() {
     setMsg('');
-    if (provider === 'indeed') submitIndeedCode.mutate({ userId, code });
-    else if (provider === 'gumtree') submitGumtreeCode.mutate({ userId, code });
+    submitAutoCode.mutate({ userId, provider, code });
   }
 
   return (
@@ -554,10 +560,9 @@ function SessionPanel({ provider, status, userId }: {
           ) : (
             /* Step: enter credentials */
             <div className="space-y-3">
-              {(provider === 'indeed' || provider === 'gumtree') && (
-                <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
+              <div className="space-y-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3">
                   <p className="text-xs text-slate-400">
-                    Try automatic login first. The server opens a secure browser session for {meta.label}; your password is never stored.
+                    Recommended: automatic login first. The server signs in to {meta.label}, captures only the resulting provider cookies, encrypts them, and then the health-check keeps the session status updated. Manual Cookie paste is only a fallback when the provider blocks automation, CAPTCHA, OAuth, or 2FA.
                   </p>
                   <input
                     type="email"
@@ -578,14 +583,13 @@ function SessionPanel({ provider, status, userId }: {
                     disabled={!email || isLoading}
                     className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2"
                   >
-                    {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Connecting…</> : `Connect ${meta.label}`}
+                    {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Connecting…</> : `Automatic login to ${meta.label}`}
                   </button>
-                </div>
-              )}
+              </div>
 
               <div className="space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  {provider === 'indeed' || provider === 'gumtree' ? 'Manual cookie fallback' : 'Manual cookie login'}
+                  Manual cookie fallback — use only if automatic login is blocked
                 </p>
                 <p className="text-xs text-slate-400">{meta.cookieHelp}</p>
                 <CookieCopyGuide />
@@ -659,8 +663,9 @@ export default function JobsDiscovery() {
       location: loc || 'United Kingdom',
       sources: src ? src.split(',') : ['adzuna', 'cv-library', 'findajob', 'glassdoor', 'gumtree', 'indeed', 'jooble', 'linkedin', 'monster', 'reed', 'totaljobs'],
       maxDaysOld,
+      userId: userId || undefined,
     };
-  }, [urlSearchParams, maxDaysOld]);
+  }, [urlSearchParams, maxDaysOld, userId]);
   const [showManualModal, setShowManualModal] = useState(false);
   const [showSessions, setShowSessions] = useState(false);
   const [manualForm, setManualForm] = useState({ title: '', company: '', location: '', applyUrl: '' });
@@ -1172,7 +1177,7 @@ export default function JobsDiscovery() {
           <button
             onClick={() => {
               const profile = profileQuery.data as ProfileSnapshot | undefined;
-              const skillsQuery = (profile?.skills ?? []).slice(0, 5).join(' ').slice(0, 120);
+              const skillsQuery = deriveSkillsBasedJobSearchQuery(profile);
               if (skillsQuery.trim()) {
                 setQuery(skillsQuery);
                 setUrlSearchParams({
@@ -1184,7 +1189,7 @@ export default function JobsDiscovery() {
             }}
             disabled={searchQuery.isFetching || !profileQuery.data?.skills?.length}
             className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-            title="Search jobs based on your skills from profile"
+            title="Search jobs by combining your target role, latest role, and top profile skills"
           >
             <Sparkles className="h-4 w-4" />
             Search by Skills

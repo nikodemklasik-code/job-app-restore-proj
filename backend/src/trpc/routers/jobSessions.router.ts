@@ -9,6 +9,8 @@ import {
   submitIndeedCode,
   loginGumtree,
   submitGumtreeCode,
+  startProviderLogin,
+  submitProviderCode,
   storageStateToCookieString,
   storageStateToJson,
 } from '../../services/browserAuth.js';
@@ -153,6 +155,55 @@ export const jobSessionsRouter = router({
           const cookieStr = storageStateToCookieString(result.storageState);
           const stateJson = storageStateToJson(result.storageState);
           await upsertSession(localId, 'gumtree', cookieStr, stateJson);
+        }
+      }
+      return { success: result.success, error: result.error };
+    }),
+
+
+  // ── Unified automatic login: Indeed / Gumtree / Glassdoor / LinkedIn ───────
+  startProviderLogin: publicProcedure
+    .input(z.object({
+      userId: z.string(),
+      provider: z.enum(SUPPORTED_PROVIDERS),
+      email: z.string().email(),
+      password: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const result = await startProviderLogin(input.provider, input.userId, input.email, input.password);
+      if (result.success && result.storageState) {
+        const localId = await getLocalUserId(input.userId);
+        if (localId) {
+          const cookieStr = storageStateToCookieString(result.storageState);
+          const validation = validateProviderCookieHeader(input.provider, cookieStr);
+          if (!validation.ok) {
+            return { ...result, success: false, error: validation.reason ?? 'Automatic login did not capture valid provider cookies.' };
+          }
+          const stateJson = storageStateToJson(result.storageState);
+          await upsertSession(localId, input.provider, validation.cookies, stateJson);
+        }
+      }
+      return result;
+    }),
+
+  submitProviderCode: publicProcedure
+    .input(z.object({
+      userId: z.string(),
+      provider: z.enum(SUPPORTED_PROVIDERS),
+      code: z.string().min(4).max(10),
+    }))
+    .mutation(async ({ input }) => {
+      const result = await submitProviderCode(input.provider, input.userId, input.code);
+      if (result.success && result.storageState) {
+        const localId = await getLocalUserId(input.userId);
+        if (localId) {
+          const cookieStr = storageStateToCookieString(result.storageState);
+          const validation = validateProviderCookieHeader(input.provider, cookieStr);
+          if (!validation.ok) {
+            return { success: false, error: validation.reason ?? 'Automatic login did not capture valid provider cookies.' };
+          }
+          const stateJson = storageStateToJson(result.storageState);
+          await upsertSession(localId, input.provider, validation.cookies, stateJson);
         }
       }
       return { success: result.success, error: result.error };
