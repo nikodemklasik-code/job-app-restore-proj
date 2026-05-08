@@ -145,6 +145,72 @@ export const jobSessionsRouter = router({
       return { success: result.success, error: result.error };
     }),
 
+  // ── Glassdoor: hybrid login (headless → visible → manual) ─────────────────
+  startGlassdoorLogin: publicProcedure
+    .input(z.object({
+      userId: z.string(),
+      email: z.string().email().optional(),
+      password: z.string().optional(),
+      useVisibleBrowser: z.boolean().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const { loginGlassdoor } = await import('../../services/browserAuth.js');
+      const result = await loginGlassdoor(
+        input.userId,
+        input.email,
+        input.password,
+        input.useVisibleBrowser ?? false,
+      );
+
+      if (result.success && result.storageState) {
+        const localId = await getLocalUserId(input.userId);
+        if (localId) {
+          const cookieStr = storageStateToCookieString(result.storageState);
+          const stateJson = storageStateToJson(result.storageState);
+          await upsertSession(localId, 'glassdoor', cookieStr, stateJson);
+        }
+      }
+
+      return {
+        success: result.success,
+        requiresOAuth: result.requiresOAuth ?? false,
+        error: result.error,
+      };
+    }),
+
+  // ── LinkedIn: hybrid login (headless → visible → manual) ──────────────────
+  startLinkedInLogin: publicProcedure
+    .input(z.object({
+      userId: z.string(),
+      email: z.string().email().optional(),
+      password: z.string().optional(),
+      useVisibleBrowser: z.boolean().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const { loginLinkedIn } = await import('../../services/browserAuth.js');
+      const result = await loginLinkedIn(
+        input.userId,
+        input.email,
+        input.password,
+        input.useVisibleBrowser ?? false,
+      );
+
+      if (result.success && result.storageState) {
+        const localId = await getLocalUserId(input.userId);
+        if (localId) {
+          const cookieStr = storageStateToCookieString(result.storageState);
+          const stateJson = storageStateToJson(result.storageState);
+          await upsertSession(localId, 'linkedin', cookieStr, stateJson);
+        }
+      }
+
+      return {
+        success: result.success,
+        requiresOAuth: result.requiresOAuth ?? false,
+        error: result.error,
+      };
+    }),
+
   // ── Manual cookie paste (fallback) ───────────────────────────────────────
   saveCookies: publicProcedure
     .input(z.object({

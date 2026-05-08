@@ -508,6 +508,288 @@ export async function submitGumtreeCode(
   }
 }
 
+// ── Glassdoor ─────────────────────────────────────────────────────────────────
+
+/**
+ * Glassdoor login with hybrid approach:
+ * 1. Try headless with email/password
+ * 2. If OAuth detected or headless fails → open visible browser for user to complete OAuth
+ * 3. Auto-capture session after successful login
+ */
+export async function loginGlassdoor(
+  userId: string,
+  email?: string,
+  password?: string,
+  useVisibleBrowser = false,
+): Promise<{ success: boolean; storageState?: unknown; requiresOAuth?: boolean; error?: string }> {
+  try {
+    const { chromium } = await import('playwright');
+    const browser = await chromium.launch({
+      headless: !useVisibleBrowser,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-blink-features=AutomationControlled',
+      ],
+    });
+
+    const context = await browser.newContext({
+      viewport: { width: 1440, height: 900 },
+      userAgent: pickUserAgent(),
+      locale: 'en-GB',
+      timezoneId: 'Europe/London',
+    });
+
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const page: any = await context.newPage();
+
+    await page.goto('https://www.glassdoor.co.uk/profile/login_input.htm', {
+      waitUntil: 'domcontentloaded',
+      timeout: 30000,
+    });
+    await humanDelay(1500, 2500);
+
+    // Accept cookies
+    await clickFirst(page, [
+      '#onetrust-accept-btn-handler',
+      'button:has-text("Accept")',
+      'button:has-text("I Accept")',
+    ]).catch(() => { });
+    await humanDelay(500, 1000);
+
+    const content = (await page.content()).toLowerCase();
+
+    // Check if OAuth buttons are present (Google, Apple, Facebook)
+    const hasOAuthButtons =
+      content.includes('sign in with google') ||
+      content.includes('continue with google') ||
+      content.includes('sign in with apple') ||
+      content.includes('continue with apple');
+
+    // If visible browser mode OR OAuth detected → let user complete login
+    if (useVisibleBrowser || hasOAuthButtons) {
+      console.log('Glassdoor: Waiting for user to complete OAuth login...');
+
+      // Wait for successful login (redirect away from login page)
+      try {
+        await page.waitForURL(
+          (url: string) => !url.includes('/login') && !url.includes('/profile/login'),
+          { timeout: 180000 } // 3 minutes for user to complete OAuth
+        );
+
+        // Verify login by checking account settings page
+        await page.goto('https://www.glassdoor.co.uk/member/profile/accountSettings', {
+          waitUntil: 'domcontentloaded',
+          timeout: 15000,
+        });
+        await sleep(2000);
+
+        const finalContent = (await page.content()).toLowerCase();
+        const isLoggedIn =
+          finalContent.includes('account settings') ||
+          finalContent.includes('accountsettings') ||
+          finalContent.includes('member/profile');
+
+        if (isLoggedIn) {
+          const storageState = await context.storageState();
+          await browser.close().catch(() => { });
+          return { success: true, storageState };
+        }
+      } catch (err) {
+        await browser.close().catch(() => { });
+        return { success: false, requiresOAuth: true, error: 'Login timeout - user did not complete OAuth' };
+      }
+    }
+
+    // Try headless login with email/password
+    if (email && password) {
+      const emailFilled = await fillFirst(page, [
+        'input[type="email"]',
+        'input[name="username"]',
+        'input[id="inlineUserEmail"]',
+      ], email);
+
+      if (!emailFilled) {
+        await browser.close().catch(() => { });
+        return { success: false, requiresOAuth: true, error: 'Email field not found - OAuth may be required' };
+      }
+
+      await humanDelay(500, 1000);
+      await clickFirst(page, [
+        'button[type="submit"]',
+        'button:has-text("Continue")',
+        'button:has-text("Sign In")',
+      ]);
+      await humanDelay(2000, 3000);
+
+      const pwFilled = await fillFirst(page, [
+        'input[type="password"]',
+        'input[name="password"]',
+      ], password);
+
+      if (pwFilled) {
+        await humanDelay(500, 1000);
+        await clickFirst(page, [
+          'button[type="submit"]',
+          'button:has-text("Sign In")',
+          'button:has-text("Continue")',
+        ]);
+        await humanDelay(3000, 5000);
+
+        const url = page.url() as string;
+        if (!url.includes('/login')) {
+          const storageState = await context.storageState();
+          await browser.close().catch(() => { });
+          return { success: true, storageState };
+        }
+      }
+    }
+
+    await browser.close().catch(() => { });
+    return { success: false, requiresOAuth: true, error: 'Headless login failed - OAuth required' };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+// ── LinkedIn ──────────────────────────────────────────────────────────────────
+
+/**
+ * LinkedIn login with hybrid approach:
+ * LinkedIn has strong bot detection, so visible browser with OAuth is preferred
+ */
+export async function loginLinkedIn(
+  userId: string,
+  email?: string,
+  password?: string,
+  useVisibleBrowser = false,
+): Promise<{ success: boolean; storageState?: unknown; requiresOAuth?: boolean; error?: string }> {
+  try {
+    const { chromium } = await import('playwright');
+    const browser = await chromium.launch({
+      headless: !useVisibleBrowser,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-blink-features=AutomationControlled',
+      ],
+    });
+
+    const context = await browser.newContext({
+      viewport: { width: 1440, height: 900 },
+      userAgent: pickUserAgent(),
+      locale: 'en-GB',
+      timezoneId: 'Europe/London',
+    });
+
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const page: any = await context.newPage();
+
+    await page.goto('https://www.linkedin.com/login', {
+      waitUntil: 'domcontentloaded',
+      timeout: 30000,
+    });
+    await humanDelay(1500, 2500);
+
+    // If visible browser mode → let user complete login
+    if (useVisibleBrowser) {
+      console.log('LinkedIn: Waiting for user to complete login...');
+
+      try {
+        // Wait for successful login (redirect to feed)
+        await page.waitForURL(
+          (url: string) => url.includes('/feed') || url.includes('/in/'),
+          { timeout: 180000 } // 3 minutes
+        );
+
+        // Verify by checking feed
+        await page.goto('https://www.linkedin.com/feed/', {
+          waitUntil: 'domcontentloaded',
+          timeout: 15000,
+        });
+        await sleep(2000);
+
+        const finalContent = (await page.content()).toLowerCase();
+        const isLoggedIn =
+          finalContent.includes('feed-identity-module') ||
+          finalContent.includes('global-nav') ||
+          finalContent.includes('voyager');
+
+        if (isLoggedIn) {
+          const storageState = await context.storageState();
+          await browser.close().catch(() => { });
+          return { success: true, storageState };
+        }
+      } catch (err) {
+        await browser.close().catch(() => { });
+        return { success: false, requiresOAuth: true, error: 'Login timeout - user did not complete login' };
+      }
+    }
+
+    // Try headless login with email/password (often triggers CAPTCHA)
+    if (email && password) {
+      const emailFilled = await fillFirst(page, [
+        'input[id="username"]',
+        'input[name="session_key"]',
+        'input[type="email"]',
+      ], email);
+
+      if (!emailFilled) {
+        await browser.close().catch(() => { });
+        return { success: false, requiresOAuth: true, error: 'Email field not found' };
+      }
+
+      await humanDelay(500, 1000);
+
+      const pwFilled = await fillFirst(page, [
+        'input[id="password"]',
+        'input[name="session_password"]',
+        'input[type="password"]',
+      ], password);
+
+      if (pwFilled) {
+        await humanDelay(500, 1000);
+        await clickFirst(page, [
+          'button[type="submit"]',
+          'button[data-litms-control-urn*="login-submit"]',
+          'button:has-text("Sign in")',
+        ]);
+        await humanDelay(3000, 5000);
+
+        const content = (await page.content()).toLowerCase();
+
+        // Check for CAPTCHA
+        if (content.includes('captcha') || content.includes('security verification')) {
+          await browser.close().catch(() => { });
+          return { success: false, requiresOAuth: true, error: 'CAPTCHA detected - visible browser required' };
+        }
+
+        const url = page.url() as string;
+        if (url.includes('/feed') || url.includes('/in/')) {
+          const storageState = await context.storageState();
+          await browser.close().catch(() => { });
+          return { success: true, storageState };
+        }
+      }
+    }
+
+    await browser.close().catch(() => { });
+    return { success: false, requiresOAuth: true, error: 'Headless login failed - visible browser recommended' };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
 // ── Session to cookie string ──────────────────────────────────────────────────
 
 export function storageStateToCookieString(storageState: unknown): string {
