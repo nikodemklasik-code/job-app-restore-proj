@@ -33,17 +33,37 @@ function parseWorkMode(description: string): string | null {
   return null;
 }
 
-/** Extract requirements from description */
+/** Extract requirements from description - handles bullet lists AND prose paragraphs */
 function extractRequirements(description: string): string[] {
   if (!description) return [];
-  return description
-    .split(/[\n•\-\*]/)
+
+  const results: string[] = [];
+
+  // Strategy 1: Bullet points / numbered lists
+  const bullets = description
+    .split(/[\n•·\-\*]|\d+\.\s/)
     .map((line) => line.trim())
-    .filter((line) => line.length >= 15 && line.length <= 150)
+    .filter((line) => line.length >= 15 && line.length <= 180)
     .filter((line) =>
-      /(experience|knowledge|ability|skilled|proficient|strong|familiar|background|understanding|degree|qualification|required|must have)/i.test(line),
-    )
-    .slice(0, 8);
+      /(experience|knowledge|ability|skilled|proficient|strong|familiar|background|understanding|degree|qualification|required|must have|essential|desirable|responsible|expertise|competent|demonstrated)/i.test(line),
+    );
+  results.push(...bullets);
+
+  // Strategy 2: Sentences from "Requirements" / "What you'll need" / "Qualifications" sections
+  const sectionRegex = /(?:requirements?|qualifications?|what\s+(?:you'll\s+need|we(?:'re)?\s+looking\s+for)|skills?\s+(?:needed|required)|essential|you\s+(?:must|should)\s+have)\s*[:：]?\s*([\s\S]{50,800}?)(?=\n\n|\n[A-Z]|$)/gi;
+  let match;
+  while ((match = sectionRegex.exec(description)) !== null) {
+    const section = match[1];
+    const sentences = section
+      .split(/[.!?\n]/)
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 20 && s.length <= 180);
+    results.push(...sentences);
+  }
+
+  // Deduplicate, trim and limit
+  const unique = Array.from(new Set(results.map((r) => r.replace(/\s+/g, ' ').trim())));
+  return unique.slice(0, 10);
 }
 
 function dedupeJobs(jobs: SourceJob[], limit: number): SourceJob[] {

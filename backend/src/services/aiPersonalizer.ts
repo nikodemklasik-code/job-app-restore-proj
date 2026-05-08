@@ -206,27 +206,30 @@ export async function scoreJobFit(
   const req = (job.requirements ?? []).map((r) => r.toLowerCase());
   const title = job.title.toLowerCase();
   const summaryLower = (profile.summary ?? '').toLowerCase();
+  const profileText = [summaryLower, ...skills].join(' ');
 
-  let score = 40; // lower baseline — earn points rather than start high
+  let score = 20; // Strict baseline - earn points, don't give away
   const reasons: string[] = [];
 
-  // ── 1. Skill matching (up to 35 pts) ──────────────────────────────────────
-  const matchedSkills = skills.filter(
-    (s) => desc.includes(s) || req.some((r) => r.includes(s)) || title.includes(s),
-  );
+  // ── 1. Skill matching (up to 40 pts) ──────────────────────────────────────
+  // Use word-boundary matching for accuracy
+  const matchedSkills = skills.filter((s) => {
+    const pattern = new RegExp(`\\b${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    return pattern.test(desc) || req.some((r) => pattern.test(r)) || pattern.test(title);
+  });
   const skillRatio = skills.length > 0 ? matchedSkills.length / skills.length : 0;
 
   if (matchedSkills.length >= 6) {
-    score += 35;
+    score += 40;
     reasons.push(`${matchedSkills.length} skills match (${matchedSkills.slice(0, 3).join(', ')}…)`);
   } else if (matchedSkills.length >= 4) {
-    score += 25;
+    score += 30;
     reasons.push(`${matchedSkills.length} skills match (${matchedSkills.slice(0, 3).join(', ')})`);
   } else if (matchedSkills.length >= 2) {
-    score += 15;
+    score += 18;
     reasons.push(`${matchedSkills.length} skills match`);
   } else if (matchedSkills.length === 1) {
-    score += 7;
+    score += 8;
     reasons.push(`1 skill match: ${matchedSkills[0]}`);
   }
 
@@ -236,29 +239,27 @@ export async function scoreJobFit(
     reasons.push('Strong skill coverage');
   }
 
-  // ── 2. Title alignment (up to 20 pts) ─────────────────────────────────────
+  // ── 2. Title alignment (up to 25 pts) ─────────────────────────────────────
+  // Role-level alignment check (e.g., "debt advisor" profile vs "painter" job)
   const titleWords = title.split(/\s+/).filter((w) => w.length > 3);
-  const titleMatchInSummary = titleWords.filter((w) => summaryLower.includes(w)).length;
-  const titleMatchInSkills = titleWords.filter((w) => skills.some((s) => s.includes(w))).length;
+  const titleMatchInProfile = titleWords.filter((w) => profileText.includes(w)).length;
+  const titleRatio = titleWords.length > 0 ? titleMatchInProfile / titleWords.length : 0;
 
-  if (titleMatchInSummary >= 2 || titleMatchInSkills >= 2) {
-    score += 20;
-    reasons.push('Job title aligns with profile');
-  } else if (titleMatchInSummary >= 1 || titleMatchInSkills >= 1) {
-    score += 10;
+  if (titleRatio >= 0.5 && titleMatchInProfile >= 2) {
+    score += 25;
+    reasons.push('Job title strongly aligns with profile');
+  } else if (titleRatio >= 0.3 || titleMatchInProfile >= 1) {
+    score += 8;
     reasons.push('Partial title alignment');
   }
 
-  // ── 3. Seniority alignment (up to 10 pts) ─────────────────────────────────
+  // ── 3. Seniority alignment (up to 8 pts) ──────────────────────────────────
   const seniorityTerms = ['senior', 'lead', 'principal', 'staff', 'head of', 'director', 'vp', 'junior', 'graduate', 'entry'];
   const jobSeniority = seniorityTerms.find((t) => title.includes(t));
   const profileSeniority = seniorityTerms.find((t) => summaryLower.includes(t));
   if (jobSeniority && profileSeniority && jobSeniority === profileSeniority) {
-    score += 10;
+    score += 8;
     reasons.push('Seniority level matches');
-  } else if (!jobSeniority) {
-    // No seniority specified in job — neutral
-    score += 3;
   }
 
   // ── 4. Work mode preference (up to 5 pts) ─────────────────────────────────
@@ -269,17 +270,24 @@ export async function scoreJobFit(
     reasons.push('Remote work preference matched');
   }
 
-  // ── 5. Penalty for obvious mismatches ─────────────────────────────────────
+  // ── 5. Heavy penalty for obvious mismatches ───────────────────────────────
+  // Trade roles (painter, plumber, etc.) vs office profiles
+  const tradeRoles = /\b(painter|decorator|plumber|electrician|carpenter|bricklayer|welder|mechanic|driver|cleaner|warehouse|forklift)\b/i;
+  const officeProfile = /\b(advisor|analyst|manager|consultant|developer|engineer|specialist|coordinator|executive|administrator)\b/i;
+  if (tradeRoles.test(title) && officeProfile.test(summaryLower) && matchedSkills.length === 0) {
+    score -= 20;
+    reasons.push('Trade role mismatch with office profile');
+  }
+
   if (skills.length > 0 && matchedSkills.length === 0) {
     score -= 10;
     reasons.push('No skill overlap found');
   }
 
-  // Cap and floor
-  if (score > 90) score = 90 + Math.floor(Math.random() * 8);
-  score = Math.min(99, Math.max(10, score));
+  // Cap and floor - tighter range to be more honest
+  score = Math.min(99, Math.max(5, score));
 
-  if (reasons.length === 0) reasons.push('General profile match');
+  if (reasons.length === 0) reasons.push('Limited profile match');
 
   return { score, reasons };
 }

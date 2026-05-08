@@ -6,11 +6,39 @@ export interface SourceJob {
   location: string;
   description: string;
   applyUrl: string;
+  /** Annual salary minimum (normalized from any period to yearly). */
   salaryMin: number | null;
+  /** Annual salary maximum (normalized from any period to yearly). */
   salaryMax: number | null;
+  /** Original salary period as detected: 'hour' | 'day' | 'week' | 'month' | 'year'. */
+  salaryPeriod?: 'hour' | 'day' | 'week' | 'month' | 'year' | null;
+  /** Original salary min value in the detected period (not normalized). */
+  salaryOriginalMin?: number | null;
+  /** Original salary max value in the detected period (not normalized). */
+  salaryOriginalMax?: number | null;
+  /** Currency: GBP, USD, EUR, PLN etc. */
+  salaryCurrency?: string | null;
+  /** Human-readable salary line preserved from the listing. */
+  salaryText?: string | null;
   workMode: string | null;
+  /** full-time | part-time | contract | temporary | permanent | internship | apprenticeship */
+  contractType?: string | null;
+  /** E.g. "37.5 hours per week", "Mon-Fri 9am-5pm". */
+  workingHours?: string | null;
+  /** Entry / Junior / Mid / Senior / Lead / etc. */
+  experienceLevel?: string | null;
+  /** Benefits mentioned (pension, private healthcare, etc.). */
+  benefits?: string[];
   requirements: string[];
+  /** Qualifications & education requirements. */
+  qualifications?: string[];
+  /** Responsibilities / "what you'll do". */
+  responsibilities?: string[];
+  /** Employer contact email extracted from description. */
+  employerEmail?: string | null;
   postedAt: string;
+  /** When the role starts (if stated). */
+  startDate?: string | null;
   fitScore?: number;
 }
 

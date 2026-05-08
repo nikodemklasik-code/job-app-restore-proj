@@ -172,10 +172,40 @@ export class JobDiscoveryService {
       return true;
     });
 
+    // Enrich each job with fully parsed structured data (salary with periods,
+    // benefits, qualifications, contract type, working hours, etc.).
+    // Providers return raw data, this step normalises and fills gaps.
+    const { parseJobDescription } = await import('./jobDescriptionParser.js');
+    const enrichedJobs = dedupedJobs.map((job) => {
+      const parsed = parseJobDescription(job.description, job.description);
+
+      return {
+        ...job,
+        // Fill salary fields only if provider didn't supply them
+        salaryMin: job.salaryMin ?? parsed.salaryMin,
+        salaryMax: job.salaryMax ?? parsed.salaryMax,
+        salaryPeriod: job.salaryPeriod ?? parsed.salaryPeriod,
+        salaryOriginalMin: job.salaryOriginalMin ?? parsed.salaryOriginalMin,
+        salaryOriginalMax: job.salaryOriginalMax ?? parsed.salaryOriginalMax,
+        salaryCurrency: job.salaryCurrency ?? parsed.salaryCurrency,
+        salaryText: job.salaryText ?? parsed.salaryText,
+        workMode: job.workMode ?? parsed.workMode,
+        contractType: job.contractType ?? parsed.contractType,
+        workingHours: job.workingHours ?? parsed.workingHours,
+        experienceLevel: job.experienceLevel ?? parsed.experienceLevel,
+        benefits: (job.benefits?.length ?? 0) > 0 ? job.benefits : parsed.benefits,
+        requirements: (job.requirements?.length ?? 0) > 0 ? job.requirements : parsed.requirements,
+        qualifications: (job.qualifications?.length ?? 0) > 0 ? job.qualifications : parsed.qualifications,
+        responsibilities: (job.responsibilities?.length ?? 0) > 0 ? job.responsibilities : parsed.responsibilities,
+        employerEmail: job.employerEmail ?? parsed.employerEmail,
+        startDate: job.startDate ?? parsed.startDate,
+      };
+    });
+
     // Deterministic keyword scoring first: this is enough for basic role matching
     // such as waiter/waitress/server/front-of-house. AI can refine, but it should
     // not be required for the product to understand obvious words like "waiter".
-    let finalJobs = keywordScoreJobs(dedupedJobs, input.query);
+    let finalJobs = keywordScoreJobs(enrichedJobs, input.query);
 
     // Optional AI fit scoring if userId present. Scoring annotates real provider ads only.
     if (input.userId && finalJobs.length > 0) {
