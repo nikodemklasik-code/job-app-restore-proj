@@ -181,6 +181,9 @@ export function ApplicationCard(props: ApplicationCardProps) {
                                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
                                 placeholder="Leave empty for AI-generated message"
                             />
+                            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                If empty, AI generates professional message. CV & Cover Letter (tailored to this job, signed with your name) are auto-attached as PDFs.
+                            </p>
                         </div>
 
                         <button
