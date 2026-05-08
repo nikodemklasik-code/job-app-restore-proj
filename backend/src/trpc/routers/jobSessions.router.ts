@@ -13,7 +13,7 @@ import {
   storageStateToJson,
 } from '../../services/browserAuth.js';
 
-const SUPPORTED_PROVIDERS = ['indeed', 'gumtree'] as const;
+const SUPPORTED_PROVIDERS = ['indeed', 'gumtree', 'glassdoor', 'linkedin'] as const;
 type Provider = typeof SUPPORTED_PROVIDERS[number];
 
 async function getLocalUserId(clerkId: string): Promise<string | null> {
@@ -176,6 +176,8 @@ export const jobSessionsRouter = router({
       const testUrls: Record<Provider, string> = {
         indeed: 'https://www.indeed.co.uk/jobs?q=developer&l=London&limit=1',
         gumtree: 'https://www.gumtree.com/jobs/england/london?q=developer',
+        glassdoor: 'https://www.glassdoor.co.uk/member/profile/accountSettings',
+        linkedin: 'https://www.linkedin.com/feed/',
       };
 
       try {
@@ -188,9 +190,13 @@ export const jobSessionsRouter = router({
         });
 
         const html = await res.text();
-        const isLoggedIn = input.provider === 'indeed'
-          ? (html.includes('jobsearch-ResultsList') || html.includes('mosaic-provider-jobcards'))
-          : (html.includes('data-q="search-result"') || html.includes('listing-title'));
+        const loginSignals: Record<Provider, boolean> = {
+          indeed: html.includes('jobsearch-ResultsList') || html.includes('mosaic-provider-jobcards'),
+          gumtree: html.includes('data-q="search-result"') || html.includes('listing-title'),
+          glassdoor: html.includes('accountSettings') || html.includes('Account Settings') || html.includes('memberProfile'),
+          linkedin: html.includes('feed-identity-module') || html.includes('global-nav') || html.includes('voyager'),
+        };
+        const isLoggedIn = loginSignals[input.provider];
 
         const ok = res.ok && isLoggedIn;
         await db.update(userJobSessions)
