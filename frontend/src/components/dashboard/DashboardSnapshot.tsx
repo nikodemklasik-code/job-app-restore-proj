@@ -70,7 +70,7 @@ function newsroomTone(type: DashboardSnapshotDto['newsroom'][number]['type']): s
 }
 
 function Newsroom({ items }: { items: DashboardSnapshotDto['newsroom'] }) {
-  const visibleItems = items.length > 0
+  const visibleItems = items && items.length > 0
     ? items
     : [
       {
@@ -529,7 +529,7 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
     lastJobSearchAt: null,
     lastJobSearchLabel: null,
     lastMarketResearchAt: null,
-  } } = snapshot;
+  }, newsroom = [] } = snapshot;
   const displayName = firstName(profile.fullName);
   return (
     <div className="space-y-8">
@@ -551,7 +551,7 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
             {nextAction.label}
           </Link>
         </div>
-        <Newsroom items={snapshot.newsroom} />
+        <Newsroom items={newsroom} />
       </section>
 
       <WorkspaceTiles applications={applications} practice={practice} />
