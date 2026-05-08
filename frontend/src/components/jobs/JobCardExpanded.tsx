@@ -284,20 +284,18 @@ export function JobCardExpanded({
 }: JobCardExpandedProps) {
     const [selectedScoreCategory, setSelectedScoreCategory] = useState<'skills' | 'experience' | 'salary' | 'culture' | null>(null);
 
-    // Mock data if not provided
+    // Use real data from API or show loading state
+    const isLoadingAnalysis = !fitAnalysis;
     const analysis = fitAnalysis || {
-        skillsMatch: Math.min(job.fitScore + 5, 100),
-        experienceMatch: Math.min(job.fitScore + 10, 100),
-        salaryMatch: Math.max(job.fitScore - 15, 60),
-        cultureMatch: Math.max(job.fitScore - 10, 70),
+        skillsMatch: job.fitScore,
+        experienceMatch: job.fitScore,
+        salaryMatch: job.fitScore,
+        cultureMatch: job.fitScore,
         strengths: [
-            'Strong technical skills alignment',
-            'Experience level matches requirements',
-            'Domain knowledge is relevant',
+            'Loading detailed analysis...',
         ],
         gaps: [
-            'Salary slightly below your target range',
-            'Some preferred skills missing',
+            'Analysis in progress...',
         ],
     };
 
@@ -344,6 +342,9 @@ export function JobCardExpanded({
                             <h3 className="text-sm font-semibold text-white uppercase tracking-wider flex items-center gap-2">
                                 <TrendingUp className="w-4 h-4 text-emerald-500" />
                                 Match Breakdown
+                                {isLoadingAnalysis && (
+                                    <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
+                                )}
                             </h3>
 
                             <div className="space-y-4">
@@ -603,7 +604,11 @@ export function JobCardExpanded({
                                     </Link>
 
                                     <button
-                                        onClick={onCreateDraft}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            onCreateDraft?.();
+                                        }}
                                         disabled={isCreatingDraft || isTailoringResume}
                                         className="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm shadow-[0_0_15px_rgba(16,185,129,0.3)] disabled:opacity-60 disabled:cursor-not-allowed"
                                     >
@@ -633,7 +638,11 @@ export function JobCardExpanded({
                                     )}
 
                                     <button
-                                        onClick={onTailorResume}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            onTailorResume?.();
+                                        }}
                                         disabled={isTailoringResume || isCreatingDraft}
                                         className="px-4 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium transition-colors border border-slate-600 disabled:opacity-60 disabled:cursor-not-allowed"
                                     >
@@ -651,7 +660,11 @@ export function JobCardExpanded({
                                     </button>
 
                                     <button
-                                        onClick={onStartRadarScan}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            onStartRadarScan?.();
+                                        }}
                                         disabled={isStartingRadarScan}
                                         className="px-4 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-sm font-semibold transition-all border border-indigo-500/50 shadow-lg shadow-indigo-900/30 disabled:opacity-60 disabled:cursor-not-allowed"
                                         title="Deep employer & risk analysis"
