@@ -90,7 +90,7 @@ export default function ApplicationsPage() {
     });
   }
 
-  async function handleUpdateStatus(applicationId: string, status: string) {
+  async function handleUpdateStatus(applicationId: string, status: 'draft' | 'prepared' | 'sent' | 'follow_up_sent' | 'rejected' | 'accepted' | 'interview') {
     if (!userId) return;
     await updateStatusMutation.mutateAsync({
       id: applicationId,

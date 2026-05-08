@@ -21,7 +21,7 @@ type ApplicationCardProps = {
     onSelect: () => void;
     onPrepare: () => void;
     onSendEmail: () => void;
-    onUpdateStatus: (status: string) => void;
+    onUpdateStatus: (status: 'draft' | 'prepared' | 'sent' | 'follow_up_sent' | 'rejected' | 'accepted' | 'interview') => void;
     isPreparing: boolean;
     isUpdating: boolean;
     emailSubject: string;
@@ -120,6 +120,19 @@ export function ApplicationCard(props: ApplicationCardProps) {
                             >
                                 {props.isPreparing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                                 Prepare Documents
+                            </button>
+                        )}
+
+                        {application.status === 'prepared' && application.cvSnapshot && (
+                            <button
+                                onClick={() => {
+                                    // Open CV in new tab - will be implemented
+                                    alert('View CV feature coming soon');
+                                }}
+                                className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 dark:border-indigo-900 dark:text-indigo-300 dark:hover:bg-indigo-950/40"
+                            >
+                                <FileText className="h-4 w-4" />
+                                View CV
                             </button>
                         )}
                     </div>
