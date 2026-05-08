@@ -476,34 +476,34 @@ function SessionPanel({ provider, status, userId }: {
                 </div>
               ) : (
                 <>
-              <p className="text-xs text-slate-400">
-                Enter your {meta.label} credentials. The server will log in automatically via a secure headless browser — your password is never stored.
-              </p>
-              <input
-                type="email"
-                placeholder={`${meta.label} email`}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-              />
-              <input
-                type="password"
-                placeholder="Password (optional — used for login only)"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-              />
-              {msg && step === 'error' && (
-                <p className="text-xs text-red-400 rounded-lg bg-red-500/10 px-3 py-2">{msg}</p>
-              )}
-              <button
-                onClick={handleStart}
-                disabled={!email || isLoading}
-                className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2"
-              >
-                {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Connecting…</> : `Connect ${meta.label}`}
-              </button>
-              <p className="text-xs text-slate-600 text-center">Your password is used only to connect and is never stored by us.</p>
+                  <p className="text-xs text-slate-400">
+                    Enter your {meta.label} credentials. The server will log in automatically via a secure headless browser — your password is never stored.
+                  </p>
+                  <input
+                    type="email"
+                    placeholder={`${meta.label} email`}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Password (optional — used for login only)"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  />
+                  {msg && step === 'error' && (
+                    <p className="text-xs text-red-400 rounded-lg bg-red-500/10 px-3 py-2">{msg}</p>
+                  )}
+                  <button
+                    onClick={handleStart}
+                    disabled={!email || isLoading}
+                    className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2"
+                  >
+                    {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Connecting…</> : `Connect ${meta.label}`}
+                  </button>
+                  <p className="text-xs text-slate-600 text-center">Your password is used only to connect and is never stored by us.</p>
                 </>
               )}
             </div>
@@ -1065,7 +1065,7 @@ export default function JobsDiscovery() {
             title="Search jobs based on your skills from profile"
           >
             <Sparkles className="h-4 w-4" />
-            Szukaj na podstawie umiejętności
+            Search by Skills
           </button>
           {searchParams && (
             <button
