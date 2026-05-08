@@ -23,6 +23,7 @@ import type {
 } from '../../../../shared/profile.js';
 import { getProfileMatchContextByLocalId } from '../../services/profileSourceOfTruth.js';
 import { isBlockedJob } from '../../services/profileSourceOfTruth.policy.js';
+import { generateProfileRoadmap } from '../../services/profileRoadmapGenerator.js';
 
 const DEFAULT_CAREER_GOALS: CareerGoalsSnapshot = {
   currentJobTitle: null,
@@ -907,5 +908,54 @@ export const profileRouter = router({
         })));
       }
       return { success: true };
+    }),
+
+  /**
+   * Generates an AI career roadmap from the user's profile toward their dream role.
+   * Writes the milestones + learning path into careerGoals.strategyJson without
+   * overwriting other fields. Returns the refreshed ProfileSnapshot so the UI
+   * can render immediately.
+   */
+  generateAiRoadmap: protectedProcedure
+    .input(
+      z.object({
+        targetRole: z.string().max(255).nullable().optional(),
+        targetSeniority: z.string().max(80).nullable().optional(),
+      }).optional(),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const localUserId = ctx.user.id;
+      const snapshot = await fetchProfileSnapshot(localUserId, ctx.user.email);
+
+      const targetRole = input?.targetRole?.trim() || snapshot.careerGoals?.targetJobTitle || null;
+      const targetSeniority = input?.targetSeniority?.trim() || snapshot.careerGoals?.targetSeniority || null;
+      const currentRole = snapshot.careerGoals?.currentJobTitle || snapshot.experiences[0]?.jobTitle || null;
+
+      const generated = await generateProfileRoadmap({
+        targetRole,
+        targetSeniority,
+        currentRole,
+        skills: snapshot.skills,
+        experiences: snapshot.experiences.map((e) => ({ jobTitle: e.jobTitle, employerName: e.employerName, description: e.description })),
+        educations: snapshot.educations.map((e) => ({ degree: e.degree, fieldOfStudy: e.fieldOfStudy, schoolName: e.schoolName })),
+        trainings: snapshot.trainings.map((t) => ({ title: t.title, providerName: t.providerName })),
+        workValues: snapshot.careerGoals?.workValues ?? [],
+      });
+
+      await ensureCareerGoalsRow(localUserId);
+      const [row] = await db.select().from(careerGoals).where(eq(careerGoals.userId, localUserId)).limit(1);
+      const prevStrategy = row ? normalizeStrategy(row.strategyJson) : {};
+      const nextStrategy: ProfileStrategyJson = {
+        ...prevStrategy,
+        roadmap: generated.milestones,
+        potentialLearningPath: generated.learningPath,
+      };
+
+      await db
+        .update(careerGoals)
+        .set({ strategyJson: nextStrategy, updatedAt: new Date() })
+        .where(eq(careerGoals.userId, localUserId));
+
+      return fetchProfileSnapshot(localUserId, ctx.user.email);
     }),
 });

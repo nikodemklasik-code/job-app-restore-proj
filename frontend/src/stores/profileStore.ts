@@ -54,9 +54,9 @@ function mergeProfilePreferences(
     })),
     careerGoals: profile.careerGoals
       ? {
-          ...profile.careerGoals,
-          preferredWorkSetup,
-        }
+        ...profile.careerGoals,
+        preferredWorkSetup,
+      }
       : profile.careerGoals,
   };
 }
@@ -102,6 +102,7 @@ interface ProfileStore {
   }) => Promise<void>;
   replaceLanguages: (languages: ProfileLanguageInput[]) => Promise<void>;
   replaceHobbies: (hobbies: ProfileHobbyInput[]) => Promise<void>;
+  generateAiRoadmap: (overrides?: { targetRole?: string | null; targetSeniority?: string | null }) => Promise<void>;
   dismissError: () => void;
 }
 
@@ -240,6 +241,18 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       }
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save hobbies' });
+    } finally {
+      set({ isSaving: false });
+    }
+  },
+
+  async generateAiRoadmap(overrides) {
+    set({ isSaving: true, error: null });
+    try {
+      const updated = await trpcClient.profile.generateAiRoadmap.mutate(overrides ?? {});
+      set({ profile: mergeProfilePreferences(updated, get().profile ?? undefined) });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to generate AI roadmap' });
     } finally {
       set({ isSaving: false });
     }
