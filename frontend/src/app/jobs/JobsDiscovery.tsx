@@ -561,65 +561,68 @@ function SessionPanel({ provider, status, userId }: {
             /* Step: enter credentials */
             <div className="space-y-3">
               <div className="space-y-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3">
-                  <p className="text-xs text-slate-400">
-                    Recommended: automatic login first. The server signs in to {meta.label}, captures only the resulting provider cookies, encrypts them, and then the health-check keeps the session status updated. Manual Cookie paste is only a fallback when the provider blocks automation, CAPTCHA, OAuth, or 2FA.
-                  </p>
-                  <input
-                    type="email"
-                    placeholder={`${meta.label} email`}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  />
-                  <input
-                    type="password"
-                    placeholder="Password (optional — used for login only)"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  />
-                  <button
-                    onClick={handleStart}
-                    disabled={!email || isLoading}
-                    className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2"
-                  >
-                    {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Connecting…</> : `Automatic login to ${meta.label}`}
-                  </button>
-              </div>
-
-              <div className="space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  Manual cookie fallback — use only if automatic login is blocked
+                <p className="text-xs text-slate-400">
+                  Recommended: automatic login first. The server signs in to {meta.label}, captures only the resulting provider cookies, encrypts them, and then the health-check keeps the session status updated. Manual Cookie paste is only a fallback when the provider blocks automation, CAPTCHA, OAuth, or 2FA.
                 </p>
-                <p className="text-xs text-slate-400">{meta.cookieHelp}</p>
-                <CookieCopyGuide />
-                <ol className="list-decimal space-y-1 pl-4 text-xs text-slate-500">
-                  <li>
-                    Open{' '}
-                    <a href={meta.loginUrl ?? meta.url} target="_blank" rel="noopener noreferrer" className="text-indigo-300 underline underline-offset-2">
-                      {meta.loginUrl ?? meta.url}
-                    </a>{' '}
-                    and sign in. Using Google is OK when the provider offers it.
-                  </li>
-                  <li>After login, copy only the Cookie request header from an authenticated {meta.label} page/request.</li>
-                  <li>Paste provider cookies below. Do not paste Google account cookies; the backend rejects obvious Google-only cookies.</li>
-                </ol>
-                <textarea
-                  placeholder={`${meta.label} Cookie header, e.g. ${provider === 'linkedin' ? 'li_at=...; JSESSIONID=...' : 'cookie_a=...; cookie_b=...'}`}
-                  value={cookies}
-                  onChange={(e) => setCookies(e.target.value)}
-                  rows={4}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 font-mono"
+                <input
+                  type="email"
+                  placeholder={`${meta.label} email`}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                />
+                <input
+                  type="password"
+                  placeholder="Password (optional — used for login only)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                 />
                 <button
-                  onClick={handleSaveCookies}
-                  disabled={cookies.trim().length < 10 || isLoading}
+                  onClick={handleStart}
+                  disabled={!email || isLoading}
                   className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2"
                 >
-                  {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Saving…</> : `Save ${meta.label} cookies`}
+                  {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Connecting…</> : `Automatic login to ${meta.label}`}
                 </button>
-                <p className="text-xs text-slate-600 text-center">If you logged in with Google, paste the resulting {meta.label} cookies from {meta.label} — not Google cookies.</p>
               </div>
+
+              {/* Manual cookie fallback - only shown on error */}
+              {step === 'error' && (
+                <div className="space-y-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Manual cookie fallback
+                  </p>
+                  <p className="text-xs text-slate-400">{meta.cookieHelp}</p>
+                  <CookieCopyGuide />
+                  <ol className="list-decimal space-y-1 pl-4 text-xs text-slate-500">
+                    <li>
+                      Open{' '}
+                      <a href={meta.loginUrl ?? meta.url} target="_blank" rel="noopener noreferrer" className="text-indigo-300 underline underline-offset-2">
+                        {meta.loginUrl ?? meta.url}
+                      </a>{' '}
+                      and sign in. Using Google is OK when the provider offers it.
+                    </li>
+                    <li>After login, copy only the Cookie request header from an authenticated {meta.label} page/request.</li>
+                    <li>Paste provider cookies below. Do not paste Google account cookies; the backend rejects obvious Google-only cookies.</li>
+                  </ol>
+                  <textarea
+                    placeholder={`${meta.label} Cookie header, e.g. ${provider === 'linkedin' ? 'li_at=...; JSESSIONID=...' : 'cookie_a=...; cookie_b=...'}`}
+                    value={cookies}
+                    onChange={(e) => setCookies(e.target.value)}
+                    rows={4}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 font-mono"
+                  />
+                  <button
+                    onClick={handleSaveCookies}
+                    disabled={cookies.trim().length < 10 || isLoading}
+                    className="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 flex items-center justify-center gap-2"
+                  >
+                    {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Saving…</> : `Save ${meta.label} cookies`}
+                  </button>
+                  <p className="text-xs text-slate-600 text-center">If you logged in with Google, paste the resulting {meta.label} cookies from {meta.label} — not Google cookies.</p>
+                </div>
+              )}
 
               {msg && step === 'error' && (
                 <p className="text-xs text-red-400 rounded-lg bg-red-500/10 px-3 py-2">{msg}</p>
