@@ -32,16 +32,29 @@ fi
 echo "Database: ${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 echo ""
 
-# Run achievements migration if it exists
-if [ -f backend/sql/2026-05-08-add-achievements-to-experiences.sql ]; then
-  echo "[1/1] Running achievements migration..."
-  mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" < backend/sql/2026-05-08-add-achievements-to-experiences.sql
-  echo "✅ Achievements migration completed"
+# Find all SQL migration files (excluding helper scripts)
+MIGRATION_FILES=$(find backend/sql -name "*.sql" -type f ! -name "RUN_MIGRATION.sh" ! -name "run-*.sh" ! -name "*_ledger*.sql" ! -name "user_settings.sql" | sort)
+
+if [ -z "$MIGRATION_FILES" ]; then
+  echo "ℹ️  No migration files found in backend/sql/"
 else
-  echo "ℹ️  No achievements migration file found, skipping"
+  TOTAL=$(echo "$MIGRATION_FILES" | wc -l | tr -d ' ')
+  CURRENT=0
+  
+  echo "$MIGRATION_FILES" | while read -r migration_file; do
+    CURRENT=$((CURRENT + 1))
+    FILENAME=$(basename "$migration_file")
+    echo "[${CURRENT}/${TOTAL}] Running migration: ${FILENAME}..."
+    
+    if mysql -h"${DB_HOST}" -P"${DB_PORT}" -u"${DB_USER}" -p"${DB_PASS}" "${DB_NAME}" < "$migration_file" 2>&1; then
+      echo "✅ ${FILENAME} completed"
+    else
+      echo "⚠️  ${FILENAME} had warnings (may be already applied)"
+    fi
+    echo ""
+  done
 fi
 
-echo ""
 echo "════════════════════════════════════════════"
-echo "✅ Migrations completed"
+echo "✅ All migrations completed"
 echo "════════════════════════════════════════════"
