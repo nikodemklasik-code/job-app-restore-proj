@@ -56,6 +56,15 @@ function workValuesFromDb(raw: string | null): string[] {
   return raw.split(',').map((value) => value.trim()).filter(Boolean);
 }
 
+
+function normalizeAchievements(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function normalizeStrategy(raw: unknown): ProfileStrategyJson {
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw as ProfileStrategyJson;
   return {};
@@ -163,6 +172,7 @@ export async function fetchProfileSnapshotWithCompletion(input: {
       startDate: experience.startDate,
       endDate: experience.endDate ?? null,
       description: experience.description ?? '',
+      achievements: normalizeAchievements(experience.achievements),
     })),
     educations: educationRecords.map((education) => ({
       id: education.id,
