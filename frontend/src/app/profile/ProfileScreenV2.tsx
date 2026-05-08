@@ -171,7 +171,7 @@ export default function ProfileScreenV2() {
     });
     setWorkSetup({ workModePreferences: setup?.workModePreferences ?? [], employmentTypePreferences: setup?.employmentTypePreferences ?? [], contractPreferences: setup?.contractPreferences ?? [], preferredHoursPerWeek: setup?.preferredHoursPerWeek?.toString() ?? '', preferredWorkRatio: setup?.preferredWorkRatio?.toString() ?? '' });
     setSkills(profile.skills ?? []);
-    setExperiences((profile.experiences ?? []).map(({ employerName, jobTitle, startDate, endDate, description }) => ({ employerName, jobTitle, startDate, endDate, description })));
+    setExperiences((profile.experiences ?? []).map(({ employerName, jobTitle, startDate, endDate, description, achievements }) => ({ employerName, jobTitle, startDate, endDate, description, achievements: achievements ?? [] })));
     setEducations((profile.educations ?? []).map(({ schoolName, degree, fieldOfStudy, startDate, endDate }) => ({ schoolName, degree, fieldOfStudy, startDate, endDate })));
     setTrainings((profile.trainings ?? []).map(({ title, providerName, issuedAt, expiresAt, credentialUrl }) => ({ title, providerName, issuedAt, expiresAt, credentialUrl })));
     setLanguages((profile.languages ?? []).map(({ name, proficiency, certificate }) => ({ name, proficiency, certificate: certificate ?? null })));
@@ -209,7 +209,85 @@ export default function ProfileScreenV2() {
 
       <section className={cardCls}><SectionHeader icon={Sparkles} title="Skills" description="Declared Profile Skills only. Verification, course links and learning paths belong to Skill Lab." /><div className="flex flex-wrap gap-2">{skills.map((skill) => <span key={skill} className="inline-flex items-center gap-2 rounded-full bg-indigo-500/20 px-3 py-1 text-sm font-semibold text-indigo-100">{skill}<button type="button" onClick={() => setSkills(skills.filter((item) => item !== skill))} aria-label={`Remove ${skill}`}><X className="h-3 w-3" /></button></span>)}</div><div className="mt-4 flex gap-2"><input className={inputCls} value={newSkill} onChange={(e) => setNewSkill(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addSkill(); }} placeholder="Add A Skill" /><button type="button" onClick={addSkill} className="rounded-xl border border-white/10 bg-white/5 px-3 text-slate-200 hover:bg-white/10"><Plus className="h-4 w-4" /></button></div><div className="mt-5"><SaveButton isSaving={isSaving} onClick={() => void store.saveSkills(skills)}>Save Skills</SaveButton></div></section>
 
-      <section className={cardCls}><SectionHeader icon={Briefcase} title="Work Experience" description="Editable work history evidence for documents, applications and matching." /><div className="space-y-3">{experiences.map((item, index) => <div key={index} className="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 md:grid-cols-2"><Field label="Company / Employer"><input className={inputCls} value={item.employerName} onChange={(e) => setExperiences(experiences.map((row, i) => i === index ? { ...row, employerName: e.target.value } : row))} /></Field><Field label="Job Title"><input className={inputCls} value={item.jobTitle} onChange={(e) => setExperiences(experiences.map((row, i) => i === index ? { ...row, jobTitle: e.target.value } : row))} /></Field><Field label="Start Date"><input className={inputCls} value={item.startDate} onChange={(e) => setExperiences(experiences.map((row, i) => i === index ? { ...row, startDate: e.target.value } : row))} /></Field><Field label="End Date"><input className={inputCls} value={item.endDate ?? ''} onChange={(e) => setExperiences(experiences.map((row, i) => i === index ? { ...row, endDate: e.target.value || null } : row))} /></Field><div className="md:col-span-2"><Field label="Description"><textarea className={areaCls} value={item.description} onChange={(e) => setExperiences(experiences.map((row, i) => i === index ? { ...row, description: e.target.value } : row))} /></Field></div><button type="button" onClick={() => setExperiences(experiences.filter((_, i) => i !== index))} className="inline-flex items-center gap-2 text-sm text-rose-200"><Trash2 className="h-4 w-4" />Remove Experience</button></div>)}</div><div className="mt-4 flex flex-wrap gap-3"><button type="button" onClick={() => setExperiences([...experiences, { employerName: '', jobTitle: '', startDate: '', endDate: null, description: '' }])} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"><Plus className="h-4 w-4" />Add Experience</button><SaveButton isSaving={isSaving} onClick={() => void store.replaceExperiences(experiences)}>Save Work Experience</SaveButton></div></section>
+      <section className={cardCls}>
+        <SectionHeader
+          icon={Briefcase}
+          title="Work Experience"
+          description="Editable work history evidence for documents, applications and matching."
+        />
+        <div className="space-y-3">
+          {experiences.map((item, index) => (
+            <div key={index} className="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 md:grid-cols-2">
+              <Field label="Company / Employer">
+                <input
+                  className={inputCls}
+                  value={item.employerName}
+                  onChange={(e) => setExperiences(experiences.map((row, i) => i === index ? { ...row, employerName: e.target.value } : row))}
+                />
+              </Field>
+              <Field label="Job Title">
+                <input
+                  className={inputCls}
+                  value={item.jobTitle}
+                  onChange={(e) => setExperiences(experiences.map((row, i) => i === index ? { ...row, jobTitle: e.target.value } : row))}
+                />
+              </Field>
+              <Field label="Start Date">
+                <input
+                  className={inputCls}
+                  value={item.startDate}
+                  onChange={(e) => setExperiences(experiences.map((row, i) => i === index ? { ...row, startDate: e.target.value } : row))}
+                />
+              </Field>
+              <Field label="End Date">
+                <input
+                  className={inputCls}
+                  value={item.endDate ?? ''}
+                  onChange={(e) => setExperiences(experiences.map((row, i) => i === index ? { ...row, endDate: e.target.value || null } : row))}
+                />
+              </Field>
+              <div className="md:col-span-2">
+                <Field label="Description">
+                  <textarea
+                    className={areaCls}
+                    value={item.description}
+                    onChange={(e) => setExperiences(experiences.map((row, i) => i === index ? { ...row, description: e.target.value } : row))}
+                  />
+                </Field>
+              </div>
+              <div className="md:col-span-2">
+                <Field label="Achievements / Outcomes (one per line)">
+                  <textarea
+                    className={areaCls}
+                    value={(item.achievements ?? []).join('\n')}
+                    onChange={(e) => setExperiences(experiences.map((row, i) => i === index
+                      ? { ...row, achievements: e.target.value.split('\n').map((line) => line.trim()).filter(Boolean) }
+                      : row))}
+                    placeholder={'Increased conversion by 18%\nReduced reporting time by 6 hours per week'}
+                  />
+                </Field>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExperiences(experiences.filter((_, i) => i !== index))}
+                className="inline-flex items-center gap-2 text-sm text-rose-200"
+              >
+                <Trash2 className="h-4 w-4" />Remove Experience
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => setExperiences([...experiences, { employerName: '', jobTitle: '', startDate: '', endDate: null, description: '', achievements: [] }])}
+            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"
+          >
+            <Plus className="h-4 w-4" />Add Experience
+          </button>
+          <SaveButton isSaving={isSaving} onClick={() => void store.replaceExperiences(experiences)}>Save Work Experience</SaveButton>
+        </div>
+      </section>
 
       <section className="grid gap-6 xl:grid-cols-2"><div className={cardCls}><SectionHeader icon={GraduationCap} title="Education" />{educations.map((item, index) => <div key={index} className="mb-3 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4"><Field label="School Name"><input className={inputCls} value={item.schoolName} onChange={(e) => setEducations(educations.map((row, i) => i === index ? { ...row, schoolName: e.target.value } : row))} /></Field><Field label="Degree"><input className={inputCls} value={item.degree} onChange={(e) => setEducations(educations.map((row, i) => i === index ? { ...row, degree: e.target.value } : row))} /></Field><Field label="Field Of Study"><input className={inputCls} value={item.fieldOfStudy} onChange={(e) => setEducations(educations.map((row, i) => i === index ? { ...row, fieldOfStudy: e.target.value } : row))} /></Field><div className="grid gap-3 md:grid-cols-2"><Field label="Start Date"><input className={inputCls} value={item.startDate} onChange={(e) => setEducations(educations.map((row, i) => i === index ? { ...row, startDate: e.target.value } : row))} /></Field><Field label="End Date"><input className={inputCls} value={item.endDate ?? ''} onChange={(e) => setEducations(educations.map((row, i) => i === index ? { ...row, endDate: e.target.value || null } : row))} /></Field></div><button type="button" onClick={() => setEducations(educations.filter((_, i) => i !== index))} className="inline-flex items-center gap-2 text-sm text-rose-200"><Trash2 className="h-4 w-4" />Remove Education</button></div>)}<div className="mt-4 flex flex-wrap gap-3"><button type="button" onClick={() => setEducations([...educations, { schoolName: '', degree: '', fieldOfStudy: '', startDate: '', endDate: null }])} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"><Plus className="h-4 w-4" />Add Education</button><SaveButton isSaving={isSaving} onClick={() => void store.replaceEducations(educations)}>Save Education</SaveButton></div></div><div className={cardCls}><SectionHeader icon={Award} title="Training / Courses" />{trainings.map((item, index) => <div key={index} className="mb-3 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4"><Field label="Title"><input className={inputCls} value={item.title} onChange={(e) => setTrainings(trainings.map((row, i) => i === index ? { ...row, title: e.target.value } : row))} /></Field><Field label="Provider Name"><input className={inputCls} value={item.providerName} onChange={(e) => setTrainings(trainings.map((row, i) => i === index ? { ...row, providerName: e.target.value } : row))} /></Field><div className="grid gap-3 md:grid-cols-2"><Field label="Issued At"><input className={inputCls} value={item.issuedAt} onChange={(e) => setTrainings(trainings.map((row, i) => i === index ? { ...row, issuedAt: e.target.value } : row))} /></Field><Field label="Expires At"><input className={inputCls} value={item.expiresAt ?? ''} onChange={(e) => setTrainings(trainings.map((row, i) => i === index ? { ...row, expiresAt: e.target.value || null } : row))} /></Field></div><Field label="Credential URL"><input className={inputCls} value={item.credentialUrl} onChange={(e) => setTrainings(trainings.map((row, i) => i === index ? { ...row, credentialUrl: e.target.value } : row))} /></Field><button type="button" onClick={() => setTrainings(trainings.filter((_, i) => i !== index))} className="inline-flex items-center gap-2 text-sm text-rose-200"><Trash2 className="h-4 w-4" />Remove Training / Course</button></div>)}<div className="mt-4 flex flex-wrap gap-3"><button type="button" onClick={() => setTrainings([...trainings, { title: '', providerName: '', issuedAt: '', expiresAt: null, credentialUrl: '' }])} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"><Plus className="h-4 w-4" />Add Training / Course</button><SaveButton isSaving={isSaving} onClick={() => void store.replaceTrainings(trainings)}>Save Training / Courses</SaveButton></div></div></section>
 

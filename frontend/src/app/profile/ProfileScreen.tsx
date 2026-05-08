@@ -320,7 +320,7 @@ export default function ProfileScreen() {
       preferredWorkRatio: setup?.preferredWorkRatio?.toString() ?? '',
     });
     setSkills(profile.skills ?? []);
-    setExperiences((profile.experiences ?? []).map(({ employerName, jobTitle, startDate, endDate, description }) => ({ employerName, jobTitle, startDate, endDate, description })));
+    setExperiences((profile.experiences ?? []).map(({ employerName, jobTitle, startDate, endDate, description, achievements }) => ({ employerName, jobTitle, startDate, endDate, description, achievements: achievements ?? [] })));
     setEducations((profile.educations ?? []).map(({ schoolName, degree, fieldOfStudy, startDate, endDate }) => ({ schoolName, degree, fieldOfStudy, startDate, endDate })));
     setTrainings((profile.trainings ?? []).map(({ title, providerName, issuedAt, expiresAt, credentialUrl }) => ({ title, providerName, issuedAt, expiresAt, credentialUrl })));
     setLanguages((profile.languages ?? []).map(({ name, proficiency, certificate }) => ({ name, proficiency, certificate: certificate ?? null })));
@@ -521,7 +521,7 @@ export default function ProfileScreen() {
           ))}
         </div>
         <div className="mt-4 flex flex-wrap gap-3">
-          <button type="button" onClick={() => setExperiences([...experiences, { employerName: '', jobTitle: '', startDate: '', endDate: null, description: '' }])} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"><Plus className="h-4 w-4" />Add Experience</button>
+          <button type="button" onClick={() => setExperiences([...experiences, { employerName: '', jobTitle: '', startDate: '', endDate: null, description: '', achievements: [] }])} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"><Plus className="h-4 w-4" />Add Experience</button>
           <SaveButton isSaving={isSaving} onClick={() => void replaceExperiences(experiences)}>Save Work Experience</SaveButton>
         </div>
       </section>

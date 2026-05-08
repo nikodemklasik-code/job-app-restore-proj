@@ -82,6 +82,14 @@ function workValuesToDb(values: string[]): string | null {
   return s.length ? s.join(', ') : null;
 }
 
+function normalizeAchievements(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function normalizeStrategy(raw: unknown): ProfileStrategyJson {
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
     return raw as ProfileStrategyJson;
@@ -209,6 +217,7 @@ async function fetchProfileSnapshot(userId: string, email: string): Promise<Prof
       startDate: e.startDate,
       endDate: e.endDate ?? null,
       description: e.description ?? '',
+      achievements: normalizeAchievements(e.achievements),
     })),
     educations: educationRecords.map((e) => ({
       id: e.id,
@@ -439,6 +448,7 @@ export const profileRouter = router({
             startDate: z.string(),
             endDate: z.string().nullable().optional(),
             description: z.string().optional(),
+            achievements: z.array(z.string()).optional(),
           }),
         ).default([]),
         educations: z.array(
@@ -502,6 +512,7 @@ export const profileRouter = router({
           startDate: item.startDate,
           endDate: item.endDate ?? null,
           description: item.description ?? '',
+          achievements: normalizeAchievements(item.achievements),
         })));
       }
 
@@ -570,6 +581,7 @@ export const profileRouter = router({
         startDate: z.string(),
         endDate: z.string().nullable(),
         description: z.string(),
+        achievements: z.array(z.string()).optional(),
       })),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -586,6 +598,7 @@ export const profileRouter = router({
           startDate: item.startDate,
           endDate: item.endDate ?? null,
           description: item.description,
+          achievements: normalizeAchievements(item.achievements),
         })));
       }
 
@@ -824,6 +837,7 @@ export const profileRouter = router({
         startDate: z.string().optional(),
         endDate: z.string().optional(),
         description: z.string().optional(),
+        achievements: z.array(z.string()).optional(),
       })),
     }))
     .mutation(async ({ input }) => {
@@ -843,6 +857,7 @@ export const profileRouter = router({
           startDate: item.startDate ?? '',
           endDate: item.endDate ?? null,
           description: item.description ?? '',
+          achievements: normalizeAchievements(item.achievements),
         })));
       }
       return { success: true };

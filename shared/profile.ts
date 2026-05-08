@@ -16,7 +16,8 @@ export interface ProfileExperience {
   startDate: string;
   endDate: string | null;
   description: string;
-  achievements?: string[];}
+  achievements: string[];
+}
 
 export interface ProfileExperienceInput {
   employerName: string;
@@ -24,7 +25,8 @@ export interface ProfileExperienceInput {
   startDate: string;
   endDate: string | null;
   description: string;
-  achievements?: string[];}
+  achievements?: string[];
+}
 
 export interface ProfileEducation {
   id: string;
