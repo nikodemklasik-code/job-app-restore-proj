@@ -471,11 +471,10 @@ function TopCluster({
   return (
     <section className="space-y-4">
       <ProfileHero profile={profile} completion={completion} />
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch">
         <ReadinessMovesCard profile={profile} />
         <GrowthPathRoadmap profile={profile} isGenerating={isGenerating} onGenerate={onGenerate} />
       </div>
-      <SupportingMaterialsDisclaimer compact collapsible />
     </section>
   );
 }
@@ -774,54 +773,54 @@ export default function ProfileScreenV2() {
       )}
 
       {/* Row 1 — LEFT: personal/contact | RIGHT: professional profile + work values */}
-      <section className="grid gap-6 xl:grid-cols-2">
-        <div className={cardCls}>
+      <section className="grid gap-6 xl:grid-cols-2 xl:items-stretch">
+        <div className={`${cardCls} flex flex-col`}>
           <SectionHeader
             icon={UserRound}
             title="Personal Information"
             description="Basic identity and contact details used across documents, jobs and applications."
           />
-          <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Full Name">
-              <input
-                className={inputCls}
-                value={personalInfo.fullName}
-                onChange={(e) => setPersonalInfo({ ...personalInfo, fullName: e.target.value })}
-              />
-            </Field>
-            <Field label="Email">
-              <input
-                className={inputCls}
-                type="email"
-                value={personalInfo.email}
-                onChange={(e) => setPersonalInfo({ ...personalInfo, email: e.target.value })}
-              />
-            </Field>
-            <Field label="Phone">
-              <input
-                className={inputCls}
-                value={personalInfo.phone}
-                onChange={(e) => setPersonalInfo({ ...personalInfo, phone: e.target.value })}
-              />
-            </Field>
-            <Field label="Location">
-              <input
-                className={inputCls}
-                value={personalInfo.location}
-                onChange={(e) => setPersonalInfo({ ...personalInfo, location: e.target.value })}
-              />
-            </Field>
-            <div className="md:col-span-2">
-              <Field label="LinkedIn URL">
+          <div className="flex-1 space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Field label="Full Name">
                 <input
                   className={inputCls}
-                  value={personalInfo.linkedinUrl}
-                  onChange={(e) => setPersonalInfo({ ...personalInfo, linkedinUrl: e.target.value })}
+                  value={personalInfo.fullName}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, fullName: e.target.value })}
+                />
+              </Field>
+              <Field label="Email">
+                <input
+                  className={inputCls}
+                  type="email"
+                  value={personalInfo.email}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, email: e.target.value })}
+                />
+              </Field>
+              <Field label="Phone">
+                <input
+                  className={inputCls}
+                  value={personalInfo.phone}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, phone: e.target.value })}
+                />
+              </Field>
+              <Field label="Location">
+                <input
+                  className={inputCls}
+                  value={personalInfo.location}
+                  onChange={(e) => setPersonalInfo({ ...personalInfo, location: e.target.value })}
                 />
               </Field>
             </div>
+            <Field label="LinkedIn URL">
+              <input
+                className={inputCls}
+                value={personalInfo.linkedinUrl}
+                onChange={(e) => setPersonalInfo({ ...personalInfo, linkedinUrl: e.target.value })}
+              />
+            </Field>
           </div>
-          <div className="mt-5">
+          <div className="mt-5 flex justify-end">
             <SaveButton
               isSaving={isSaving}
               onClick={() => void store.savePersonalInfo(personalInfo)}
@@ -831,13 +830,13 @@ export default function ProfileScreenV2() {
           </div>
         </div>
 
-        <div className={cardCls}>
+        <div className={`${cardCls} flex flex-col`}>
           <SectionHeader
             icon={Sparkles}
             title="Professional Profile & Values"
-            description="Your headline, summary and the work values you look for. Pick what matters; add your own."
+            description="Your headline, summary and the work values you look for."
           />
-          <div className="space-y-4">
+          <div className="flex-1 space-y-4">
             <Field label="Headline">
               <input
                 className={inputCls}
@@ -858,7 +857,7 @@ export default function ProfileScreenV2() {
               <WorkValuesPicker selected={workValues} onChange={setWorkValues} />
             </div>
           </div>
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div className="mt-5 flex flex-wrap justify-end gap-3">
             <SaveButton
               isSaving={isSaving}
               onClick={() => void store.savePersonalInfo(personalInfo)}
@@ -881,10 +880,10 @@ export default function ProfileScreenV2() {
       ) : (
         <>
           {/* Row 2 — Career Goals | Work Preferences */}
-          <section className="grid gap-6 xl:grid-cols-2">
-            <div className={cardCls}>
+          <section className="grid gap-6 xl:grid-cols-2 xl:items-stretch">
+            <div className={`${cardCls} flex flex-col`}>
               <SectionHeader icon={Target} title="Career Goals" />
-              <div className="space-y-4">
+              <div className="flex-1 space-y-4">
                 <Field label="Dream Role">
                   <input
                     className={inputCls}
@@ -949,20 +948,20 @@ export default function ProfileScreenV2() {
                   />
                 </div>
               </div>
-              <div className="mt-5">
+              <div className="mt-5 flex justify-end">
                 <SaveButton isSaving={isSaving} onClick={() => void saveCareer()}>
                   Save Career Goals
                 </SaveButton>
               </div>
             </div>
 
-            <div className={cardCls}>
+            <div className={`${cardCls} flex flex-col`}>
               <SectionHeader
                 icon={Heart}
                 title="Work Preferences"
                 description="Work Mode, Employment Type, Contract Type and preferred working time."
               />
-              <div className="space-y-5">
+              <div className="flex-1 space-y-5">
                 <ToggleGroup
                   title="Work Mode"
                   options={workModes}
@@ -1010,7 +1009,7 @@ export default function ProfileScreenV2() {
                   </Field>
                 </div>
               </div>
-              <div className="mt-5">
+              <div className="mt-5 flex justify-end">
                 <SaveButton isSaving={isSaving} onClick={() => void saveWorkSetup()}>
                   Save Work Preferences
                 </SaveButton>
@@ -1018,503 +1017,536 @@ export default function ProfileScreenV2() {
             </div>
           </section>
 
-          {/* Row 3 — Work Experience (full width, already 2-col internal grid) */}
-          <section className={cardCls}>
-            <SectionHeader
-              icon={Briefcase}
-              title="Work Experience"
-              description="Editable work history evidence for documents, applications and matching."
-            />
-            <div className="space-y-3">
-              {experiences.map((item, index) => (
-                <div
-                  key={index}
-                  className="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 md:grid-cols-2"
-                >
-                  <Field label="Company / Employer">
-                    <input
-                      className={inputCls}
-                      value={item.employerName}
-                      onChange={(e) =>
-                        setExperiences(
-                          experiences.map((row, i) =>
-                            i === index ? { ...row, employerName: e.target.value } : row,
-                          ),
-                        )
-                      }
-                    />
-                  </Field>
-                  <Field label="Job Title">
-                    <input
-                      className={inputCls}
-                      value={item.jobTitle}
-                      onChange={(e) =>
-                        setExperiences(
-                          experiences.map((row, i) =>
-                            i === index ? { ...row, jobTitle: e.target.value } : row,
-                          ),
-                        )
-                      }
-                    />
-                  </Field>
-                  <Field label="Start Date">
-                    <input
-                      className={inputCls}
-                      value={item.startDate}
-                      onChange={(e) =>
-                        setExperiences(
-                          experiences.map((row, i) =>
-                            i === index ? { ...row, startDate: e.target.value } : row,
-                          ),
-                        )
-                      }
-                    />
-                  </Field>
-                  <Field label="End Date">
-                    <input
-                      className={inputCls}
-                      value={item.endDate ?? ''}
-                      onChange={(e) =>
-                        setExperiences(
-                          experiences.map((row, i) =>
-                            i === index ? { ...row, endDate: e.target.value || null } : row,
-                          ),
-                        )
-                      }
-                    />
-                  </Field>
-                  <div className="md:col-span-2">
-                    <Field label="Description">
-                      <textarea
-                        className={areaCls}
-                        value={item.description}
-                        onChange={(e) =>
-                          setExperiences(
-                            experiences.map((row, i) =>
-                              i === index ? { ...row, description: e.target.value } : row,
-                            ),
-                          )
-                        }
-                      />
-                    </Field>
-                  </div>
-                  <div className="md:col-span-2">
-                    <Field label="Achievements / Outcomes (one per line)">
-                      <textarea
-                        className={areaCls}
-                        value={(item.achievements ?? []).join('\n')}
-                        onChange={(e) =>
-                          setExperiences(
-                            experiences.map((row, i) =>
-                              i === index
-                                ? {
-                                  ...row,
-                                  achievements: e.target.value
-                                    .split('\n')
-                                    .map((line) => line.trim())
-                                    .filter(Boolean),
-                                }
-                                : row,
-                            ),
-                          )
-                        }
-                        placeholder={'Increased conversion by 18%\nReduced reporting time by 6 hours per week'}
-                      />
-                    </Field>
-                  </div>
+          {/* Rows 3+4 — Evidence masonry (Experience + Education + Trainings) */}
+          <section className="space-y-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-300">
+                Evidence
+              </p>
+              <h2 className="mt-1 text-lg font-semibold text-white">
+                Work Experience, Education & Trainings
+              </h2>
+              <p className="mt-1 text-sm text-slate-400">
+                Tiles flow into two columns on wide screens so that empty rows never show up.
+              </p>
+            </div>
+            <div className="gap-6 columns-1 lg:columns-2 [column-fill:_balance]">
+              <div className={`${cardCls} mb-6 break-inside-avoid`}>
+                <SectionHeader
+                  icon={Briefcase}
+                  title="Work Experience"
+                  description="Editable work history evidence for documents, applications and matching."
+                />
+                <div className="space-y-3">
+                  {experiences.map((item, index) => (
+                    <div
+                      key={index}
+                      className="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 md:grid-cols-2"
+                    >
+                      <Field label="Company / Employer">
+                        <input
+                          className={inputCls}
+                          value={item.employerName}
+                          onChange={(e) =>
+                            setExperiences(
+                              experiences.map((row, i) =>
+                                i === index ? { ...row, employerName: e.target.value } : row,
+                              ),
+                            )
+                          }
+                        />
+                      </Field>
+                      <Field label="Job Title">
+                        <input
+                          className={inputCls}
+                          value={item.jobTitle}
+                          onChange={(e) =>
+                            setExperiences(
+                              experiences.map((row, i) =>
+                                i === index ? { ...row, jobTitle: e.target.value } : row,
+                              ),
+                            )
+                          }
+                        />
+                      </Field>
+                      <Field label="Start Date">
+                        <input
+                          className={inputCls}
+                          value={item.startDate}
+                          onChange={(e) =>
+                            setExperiences(
+                              experiences.map((row, i) =>
+                                i === index ? { ...row, startDate: e.target.value } : row,
+                              ),
+                            )
+                          }
+                        />
+                      </Field>
+                      <Field label="End Date">
+                        <input
+                          className={inputCls}
+                          value={item.endDate ?? ''}
+                          onChange={(e) =>
+                            setExperiences(
+                              experiences.map((row, i) =>
+                                i === index ? { ...row, endDate: e.target.value || null } : row,
+                              ),
+                            )
+                          }
+                        />
+                      </Field>
+                      <div className="md:col-span-2">
+                        <Field label="Description">
+                          <textarea
+                            className={areaCls}
+                            value={item.description}
+                            onChange={(e) =>
+                              setExperiences(
+                                experiences.map((row, i) =>
+                                  i === index ? { ...row, description: e.target.value } : row,
+                                ),
+                              )
+                            }
+                          />
+                        </Field>
+                      </div>
+                      <div className="md:col-span-2">
+                        <Field label="Achievements / Outcomes (one per line)">
+                          <textarea
+                            className={areaCls}
+                            value={(item.achievements ?? []).join('\n')}
+                            onChange={(e) =>
+                              setExperiences(
+                                experiences.map((row, i) =>
+                                  i === index
+                                    ? {
+                                      ...row,
+                                      achievements: e.target.value
+                                        .split('\n')
+                                        .map((line) => line.trim())
+                                        .filter(Boolean),
+                                    }
+                                    : row,
+                                ),
+                              )
+                            }
+                            placeholder={'Increased conversion by 18%\nReduced reporting time by 6 hours per week'}
+                          />
+                        </Field>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setExperiences(experiences.filter((_, i) => i !== index))}
+                        className="inline-flex items-center gap-2 text-sm text-rose-200"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Remove Experience
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 flex flex-wrap gap-3">
                   <button
                     type="button"
-                    onClick={() => setExperiences(experiences.filter((_, i) => i !== index))}
-                    className="inline-flex items-center gap-2 text-sm text-rose-200"
+                    onClick={() =>
+                      setExperiences([
+                        ...experiences,
+                        {
+                          employerName: '',
+                          jobTitle: '',
+                          startDate: '',
+                          endDate: null,
+                          description: '',
+                          achievements: [],
+                        },
+                      ])
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"
                   >
-                    <Trash2 className="h-4 w-4" />
-                    Remove Experience
+                    <Plus className="h-4 w-4" />
+                    Add Experience
                   </button>
+                  <SaveButton
+                    isSaving={isSaving}
+                    onClick={() => void store.replaceExperiences(experiences)}
+                  >
+                    Save Work Experience
+                  </SaveButton>
                 </div>
-              ))}
-            </div>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() =>
-                  setExperiences([
-                    ...experiences,
-                    {
-                      employerName: '',
-                      jobTitle: '',
-                      startDate: '',
-                      endDate: null,
-                      description: '',
-                      achievements: [],
-                    },
-                  ])
-                }
-                className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"
-              >
-                <Plus className="h-4 w-4" />
-                Add Experience
-              </button>
-              <SaveButton
-                isSaving={isSaving}
-                onClick={() => void store.replaceExperiences(experiences)}
-              >
-                Save Work Experience
-              </SaveButton>
-            </div>
-          </section>
+              </div>
 
-          {/* Row 4 — Education | Trainings / Courses */}
-          <section className="grid gap-6 xl:grid-cols-2">
-            <div className={cardCls}>
-              <SectionHeader icon={GraduationCap} title="Education" />
-              {educations.map((item, index) => (
-                <div
-                  key={index}
-                  className="mb-3 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4"
-                >
-                  <Field label="School Name">
-                    <input
-                      className={inputCls}
-                      value={item.schoolName}
-                      onChange={(e) =>
-                        setEducations(
-                          educations.map((row, i) =>
-                            i === index ? { ...row, schoolName: e.target.value } : row,
-                          ),
-                        )
-                      }
-                    />
-                  </Field>
-                  <Field label="Degree">
-                    <input
-                      className={inputCls}
-                      value={item.degree}
-                      onChange={(e) =>
-                        setEducations(
-                          educations.map((row, i) =>
-                            i === index ? { ...row, degree: e.target.value } : row,
-                          ),
-                        )
-                      }
-                    />
-                  </Field>
-                  <Field label="Field Of Study">
-                    <input
-                      className={inputCls}
-                      value={item.fieldOfStudy}
-                      onChange={(e) =>
-                        setEducations(
-                          educations.map((row, i) =>
-                            i === index ? { ...row, fieldOfStudy: e.target.value } : row,
-                          ),
-                        )
-                      }
-                    />
-                  </Field>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <Field label="Start Date">
+              {/* Education tile */}
+              <div className={`${cardCls} mb-6 break-inside-avoid`}>
+                <SectionHeader icon={GraduationCap} title="Education" />
+                {educations.length === 0 && (
+                  <p className="text-xs text-slate-500">No education yet.</p>
+                )}
+                {educations.map((item, index) => (
+                  <div
+                    key={index}
+                    className="mb-3 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4"
+                  >
+                    <Field label="School Name">
                       <input
                         className={inputCls}
-                        value={item.startDate}
+                        value={item.schoolName}
                         onChange={(e) =>
                           setEducations(
                             educations.map((row, i) =>
-                              i === index ? { ...row, startDate: e.target.value } : row,
+                              i === index ? { ...row, schoolName: e.target.value } : row,
                             ),
                           )
                         }
                       />
                     </Field>
-                    <Field label="End Date">
+                    <Field label="Degree">
                       <input
                         className={inputCls}
-                        value={item.endDate ?? ''}
+                        value={item.degree}
                         onChange={(e) =>
                           setEducations(
                             educations.map((row, i) =>
-                              i === index ? { ...row, endDate: e.target.value || null } : row,
+                              i === index ? { ...row, degree: e.target.value } : row,
                             ),
                           )
                         }
                       />
                     </Field>
+                    <Field label="Field Of Study">
+                      <input
+                        className={inputCls}
+                        value={item.fieldOfStudy}
+                        onChange={(e) =>
+                          setEducations(
+                            educations.map((row, i) =>
+                              i === index ? { ...row, fieldOfStudy: e.target.value } : row,
+                            ),
+                          )
+                        }
+                      />
+                    </Field>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Field label="Start Date">
+                        <input
+                          className={inputCls}
+                          value={item.startDate}
+                          onChange={(e) =>
+                            setEducations(
+                              educations.map((row, i) =>
+                                i === index ? { ...row, startDate: e.target.value } : row,
+                              ),
+                            )
+                          }
+                        />
+                      </Field>
+                      <Field label="End Date">
+                        <input
+                          className={inputCls}
+                          value={item.endDate ?? ''}
+                          onChange={(e) =>
+                            setEducations(
+                              educations.map((row, i) =>
+                                i === index ? { ...row, endDate: e.target.value || null } : row,
+                              ),
+                            )
+                          }
+                        />
+                      </Field>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEducations(educations.filter((_, i) => i !== index))}
+                      className="inline-flex items-center gap-2 text-sm text-rose-200"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Remove Education
+                    </button>
                   </div>
+                ))}
+                <div className="mt-4 flex flex-wrap gap-3">
                   <button
                     type="button"
-                    onClick={() => setEducations(educations.filter((_, i) => i !== index))}
-                    className="inline-flex items-center gap-2 text-sm text-rose-200"
+                    onClick={() =>
+                      setEducations([
+                        ...educations,
+                        { schoolName: '', degree: '', fieldOfStudy: '', startDate: '', endDate: null },
+                      ])
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"
                   >
-                    <Trash2 className="h-4 w-4" />
-                    Remove Education
+                    <Plus className="h-4 w-4" />
+                    Add Education
                   </button>
+                  <SaveButton
+                    isSaving={isSaving}
+                    onClick={() => void store.replaceEducations(educations)}
+                  >
+                    Save Education
+                  </SaveButton>
                 </div>
-              ))}
-              <div className="mt-4 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setEducations([
-                      ...educations,
-                      { schoolName: '', degree: '', fieldOfStudy: '', startDate: '', endDate: null },
-                    ])
-                  }
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Education
-                </button>
-                <SaveButton
-                  isSaving={isSaving}
-                  onClick={() => void store.replaceEducations(educations)}
-                >
-                  Save Education
-                </SaveButton>
               </div>
-            </div>
 
-            <div className={cardCls}>
-              <SectionHeader icon={Award} title="Training / Courses" />
-              {trainings.map((item, index) => (
-                <div
-                  key={index}
-                  className="mb-3 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4"
-                >
-                  <Field label="Title">
-                    <input
-                      className={inputCls}
-                      value={item.title}
-                      onChange={(e) =>
-                        setTrainings(
-                          trainings.map((row, i) =>
-                            i === index ? { ...row, title: e.target.value } : row,
-                          ),
-                        )
-                      }
-                    />
-                  </Field>
-                  <Field label="Provider Name">
-                    <input
-                      className={inputCls}
-                      value={item.providerName}
-                      onChange={(e) =>
-                        setTrainings(
-                          trainings.map((row, i) =>
-                            i === index ? { ...row, providerName: e.target.value } : row,
-                          ),
-                        )
-                      }
-                    />
-                  </Field>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <Field label="Issued At">
+              <div className={`${cardCls} mb-6 break-inside-avoid`}>
+                <SectionHeader icon={Award} title="Training / Courses" />
+                {trainings.length === 0 && (
+                  <p className="text-xs text-slate-500">No trainings yet.</p>
+                )}
+                {trainings.map((item, index) => (
+                  <div
+                    key={index}
+                    className="mb-3 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4"
+                  >
+                    <Field label="Title">
                       <input
                         className={inputCls}
-                        value={item.issuedAt}
+                        value={item.title}
                         onChange={(e) =>
                           setTrainings(
                             trainings.map((row, i) =>
-                              i === index ? { ...row, issuedAt: e.target.value } : row,
+                              i === index ? { ...row, title: e.target.value } : row,
                             ),
                           )
                         }
                       />
                     </Field>
-                    <Field label="Expires At">
+                    <Field label="Provider Name">
                       <input
                         className={inputCls}
-                        value={item.expiresAt ?? ''}
+                        value={item.providerName}
                         onChange={(e) =>
                           setTrainings(
                             trainings.map((row, i) =>
-                              i === index ? { ...row, expiresAt: e.target.value || null } : row,
+                              i === index ? { ...row, providerName: e.target.value } : row,
                             ),
                           )
                         }
                       />
                     </Field>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Field label="Issued At">
+                        <input
+                          className={inputCls}
+                          value={item.issuedAt}
+                          onChange={(e) =>
+                            setTrainings(
+                              trainings.map((row, i) =>
+                                i === index ? { ...row, issuedAt: e.target.value } : row,
+                              ),
+                            )
+                          }
+                        />
+                      </Field>
+                      <Field label="Expires At">
+                        <input
+                          className={inputCls}
+                          value={item.expiresAt ?? ''}
+                          onChange={(e) =>
+                            setTrainings(
+                              trainings.map((row, i) =>
+                                i === index ? { ...row, expiresAt: e.target.value || null } : row,
+                              ),
+                            )
+                          }
+                        />
+                      </Field>
+                    </div>
+                    <Field label="Credential URL">
+                      <input
+                        className={inputCls}
+                        value={item.credentialUrl}
+                        onChange={(e) =>
+                          setTrainings(
+                            trainings.map((row, i) =>
+                              i === index ? { ...row, credentialUrl: e.target.value } : row,
+                            ),
+                          )
+                        }
+                      />
+                    </Field>
+                    <button
+                      type="button"
+                      onClick={() => setTrainings(trainings.filter((_, i) => i !== index))}
+                      className="inline-flex items-center gap-2 text-sm text-rose-200"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Remove Training / Course
+                    </button>
                   </div>
-                  <Field label="Credential URL">
-                    <input
-                      className={inputCls}
-                      value={item.credentialUrl}
-                      onChange={(e) =>
-                        setTrainings(
-                          trainings.map((row, i) =>
-                            i === index ? { ...row, credentialUrl: e.target.value } : row,
-                          ),
-                        )
-                      }
-                    />
-                  </Field>
+                ))}
+                <div className="mt-4 flex flex-wrap gap-3">
                   <button
                     type="button"
-                    onClick={() => setTrainings(trainings.filter((_, i) => i !== index))}
-                    className="inline-flex items-center gap-2 text-sm text-rose-200"
+                    onClick={() =>
+                      setTrainings([
+                        ...trainings,
+                        { title: '', providerName: '', issuedAt: '', expiresAt: null, credentialUrl: '' },
+                      ])
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"
                   >
-                    <Trash2 className="h-4 w-4" />
-                    Remove Training / Course
+                    <Plus className="h-4 w-4" />
+                    Add Training / Course
                   </button>
+                  <SaveButton
+                    isSaving={isSaving}
+                    onClick={() => void store.replaceTrainings(trainings)}
+                  >
+                    Save Training / Courses
+                  </SaveButton>
                 </div>
-              ))}
-              <div className="mt-4 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setTrainings([
-                      ...trainings,
-                      { title: '', providerName: '', issuedAt: '', expiresAt: null, credentialUrl: '' },
-                    ])
-                  }
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Training / Course
-                </button>
-                <SaveButton
-                  isSaving={isSaving}
-                  onClick={() => void store.replaceTrainings(trainings)}
-                >
-                  Save Training / Courses
-                </SaveButton>
               </div>
             </div>
           </section>
 
-          {/* Row 5 — Languages | Hobbies */}
-          <section className="grid gap-6 xl:grid-cols-2">
-            <div className={cardCls}>
-              <SectionHeader icon={Languages} title="Languages" />
-              {languages.map((item, index) => (
-                <div
-                  key={index}
-                  className="mb-3 grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 md:grid-cols-2"
-                >
-                  <Field label="Language">
-                    <input
-                      className={inputCls}
-                      value={item.name}
-                      onChange={(e) =>
-                        setLanguages(
-                          languages.map((row, i) =>
-                            i === index ? { ...row, name: e.target.value } : row,
-                          ),
-                        )
-                      }
-                    />
-                  </Field>
-                  <Field label="Proficiency">
-                    <input
-                      className={inputCls}
-                      value={item.proficiency}
-                      onChange={(e) =>
-                        setLanguages(
-                          languages.map((row, i) =>
-                            i === index ? { ...row, proficiency: e.target.value } : row,
-                          ),
-                        )
-                      }
-                    />
-                  </Field>
-                  <div className="md:col-span-2">
-                    <Field label="Certificate">
+          {/* Row 5 — Languages + Hobbies masonry */}
+          <section className="space-y-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-300">
+                Personality
+              </p>
+              <h2 className="mt-1 text-lg font-semibold text-white">Languages & Hobbies</h2>
+            </div>
+            <div className="gap-6 columns-1 lg:columns-2 [column-fill:_balance]">
+              <div className={`${cardCls} mb-6 break-inside-avoid`}>
+                <SectionHeader icon={Languages} title="Languages" />
+                {languages.length === 0 && (
+                  <p className="text-xs text-slate-500">No languages yet.</p>
+                )}
+                {languages.map((item, index) => (
+                  <div
+                    key={index}
+                    className="mb-3 grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 md:grid-cols-2"
+                  >
+                    <Field label="Language">
                       <input
                         className={inputCls}
-                        value={item.certificate ?? ''}
+                        value={item.name}
                         onChange={(e) =>
                           setLanguages(
                             languages.map((row, i) =>
-                              i === index ? { ...row, certificate: e.target.value || null } : row,
+                              i === index ? { ...row, name: e.target.value } : row,
                             ),
                           )
                         }
                       />
                     </Field>
+                    <Field label="Proficiency">
+                      <input
+                        className={inputCls}
+                        value={item.proficiency}
+                        onChange={(e) =>
+                          setLanguages(
+                            languages.map((row, i) =>
+                              i === index ? { ...row, proficiency: e.target.value } : row,
+                            ),
+                          )
+                        }
+                      />
+                    </Field>
+                    <div className="md:col-span-2">
+                      <Field label="Certificate">
+                        <input
+                          className={inputCls}
+                          value={item.certificate ?? ''}
+                          onChange={(e) =>
+                            setLanguages(
+                              languages.map((row, i) =>
+                                i === index ? { ...row, certificate: e.target.value || null } : row,
+                              ),
+                            )
+                          }
+                        />
+                      </Field>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setLanguages(languages.filter((_, i) => i !== index))}
+                      className="inline-flex items-center gap-2 text-sm text-rose-200"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Remove Language
+                    </button>
                   </div>
+                ))}
+                <div className="mt-4 flex flex-wrap gap-3">
                   <button
                     type="button"
-                    onClick={() => setLanguages(languages.filter((_, i) => i !== index))}
-                    className="inline-flex items-center gap-2 text-sm text-rose-200"
+                    onClick={() =>
+                      setLanguages([...languages, { name: '', proficiency: '', certificate: null }])
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"
                   >
-                    <Trash2 className="h-4 w-4" />
-                    Remove Language
+                    <Plus className="h-4 w-4" />
+                    Add Language
                   </button>
+                  <SaveButton
+                    isSaving={isSaving}
+                    onClick={() => void store.replaceLanguages(languages)}
+                  >
+                    Save Languages
+                  </SaveButton>
                 </div>
-              ))}
-              <div className="mt-4 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setLanguages([...languages, { name: '', proficiency: '', certificate: null }])
-                  }
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Language
-                </button>
-                <SaveButton
-                  isSaving={isSaving}
-                  onClick={() => void store.replaceLanguages(languages)}
-                >
-                  Save Languages
-                </SaveButton>
               </div>
-            </div>
 
-            <div className={cardCls}>
-              <SectionHeader icon={Heart} title="Hobbies" />
-              {hobbies.map((item, index) => (
-                <div
-                  key={index}
-                  className="mb-3 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4"
-                >
-                  <Field label="Hobby">
-                    <input
-                      className={inputCls}
-                      value={item.name}
-                      onChange={(e) =>
-                        setHobbies(
-                          hobbies.map((row, i) =>
-                            i === index ? { ...row, name: e.target.value } : row,
-                          ),
-                        )
-                      }
-                    />
-                  </Field>
-                  <Field label="Description">
-                    <textarea
-                      className={areaCls}
-                      value={item.description ?? ''}
-                      onChange={(e) =>
-                        setHobbies(
-                          hobbies.map((row, i) =>
-                            i === index ? { ...row, description: e.target.value || null } : row,
-                          ),
-                        )
-                      }
-                    />
-                  </Field>
+              <div className={`${cardCls} mb-6 break-inside-avoid`}>
+                <SectionHeader icon={Heart} title="Hobbies" />
+                {hobbies.length === 0 && (
+                  <p className="text-xs text-slate-500">No hobbies yet.</p>
+                )}
+                {hobbies.map((item, index) => (
+                  <div
+                    key={index}
+                    className="mb-3 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4"
+                  >
+                    <Field label="Hobby">
+                      <input
+                        className={inputCls}
+                        value={item.name}
+                        onChange={(e) =>
+                          setHobbies(
+                            hobbies.map((row, i) =>
+                              i === index ? { ...row, name: e.target.value } : row,
+                            ),
+                          )
+                        }
+                      />
+                    </Field>
+                    <Field label="Description">
+                      <textarea
+                        className={areaCls}
+                        value={item.description ?? ''}
+                        onChange={(e) =>
+                          setHobbies(
+                            hobbies.map((row, i) =>
+                              i === index ? { ...row, description: e.target.value || null } : row,
+                            ),
+                          )
+                        }
+                      />
+                    </Field>
+                    <button
+                      type="button"
+                      onClick={() => setHobbies(hobbies.filter((_, i) => i !== index))}
+                      className="inline-flex items-center gap-2 text-sm text-rose-200"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Remove Hobby
+                    </button>
+                  </div>
+                ))}
+                <div className="mt-4 flex flex-wrap gap-3">
                   <button
                     type="button"
-                    onClick={() => setHobbies(hobbies.filter((_, i) => i !== index))}
-                    className="inline-flex items-center gap-2 text-sm text-rose-200"
+                    onClick={() => setHobbies([...hobbies, { name: '', description: null }])}
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"
                   >
-                    <Trash2 className="h-4 w-4" />
-                    Remove Hobby
+                    <Plus className="h-4 w-4" />
+                    Add Hobby
                   </button>
+                  <SaveButton isSaving={isSaving} onClick={() => void store.replaceHobbies(hobbies)}>
+                    Save Hobbies
+                  </SaveButton>
                 </div>
-              ))}
-              <div className="mt-4 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => setHobbies([...hobbies, { name: '', description: null }])}
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Hobby
-                </button>
-                <SaveButton isSaving={isSaving} onClick={() => void store.replaceHobbies(hobbies)}>
-                  Save Hobbies
-                </SaveButton>
               </div>
             </div>
           </section>
@@ -1567,7 +1599,7 @@ export default function ProfileScreenV2() {
                 <Plus className="h-4 w-4" />
               </button>
             </div>
-            <div className="mt-5">
+            <div className="mt-5 flex justify-end">
               <SaveButton isSaving={isSaving} onClick={() => void store.saveSkills(skills)}>
                 Save Skills
               </SaveButton>
@@ -1575,6 +1607,11 @@ export default function ProfileScreenV2() {
           </section>
         </>
       )}
+
+      {/* Footer disclaimer moved to the bottom for a cleaner screen */}
+      <section className="pt-2">
+        <SupportingMaterialsDisclaimer compact collapsible />
+      </section>
     </div>
   );
 }
