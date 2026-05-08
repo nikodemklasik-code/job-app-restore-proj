@@ -616,7 +616,7 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
 
           <div className="mvh-card-glow rounded-2xl border border-white/10 bg-white/5 p-5">
             <h2 className="text-lg font-semibold text-white">Profile Gaps</h2>
-            {profile.missingCriticalFields.length === 0 ? (
+            {!profile.missingCriticalFields || profile.missingCriticalFields.length === 0 ? (
               <p className="mt-4 text-sm text-emerald-300">All tracked profile signals are present.</p>
             ) : (
               <ul className="mt-4 space-y-3">
