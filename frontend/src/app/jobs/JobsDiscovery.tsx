@@ -1023,6 +1023,9 @@ export default function JobsDiscovery() {
             onClick={() => {
               const profile = profileQuery.data as ProfileSnapshot | undefined;
               const skillsQuery = (profile?.skills ?? []).slice(0, 5).join(' ').slice(0, 120);
+              console.log('Profile data:', profile);
+              console.log('Skills:', profile?.skills);
+              console.log('Skills query:', skillsQuery);
               if (skillsQuery.trim()) {
                 setQuery(skillsQuery);
                 setUrlSearchParams({
@@ -1030,11 +1033,22 @@ export default function JobsDiscovery() {
                   loc: location,
                   sources: sources.join(','),
                 });
+              } else {
+                console.log('No skills found in profile');
               }
             }}
             disabled={searchQuery.isFetching || !profileQuery.data?.skills?.length}
-            className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-            title="Search jobs based on your skills from profile"
+            className={`flex items-center gap-2 rounded-xl px-5 py-2 text-sm font-semibold text-white transition ${searchQuery.isFetching || !profileQuery.data?.skills?.length
+                ? 'bg-gray-500 cursor-not-allowed opacity-60'
+                : 'bg-emerald-600 hover:bg-emerald-700'
+              }`}
+            title={
+              !profileQuery.data?.skills?.length
+                ? 'Add skills to your profile first'
+                : searchQuery.isFetching
+                  ? 'Search in progress...'
+                  : 'Search jobs based on your skills from profile'
+            }
           >
             <Sparkles className="h-4 w-4" />
             Search by Skills
