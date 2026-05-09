@@ -9,7 +9,7 @@ const DashboardPage = lazy(() => import('./app/dashboard/DashboardPage'));
 const JobsDiscovery = lazy(() => import('./app/jobs/JobsDiscovery'));
 const JobDetailPage = lazy(() => import('./app/jobs/JobDetailPage'));
 const JobRadarReport = lazy(() => import('./app/jobs/JobRadarReport'));
-const SavedJobs = lazy(() => import('./app/jobs/SavedJobs'));const ApplicationsPage = lazy(() => import('./app/applications/ApplicationsPage'));
+const SavedJobs = lazy(() => import('./app/jobs/SavedJobs')); const ApplicationsPage = lazy(() => import('./app/applications/ApplicationsPage'));
 const ApplicationsPipeline = lazy(() => import('./app/applications/ApplicationsPipeline'));
 const ReviewQueue = lazy(() => import('./app/review/ReviewQueue'));
 const AssistantPage = lazy(() => import('./app/assistant/AssistantPage'));
@@ -25,7 +25,7 @@ const TermsPage = lazy(() => import('./app/legal/TermsPage'));
 const PrivacyPage = lazy(() => import('./app/legal/PrivacyPage'));
 const CookiesPage = lazy(() => import('./app/legal/CookiesPage'));
 const ReportsHub = lazy(() => import('./app/reports/ReportsHub'));
-const SkillsLab = lazy(() => import('./app/skills/SkillsLab'));
+const SkillsLab = lazy(() => import('./app/skills/SkillsLabWithMatrix'));
 const NegotiationPage = lazy(() => import('./app/negotiation/NegotiationPage'));
 const JobRadar = lazy(() => import('./app/radar/JobRadar'));
 const DailyWarmupPage = lazy(() => import('./app/warmup/DailyWarmupPage'));
@@ -98,7 +98,7 @@ export const router = createBrowserRouter([
       { path: APP_SCREENS.jobs.path.slice(1), element: withSuspense(JobsDiscovery) },
       { path: 'jobs/:id', element: withSuspense(JobDetailPage) },
       { path: 'jobs/radar/:scanId', element: withSuspense(JobRadarReport) },
-      { path: 'jobs/saved', element: withSuspense(SavedJobs) },      { path: APP_SCREENS.applications.path.slice(1), element: withSuspense(ApplicationsPage) },
+      { path: 'jobs/saved', element: withSuspense(SavedJobs) }, { path: APP_SCREENS.applications.path.slice(1), element: withSuspense(ApplicationsPage) },
       { path: 'applications/board', element: withSuspense(ApplicationsPipeline) },
       { path: APP_SCREENS.applicationsReview.path.slice(1), element: withSuspense(ReviewQueue) },
       { path: APP_SCREENS.assistant.path.slice(1), element: withSuspense(AssistantPage) },

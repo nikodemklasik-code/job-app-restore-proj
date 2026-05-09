@@ -314,6 +314,9 @@ export class JobDiscoveryService {
     });
     console.info('[JobDiscoveryService] discovery completed', diagnostics);
 
+    // Feed results to Skills Matrix pipeline (non-blocking background)
+    JobDiscoveryService.feedToSkillsMatrix(finalJobs);
+
     return {
       jobs: finalJobs,
       failures,
@@ -321,5 +324,28 @@ export class JobDiscoveryService {
       deduped: dedupedJobs.length,
       diagnostics,
     };
+  }
+
+  /**
+   * Post-discovery hook: feed discovered jobs into the Skills Matrix pipeline.
+   * Non-blocking — errors are logged but don't affect the discovery result.
+   */
+  static feedToSkillsMatrix(jobs: SourceJob[]): void {
+    if (jobs.length === 0) return;
+    // Fire-and-forget: don't await, don't block the response
+    import('../skillMatrix/providerBridge.js')
+      .then(({ processDiscoveredJobs }) => processDiscoveredJobs(jobs))
+      .then((result) => {
+        if (result.processed > 0) {
+          console.info('[JobDiscoveryService→SkillsMatrix] processed', {
+            jobs: result.processed,
+            newEmployers: result.newEmployers,
+            signals: result.signalsGenerated,
+          });
+        }
+      })
+      .catch((err) => {
+        console.debug('[JobDiscoveryService→SkillsMatrix] bridge error (non-blocking):', err?.message ?? err);
+      });
   }
 }
