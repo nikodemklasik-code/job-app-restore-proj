@@ -7,8 +7,8 @@ interface ParsedCv {
   phone: string;
   summary: string;
   skills: string[];
-  experience: string[];
-  education: string[];
+  experience: Array<string | { company?: string; title?: string; role?: string; startDate?: string; endDate?: string; description?: string }>;
+  education: Array<string | { school?: string; institution?: string; degree?: string; fieldOfStudy?: string; field?: string; startDate?: string; endDate?: string }>;
   rawText: string;
 }
 
@@ -99,14 +99,23 @@ async function structureWithOpenAI(text: string): Promise<ParsedCv | null> {
   try {
     const resp = await client.chat.completions.create({
       model: getRoutingModel(),
-      max_tokens: 1000,
+      max_tokens: 1500,
       response_format: { type: 'json_object' },
       messages: [
         {
           role: 'system',
-          content: 'Extract structured data from this CV text. Return JSON with: fullName (string), email (string), phone (string), summary (string, max 300 chars), skills (string[]), experience (string[], max 10 items, each max 100 chars), education (string[], max 5 items).',
+          content: `Extract structured data from this CV text. Return JSON with these exact fields:
+- fullName: string
+- email: string
+- phone: string
+- summary: string (professional summary, max 400 chars)
+- skills: string[] (list of technical and soft skills, max 30)
+- experience: array of objects with { company: string, title: string, startDate: string (e.g. "Jan 2020"), endDate: string or "Present", description: string }
+- education: array of objects with { school: string, degree: string, fieldOfStudy: string, startDate: string, endDate: string }
+
+Experience and education MUST be arrays of objects, not strings. Extract at least 3 experiences and 1 education entry if visible in the CV.`,
         },
-        { role: 'user', content: text.slice(0, 4000) },
+        { role: 'user', content: text.slice(0, 6000) },
       ],
     });
     const parsed = JSON.parse(resp.choices[0]?.message?.content ?? '{}') as Partial<ParsedCv>;

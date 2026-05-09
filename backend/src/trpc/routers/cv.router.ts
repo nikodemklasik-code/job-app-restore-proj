@@ -98,40 +98,108 @@ export const cvRouter = router({
         );
       }
 
-      // Replace experiences
+      // Replace experiences — handle both string and object formats from parser
       if (profileRecord[0]) {
         const profileId = profileRecord[0].id;
-        await db.delete(experiences).where(eq(experiences.profileId, profileId)).catch(() => {});
+        await db.delete(experiences).where(eq(experiences.profileId, profileId)).catch(() => { });
         if (Array.isArray(data.experience) && (data.experience as unknown[]).length > 0) {
-          type ExpItem = { company?: string; title?: string; role?: string; startDate?: string; endDate?: string; description?: string };
-          await db.insert(experiences).values(
-            (data.experience as ExpItem[]).slice(0, 10).map((exp) => ({
+          type ExpItem = { company?: string; title?: string; role?: string; employer?: string; startDate?: string; endDate?: string; description?: string };
+          const expItems = (data.experience as (string | ExpItem)[]).slice(0, 10).map((exp) => {
+            if (typeof exp === 'string') {
+              // Regex fallback: parse "Job Title at Company" or "Company - Job Title"
+              const text = exp.trim();
+              const atMatch = text.match(/^(.+?)\s+at\s+(.+?)(?:\s*\(([^)]+)\))?$/i);
+              const dashMatch = text.match(/^(.+?)\s*[-–—]\s*(.+)$/);
+              if (atMatch) {
+                return {
+                  id: randomUUID(),
+                  profileId,
+                  jobTitle: atMatch[1].trim() || 'Role',
+                  employerName: atMatch[2].trim() || 'Company',
+                  startDate: '',
+                  endDate: null,
+                  description: atMatch[3] ?? '',
+                };
+              }
+              if (dashMatch) {
+                return {
+                  id: randomUUID(),
+                  profileId,
+                  employerName: dashMatch[1].trim() || 'Company',
+                  jobTitle: dashMatch[2].trim() || 'Role',
+                  startDate: '',
+                  endDate: null,
+                  description: '',
+                };
+              }
+              // Fallback: use the whole line as description
+              return {
+                id: randomUUID(),
+                profileId,
+                employerName: 'Unknown',
+                jobTitle: text.slice(0, 100),
+                startDate: '',
+                endDate: null,
+                description: text,
+              };
+            }
+            return {
               id: randomUUID(),
               profileId,
-              employerName: exp.company ?? 'Unknown',
+              employerName: exp.company ?? exp.employer ?? 'Unknown',
               jobTitle: exp.title ?? exp.role ?? 'Unknown',
               startDate: exp.startDate ?? '',
               endDate: exp.endDate ?? null,
               description: exp.description ?? '',
-            }))
-          ).catch(() => {});
+            };
+          });
+          if (expItems.length > 0) {
+            await db.insert(experiences).values(expItems).catch(() => { });
+          }
         }
 
-        // Replace educations
-        await db.delete(educations).where(eq(educations.profileId, profileId)).catch(() => {});
+        // Replace educations — handle both string and object formats
+        await db.delete(educations).where(eq(educations.profileId, profileId)).catch(() => { });
         if (Array.isArray(data.education) && (data.education as unknown[]).length > 0) {
-          type EduItem = { school?: string; institution?: string; degree?: string; fieldOfStudy?: string; field?: string; startDate?: string; endDate?: string };
-          await db.insert(educations).values(
-            (data.education as EduItem[]).slice(0, 10).map((edu) => ({
+          type EduItem = { school?: string; institution?: string; university?: string; degree?: string; fieldOfStudy?: string; field?: string; startDate?: string; endDate?: string };
+          const eduItems = (data.education as (string | EduItem)[]).slice(0, 10).map((edu) => {
+            if (typeof edu === 'string') {
+              const text = edu.trim();
+              const commaMatch = text.match(/^(.+?)[,\-–—]\s*(.+)$/);
+              if (commaMatch) {
+                return {
+                  id: randomUUID(),
+                  profileId,
+                  schoolName: commaMatch[1].trim() || 'School',
+                  degree: commaMatch[2].trim().slice(0, 100) || 'Degree',
+                  fieldOfStudy: null,
+                  startDate: '',
+                  endDate: null,
+                };
+              }
+              return {
+                id: randomUUID(),
+                profileId,
+                schoolName: text.slice(0, 100),
+                degree: 'Unknown',
+                fieldOfStudy: null,
+                startDate: '',
+                endDate: null,
+              };
+            }
+            return {
               id: randomUUID(),
               profileId,
-              schoolName: edu.school ?? edu.institution ?? 'Unknown',
+              schoolName: edu.school ?? edu.institution ?? edu.university ?? 'Unknown',
               degree: edu.degree ?? 'Unknown',
               fieldOfStudy: edu.fieldOfStudy ?? edu.field ?? null,
               startDate: edu.startDate ?? '',
               endDate: edu.endDate ?? null,
-            }))
-          ).catch(() => {});
+            };
+          });
+          if (eduItems.length > 0) {
+            await db.insert(educations).values(eduItems).catch(() => { });
+          }
         }
       }
 

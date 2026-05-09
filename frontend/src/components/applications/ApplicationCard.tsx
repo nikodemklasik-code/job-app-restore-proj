@@ -73,14 +73,14 @@ export function ApplicationCard(props: ApplicationCardProps) {
     const { application } = props;
 
     return (
-        <div className="relative" style={{ perspective: '1000px', minHeight: isFlipped ? '320px' : 'auto' }}>
+        <div className="relative w-full" style={{ perspective: '1000px', minHeight: '420px' }}>
             <div
-                className={`relative transition-transform duration-500 ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}
-                style={{ transformStyle: 'preserve-3d', minHeight: 'inherit' }}
+                className={`relative w-full h-full transition-transform duration-500 ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}
+                style={{ transformStyle: 'preserve-3d', minHeight: '420px' }}
             >
                 {/* FRONT SIDE */}
                 <Card
-                    className={`mvh-card-glow p-5 ${isFlipped ? 'invisible' : 'visible'}`}
+                    className={`mvh-card-glow p-5 absolute inset-0 w-full h-full overflow-auto ${isFlipped ? 'invisible' : 'visible'}`}
                     style={{ backfaceVisibility: 'hidden' }}
                 >
                     <div className="flex items-start justify-between gap-4">
@@ -140,7 +140,7 @@ export function ApplicationCard(props: ApplicationCardProps) {
 
                 {/* BACK SIDE */}
                 <Card
-                    className={`mvh-card-glow p-5 absolute inset-0 ${isFlipped ? 'visible' : 'invisible'}`}
+                    className={`mvh-card-glow p-5 absolute inset-0 w-full h-full overflow-auto ${isFlipped ? 'visible' : 'invisible'}`}
                     style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
                 >
                     <div className="flex items-start justify-between gap-4 mb-4">

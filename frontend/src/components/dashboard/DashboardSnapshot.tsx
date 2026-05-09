@@ -192,15 +192,41 @@ function getCareerEvidence(profileData: unknown, dashboardProfile: DashboardSnap
 }
 
 function estimateAnnualValue(evidence: CareerProfileEvidence, profileCompleteness: number): number {
-  const base = 28_000;
-  const experiencePremium = Math.min(evidence.experiences.length, 8) * 3_000;
-  const educationPremium = Math.min(evidence.educations.length, 4) * 1_500;
-  const skillPremium = Math.min(evidence.skills.length, 24) * 900;
-  const languagePremium = Math.min(evidence.languages.length, 5) * 1_000;
-  const trainingPremium = Math.min(evidence.trainings.length, 8) * 750;
-  const goalPremium = evidence.targetRole ? 2_000 : 0;
-  const profilePremium = Math.round(profileCompleteness * 120);
-  return Math.round((base + experiencePremium + educationPremium + skillPremium + languagePremium + trainingPremium + goalPremium + profilePremium) / 1_000) * 1_000;
+  // Realistic UK market baseline: entry-level starting point £22k (minimum wage annual ~£22k)
+  const base = 22_000;
+
+  // Experience: 0-8 years, each worth ~£2.5k (max £20k premium)
+  const experiencePremium = Math.min(evidence.experiences.length, 8) * 2_500;
+
+  // Education: diminishing value, max £3k for multiple degrees
+  const educationPremium = Math.min(evidence.educations.length, 3) * 1_000;
+
+  // Skills: each marketable skill worth £300-500, max 30 skills
+  const skillPremium = Math.min(evidence.skills.length, 30) * 400;
+
+  // Languages: £500 each, max 5 languages
+  const languagePremium = Math.min(evidence.languages.length, 5) * 500;
+
+  // Certifications: £400 each, max 10
+  const trainingPremium = Math.min(evidence.trainings.length, 10) * 400;
+
+  // Target role defined: +£1.5k (signals career clarity)
+  const goalPremium = evidence.targetRole ? 1_500 : 0;
+
+  // Profile completeness bonus: up to £3k for fully filled profile
+  const profilePremium = Math.round(profileCompleteness * 30);
+
+  // Seniority multiplier if evidence includes senior-level roles
+  const hasSeniorRole = evidence.experiences.some((exp) =>
+    typeof exp === 'object' && exp !== null &&
+    /senior|lead|principal|head|director|manager/i.test(String((exp as { jobTitle?: string }).jobTitle ?? '')),
+  );
+  const seniorityMultiplier = hasSeniorRole ? 1.15 : 1.0;
+
+  const raw = (base + experiencePremium + educationPremium + skillPremium + languagePremium + trainingPremium + goalPremium + profilePremium) * seniorityMultiplier;
+
+  // Round to nearest £500
+  return Math.round(raw / 500) * 500;
 }
 
 function evidenceReadiness(evidence: CareerProfileEvidence, profileCompleteness: number): number {
