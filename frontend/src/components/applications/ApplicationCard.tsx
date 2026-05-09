@@ -73,10 +73,10 @@ export function ApplicationCard(props: ApplicationCardProps) {
     const { application } = props;
 
     return (
-        <div className="relative" style={{ perspective: '1000px' }}>
+        <div className="relative" style={{ perspective: '1000px', minHeight: isFlipped ? '320px' : 'auto' }}>
             <div
                 className={`relative transition-transform duration-500 ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}
-                style={{ transformStyle: 'preserve-3d' }}
+                style={{ transformStyle: 'preserve-3d', minHeight: 'inherit' }}
             >
                 {/* FRONT SIDE */}
                 <Card

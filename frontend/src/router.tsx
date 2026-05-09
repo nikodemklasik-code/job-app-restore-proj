@@ -124,6 +124,7 @@ export const router = createBrowserRouter([
       })),
       { path: 'security', element: withSuspense(SecurityPage) },
       { path: 'radar', element: withSuspense(JobRadar) },
+      { path: 'job-radar', element: withSuspense(JobRadar) },
     ],
   },
 ]);
