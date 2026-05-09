@@ -19,19 +19,25 @@ function parseCvTextBasic(text: string): ParsedCv {
   const phoneMatch = clean.match(/(\+?\d[\d\s\-().]{7,})/);
   const nameMatch = text.match(/^([A-Z][a-z]+(?:\s[A-Z][a-z]+)+)/m);
 
-  const skillsMatch = text.match(/Skills?\s*:?\s*([\s\S]*?)(Experience|Education|Employment|$)/i);
+  const skillsMatch = text.match(/(?:Core\s+)?Skills?\s*(?:&\s*Competencies?)?\s*:?\s*([\s\S]*?)(?:\bExperience\b|\bEducation\b|\bEmployment\b|\bCertifications?\b|\bLanguages?\b|$)/i);
   const skills = skillsMatch
-    ? skillsMatch[1].split(/[,\n•-]/).map((s) => s.trim()).filter((s) => s.length > 1 && s.length < 60)
+    ? skillsMatch[1].split(/[,\n•·▪–\-]/).map((s) => s.trim()).filter((s) => s.length > 1 && s.length < 60 && !/^[A-Z\s]{10,}$/.test(s))
     : [];
 
-  const summaryMatch = text.match(/Summary\s*:?\s*([\s\S]*?)(Skills?|Experience|Education|$)/i);
-  const summary = summaryMatch?.[1]?.replace(/\s+/g, ' ').trim() ?? clean.slice(0, 300);
+  const summaryMatch = text.match(/(?:Professional\s+)?Summary\s*:?\s*([\s\S]*?)(?:Skills?|Experience|Education|$)/i)
+    || text.match(/(?:Profile|About)\s*:?\s*([\s\S]*?)(?:Skills?|Experience|Education|$)/i);
+  const summary = summaryMatch?.[1]?.replace(/\s+/g, ' ').trim().slice(0, 500) ?? '';
 
-  const expMatch = text.match(/Experience\s*:?\s*([\s\S]*?)(Education|$)/i);
-  const eduMatch = text.match(/Education\s*:?\s*([\s\S]*?)$/i);
+  // Extract experience and education as RAW text blocks
+  // The regex fallback can't reliably split into structured entries,
+  // so we return the raw text as a single summary item. OpenAI will do proper parsing.
+  const expMatch = text.match(/(?:Work\s+)?Experience\s*:?\s*([\s\S]*?)(?:Education|Certifications?|$)/i)
+    || text.match(/Employment\s*:?\s*([\s\S]*?)(?:Education|$)/i);
+  const eduMatch = text.match(/Education\s*:?\s*([\s\S]*?)(?:Certifications?|Languages?|References?|$)/i);
 
-  const splitLines = (s?: string) =>
-    (s ?? '').split('\n').map((l) => l.trim()).filter((l) => l.length > 3).slice(0, 20);
+  // Group experience lines into entries: detect date patterns or role titles as boundaries
+  const expEntries = groupCvSection(expMatch?.[1] ?? '', 'experience');
+  const eduEntries = groupCvSection(eduMatch?.[1] ?? '', 'education');
 
   return {
     fullName: nameMatch?.[1] ?? '',
@@ -39,10 +45,97 @@ function parseCvTextBasic(text: string): ParsedCv {
     phone: phoneMatch?.[0] ?? '',
     summary,
     skills: skills.slice(0, 30),
-    experience: splitLines(expMatch?.[1]),
-    education: splitLines(eduMatch?.[1]),
+    experience: expEntries,
+    education: eduEntries,
     rawText: text,
   };
+}
+
+/**
+ * Group CV section content into logical entries by detecting date patterns
+ * or job/education title boundaries. Returns structured objects.
+ */
+function groupCvSection(
+  sectionText: string,
+  kind: 'experience' | 'education',
+): Array<{ company?: string; school?: string; title?: string; degree?: string; startDate?: string; endDate?: string; description?: string }> {
+  if (!sectionText || sectionText.length < 10) return [];
+
+  const lines = sectionText.split('\n').map((l) => l.trim()).filter((l) => l.length > 2);
+  if (lines.length === 0) return [];
+
+  // Date pattern: matches "Jan 2020 - Present", "2020-2023", "05/2020 - 08/2023"
+  const datePattern = /\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|June|July|August|September|October|November|December)?\s*\d{4}\s*[-–—to]+\s*(?:Present|Current|\d{4}|\w+\s*\d{4})|\b\d{1,2}\/\d{4}\s*[-–—to]+/i;
+
+  // Try to find entries by date boundaries
+  const entries: Array<{ lines: string[] }> = [];
+  let currentEntry: string[] = [];
+
+  for (const line of lines) {
+    if (datePattern.test(line) && currentEntry.length > 0) {
+      entries.push({ lines: currentEntry });
+      currentEntry = [line];
+    } else {
+      currentEntry.push(line);
+    }
+  }
+  if (currentEntry.length > 0) entries.push({ lines: currentEntry });
+
+  // If we only found 0-1 entries, return raw text as single entry rather than pollute profile
+  if (entries.length === 0) return [];
+
+  // Cap at 6 entries for experience, 4 for education
+  const maxEntries = kind === 'experience' ? 6 : 4;
+
+  return entries.slice(0, maxEntries).map((entry) => {
+    const fullText = entry.lines.join(' ').slice(0, 500);
+    const dateMatch = fullText.match(datePattern);
+    const dateRange = dateMatch?.[0] ?? '';
+    const [startDate = '', endDate = ''] = dateRange
+      ? dateRange.split(/\s*[-–—to]+\s*/i).map((d) => d.trim())
+      : ['', ''];
+
+    // First line often contains title + company/school
+    const firstLine = entry.lines[0] ?? '';
+    const separator = firstLine.match(/\s+(?:at|–|—|\||,)\s+/);
+
+    if (kind === 'experience') {
+      if (separator) {
+        const [title, company] = firstLine.split(separator[0]);
+        return {
+          title: title?.trim().slice(0, 120) || 'Role',
+          company: company?.trim().slice(0, 120) || 'Company',
+          startDate,
+          endDate: endDate === 'Present' || endDate === 'Current' ? null as any : endDate,
+          description: entry.lines.slice(1).join('\n').slice(0, 800),
+        };
+      }
+      return {
+        title: firstLine.slice(0, 120) || 'Role',
+        company: 'Unknown',
+        startDate,
+        endDate,
+        description: entry.lines.slice(1).join('\n').slice(0, 800),
+      };
+    } else {
+      // education
+      if (separator) {
+        const [school, rest] = firstLine.split(separator[0]);
+        return {
+          school: school?.trim().slice(0, 120) || 'School',
+          degree: rest?.trim().slice(0, 120) || 'Degree',
+          startDate,
+          endDate,
+        };
+      }
+      return {
+        school: firstLine.slice(0, 120) || 'School',
+        degree: entry.lines[1]?.slice(0, 120) ?? 'Degree',
+        startDate,
+        endDate,
+      };
+    }
+  });
 }
 
 async function extractTextFromPdf(buffer: Buffer): Promise<string> {

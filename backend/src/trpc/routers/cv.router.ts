@@ -132,27 +132,23 @@ export const cvRouter = router({
                   description: '',
                 };
               }
-              // Fallback: use the whole line as description
-              return {
-                id: randomUUID(),
-                profileId,
-                employerName: 'Unknown',
-                jobTitle: text.slice(0, 100),
-                startDate: '',
-                endDate: null,
-                description: text,
-              };
+              // Skip unparseable strings — don't create junk "Unknown" entries
+              return null;
             }
+            const company = exp.company ?? exp.employer ?? '';
+            const title = exp.title ?? exp.role ?? '';
+            // Skip entries that are completely empty
+            if (!company && !title) return null;
             return {
               id: randomUUID(),
               profileId,
-              employerName: exp.company ?? exp.employer ?? 'Unknown',
-              jobTitle: exp.title ?? exp.role ?? 'Unknown',
+              employerName: company || 'Unknown',
+              jobTitle: title || 'Unknown',
               startDate: exp.startDate ?? '',
               endDate: exp.endDate ?? null,
               description: exp.description ?? '',
             };
-          });
+          }).filter((item): item is NonNullable<typeof item> => item !== null);
           if (expItems.length > 0) {
             await db.insert(experiences).values(expItems).catch(() => { });
           }
@@ -177,26 +173,22 @@ export const cvRouter = router({
                   endDate: null,
                 };
               }
-              return {
-                id: randomUUID(),
-                profileId,
-                schoolName: text.slice(0, 100),
-                degree: 'Unknown',
-                fieldOfStudy: null,
-                startDate: '',
-                endDate: null,
-              };
+              // Skip unparseable strings
+              return null;
             }
+            const school = edu.school ?? edu.institution ?? edu.university ?? '';
+            const degree = edu.degree ?? '';
+            if (!school && !degree) return null;
             return {
               id: randomUUID(),
               profileId,
-              schoolName: edu.school ?? edu.institution ?? edu.university ?? 'Unknown',
-              degree: edu.degree ?? 'Unknown',
+              schoolName: school || 'Unknown',
+              degree: degree || 'Unknown',
               fieldOfStudy: edu.fieldOfStudy ?? edu.field ?? null,
               startDate: edu.startDate ?? '',
               endDate: edu.endDate ?? null,
             };
-          });
+          }).filter((item): item is NonNullable<typeof item> => item !== null);
           if (eduItems.length > 0) {
             await db.insert(educations).values(eduItems).catch(() => { });
           }
