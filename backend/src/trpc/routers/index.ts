@@ -27,6 +27,10 @@ import { dashboardRouter } from './dashboard.router.js';
 import { legalHubRouter } from './legalHub.router.js';
 import { settingsRouter } from './settings.router.js';
 import { reportsRouter } from './reports.router.js';
+import { skillMatrixRouter } from './skillMatrix.router.js';
+import { employerIntelRouter } from './employerIntel.router.js';
+import { scoringRouter } from './scoring.router.js';
+import { telemetryRouter } from './telemetry.router.js';
 
 export const appRouter = router({
   dashboard: dashboardRouter,
@@ -57,6 +61,10 @@ export const appRouter = router({
   documents: documentsRouter,
   skillLab: skillLabRouter,
   reports: reportsRouter,
+  skillMatrix: skillMatrixRouter,
+  employerIntel: employerIntelRouter,
+  scoring: scoringRouter,
+  telemetry: telemetryRouter,
 });
 
 export type AppRouter = typeof appRouter;

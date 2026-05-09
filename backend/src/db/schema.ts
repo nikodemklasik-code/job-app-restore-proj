@@ -708,3 +708,5 @@ export const testAccounts = mysqlTable('test_accounts', {
 export * from './schemas/job-radar.js';
 // SkillUp module (Drizzle definitions live in `schemas/skillup.ts`)
 export * from './schemas/skillup.js';
+// Skills & Employer Verification Matrix (Drizzle definitions live in `schemas/skills-matrix.ts`)
+export * from './schemas/skills-matrix.js';
