@@ -78,12 +78,30 @@ async function searchJoobleWebsite(input: DiscoveryInput): Promise<SourceJob[]> 
   url.searchParams.set('ukw', input.query);
   if (input.location) url.searchParams.set('rgns', input.location);
 
+  // Rotate user agents to reduce bot detection
+  const userAgents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+  ];
+  const ua = userAgents[Math.floor(Math.random() * userAgents.length)];
+
   const res = await fetch(url.toString(), {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'en-GB,en;q=0.9',
+      'User-Agent': ua,
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-GB,en;q=0.9,en-US;q=0.8',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'DNT': '1',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
+      'Cache-Control': 'max-age=0',
     },
+    redirect: 'follow',
   });
   if (!res.ok) throw new Error(`Jooble public ${res.status}`);
   const html = await res.text();
@@ -92,7 +110,7 @@ async function searchJoobleWebsite(input: DiscoveryInput): Promise<SourceJob[]> 
   const entries: Record<string, unknown>[] = [];
   let match: RegExpExecArray | null;
   while ((match = scriptPattern.exec(html)) !== null) {
-    try { collectStructuredJobs(JSON.parse(match[1]), entries); } catch {}
+    try { collectStructuredJobs(JSON.parse(match[1]), entries); } catch { }
   }
 
   return entries.slice(0, input.limit).map((job) => {
