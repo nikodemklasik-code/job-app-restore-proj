@@ -8,7 +8,7 @@ import {
     classifyEvidenceLevel,
     computeSourceConfidence,
     isEvidenceStale,
-} from '../skillEvidence.service.js';
+} from '../skillEvidenceUtils.js';
 import type { EvidenceSourceType, SkillEvidenceRecord } from '../types.js';
 
 const SOURCE_TYPES: EvidenceSourceType[] = ['cv', 'github', 'portfolio', 'certificate', 'interview', 'profile', 'job_listing'];

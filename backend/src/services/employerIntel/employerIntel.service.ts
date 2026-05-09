@@ -14,6 +14,7 @@ import {
     employerSources,
 } from '../../db/schemas/skills-matrix.js';
 import { buildTrustMetadata } from '../skillMatrix/trustMetadata.js';
+import { normalizeEmployerName } from './employerIntelUtils.js';
 import type {
     EmployerProfile,
     EmployerSignalRecord,
@@ -24,23 +25,10 @@ import type {
     TrustMetadata,
 } from '../skillMatrix/types.js';
 
+export { normalizeEmployerName } from './employerIntelUtils.js';
+
 // ── Employer Name Normalization ──────────────────────────────────────────────
-
-const COMPANY_SUFFIXES = /\b(ltd|limited|plc|inc|incorporated|corp|corporation|llc|llp|gmbh|ag|sa|pty|co)\b\.?/gi;
-
-/**
- * Normalize employer name for matching.
- * Idempotent: normalize(normalize(x)) === normalize(x)
- */
-export function normalizeEmployerName(name: string): string {
-    return name
-        .toLowerCase()
-        .trim()
-        .replace(COMPANY_SUFFIXES, '')
-        .replace(/[^\w\s-]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
+// normalizeEmployerName is imported from employerIntelUtils.js (pure, no DB)
 
 /**
  * Extract domain from a URL for employer matching.

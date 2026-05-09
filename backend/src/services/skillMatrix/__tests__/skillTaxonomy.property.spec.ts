@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import { normalizeEmployerName } from '../../employerIntel/employerIntel.service.js';
+import { normalizeEmployerName } from '../../employerIntel/employerIntelUtils.js';
 
 describe('Property 24: Employer Name Normalization Is Idempotent', () => {
     it('normalize(normalize(x)) === normalize(x)', () => {

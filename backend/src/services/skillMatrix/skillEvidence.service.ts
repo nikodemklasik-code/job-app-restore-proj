@@ -11,61 +11,11 @@ import { and, desc, eq } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { skillEvidence as skillEvidenceTable } from '../../db/schemas/skillup.js';
 import { STALE_EVIDENCE_MONTHS } from './constants.js';
+import { classifyEvidenceLevel, computeSourceConfidence, isEvidenceStale } from './skillEvidenceUtils.js';
 import type { EvidenceLevel, EvidenceSourceType, SkillEvidenceRecord } from './types.js';
 
-// ── Evidence Level Classification ────────────────────────────────────────────
-
-/**
- * Classify evidence into exactly one level based on source type and context.
- *
- * - Declared: user claims (profile form, manual edit)
- * - Observed: system detected in CV/profile
- * - Demonstrated: portfolio, GitHub, case study
- * - Verified: certificate, test, recommendation
- * - Recent: used in last 6 months (any source with recent occurredAt)
- */
-export function classifyEvidenceLevel(
-    sourceType: EvidenceSourceType,
-    occurredAt: Date | null,
-): EvidenceLevel {
-    // Recent overrides if evidence is within 6 months
-    if (occurredAt) {
-        const monthsAgo = (Date.now() - occurredAt.getTime()) / (1000 * 60 * 60 * 24 * 30);
-        if (monthsAgo <= 6) return 'recent';
-    }
-
-    switch (sourceType) {
-        case 'certificate':
-            return 'verified';
-        case 'github':
-        case 'portfolio':
-            return 'demonstrated';
-        case 'cv':
-        case 'job_listing':
-            return 'observed';
-        case 'interview':
-            return 'verified';
-        case 'profile':
-        default:
-            return 'declared';
-    }
-}
-
-/**
- * Compute confidence score based on source reliability.
- */
-export function computeSourceConfidence(sourceType: EvidenceSourceType): number {
-    const confidenceMap: Record<EvidenceSourceType, number> = {
-        certificate: 0.9,
-        interview: 0.85,
-        github: 0.8,
-        portfolio: 0.75,
-        cv: 0.6,
-        job_listing: 0.55,
-        profile: 0.5,
-    };
-    return confidenceMap[sourceType] ?? 0.5;
-}
+// Re-export pure functions for backward compatibility
+export { classifyEvidenceLevel, computeSourceConfidence, isEvidenceStale } from './skillEvidenceUtils.js';
 
 // ── Service Functions ────────────────────────────────────────────────────────
 
@@ -207,21 +157,6 @@ export async function getBestEvidence(
         const bTime = b.occurredAt?.getTime() ?? 0;
         return bTime - aTime;
     })[0];
-}
-
-/**
- * Check if a skill's evidence is stale (all evidence older than 24 months).
- */
-export function isEvidenceStale(evidence: SkillEvidenceRecord[]): boolean {
-    if (evidence.length === 0) return true;
-
-    const now = Date.now();
-    const staleThresholdMs = STALE_EVIDENCE_MONTHS * 30 * 24 * 60 * 60 * 1000;
-
-    return evidence.every((e) => {
-        if (!e.occurredAt) return true;
-        return now - e.occurredAt.getTime() > staleThresholdMs;
-    });
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

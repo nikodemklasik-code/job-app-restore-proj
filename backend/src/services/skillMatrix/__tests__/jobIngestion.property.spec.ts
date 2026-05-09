@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import { computeContentHash } from '../jobIngestion.service.js';
+import { computeContentHash } from '../jobIngestionUtils.js';
 
 describe('Property 21: Content Hash Is Deterministic', () => {
     it('same input produces same hash', () => {
