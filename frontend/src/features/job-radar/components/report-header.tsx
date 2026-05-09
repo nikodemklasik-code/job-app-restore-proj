@@ -4,6 +4,7 @@ import type { JobRadarReportView } from '../api/job-radar.types';
 import { StatusBadge } from './status-badge';
 import { FreshnessBadge } from './freshness-badge';
 import { ConfidenceBadge } from './confidence-badge';
+import { EmployerTrustBadge } from '@/components/employer/EmployerTrustBadge';
 
 type Props = {
   report: JobRadarReportView;
@@ -11,6 +12,10 @@ type Props = {
 };
 
 export function ReportHeader({ report, onReportIssue }: Props) {
+  // Derive trust/risk from existing scores if available
+  const employerScore = report.scores?.employer_score ?? null;
+  const riskScore = report.scores?.risk_score ?? null;
+
   return (
     <div className="flex flex-col gap-4 border-b border-neutral-200 pb-4 dark:border-neutral-800">
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-start">
@@ -26,6 +31,9 @@ export function ReportHeader({ report, onReportIssue }: Props) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {employerScore !== null && (
+            <EmployerTrustBadge trustScore={employerScore} riskScore={riskScore ?? undefined} size="sm" />
+          )}
           <StatusBadge status={report.status} />
           <FreshnessBadge status={report.freshness.freshness_status} />
           <ConfidenceBadge level={report.confidence_summary.overall} />
