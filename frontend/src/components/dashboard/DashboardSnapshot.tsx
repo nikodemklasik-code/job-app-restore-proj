@@ -9,6 +9,7 @@ import {
   LayoutGrid,
   Newspaper,
   Search,
+  Settings,
   Sparkles,
   Target,
   TrendingUp,
@@ -408,13 +409,16 @@ function WorkspaceTiles({ applications, practice }: Pick<DashboardSnapshotDto, '
   const tiles = [
     { title: 'Profile', value: 'Open', subtitle: 'Identity, goals, seniority and work values', href: '/profile', icon: User, tone: 'border-indigo-500/30 bg-indigo-500/10 text-indigo-200' },
     { title: 'Components', value: 'CV', subtitle: 'Documents, CV components and profile evidence', href: '/documents', icon: FileText, tone: 'border-sky-500/30 bg-sky-500/10 text-sky-200' },
-    { title: 'Application', value: String(applications.total), subtitle: `${applications.needsReviewCount} need review`, href: '/applications', icon: ClipboardList, tone: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' },
+    { title: 'Applications', value: String(applications.total), subtitle: `${applications.byStatus.applied} applied · ${applications.byStatus.interview} interviews`, href: '/applications', icon: ClipboardList, tone: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200' },
     { title: 'Interview Practice', value: String(practice.totalSessions), subtitle: practice.averageScore === null ? 'No scored sessions yet' : `Average score ${practice.averageScore}`, href: '/interview', icon: Sparkles, tone: 'border-violet-500/30 bg-violet-500/10 text-violet-200' },
     { title: 'Job Track', value: String(applications.byStatus.saved + applications.byStatus.applied), subtitle: 'Saved + applied positions', href: '/jobs/saved', icon: Briefcase, tone: 'border-amber-500/30 bg-amber-500/10 text-amber-200' },
+    { title: 'Skills Matrix', value: 'Open', subtitle: 'Evidence-based skill scoring and gap analysis', href: '/skills', icon: TrendingUp, tone: 'border-teal-500/30 bg-teal-500/10 text-teal-200' },
+    { title: 'Job Radar', value: 'Scan', subtitle: 'Employer trust signals and risk detection', href: '/job-radar', icon: Search, tone: 'border-rose-500/30 bg-rose-500/10 text-rose-200' },
+    { title: 'Settings', value: '⚙️', subtitle: 'Account, notifications and preferences', href: '/settings', icon: Settings, tone: 'border-slate-500/30 bg-slate-500/10 text-slate-200' },
   ];
 
   return (
-    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {tiles.map((tile) => {
         const Icon = tile.icon;
         return (
