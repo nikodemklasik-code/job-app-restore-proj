@@ -527,6 +527,33 @@ export default function SkillsLabSuccessFirst() {
       <SkillLaboratoryGrid skills={skillCards} />
       <CoursePathways profile={profile ?? null} skills={skillCards} />
 
+      {/* ── Learning Network showcase ── */}
+      <section className="rounded-3xl border border-violet-400/25 bg-violet-500/[0.055] p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-violet-200/70">Learning network</p>
+            <h2 className="mt-1 text-xl font-semibold text-white">47 education providers connected</h2>
+            <p className="mt-2 text-sm text-slate-400">Universities, bootcamps, online platforms, and professional bodies — matched to your skill gaps automatically.</p>
+          </div>
+          <GraduationCap className="h-6 w-6 text-violet-300" />
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {[
+            { label: '15 Universities', icon: '🎓', desc: 'Oxford, Cambridge, Imperial, UCL…' },
+            { label: '5 FE Colleges', icon: '📚', desc: 'City of London, Westminster…' },
+            { label: '15 Online Platforms', icon: '💻', desc: 'Coursera, Udemy, Pluralsight…' },
+            { label: '7 Bootcamps', icon: '🚀', desc: 'Le Wagon, Makers, Northcoders…' },
+            { label: '5 Professional Bodies', icon: '🏛️', desc: 'BCS, IET, CIMA, CIPD, PMI' },
+          ].map((cat) => (
+            <div key={cat.label} className="rounded-2xl border border-white/10 bg-slate-950/35 p-3 text-center">
+              <span className="text-2xl">{cat.icon}</span>
+              <p className="mt-2 text-xs font-semibold text-white">{cat.label}</p>
+              <p className="mt-1 text-[10px] text-slate-500 leading-tight">{cat.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <GapAnalysisSection
         targetInput={targetInput}
         setTargetInput={setTargetInput}
