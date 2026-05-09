@@ -40,7 +40,7 @@ export const Tabs = ({ defaultValue = '', value, onValueChange, children, classN
 export const TabsList = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={clsx(
-      'inline-flex h-10 items-center gap-1 rounded-xl bg-slate-100 p-1 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+      'flex flex-wrap items-center gap-1 rounded-xl bg-slate-100 p-1.5 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
       className
     )}
     {...props}
@@ -54,10 +54,10 @@ export const TabsTrigger = ({ className, value, ...props }: React.ButtonHTMLAttr
     <button
       onClick={() => setActiveTab(value)}
       className={clsx(
-        'inline-flex items-center justify-center whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:pointer-events-none disabled:opacity-50',
+        'inline-flex items-center justify-center whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:pointer-events-none disabled:opacity-50',
         isActive
           ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-100'
-          : 'hover:text-slate-900 dark:hover:text-slate-100',
+          : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100',
         className
       )}
       {...props}
@@ -68,5 +68,5 @@ export const TabsTrigger = ({ className, value, ...props }: React.ButtonHTMLAttr
 export const TabsContent = ({ className, value, ...props }: React.HTMLAttributes<HTMLDivElement> & { value: string }) => {
   const { activeTab } = useTabs();
   if (activeTab !== value) return null;
-  return <div className={clsx('mt-4', className)} {...props} />;
+  return <div className={clsx('mt-6', className)} {...props} />;
 };

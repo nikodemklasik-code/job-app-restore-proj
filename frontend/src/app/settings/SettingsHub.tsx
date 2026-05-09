@@ -53,10 +53,10 @@ interface ProviderPreset {
 }
 
 const PROVIDER_PRESETS: Record<EmailProvider, ProviderPreset> = {
-  gmail:   { label: 'Gmail',       logo: 'G', host: 'smtp.gmail.com',          port: 587 },
-  outlook: { label: 'Outlook',     logo: 'O', host: 'smtp-mail.outlook.com',    port: 587 },
-  yahoo:   { label: 'Yahoo',       logo: 'Y', host: 'smtp.mail.yahoo.com',      port: 587 },
-  custom:  { label: 'Custom SMTP', logo: '#', host: '',                         port: 587 },
+  gmail: { label: 'Gmail', logo: 'G', host: 'smtp.gmail.com', port: 587 },
+  outlook: { label: 'Outlook', logo: 'O', host: 'smtp-mail.outlook.com', port: 587 },
+  yahoo: { label: 'Yahoo', logo: 'Y', host: 'smtp.mail.yahoo.com', port: 587 },
+  custom: { label: 'Custom SMTP', logo: '#', host: '', port: 587 },
 };
 
 // ─── Toggle ───────────────────────────────────────────────────────────────────
@@ -66,9 +66,8 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void 
     <button
       type="button"
       onClick={onChange}
-      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-        checked ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'
-      }`}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${checked ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'
+        }`}
     >
       <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
     </button>
@@ -128,8 +127,8 @@ function EmailSettingsTab({ userId }: { userId: string }) {
   const { data: existingSettings, isLoading: loadingSettings } = api.emailSettings.getSettings.useQuery(
     { userId }, { enabled: !!userId },
   );
-  const saveMutation   = api.emailSettings.saveSettings.useMutation();
-  const testMutation   = api.emailSettings.testConnection.useMutation();
+  const saveMutation = api.emailSettings.saveSettings.useMutation();
+  const testMutation = api.emailSettings.testConnection.useMutation();
   const removeMutation = api.emailSettings.removeSettings.useMutation();
 
   useEffect(() => {
@@ -207,11 +206,10 @@ function EmailSettingsTab({ userId }: { userId: string }) {
             key={key}
             type="button"
             onClick={() => handleProviderSelect(key)}
-            className={`flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition-all ${
-              provider === key
+            className={`flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition-all ${provider === key
                 ? 'border-indigo-500/50 bg-indigo-500/10 text-indigo-300'
                 : 'border-white/8 bg-white/[0.03] text-slate-400 hover:border-white/15 hover:text-white'
-            }`}
+              }`}
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-lg font-bold">{preset.logo}</span>
             <span className="text-xs font-medium">{preset.label}</span>
@@ -302,10 +300,10 @@ function TelegramSettingsTab({ userId }: { userId: string }) {
 
   const utils = api.useUtils();
   const { data: existingSettings, isLoading: loadingSettings } = api.telegram.getSettings.useQuery({ userId }, { enabled: !!userId });
-  const saveMutation     = api.telegram.saveSettings.useMutation();
-  const verifyMutation   = api.telegram.verify.useMutation();
+  const saveMutation = api.telegram.saveSettings.useMutation();
+  const verifyMutation = api.telegram.verify.useMutation();
   const sendTestMutation = api.telegram.sendTest.useMutation();
-  const removeMutation   = api.telegram.removeSettings.useMutation();
+  const removeMutation = api.telegram.removeSettings.useMutation();
 
   useEffect(() => {
     if (existingSettings) {
@@ -377,9 +375,9 @@ function TelegramSettingsTab({ userId }: { userId: string }) {
       <div className="space-y-2">
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Notify me when…</p>
         {[
-          { label: 'New application sent',    value: notifyOnApply,     setter: () => setNotifyOnApply((v) => !v) },
-          { label: 'Reply received',          value: notifyOnReply,     setter: () => setNotifyOnReply((v) => !v) },
-          { label: 'Interview scheduled',     value: notifyOnInterview, setter: () => setNotifyOnInterview((v) => !v) },
+          { label: 'New application sent', value: notifyOnApply, setter: () => setNotifyOnApply((v) => !v) },
+          { label: 'Reply received', value: notifyOnReply, setter: () => setNotifyOnReply((v) => !v) },
+          { label: 'Interview scheduled', value: notifyOnInterview, setter: () => setNotifyOnInterview((v) => !v) },
         ].map((item) => (
           <div key={item.label} className="flex items-center justify-between rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3">
             <span className="text-sm text-slate-300">{item.label}</span>
@@ -441,10 +439,10 @@ function SystemReadinessTab({ userId }: { userId: string }) {
   })();
 
   const items = [
-    { label: 'Profile',            value: profileScore },
-    { label: 'Email Integration',  value: emailSettings ? 100 : 0 },
-    { label: 'CV Upload',          value: latestCv ? 100 : 0 },
-    { label: 'Job Sources',        value: 60 },
+    { label: 'Profile', value: profileScore },
+    { label: 'Email Integration', value: emailSettings ? 100 : 0 },
+    { label: 'CV Upload', value: latestCv ? 100 : 0 },
+    { label: 'Job Sources', value: 60 },
   ];
 
   const getStatus = (v: number) => v === 100 ? 'Ready' : v > 0 ? 'In Progress' : 'Missing';
@@ -529,11 +527,10 @@ function AppearanceTab() {
             const isActive = theme === id;
             return (
               <button key={id} type="button" onClick={() => setTheme(id)} aria-pressed={isActive}
-                className={`group flex flex-col items-start gap-3 rounded-2xl border p-4 text-left transition-all ${
-                  isActive
+                className={`group flex flex-col items-start gap-3 rounded-2xl border p-4 text-left transition-all ${isActive
                     ? 'border-indigo-500/50 bg-indigo-500/10'
                     : 'border-white/8 bg-white/[0.03] hover:border-white/15 hover:bg-white/[0.05]'
-                }`}
+                  }`}
               >
                 <div className="flex w-full items-center gap-3">
                   <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${isActive ? 'bg-indigo-600 text-white' : 'bg-white/5 text-slate-400 group-hover:bg-white/10'}`}>
@@ -615,9 +612,9 @@ function PrivacyConsentTab() {
       <div className="space-y-3">
         <SectionHeading icon={UserCog} title="Social Profile Analysis" desc="Allow AI to analyse your public profiles for better job matching" />
         {[
-          { key: 'linkedin',  label: 'LinkedIn',  desc: 'Analyse your public work history and professional network.',      checked: consentLinkedin,  setter: setConsentLinkedin },
-          { key: 'facebook',  label: 'Facebook',  desc: 'Analyse public professional interests and career activity.',     checked: consentFacebook,  setter: setConsentFacebook },
-          { key: 'instagram', label: 'Instagram', desc: 'Analyse your public personal brand for role alignment.',         checked: consentInstagram, setter: setConsentInstagram },
+          { key: 'linkedin', label: 'LinkedIn', desc: 'Analyse your public work history and professional network.', checked: consentLinkedin, setter: setConsentLinkedin },
+          { key: 'facebook', label: 'Facebook', desc: 'Analyse public professional interests and career activity.', checked: consentFacebook, setter: setConsentFacebook },
+          { key: 'instagram', label: 'Instagram', desc: 'Analyse your public personal brand for role alignment.', checked: consentInstagram, setter: setConsentInstagram },
         ].map(({ key, label, desc, checked, setter }) => (
           <ConsentRow key={key} label={label} desc={desc} checked={checked} onChange={() => toggle(key, checked, setter)} />
         ))}
@@ -705,8 +702,8 @@ export default function SettingsHub() {
 
   // Overview quick links
   const OVERVIEW_LINKS = [
-    { label: 'Security, passkeys & 2FA', icon: Shield,     href: '/security', desc: 'Manage sign-in methods and two-factor' },
-    { label: 'Billing & Credits',        icon: CreditCard, href: '/billing',  desc: 'Plans, usage and payment methods' },
+    { label: 'Security, passkeys & 2FA', icon: Shield, href: '/security', desc: 'Manage sign-in methods and two-factor' },
+    { label: 'Billing & Credits', icon: CreditCard, href: '/billing', desc: 'Plans, usage and payment methods' },
   ];
 
   return (
@@ -719,7 +716,7 @@ export default function SettingsHub() {
 
       <Tabs value={activeTab} onValueChange={onTabChange}>
         {/* ── Tab bar ── */}
-        <TabsList className="flex-wrap gap-1">
+        <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="accessibility">Appearance</TabsTrigger>
           <TabsTrigger value="privacy">Privacy & Consent</TabsTrigger>
@@ -768,13 +765,13 @@ export default function SettingsHub() {
             {/* Quick setting tiles */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[
-                { label: 'Appearance',      tab: 'accessibility', icon: Accessibility },
-                { label: 'Privacy',         tab: 'privacy',       icon: Lock },
-                { label: 'Integrations',    tab: 'email',         icon: Mail },
-                { label: 'Job Sources',     tab: 'sources',       icon: Briefcase },
-                { label: 'App Preferences', tab: 'server',        icon: Settings2 },
-                { label: 'Auto Apply',      tab: 'auto-apply',    icon: Zap },
-                { label: 'System',          tab: 'readiness',     icon: Database },
+                { label: 'Appearance', tab: 'accessibility', icon: Accessibility },
+                { label: 'Privacy', tab: 'privacy', icon: Lock },
+                { label: 'Integrations', tab: 'email', icon: Mail },
+                { label: 'Job Sources', tab: 'sources', icon: Briefcase },
+                { label: 'App Preferences', tab: 'server', icon: Settings2 },
+                { label: 'Auto Apply', tab: 'auto-apply', icon: Zap },
+                { label: 'System', tab: 'readiness', icon: Database },
               ].map(({ label, tab, icon: Icon }) => (
                 <button key={tab} onClick={() => onTabChange(tab)}
                   className="flex flex-col items-start gap-3 rounded-2xl border border-white/8 bg-white/[0.03] p-4 text-left transition hover:border-white/15 hover:bg-white/[0.06]">
