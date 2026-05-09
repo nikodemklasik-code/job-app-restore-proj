@@ -129,13 +129,27 @@ function deriveJobSearchQueryFromProfile(profile: ProfileSnapshot | undefined): 
 function deriveSkillsBasedJobSearchQuery(profile: ProfileSnapshot | undefined): string {
   if (!profile) return '';
   const skills = (profile.skills ?? []).map((skill) => skill.trim()).filter(Boolean);
-  const targetRole = profile.careerGoals?.targetJobTitle?.trim() || profile.experiences?.[0]?.jobTitle?.trim() || '';
+  const targetRole = profile.careerGoals?.targetJobTitle?.trim() || '';
+  const latestRole = profile.experiences?.[0]?.jobTitle?.trim() || '';
+  const role = targetRole || latestRole;
 
-  if (targetRole && skills.length > 0) {
-    return `${targetRole} ${skills.slice(0, 3).join(' ')}`.slice(0, 120);
+  // Build a focused query: role first, then top skills as keywords
+  if (role && skills.length > 0) {
+    // Use the role as primary, add top 2 skills for specificity
+    return `${role} ${skills.slice(0, 2).join(' ')}`.trim().slice(0, 100);
   }
-  if (targetRole) return targetRole.slice(0, 120);
-  return skills.slice(0, 5).join(' ').slice(0, 120);
+  if (role) return role.slice(0, 100);
+  if (skills.length > 0) {
+    // No role — use skills directly, prioritize technical ones
+    const techSkills = skills.filter((s) =>
+      /javascript|typescript|python|react|node|java|aws|azure|docker|sql|c#|go|rust|php|ruby|angular|vue/i.test(s),
+    );
+    const query = techSkills.length > 0
+      ? `${techSkills[0]} developer`
+      : skills.slice(0, 3).join(' ');
+    return query.slice(0, 100);
+  }
+  return '';
 }
 
 // ── Job results grid: placeholder tiles (same shell as JobCard, empty content) ─
