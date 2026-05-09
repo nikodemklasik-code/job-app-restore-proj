@@ -33,7 +33,7 @@ export default function SkillsLabWithMatrix() {
     const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
     const { profile, loadProfile } = useProfileStore();
-    const { portfolio, loadPortfolio } = useSkillMatrixStore();
+    const { portfolio, loadPortfolio, isLoading: matrixLoading, error: matrixError } = useSkillMatrixStore();
 
     useEffect(() => {
         if (!profile) void loadProfile();
@@ -57,6 +57,26 @@ export default function SkillsLabWithMatrix() {
     const totalSkills = profile?.skills?.length ?? 0;
     const portfolioReadiness = portfolio?.averageReadiness ?? 0;
     const targetRole = profile?.careerGoals?.targetJobTitle ?? null;
+
+    if (matrixLoading && !portfolio) {
+        return (
+            <div className="flex h-64 items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+            </div>
+        );
+    }
+
+    if (matrixError && !portfolio) {
+        return (
+            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 text-center">
+                <AlertCircle className="mx-auto h-8 w-8 text-amber-400" />
+                <p className="mt-3 text-sm text-amber-200">{matrixError}</p>
+                <button onClick={() => void loadPortfolio()} className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+                    Retry
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">

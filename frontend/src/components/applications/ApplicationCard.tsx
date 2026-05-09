@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import {
     FileText,
     Send,
@@ -73,15 +74,15 @@ export function ApplicationCard(props: ApplicationCardProps) {
     const { application } = props;
 
     return (
-        <div className="relative w-full" style={{ perspective: '1000px', minHeight: '420px' }}>
+        <div className="relative w-full" style={{ perspective: '1000px', minHeight: '420px', height: 'auto' }}>
             <div
-                className={`relative w-full h-full transition-transform duration-500 ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}
+                className={`relative w-full transition-transform duration-500 ${isFlipped ? '[transform:rotateY(180deg)]' : ''}`}
                 style={{ transformStyle: 'preserve-3d', minHeight: '420px' }}
             >
                 {/* FRONT SIDE */}
                 <Card
-                    className={`mvh-card-glow p-5 absolute inset-0 w-full h-full overflow-auto ${isFlipped ? 'invisible' : 'visible'}`}
-                    style={{ backfaceVisibility: 'hidden' }}
+                    className={`mvh-card-glow p-5 w-full overflow-auto ${isFlipped ? 'absolute inset-0 invisible' : 'relative visible'}`}
+                    style={{ backfaceVisibility: 'hidden', minHeight: '420px' }}
                 >
                     <div className="flex items-start justify-between gap-4">
                         <div>
@@ -127,7 +128,7 @@ export function ApplicationCard(props: ApplicationCardProps) {
                             <button
                                 onClick={() => {
                                     // Open CV in new tab - will be implemented
-                                    alert('View CV feature coming soon');
+                                    toast('View CV feature coming soon', { icon: '📄' });
                                 }}
                                 className="inline-flex items-center gap-2 rounded-xl border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 dark:border-indigo-900 dark:text-indigo-300 dark:hover:bg-indigo-950/40"
                             >
@@ -140,8 +141,8 @@ export function ApplicationCard(props: ApplicationCardProps) {
 
                 {/* BACK SIDE */}
                 <Card
-                    className={`mvh-card-glow p-5 absolute inset-0 w-full h-full overflow-auto ${isFlipped ? 'visible' : 'invisible'}`}
-                    style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                    className={`mvh-card-glow p-5 w-full overflow-auto ${isFlipped ? 'relative visible' : 'absolute inset-0 invisible'}`}
+                    style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', minHeight: '420px' }}
                 >
                     <div className="flex items-start justify-between gap-4 mb-4">
                         <div>
