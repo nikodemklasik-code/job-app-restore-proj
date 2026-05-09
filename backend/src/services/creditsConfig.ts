@@ -76,6 +76,11 @@ export const FEATURE_KEYS = [
 
   // AI Analysis page — estimated
   'ai_analysis_compare',
+
+  // Skills & Employer Matrix — paid AI actions
+  'matrix_skill_gap_analysis',
+  'matrix_employer_deep_dive',
+  'matrix_market_comparison',
 ] as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
@@ -235,6 +240,29 @@ export const FEATURE_COSTS: Record<FeatureKey, FeatureCost> = {
     minCost: 4,
     maxCost: 8,
     productLabel: 'AI Analysis · Compare',
+  },
+
+  // ── Skills & Employer Matrix (estimated) ────────────────────────────────
+  matrix_skill_gap_analysis: {
+    kind: 'estimated',
+    feature: 'matrix_skill_gap_analysis',
+    minCost: 5,
+    maxCost: 10,
+    productLabel: 'Skills Matrix · Gap analysis',
+  },
+  matrix_employer_deep_dive: {
+    kind: 'estimated',
+    feature: 'matrix_employer_deep_dive',
+    minCost: 4,
+    maxCost: 8,
+    productLabel: 'Skills Matrix · Employer deep-dive',
+  },
+  matrix_market_comparison: {
+    kind: 'estimated',
+    feature: 'matrix_market_comparison',
+    minCost: 5,
+    maxCost: 10,
+    productLabel: 'Skills Matrix · Market comparison',
   },
 };
 

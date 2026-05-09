@@ -6,6 +6,8 @@ import { db } from '../../db/index.js';
 import { careerGoals, educations, experiences, profiles, skills, trainings, users } from '../../db/schema.js';
 import { profileRouter as legacyProfileRouter } from './profile.router.js';
 import { fetchProfileSnapshotWithCompletion } from '../../services/profileSnapshot.service.js';
+import { addEvidence } from '../../services/skillMatrix/skillEvidence.service.js';
+import { resolveSkill } from '../../services/skillMatrix/skillTaxonomy.service.js';
 
 function workValuesToDb(values: string[]): string | null {
   const trimmed = values.map((value) => value.trim()).filter(Boolean);
@@ -121,6 +123,21 @@ const safeUpdateFull = protectedProcedure.input(updateFullInputSchema).mutation(
           name,
         })),
       );
+
+      // Dual-write: also create evidence records in the new skill matrix system
+      for (const skillName of input.skills) {
+        try {
+          const resolved = await resolveSkill(skillName);
+          await addEvidence({
+            userId: localUserId,
+            skillId: resolved.canonicalId,
+            sourceType: 'profile',
+            evidenceText: `User declared skill: ${skillName}`,
+          });
+        } catch {
+          // Non-blocking: legacy write succeeded, new system write is best-effort
+        }
+      }
     }
   }
 
@@ -182,13 +199,13 @@ const safeUpdateFull = protectedProcedure.input(updateFullInputSchema).mutation(
       .set({
         ...(input.workValues !== undefined
           ? {
-              workValues: workValuesToDb(
-                input.workValues
-                  .split(',')
-                  .map((value) => value.trim())
-                  .filter(Boolean),
-              ),
-            }
+            workValues: workValuesToDb(
+              input.workValues
+                .split(',')
+                .map((value) => value.trim())
+                .filter(Boolean),
+            ),
+          }
           : {}),
         ...(input.careerPath !== undefined ? { targetJobTitle: input.careerPath || null } : {}),
         updatedAt: new Date(),
