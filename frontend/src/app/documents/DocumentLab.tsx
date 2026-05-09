@@ -256,9 +256,9 @@ export default function DocumentLab() {
   const latestCvQuery = api.cv.getLatest.useQuery({ userId }, { enabled: !!userId });
   const latestCvForScore = latestCvQuery.data?.parsedText && String(latestCvQuery.data.parsedText).trim().length > 0
     ? {
-        parsedText: String(latestCvQuery.data.parsedText),
-        originalFilename: String(latestCvQuery.data.originalFilename ?? 'CV'),
-      }
+      parsedText: String(latestCvQuery.data.parsedText),
+      originalFilename: String(latestCvQuery.data.originalFilename ?? 'CV'),
+    }
     : null;
 
   const utils = api.useUtils();
@@ -331,7 +331,16 @@ export default function DocumentLab() {
         if (/\.(pdf|docx?)$/i.test(file.name)) {
           if (primaryDocType === 'cv') {
             const base64 = await fileToBase64(file);
-            await cvUploadMutation.mutateAsync({ userId, filename: file.name, base64, mimeType: mime });
+            const uploadResult = await cvUploadMutation.mutateAsync({ userId, filename: file.name, base64, mimeType: mime });
+            // Auto-import CV data to profile
+            if (uploadResult?.id) {
+              try {
+                await importToProfileMutation.mutateAsync({ userId, cvUploadId: uploadResult.id });
+                setImportNotice('CV data automatically imported to your profile.');
+              } catch {
+                setImportNotice('CV uploaded. Click "Import To Profile" to update your profile.');
+              }
+            }
             await utils.profile.getProfile.invalidate();
             markJobsSearchPendingAfterCv();
           } else {

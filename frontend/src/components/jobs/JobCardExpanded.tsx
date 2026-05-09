@@ -907,17 +907,26 @@ export function JobCardExpanded({
                                     <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 space-y-2">
                                         <p className="text-sm font-semibold text-emerald-400">Your matched skills:</p>
                                         <div className="flex flex-wrap gap-2">
-                                            {job.requirements?.slice(0, 6).map((req, i) => (
+                                            {(fitAnalysis?.extractedRequirements ?? job.requirements)?.slice(0, 6).map((req, i) => (
                                                 <span key={i} className="px-2 py-1 rounded-lg bg-emerald-500/20 text-xs text-emerald-300 border border-emerald-500/30">
                                                     {req}
                                                 </span>
                                             ))}
+                                            {!(fitAnalysis?.extractedRequirements ?? job.requirements)?.length && (
+                                                <span className="text-xs text-emerald-300/60">No specific skills extracted from this listing</span>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 space-y-2">
                                         <p className="text-sm font-semibold text-amber-400">Skills to develop:</p>
                                         <p className="text-xs text-amber-300">
-                                            Consider learning or refreshing: Advanced frameworks, Cloud platforms, DevOps practices
+                                            {analysis.gaps && analysis.gaps.length > 0
+                                                ? `Consider strengthening: ${analysis.gaps.slice(0, 3).join(', ')}`
+                                                : fitAnalysis?.extractedRequirements && fitAnalysis.extractedRequirements.length > 0
+                                                    ? `Key requirements from this listing: ${fitAnalysis.extractedRequirements.slice(0, 4).join(', ')}`
+                                                    : job.requirements && job.requirements.length > 0
+                                                        ? `Listed requirements: ${job.requirements.slice(0, 4).join(', ')}`
+                                                        : 'Upload your CV and add skills to your profile for personalized gap analysis'}
                                         </p>
                                     </div>
                                     {/* Skills Gap Analysis */}
