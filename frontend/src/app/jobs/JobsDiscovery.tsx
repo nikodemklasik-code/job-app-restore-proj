@@ -7,7 +7,7 @@ import {
   hasPendingCvJobsSearchMarker,
 } from '@/lib/jobsAfterCvSync';
 import type { ProfileSnapshot } from '../../../../shared/profile';
-import { Search, MapPin, Plus, Loader2, Cookie, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Sparkles, Save, Check } from 'lucide-react';
+import { Search, MapPin, Plus, Loader2, Cookie, CheckCircle2, XCircle, AlertCircle, ChevronDown, ChevronUp, Sparkles, Save, Check, Target } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { MIN_JOB_FIT_LOCAL_KEY, readMinJobFitPercent } from '@/lib/jobMatchPreferences';
 import { JobCardCompact } from '@/components/jobs/JobCardCompact';
@@ -944,8 +944,9 @@ export default function JobsDiscovery() {
     return () => window.removeEventListener('multivohub:cv-sync-jobs', onCvSync);
   }, [userId, startCvJobsFlow]);
 
-  // After profile/CV data exists, replace placeholder tiles with a real search (until the user runs Search manually).
-  useEffect(() => {
+  // Auto-search from profile DISABLED — now handled by Dream Job and AI Match tabs.
+  // Users control when to search manually.
+  /* useEffect(() => {
     if (!userId || profileQuery.isLoading || profileQuery.isError) return;
     if (pendingJobsSearchAfterCv && profileQuery.isFetching) return;
     if (searchParams !== null) return;
@@ -978,7 +979,7 @@ export default function JobsDiscovery() {
     pendingJobsSearchAfterCv,
     preferencesQuery.data,
     setUrlSearchParams,
-  ]);
+  ]); */
 
   useEffect(() => {
     if (!pendingJobsSearchAfterCv) return;
@@ -1085,6 +1086,12 @@ export default function JobsDiscovery() {
     return () => window.removeEventListener('multivohub:open-job-sessions', openSessions);
   }, []);
 
+  // ─── Search mode tabs ─────────────────────────────────────────────────────
+  const [searchMode, setSearchMode] = useState<'manual' | 'dream' | 'ai'>(() => {
+    if (urlSearchParams.get('q')) return 'manual';
+    return 'manual';
+  });
+
   if (!isLoaded) {
     return <div className="flex h-48 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-indigo-600" /></div>;
   }
@@ -1095,7 +1102,7 @@ export default function JobsDiscovery() {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white">Jobs Discovery</h1>
-          <p className="mt-1 text-slate-400">AI-powered matching across Reed, Adzuna, Jooble, Indeed & Gumtree.</p>
+          <p className="mt-1 text-slate-400">Three ways to find your next role — manual search, dream job match, or AI skills analysis.</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -1133,353 +1140,464 @@ export default function JobsDiscovery() {
         </div>
       </div>
 
-      {pendingJobsSearchAfterCv && (
-        <div className="flex items-center gap-3 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-100">
-          <Loader2 className="h-5 w-5 shrink-0 animate-spin text-indigo-300" aria-hidden />
-          <p>
-            {profileQuery.isFetching
-              ? 'Syncing your profile from your CV…'
-              : searchQuery.isFetching
-                ? 'Searching for jobs that match your updated profile…'
-                : 'Starting job search from your CV…'}
-          </p>
-        </div>
-      )}
-
-      {/* Session panels */}
-      {showSessions && userId && (
-        <div className="space-y-2">
-          <p className="text-xs text-slate-500 uppercase tracking-wider">Provider sessions — some job boards require saved browser cookies</p>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <SessionPanel provider="indeed" status={indeedStatus} userId={userId} />
-            <SessionPanel provider="gumtree" status={gumtreeStatus} userId={userId} />
-            <SessionPanel provider="glassdoor" status={glassdoorStatus} userId={userId} />
-            <SessionPanel provider="linkedin" status={linkedinStatus} userId={userId} />
-          </div>
-        </div>
-      )}
-
-      {/* Search Controls */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4">
-        <div className="flex gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Job title, skill, or keyword..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
-              className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-            />
-          </div>
-          <div className="relative">
-            <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Location"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="w-44 rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-            />
-          </div>
+      {/* ─── Search Mode Tabs ─────────────────────────────────────────────── */}
+      <div className="flex gap-1 rounded-xl bg-slate-800 p-1">
+        {([
+          { id: 'manual' as const, label: '🔍 Manual Search', desc: 'Search by keyword' },
+          { id: 'dream' as const, label: '🎯 Dream Job', desc: 'From your profile target' },
+          { id: 'ai' as const, label: '🤖 AI Match', desc: 'Skills-based discovery' },
+        ]).map((tab) => (
           <button
-            onClick={handleSearch}
-            disabled={searchQuery.isFetching}
-            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
+            key={tab.id}
+            type="button"
+            onClick={() => setSearchMode(tab.id)}
+            className={`flex-1 rounded-lg px-3 py-2.5 text-xs font-semibold transition ${searchMode === tab.id
+              ? 'bg-white/10 text-white shadow-sm'
+              : 'text-slate-400 hover:text-slate-200'
+              }`}
           >
-            {searchQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-            Search
+            {tab.label}
           </button>
-          <button
-            onClick={() => {
-              const profile = profileQuery.data as ProfileSnapshot | undefined;
-              const skillsQuery = deriveSkillsBasedJobSearchQuery(profile);
-              if (skillsQuery.trim()) {
-                setQuery(skillsQuery);
-                setUrlSearchParams({
-                  q: skillsQuery,
-                  loc: location,
-                  sources: sources.join(','),
-                });
-              }
-            }}
-            disabled={searchQuery.isFetching || !profileQuery.data?.skills?.length}
-            className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-            title="Search jobs by combining your target role, latest role, and top profile skills"
-          >
-            <Sparkles className="h-4 w-4" />
-            Search by Skills
-          </button>
-          {searchParams && (
-            <button
-              onClick={handleClearSearch}
-              className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-500/20"
-              title="Clear search results"
-            >
-              <XCircle className="h-4 w-4" />
-              Clear
-            </button>
-          )}
-          {userId && (
-            <button
-              onClick={handleSaveSearch}
-              disabled={savePreferencesMutation.isPending}
-              className="flex items-center gap-2 rounded-xl border border-emerald-600/50 bg-emerald-600/10 px-4 py-2 text-sm font-semibold text-emerald-400 transition hover:bg-emerald-600/20 disabled:opacity-60"
-              title="Save this search for next time"
-            >
-              {savePreferencesMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : savePreferencesMutation.isSuccess ? (
-                <Check className="h-4 w-4" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              {savePreferencesMutation.isSuccess ? 'Saved!' : 'Save'}
-            </button>
-          )}
-        </div>
-
-        {/* Source toggles */}
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs text-slate-500 uppercase tracking-wider">Sources:</span>
-          {ALL_SOURCES.map((source) => {
-            const meta = SOURCE_META[source];
-            const needsSession = meta.requiresSession;
-            const hasSession = needsSession
-              ? sessions.some((s) => s.provider === source && s.isActive)
-              : true;
-            const sessionTip = SESSION_BOARD_TOOLTIP[source];
-            return (
-              <label
-                key={source}
-                title={sessionTip}
-                className={`flex items-center gap-1.5 cursor-pointer ${sessionTip ? 'cursor-help' : ''} ${needsSession && !hasSession ? 'opacity-50' : ''}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={sources.includes(source)}
-                  onChange={() => toggleSource(source)}
-                  disabled={needsSession && !hasSession}
-                  className="h-3.5 w-3.5 rounded border-white/20 bg-white/10 text-indigo-600 focus:ring-indigo-600 disabled:opacity-40"
-                />
-                <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${meta.color}`}>
-                  {meta.label}
-                  {needsSession && !hasSession && (
-                    <span
-                      className="ml-1 text-xs opacity-60"
-                      title={
-                        sessionTip ??
-                        'Connect this job board via Sessions (cookie button), then enable it here.'
-                      }
-                    >
-                      ⚠
-                    </span>
-                  )}
-                </span>
-              </label>
-            );
-          })}
-        </div>
-
-        {/* Date filter */}
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-500 uppercase tracking-wider">Posted:</span>
-          <select
-            value={maxDaysOld ?? ''}
-            onChange={(e) => setMaxDaysOld(e.target.value ? Number(e.target.value) : undefined)}
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
-          >
-            <option value="">Any time</option>
-            <option value="1">Today</option>
-            <option value="7">Last 7 days</option>
-            <option value="14">Last 14 days</option>
-            <option value="30">Last 30 days</option>
-          </select>
-        </div>
-
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <label htmlFor="jobs-min-fit" className="text-xs font-medium text-slate-300">
-              Minimum fit score: {minJobFitPercent}%
-            </label>
-            <Link to="/profile" className="text-[10px] text-indigo-400 hover:text-indigo-300">
-              Same slider on Profile
-            </Link>
-          </div>
-          <input
-            id="jobs-min-fit"
-            type="range"
-            min={0}
-            max={100}
-            step={5}
-            value={minJobFitPercent}
-            onChange={(e) => {
-              const n = Number(e.target.value);
-              setMinJobFitPercent(n);
-              window.localStorage.setItem(MIN_JOB_FIT_LOCAL_KEY, String(n));
-              window.dispatchEvent(new Event('mvh-min-fit-changed'));
-            }}
-            className="w-full accent-indigo-500"
-          />
-          <p className="text-[10px] text-slate-500">Listings below this threshold are hidden. Matches the value stored under {MIN_JOB_FIT_LOCAL_KEY}.</p>
-        </div>
+        ))}
       </div>
 
-      {/* Results */}
-      <div className="space-y-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Results</h2>
-          {searchQuery.isError ? (
-            <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs text-red-400 sm:max-w-md">
-              Search Failed — Please Try Again
-            </p>
-          ) : searchQuery.isFetching ? (
-            <p className="flex items-center gap-2 text-xs text-slate-500">
-              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-indigo-400" />
-              Searching {sources.join(', ')}…
-            </p>
-          ) : jobResults.length > 0 ? (
-            <p className="text-xs text-slate-500">
-              Showing {visibleJobs.length} of {jobResults.length} listing{jobResults.length === 1 ? '' : 's'}
-              {visibleJobs.length < jobResults.length ? ` (min fit ${minJobFitPercent}%)` : ''}
-            </p>
-          ) : searchParams !== null ? (
-            <p className="text-xs text-slate-500">No Listings For This Search — Try Other Keywords Or Location</p>
-          ) : (
-            <p className="text-xs text-slate-500">
-              {pendingJobsSearchAfterCv && profileQuery.isFetching
-                ? 'Waiting For Profile After CV…'
-                : pendingJobsSearchAfterCv && deriveJobSearchQueryFromProfile(profileQuery.data as ProfileSnapshot | undefined)
-                  ? 'Preparing Search From Your CV…'
-                  : profileQuery.isLoading
-                    ? 'Loading Your Profile…'
-                    : deriveJobSearchQueryFromProfile(profileQuery.data as ProfileSnapshot | undefined)
-                      ? 'Searching From Your Profile…'
-                      : pendingJobsSearchAfterCv
-                        ? 'CV Synced — Add A Job Title Or Skills On Your Profile, Then Search'
-                        : 'Placeholder Cards — Add Experience, Skills, Or Summary On Profile, Then Search'}
-            </p>
-          )}
-        </div>
-
-        <ProviderDiagnosticsPanel diagnostics={providerDiagnostics} />
-
-        {jobResults.length > 0 && visibleJobs.length === 0 && (
-          <p className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-            Every listing is below your minimum fit. Lower the slider (here or on Profile) to see more roles.
-          </p>
-        )}
-
-        <div className="space-y-5">
-          {jobResults.length > 0
-            ? visibleJobs.map((job) => {
-              const isExpanded = expandedJobId === job.id;
-              const isSaved = savedJobs.has(job.id);
-
-              return isExpanded ? (
-                <JobCardExpanded
-                  key={job.id}
-                  job={job}
-                  applicationStatus={jobStatusMap[job.id]}
-                  isSaved={isSaved}
-                  onToggleSave={() => handleToggleSave(job.id)}
-                  onCollapse={() => setExpandedJobId(null)}
-                  onCreateDraft={() => handleCreateDraft(job)}
-                  onTailorResume={() => handleTailorResume(job)}
-                  onStartRadarScan={() => handleStartRadarScan(job)}
-                  isCreatingDraft={createApplicationMutation.isPending}
-                  isTailoringResume={generateDocumentsMutation.isPending}
-                  isStartingRadarScan={startRadarScanMutation.isPending}
-                  fitAnalysis={expandedJobFitQuery.data?.fit.breakdown ? {
-                    skillsMatch: expandedJobFitQuery.data.fit.breakdown.skillsMatch,
-                    experienceMatch: expandedJobFitQuery.data.fit.breakdown.experienceMatch,
-                    salaryMatch: expandedJobFitQuery.data.fit.breakdown.salaryMatch,
-                    cultureMatch: expandedJobFitQuery.data.fit.breakdown.cultureMatch,
-                    strengths: expandedJobFitQuery.data.fit.strengths,
-                    gaps: expandedJobFitQuery.data.fit.gaps,
-                    extractedRequirements: expandedJobFitQuery.data.fit.extractedRequirements,
-                  } : undefined}
-                />
-              ) : (
-                <JobCardCompact
-                  key={job.id}
-                  job={job}
-                  applicationStatus={jobStatusMap[job.id]}
-                  isSaved={isSaved}
-                  onToggleSave={() => handleToggleSave(job.id)}
-                  onExpand={() => setExpandedJobId(job.id)}
-                  onCreateDraft={() => handleCreateDraft(job)}
-                  isExpanded={false}
-                  isCreatingDraft={createApplicationMutation.isPending}
-                  onFitScoreClick={() => setExplainJobId(job.id)}
-                />
-              );
-            })
-            : Array.from({ length: JOB_CARD_PLACEHOLDER_COUNT }, (_, i) => (
-              <JobCardPlaceholder
-                key={`job-placeholder-${i}`}
-                pulsing={searchQuery.isFetching || (pendingJobsSearchAfterCv && profileQuery.isFetching)}
-              />
-            ))}
-        </div>
-      </div>
-
-      {/* Explain Fit Modal */}
-      {explainJobId && (
-        <ExplainFitModal
-          jobId={explainJobId}
-          userId={userId}
-          onClose={() => setExplainJobId(null)}
-        />
-      )}
-
-      {/* Manual Job Modal */}
-      {showManualModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#020617] p-6 space-y-4">
-            <h2 className="text-lg font-semibold text-white">Add Manual Job</h2>
-            <div className="space-y-3">
-              {[
-                { label: 'Job Title *', key: 'title', placeholder: 'Senior Frontend Engineer', type: 'text' },
-                { label: 'Company *', key: 'company', placeholder: 'Acme Ltd', type: 'text' },
-                { label: 'Location', key: 'location', placeholder: 'London, UK', type: 'text' },
-                { label: 'Apply URL', key: 'applyUrl', placeholder: 'https://jobs.example.com/123', type: 'url' },
-              ].map(({ label, key, placeholder, type }) => (
-                <div key={key}>
-                  <label className="mb-1 block text-xs text-slate-400">{label}</label>
-                  <input
-                    type={type}
-                    value={manualForm[key as keyof typeof manualForm]}
-                    onChange={(e) => setManualForm({ ...manualForm, [key]: e.target.value })}
-                    placeholder={placeholder}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  />
-                </div>
-              ))}
+      {/* Dream Job tab — auto-search from profile target role */}
+      {
+        searchMode === 'dream' && (
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20">
+                <Target className="h-5 w-5 text-emerald-300" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-white">Dream Job Search</h2>
+                <p className="text-xs text-slate-400">
+                  {(profileQuery.data as ProfileSnapshot | undefined)?.careerGoals?.targetJobTitle
+                    ? `Searching for: "${(profileQuery.data as ProfileSnapshot).careerGoals?.targetJobTitle}"`
+                    : 'Set your target job title in Profile → Career Goals to activate this.'}
+                </p>
+              </div>
             </div>
-            {saveManualMutation.isError && (
-              <p className="text-sm text-red-400">{String(saveManualMutation.error)}</p>
+            {!(profileQuery.data as ProfileSnapshot | undefined)?.careerGoals?.targetJobTitle ? (
+              <div className="rounded-xl border border-dashed border-white/10 bg-white/[0.025] p-4 text-center">
+                <p className="text-sm text-slate-400">Go to <a href="/profile" className="text-indigo-400 hover:text-indigo-300 font-medium">Profile</a> and set your Dream Job title to use this feature.</p>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  const target = (profileQuery.data as ProfileSnapshot).careerGoals?.targetJobTitle ?? '';
+                  setQuery(target);
+                  setUrlSearchParams({ q: target, loc: location, sources: sources.join(',') });
+                  setSearchMode('manual'); // switch to show results
+                }}
+                className="w-full rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white transition hover:bg-emerald-500"
+              >
+                Search for "{(profileQuery.data as ProfileSnapshot).careerGoals?.targetJobTitle}"
+              </button>
             )}
-            <div className="flex gap-3 pt-2">
+          </div>
+        )
+      }
+
+      {/* AI Skills Match tab — AI analyzes profile and finds matching roles */}
+      {
+        searchMode === 'ai' && (
+          <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-5 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-500/20">
+                <Sparkles className="h-5 w-5 text-violet-300" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-white">AI Skills Match</h2>
+                <p className="text-xs text-slate-400">AI analyses your skills, experience, and CV to find the best matching roles automatically.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const profile = profileQuery.data as ProfileSnapshot | undefined;
+                const aiQuery = deriveSkillsBasedJobSearchQuery(profile);
+                if (!aiQuery) {
+                  toast.error('Add skills or upload CV first — AI needs data to match.');
+                  return;
+                }
+                setQuery(aiQuery);
+                setUrlSearchParams({ q: aiQuery, loc: location, sources: sources.join(',') });
+                setSearchMode('manual'); // switch to show results
+              }}
+              disabled={profileQuery.isLoading}
+              className="w-full rounded-xl bg-violet-600 py-3 text-sm font-bold text-white transition hover:bg-violet-500 disabled:opacity-50"
+            >
+              {profileQuery.isLoading ? 'Loading profile…' : 'Find jobs matching my skills'}
+            </button>
+            {(profileQuery.data as ProfileSnapshot | undefined)?.skills && (profileQuery.data as ProfileSnapshot).skills!.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {((profileQuery.data as ProfileSnapshot).skills ?? []).slice(0, 8).map((skill) => (
+                  <span key={skill} className="rounded-full border border-violet-500/20 bg-violet-500/10 px-2.5 py-0.5 text-[10px] font-medium text-violet-200">{skill}</span>
+                ))}
+                {((profileQuery.data as ProfileSnapshot).skills ?? []).length > 8 && (
+                  <span className="text-[10px] text-slate-500">+{(profileQuery.data as ProfileSnapshot).skills!.length - 8} more</span>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      }
+
+      {/* Manual search — only show when in manual mode or after Dream/AI triggers search */}
+      {
+        searchMode === 'manual' && (<>
+
+          {pendingJobsSearchAfterCv && (
+            <div className="flex items-center gap-3 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-3 text-sm text-indigo-100">
+              <Loader2 className="h-5 w-5 shrink-0 animate-spin text-indigo-300" aria-hidden />
+              <p>
+                {profileQuery.isFetching
+                  ? 'Syncing your profile from your CV…'
+                  : searchQuery.isFetching
+                    ? 'Searching for jobs that match your updated profile…'
+                    : 'Starting job search from your CV…'}
+              </p>
+            </div>
+          )}
+
+          {/* Session panels */}
+          {showSessions && userId && (
+            <div className="space-y-2">
+              <p className="text-xs text-slate-500 uppercase tracking-wider">Provider sessions — some job boards require saved browser cookies</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <SessionPanel provider="indeed" status={indeedStatus} userId={userId} />
+                <SessionPanel provider="gumtree" status={gumtreeStatus} userId={userId} />
+                <SessionPanel provider="glassdoor" status={glassdoorStatus} userId={userId} />
+                <SessionPanel provider="linkedin" status={linkedinStatus} userId={userId} />
+              </div>
+            </div>
+          )}
+
+          {/* Search Controls */}
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4">
+            <div className="flex gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Job title, skill, or keyword..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                />
+              </div>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Location"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="w-44 rounded-xl border border-white/10 bg-white/5 pl-9 pr-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                />
+              </div>
               <button
-                onClick={() => setShowManualModal(false)}
-                className="flex-1 rounded-xl border border-white/10 py-2 text-sm text-slate-400 transition hover:bg-white/5"
+                onClick={handleSearch}
+                disabled={searchQuery.isFetching}
+                className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
               >
-                Cancel
+                {searchQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                Search
               </button>
               <button
-                onClick={handleSaveManual}
-                disabled={saveManualMutation.isPending || !manualForm.title || !manualForm.company}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+                onClick={() => {
+                  const profile = profileQuery.data as ProfileSnapshot | undefined;
+                  const skillsQuery = deriveSkillsBasedJobSearchQuery(profile);
+                  if (skillsQuery.trim()) {
+                    setQuery(skillsQuery);
+                    setUrlSearchParams({
+                      q: skillsQuery,
+                      loc: location,
+                      sources: sources.join(','),
+                    });
+                  }
+                }}
+                disabled={searchQuery.isFetching || !profileQuery.data?.skills?.length}
+                className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                title="Search jobs by combining your target role, latest role, and top profile skills"
               >
-                {saveManualMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Save Job
+                <Sparkles className="h-4 w-4" />
+                Search by Skills
               </button>
+              {searchParams && (
+                <button
+                  onClick={handleClearSearch}
+                  className="flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-400 transition hover:bg-red-500/20"
+                  title="Clear search results"
+                >
+                  <XCircle className="h-4 w-4" />
+                  Clear
+                </button>
+              )}
+              {userId && (
+                <button
+                  onClick={handleSaveSearch}
+                  disabled={savePreferencesMutation.isPending}
+                  className="flex items-center gap-2 rounded-xl border border-emerald-600/50 bg-emerald-600/10 px-4 py-2 text-sm font-semibold text-emerald-400 transition hover:bg-emerald-600/20 disabled:opacity-60"
+                  title="Save this search for next time"
+                >
+                  {savePreferencesMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : savePreferencesMutation.isSuccess ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  {savePreferencesMutation.isSuccess ? 'Saved!' : 'Save'}
+                </button>
+              )}
+            </div>
+
+            {/* Source toggles */}
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-xs text-slate-500 uppercase tracking-wider">Sources:</span>
+              {ALL_SOURCES.map((source) => {
+                const meta = SOURCE_META[source];
+                const needsSession = meta.requiresSession;
+                const hasSession = needsSession
+                  ? sessions.some((s) => s.provider === source && s.isActive)
+                  : true;
+                const sessionTip = SESSION_BOARD_TOOLTIP[source];
+                return (
+                  <label
+                    key={source}
+                    title={sessionTip}
+                    className={`flex items-center gap-1.5 cursor-pointer ${sessionTip ? 'cursor-help' : ''} ${needsSession && !hasSession ? 'opacity-50' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={sources.includes(source)}
+                      onChange={() => toggleSource(source)}
+                      disabled={needsSession && !hasSession}
+                      className="h-3.5 w-3.5 rounded border-white/20 bg-white/10 text-indigo-600 focus:ring-indigo-600 disabled:opacity-40"
+                    />
+                    <span className={`text-xs font-medium capitalize px-2 py-0.5 rounded-full ${meta.color}`}>
+                      {meta.label}
+                      {needsSession && !hasSession && (
+                        <span
+                          className="ml-1 text-xs opacity-60"
+                          title={
+                            sessionTip ??
+                            'Connect this job board via Sessions (cookie button), then enable it here.'
+                          }
+                        >
+                          ⚠
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+
+            {/* Date filter */}
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-slate-500 uppercase tracking-wider">Posted:</span>
+              <select
+                value={maxDaysOld ?? ''}
+                onChange={(e) => setMaxDaysOld(e.target.value ? Number(e.target.value) : undefined)}
+                className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
+              >
+                <option value="">Any time</option>
+                <option value="1">Today</option>
+                <option value="7">Last 7 days</option>
+                <option value="14">Last 14 days</option>
+                <option value="30">Last 30 days</option>
+              </select>
+            </div>
+
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label htmlFor="jobs-min-fit" className="text-xs font-medium text-slate-300">
+                  Minimum fit score: {minJobFitPercent}%
+                </label>
+                <Link to="/profile" className="text-[10px] text-indigo-400 hover:text-indigo-300">
+                  Same slider on Profile
+                </Link>
+              </div>
+              <input
+                id="jobs-min-fit"
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={minJobFitPercent}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  setMinJobFitPercent(n);
+                  window.localStorage.setItem(MIN_JOB_FIT_LOCAL_KEY, String(n));
+                  window.dispatchEvent(new Event('mvh-min-fit-changed'));
+                }}
+                className="w-full accent-indigo-500"
+              />
+              <p className="text-[10px] text-slate-500">Listings below this threshold are hidden. Matches the value stored under {MIN_JOB_FIT_LOCAL_KEY}.</p>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+
+          {/* Results */}
+          <div className="space-y-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Results</h2>
+              {searchQuery.isError ? (
+                <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs text-red-400 sm:max-w-md">
+                  Search Failed — Please Try Again
+                </p>
+              ) : searchQuery.isFetching ? (
+                <p className="flex items-center gap-2 text-xs text-slate-500">
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-indigo-400" />
+                  Searching {sources.join(', ')}…
+                </p>
+              ) : jobResults.length > 0 ? (
+                <p className="text-xs text-slate-500">
+                  Showing {visibleJobs.length} of {jobResults.length} listing{jobResults.length === 1 ? '' : 's'}
+                  {visibleJobs.length < jobResults.length ? ` (min fit ${minJobFitPercent}%)` : ''}
+                </p>
+              ) : searchParams !== null ? (
+                <p className="text-xs text-slate-500">No Listings For This Search — Try Other Keywords Or Location</p>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  {pendingJobsSearchAfterCv && profileQuery.isFetching
+                    ? 'Waiting For Profile After CV…'
+                    : pendingJobsSearchAfterCv && deriveJobSearchQueryFromProfile(profileQuery.data as ProfileSnapshot | undefined)
+                      ? 'Preparing Search From Your CV…'
+                      : profileQuery.isLoading
+                        ? 'Loading Your Profile…'
+                        : deriveJobSearchQueryFromProfile(profileQuery.data as ProfileSnapshot | undefined)
+                          ? 'Searching From Your Profile…'
+                          : pendingJobsSearchAfterCv
+                            ? 'CV Synced — Add A Job Title Or Skills On Your Profile, Then Search'
+                            : 'Placeholder Cards — Add Experience, Skills, Or Summary On Profile, Then Search'}
+                </p>
+              )}
+            </div>
+
+            <ProviderDiagnosticsPanel diagnostics={providerDiagnostics} />
+
+            {jobResults.length > 0 && visibleJobs.length === 0 && (
+              <p className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                Every listing is below your minimum fit. Lower the slider (here or on Profile) to see more roles.
+              </p>
+            )}
+
+            <div className="space-y-5">
+              {jobResults.length > 0
+                ? visibleJobs.map((job) => {
+                  const isExpanded = expandedJobId === job.id;
+                  const isSaved = savedJobs.has(job.id);
+
+                  return isExpanded ? (
+                    <JobCardExpanded
+                      key={job.id}
+                      job={job}
+                      applicationStatus={jobStatusMap[job.id]}
+                      isSaved={isSaved}
+                      onToggleSave={() => handleToggleSave(job.id)}
+                      onCollapse={() => setExpandedJobId(null)}
+                      onCreateDraft={() => handleCreateDraft(job)}
+                      onTailorResume={() => handleTailorResume(job)}
+                      onStartRadarScan={() => handleStartRadarScan(job)}
+                      isCreatingDraft={createApplicationMutation.isPending}
+                      isTailoringResume={generateDocumentsMutation.isPending}
+                      isStartingRadarScan={startRadarScanMutation.isPending}
+                      fitAnalysis={expandedJobFitQuery.data?.fit.breakdown ? {
+                        skillsMatch: expandedJobFitQuery.data.fit.breakdown.skillsMatch,
+                        experienceMatch: expandedJobFitQuery.data.fit.breakdown.experienceMatch,
+                        salaryMatch: expandedJobFitQuery.data.fit.breakdown.salaryMatch,
+                        cultureMatch: expandedJobFitQuery.data.fit.breakdown.cultureMatch,
+                        strengths: expandedJobFitQuery.data.fit.strengths,
+                        gaps: expandedJobFitQuery.data.fit.gaps,
+                        extractedRequirements: expandedJobFitQuery.data.fit.extractedRequirements,
+                      } : undefined}
+                    />
+                  ) : (
+                    <JobCardCompact
+                      key={job.id}
+                      job={job}
+                      applicationStatus={jobStatusMap[job.id]}
+                      isSaved={isSaved}
+                      onToggleSave={() => handleToggleSave(job.id)}
+                      onExpand={() => setExpandedJobId(job.id)}
+                      onCreateDraft={() => handleCreateDraft(job)}
+                      isExpanded={false}
+                      isCreatingDraft={createApplicationMutation.isPending}
+                      onFitScoreClick={() => setExplainJobId(job.id)}
+                    />
+                  );
+                })
+                : Array.from({ length: JOB_CARD_PLACEHOLDER_COUNT }, (_, i) => (
+                  <JobCardPlaceholder
+                    key={`job-placeholder-${i}`}
+                    pulsing={searchQuery.isFetching || (pendingJobsSearchAfterCv && profileQuery.isFetching)}
+                  />
+                ))}
+            </div>
+          </div>
+
+          {/* Explain Fit Modal */}
+          {explainJobId && (
+            <ExplainFitModal
+              jobId={explainJobId}
+              userId={userId}
+              onClose={() => setExplainJobId(null)}
+            />
+          )}
+
+          {/* Manual Job Modal */}
+          {showManualModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+              <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#020617] p-6 space-y-4">
+                <h2 className="text-lg font-semibold text-white">Add Manual Job</h2>
+                <div className="space-y-3">
+                  {[
+                    { label: 'Job Title *', key: 'title', placeholder: 'Senior Frontend Engineer', type: 'text' },
+                    { label: 'Company *', key: 'company', placeholder: 'Acme Ltd', type: 'text' },
+                    { label: 'Location', key: 'location', placeholder: 'London, UK', type: 'text' },
+                    { label: 'Apply URL', key: 'applyUrl', placeholder: 'https://jobs.example.com/123', type: 'url' },
+                  ].map(({ label, key, placeholder, type }) => (
+                    <div key={key}>
+                      <label className="mb-1 block text-xs text-slate-400">{label}</label>
+                      <input
+                        type={type}
+                        value={manualForm[key as keyof typeof manualForm]}
+                        onChange={(e) => setManualForm({ ...manualForm, [key]: e.target.value })}
+                        placeholder={placeholder}
+                        className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      />
+                    </div>
+                  ))}
+                </div>
+                {saveManualMutation.isError && (
+                  <p className="text-sm text-red-400">{String(saveManualMutation.error)}</p>
+                )}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => setShowManualModal(false)}
+                    className="flex-1 rounded-xl border border-white/10 py-2 text-sm text-slate-400 transition hover:bg-white/5"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveManual}
+                    disabled={saveManualMutation.isPending || !manualForm.title || !manualForm.company}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+                  >
+                    {saveManualMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Save Job
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>)
+      }
+    </div >
   );
 }
