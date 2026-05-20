@@ -475,6 +475,7 @@ export default function ApplicationsPage() {
                   onUpdateStatus={(status) => void handleUpdateStatus(application.id, status)}
                   isPreparing={generateDocumentsMutation.isPending}
                   isUpdating={updateStatusMutation.isPending}
+                  isSending={sendByEmailMutation.isPending}
                   emailSubject={state.emailSubject}
                   emailBody={state.emailBody}
                   employerEmail={state.employerEmail}
