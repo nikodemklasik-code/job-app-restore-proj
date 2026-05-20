@@ -7,10 +7,10 @@ import { db } from '../../db/index.js';
 import { cvUploads, profiles, skills, experiences, educations, trainings, users, careerGoals } from '../../db/schema.js';
 import { parseCvFromFile } from '../../services/cvParser.js';
 
-type PersonalFieldKey = 'fullName' | 'email' | 'phone' | 'headline' | 'location' | 'linkedinUrl' | 'summary';
+const PERSONAL_FIELDS = ['fullName', 'email', 'phone', 'headline', 'location', 'linkedinUrl', 'summary'] as const;
+type PersonalFieldKey = typeof PERSONAL_FIELDS[number];
 type SectionKey = 'skills' | 'experiences' | 'educations' | 'trainings';
 
-const PERSONAL_FIELDS: PersonalFieldKey[] = ['fullName', 'email', 'phone', 'headline', 'location', 'linkedinUrl', 'summary'];
 const SECTION_KEYS: SectionKey[] = ['skills', 'experiences', 'educations', 'trainings'];
 
 function cleanText(value: unknown): string {
@@ -258,185 +258,195 @@ export const cvRouter = router({
     .query(async ({ input }) => {
       const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       if (!userRecord[0]) throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found' });
+      const uploadRows = await db.select().from(cvUploads).where(eq(cvUploads.id, input.cvUploadId)).limit(1);
+      const upload = uploadRows[0];
+      if (!upload || upload.userId !== userRecord[0].id) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'CV upload not found' });
+      }
 
-      const cvRow = await db.select().from(cvUploads).where(eq(cvUploads.id, input.cvUploadId)).limit(1);
-      if (!cvRow[0] || cvRow[0].userId !== userRecord[0].id) throw new TRPCError({ code: 'FORBIDDEN', message: 'Not your CV' });
+      const [profileRows, skillRows, expRows, eduRows, trainingRows] = await Promise.all([
+        db.select().from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1),
+        db.select().from(skills).where(eq(skills.profileId, userRecord[0].id)).orderBy(desc(skills.updatedAt)),
+        db.select().from(experiences).where(eq(experiences.profileId, userRecord[0].id)).orderBy(desc(experiences.updatedAt)),
+        db.select().from(educations).where(eq(educations.profileId, userRecord[0].id)).orderBy(desc(educations.updatedAt)),
+        db.select().from(trainings).where(eq(trainings.profileId, userRecord[0].id)).orderBy(desc(trainings.updatedAt)),
+      ]);
 
-      const data = (cvRow[0].parsedData as Record<string, unknown>) ?? {};
-      const existingProfile = await db.select().from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1);
-      const profile = existingProfile[0] ?? null;
-      const profileIdForPreview = profile?.id ?? '__new_profile__';
+      const profile = profileRows[0] ?? null;
+      const parsedData = upload.parsedData && typeof upload.parsedData === 'object' && !Array.isArray(upload.parsedData)
+        ? upload.parsedData as Record<string, unknown>
+        : {};
 
-      const existingSkillRows = profile ? await db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profile.id)) : [];
-      const existingExperienceRows = profile ? await db.select().from(experiences).where(eq(experiences.profileId, profile.id)) : [];
-      const existingEducationRows = profile ? await db.select().from(educations).where(eq(educations.profileId, profile.id)) : [];
-      const existingTrainingRows = profile ? await db.select().from(trainings).where(eq(trainings.profileId, profile.id)) : [];
-
-      const criticalFields = [
-        { key: 'fullName', label: 'Full name', currentValue: normalizeValue(profile?.fullName), parsedValue: cleanText(data.fullName) },
-        { key: 'email', label: 'Email', currentValue: normalizeValue(userRecord[0].email), parsedValue: cleanText(data.email) },
-        { key: 'phone', label: 'Phone', currentValue: normalizeValue(profile?.phone), parsedValue: cleanText(data.phone) },
-        { key: 'headline', label: 'Headline', currentValue: normalizeValue(profile?.headline), parsedValue: cleanText(data.headline) },
-        { key: 'location', label: 'Location', currentValue: normalizeValue(profile?.location), parsedValue: cleanText(data.location) },
-        { key: 'linkedinUrl', label: 'LinkedIn URL', currentValue: normalizeValue(profile?.linkedinUrl), parsedValue: cleanText(data.linkedinUrl) },
-        { key: 'summary', label: 'Professional summary', currentValue: normalizeValue(profile?.summary), parsedValue: cleanText(data.summary) },
-      ].map((field) => {
-        const parsedHasValue = field.parsedValue.length > 0;
-        const currentHasValue = field.currentValue.length > 0;
-        const isDifferent = parsedHasValue && field.parsedValue !== field.currentValue;
+      const criticalFields = PERSONAL_FIELDS.map((key) => {
+        const currentValue = (() => {
+          if (key === 'email') return normalizeValue(profile?.email ?? userRecord[0].email ?? '');
+          return normalizeValue((profile?.[key] as string | null | undefined) ?? '');
+        })();
+        const parsedValue = normalizeValue((parsedData[key] as string | null | undefined) ?? '');
+        const currentHasValue = currentValue.length > 0;
+        const parsedHasValue = parsedValue.length > 0;
+        const isDifferent = parsedValue !== currentValue;
         return {
-          ...field,
+          key,
+          label: key.replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase()),
+          currentValue,
+          parsedValue,
           parsedHasValue,
           currentHasValue,
           isDifferent,
-          willOverwrite: currentHasValue && isDifferent,
+          willOverwrite: currentHasValue && parsedHasValue && isDifferent,
           willFillEmpty: !currentHasValue && parsedHasValue,
-          action: currentHasValue && isDifferent ? 'overwrite' : !currentHasValue && parsedHasValue ? 'fill_empty' : isDifferent ? 'parsed_diff' : 'no_change',
+          action: !parsedHasValue ? 'no_change' : currentHasValue && parsedHasValue && isDifferent ? 'overwrite' : !currentHasValue && parsedHasValue ? 'fill_empty' : isDifferent ? 'parsed_diff' : 'no_change',
         };
       });
 
-      const parsedSkills = normalizeList(data.skills).slice(0, 30);
-      const parsedExperiences = parseExperienceItems(data.experience, profileIdForPreview);
-      const parsedEducations = parseEducationItems(data.education, profileIdForPreview);
-      const parsedTrainings = parseTrainingItems(data.trainings, profileIdForPreview);
+      const parsedSkills = normalizeList(parsedData.skills);
+      const currentSkills = skillRows.map((row) => row.name).filter(Boolean);
 
-      const warnings: string[] = [];
-      if (criticalFields.some((field) => field.willOverwrite)) warnings.push('Critical profile fields will be overwritten only if explicitly approved in this review.');
-      if (!parsedSkills.length) warnings.push('No skills were extracted from this CV.');
-      if (!parsedExperiences.length && !parsedEducations.length && !parsedTrainings.length) warnings.push('No structured career sections were extracted.');
+      const parsedExperiences = parseExperienceItems(parsedData.experience, userRecord[0].id);
+      const parsedEducations = parseEducationItems(parsedData.education, userRecord[0].id);
+      const parsedTrainings = parseTrainingItems(parsedData.trainings, userRecord[0].id);
 
       return {
-        cvUploadId: cvRow[0].id,
-        originalFilename: cvRow[0].originalFilename,
-        createdAt: cvRow[0].createdAt,
+        cvUploadId: upload.id,
+        originalFilename: upload.originalFilename,
+        createdAt: upload.createdAt,
         criticalFields,
         sections: {
           skills: {
-            currentCount: existingSkillRows.length,
+            currentCount: currentSkills.length,
             parsedCount: parsedSkills.length,
             willReplace: parsedSkills.length > 0,
-            currentItems: existingSkillRows.map((row) => row.name),
+            currentItems: currentSkills,
             parsedItems: parsedSkills,
           },
           experiences: {
-            currentCount: existingExperienceRows.length,
+            currentCount: expRows.length,
             parsedCount: parsedExperiences.length,
             willReplace: parsedExperiences.length > 0,
-            currentItems: existingExperienceRows.map((row) => ({ id: row.id, label: summarizeExperience(row), employerName: row.employerName, jobTitle: row.jobTitle, startDate: row.startDate, endDate: row.endDate ?? null, description: row.description ?? '' })),
-            parsedItems: parsedExperiences.map((row) => ({ label: summarizeExperience(row), employerName: row.employerName, jobTitle: row.jobTitle, startDate: row.startDate, endDate: row.endDate, description: row.description })),
+            currentItems: expRows.map(summarizeExperience),
+            parsedItems: parsedExperiences.map(summarizeExperience),
           },
           educations: {
-            currentCount: existingEducationRows.length,
+            currentCount: eduRows.length,
             parsedCount: parsedEducations.length,
             willReplace: parsedEducations.length > 0,
-            currentItems: existingEducationRows.map((row) => ({ id: row.id, label: summarizeEducation(row), schoolName: row.schoolName, degree: row.degree, fieldOfStudy: row.fieldOfStudy ?? '', startDate: row.startDate, endDate: row.endDate ?? null })),
-            parsedItems: parsedEducations.map((row) => ({ label: summarizeEducation(row), schoolName: row.schoolName, degree: row.degree, fieldOfStudy: row.fieldOfStudy, startDate: row.startDate, endDate: row.endDate })),
+            currentItems: eduRows.map(summarizeEducation),
+            parsedItems: parsedEducations.map(summarizeEducation),
           },
           trainings: {
-            currentCount: existingTrainingRows.length,
+            currentCount: trainingRows.length,
             parsedCount: parsedTrainings.length,
             willReplace: parsedTrainings.length > 0,
-            currentItems: existingTrainingRows.map((row) => ({ id: row.id, label: summarizeTraining(row), title: row.title, providerName: row.providerName, issuedAt: row.issuedAt, expiresAt: row.expiresAt ?? null, credentialUrl: row.credentialUrl ?? '' })),
-            parsedItems: parsedTrainings.map((row) => ({ label: summarizeTraining(row), title: row.title, providerName: row.providerName, issuedAt: row.issuedAt, expiresAt: row.expiresAt, credentialUrl: row.credentialUrl })),
+            currentItems: trainingRows.map(summarizeTraining),
+            parsedItems: parsedTrainings.map(summarizeTraining),
           },
         },
-        warnings,
+        warnings: [
+          ...criticalFields.filter((field) => field.willOverwrite).map((field) => `${field.label} differs from approved profile and needs explicit approval.`),
+          ...(parsedSkills.length > 0 && currentSkills.length > 0 ? ['Approving skills will replace the current approved skills list.'] : []),
+          ...(parsedExperiences.length > 0 && expRows.length > 0 ? ['Approving experience will replace the current approved experience section.'] : []),
+          ...(parsedEducations.length > 0 && eduRows.length > 0 ? ['Approving education will replace the current approved education section.'] : []),
+          ...(parsedTrainings.length > 0 && trainingRows.length > 0 ? ['Approving training will replace the current approved training section.'] : []),
+        ],
       };
     }),
 
   importToProfile: publicProcedure
-    .input(z.object({ userId: z.string(), cvUploadId: z.string(), decisions: importDecisionsSchema }))
+    .input(z.object({
+      userId: z.string(),
+      cvUploadId: z.string(),
+      decisions: importDecisionsSchema,
+    }))
     .mutation(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
-      if (!userRecord[0]) return { success: false };
-
-      const cvRow = await db.select().from(cvUploads).where(eq(cvUploads.id, input.cvUploadId)).limit(1);
-      if (!cvRow[0] || cvRow[0].userId !== userRecord[0].id) throw new TRPCError({ code: 'FORBIDDEN', message: 'Not your CV' });
-
-      const data = cvRow[0].parsedData as Record<string, unknown>;
-      if (!data) return { success: false };
-
-      const existingProfile = await db.select().from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1);
-      let profileId = existingProfile[0]?.id;
-      if (!profileId) {
-        profileId = randomUUID();
-        await db.insert(profiles).values({ id: profileId, userId: userRecord[0].id, fullName: '' });
+      const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      if (!userRecord[0]) throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found' });
+      const uploadRows = await db.select().from(cvUploads).where(eq(cvUploads.id, input.cvUploadId)).limit(1);
+      const upload = uploadRows[0];
+      if (!upload || upload.userId !== userRecord[0].id) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'CV upload not found' });
       }
 
-      const acceptedFields = new Set(input.decisions.acceptedPersonalFields);
-      const appliedPersonalFields: string[] = [];
-      const profilePatch: Partial<typeof profiles.$inferInsert> = { updatedAt: new Date() };
-      const fieldMap = {
-        fullName: cleanText(data.fullName),
-        phone: cleanText(data.phone),
-        headline: cleanText(data.headline),
-        location: cleanText(data.location),
-        linkedinUrl: cleanText(data.linkedinUrl),
-        summary: cleanText(data.summary),
-      } satisfies Record<string, string>;
+      const parsedData = upload.parsedData && typeof upload.parsedData === 'object' && !Array.isArray(upload.parsedData)
+        ? upload.parsedData as Record<string, unknown>
+        : {};
+      const decisions = input.decisions;
+      const acceptedPersonalFields = new Set(decisions.acceptedPersonalFields);
+      const profileRows = await db.select().from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1);
+      const currentProfile = profileRows[0] ?? null;
 
-      for (const [key, value] of Object.entries(fieldMap)) {
-        if (!acceptedFields.has(key as PersonalFieldKey) || !value) continue;
-        (profilePatch as Record<string, unknown>)[key] = value;
-        appliedPersonalFields.push(key);
+      const nextProfile = {
+        userId: userRecord[0].id,
+        fullName: acceptedPersonalFields.has('fullName') ? normalizeValue((parsedData.fullName as string | null | undefined) ?? '') : currentProfile?.fullName ?? '',
+        email: acceptedPersonalFields.has('email') ? normalizeValue((parsedData.email as string | null | undefined) ?? userRecord[0].email ?? '') : currentProfile?.email ?? userRecord[0].email ?? '',
+        phone: acceptedPersonalFields.has('phone') ? normalizeValue((parsedData.phone as string | null | undefined) ?? '') : currentProfile?.phone ?? '',
+        headline: acceptedPersonalFields.has('headline') ? normalizeValue((parsedData.headline as string | null | undefined) ?? '') : currentProfile?.headline ?? '',
+        location: acceptedPersonalFields.has('location') ? normalizeValue((parsedData.location as string | null | undefined) ?? '') : currentProfile?.location ?? '',
+        linkedinUrl: acceptedPersonalFields.has('linkedinUrl') ? normalizeValue((parsedData.linkedinUrl as string | null | undefined) ?? '') : currentProfile?.linkedinUrl ?? '',
+        summary: acceptedPersonalFields.has('summary') ? normalizeValue((parsedData.summary as string | null | undefined) ?? '') : currentProfile?.summary ?? '',
+      };
+
+      if (currentProfile) {
+        await db.update(profiles).set(nextProfile).where(eq(profiles.userId, userRecord[0].id));
+      } else {
+        await db.insert(profiles).values({
+          id: userRecord[0].id,
+          ...nextProfile,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
       }
 
-      if (acceptedFields.has('email')) {
-        const parsedEmail = cleanText(data.email);
-        if (parsedEmail) {
-          await db.update(users).set({ email: parsedEmail, updatedAt: new Date() }).where(eq(users.id, userRecord[0].id));
-          appliedPersonalFields.push('email');
+      const acceptedSections: string[] = [];
+
+      if (acceptedSection(decisions, 'skills')) {
+        const nextSkills = normalizeList(parsedData.skills);
+        await db.delete(skills).where(eq(skills.profileId, userRecord[0].id));
+        if (nextSkills.length > 0) {
+          await db.insert(skills).values(nextSkills.map((name) => ({
+            id: randomUUID(),
+            profileId: userRecord[0].id,
+            name,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })));
         }
+        acceptedSections.push('skills');
       }
 
-      await db.update(profiles).set(profilePatch).where(eq(profiles.id, profileId));
-
-      const acceptedSectionsForProvenance: string[] = [];
-      if (acceptedSection(input.decisions, 'skills')) {
-        const parsedSkills = normalizeList(data.skills).slice(0, 30);
-        if (parsedSkills.length > 0) {
-          await db.delete(skills).where(eq(skills.profileId, profileId));
-          await db.insert(skills).values(parsedSkills.map((name) => ({ id: randomUUID(), profileId, name })));
-          acceptedSectionsForProvenance.push('skills');
+      if (acceptedSection(decisions, 'experiences')) {
+        const items = parseExperienceItems(parsedData.experience, userRecord[0].id);
+        await db.delete(experiences).where(eq(experiences.profileId, userRecord[0].id));
+        if (items.length > 0) {
+          await db.insert(experiences).values(items.map((item) => ({ ...item, createdAt: new Date(), updatedAt: new Date() })));
         }
+        acceptedSections.push('experiences');
       }
 
-      if (acceptedSection(input.decisions, 'experiences')) {
-        const expItems = parseExperienceItems(data.experience, profileId);
-        if (expItems.length > 0) {
-          await db.delete(experiences).where(eq(experiences.profileId, profileId));
-          await db.insert(experiences).values(expItems);
-          acceptedSectionsForProvenance.push('experiences');
+      if (acceptedSection(decisions, 'educations')) {
+        const items = parseEducationItems(parsedData.education, userRecord[0].id);
+        await db.delete(educations).where(eq(educations.profileId, userRecord[0].id));
+        if (items.length > 0) {
+          await db.insert(educations).values(items.map((item) => ({ ...item, createdAt: new Date(), updatedAt: new Date() })));
         }
+        acceptedSections.push('educations');
       }
 
-      if (acceptedSection(input.decisions, 'educations')) {
-        const eduItems = parseEducationItems(data.education, profileId);
-        if (eduItems.length > 0) {
-          await db.delete(educations).where(eq(educations.profileId, profileId));
-          await db.insert(educations).values(eduItems);
-          acceptedSectionsForProvenance.push('educations');
+      if (acceptedSection(decisions, 'trainings')) {
+        const items = parseTrainingItems(parsedData.trainings, userRecord[0].id);
+        await db.delete(trainings).where(eq(trainings.profileId, userRecord[0].id));
+        if (items.length > 0) {
+          await db.insert(trainings).values(items.map((item) => ({ ...item, createdAt: new Date(), updatedAt: new Date() })));
         }
+        acceptedSections.push('trainings');
       }
 
-      if (acceptedSection(input.decisions, 'trainings')) {
-        const trainingItems = parseTrainingItems(data.trainings, profileId);
-        if (trainingItems.length > 0) {
-          await db.delete(trainings).where(eq(trainings.profileId, profileId));
-          await db.insert(trainings).values(trainingItems);
-          acceptedSectionsForProvenance.push('trainings');
-        }
-      }
-
-      await markCvImportProvenance(userRecord[0].id, cvRow[0].id, appliedPersonalFields, acceptedSectionsForProvenance);
+      await markCvImportProvenance(userRecord[0].id, upload.id, Array.from(acceptedPersonalFields), acceptedSections);
 
       return {
         success: true,
-        profileId,
-        applied: {
-          personalFields: appliedPersonalFields,
-          sections: acceptedSectionsForProvenance,
-        },
+        acceptedPersonalFields: Array.from(acceptedPersonalFields),
+        acceptedSections,
       };
     }),
 });
