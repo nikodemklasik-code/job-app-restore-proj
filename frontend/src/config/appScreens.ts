@@ -95,4 +95,5 @@ export const LEGACY_ROUTE_REDIRECTS: Array<{ from: string; to: string }> = [
   { from: '/negotiation-coach', to: APP_SCREENS.negotiation.path },
   { from: '/settings/community', to: APP_SCREENS.communityCenter.path },
   { from: '/ai-analysis', to: APP_SCREENS.reports.path },
+  { from: '/jobs/radar', to: APP_SCREENS.jobRadar.path },
 ];
