@@ -91,6 +91,60 @@ export type WorkModePreference = 'remote' | 'hybrid' | 'onsite';
 export type EmploymentTypePreference = 'full_time' | 'part_time' | 'temporary' | 'occasional';
 export type ContractTypePreference = 'employment_contract' | 'b2b' | 'self_employed' | 'fixed_term' | 'contract';
 export type RoadmapMilestoneStatus = 'not_started' | 'in_progress' | 'done';
+export type ProfileFieldProvenanceTag = 'unknown' | 'imported_from_cv' | 'user_confirmed' | 'ai_suggested';
+
+export interface ProfileFieldProvenance {
+  source: ProfileFieldProvenanceTag;
+  note?: string;
+  updatedAt?: string | null;
+}
+
+export interface ProfilePersonalInfoProvenance {
+  fullName: ProfileFieldProvenance;
+  email: ProfileFieldProvenance;
+  phone: ProfileFieldProvenance;
+  location: ProfileFieldProvenance;
+  headline: ProfileFieldProvenance;
+  summary: ProfileFieldProvenance;
+  linkedinUrl: ProfileFieldProvenance;
+  cvUrl: ProfileFieldProvenance;
+}
+
+export interface ProfileExperienceProvenance {
+  record: ProfileFieldProvenance;
+  employerName: ProfileFieldProvenance;
+  jobTitle: ProfileFieldProvenance;
+  startDate: ProfileFieldProvenance;
+  endDate: ProfileFieldProvenance;
+  description: ProfileFieldProvenance;
+  achievements: ProfileFieldProvenance;
+}
+
+export interface ProfileEducationProvenance {
+  record: ProfileFieldProvenance;
+  schoolName: ProfileFieldProvenance;
+  degree: ProfileFieldProvenance;
+  fieldOfStudy: ProfileFieldProvenance;
+  startDate: ProfileFieldProvenance;
+  endDate: ProfileFieldProvenance;
+}
+
+export interface ProfileTrainingProvenance {
+  record: ProfileFieldProvenance;
+  title: ProfileFieldProvenance;
+  providerName: ProfileFieldProvenance;
+  issuedAt: ProfileFieldProvenance;
+  expiresAt: ProfileFieldProvenance;
+  credentialUrl: ProfileFieldProvenance;
+}
+
+export interface ProfileSnapshotProvenance {
+  personalInfo: ProfilePersonalInfoProvenance;
+  skills: ProfileFieldProvenance[];
+  experiences: Record<string, ProfileExperienceProvenance>;
+  educations: Record<string, ProfileEducationProvenance>;
+  trainings: Record<string, ProfileTrainingProvenance>;
+}
 
 export interface ProfileRoadmapMilestone {
   id: string;
@@ -188,6 +242,7 @@ export interface ProfileSnapshot {
   experiences: ProfileExperience[];
   educations: ProfileEducation[];
   trainings: ProfileTraining[];
+  provenance: ProfileSnapshotProvenance;
   /** New dynamic collections are served by profilePreferences during router migration. */
   languages?: ProfileLanguage[];
   hobbies?: ProfileHobby[];
