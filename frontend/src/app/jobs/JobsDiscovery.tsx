@@ -3,6 +3,7 @@ import { useUser } from '@clerk/clerk-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '@/lib/api';
 import toast from '@/lib/toast';
+import { JobsLifecycleTabs } from '@/features/jobs/JobsLifecycleTabs';
 import type { ProfileSnapshot } from '../../../../shared/profile';
 import {
   AlertCircle,
@@ -10,9 +11,11 @@ import {
   BookmarkCheck,
   Briefcase,
   ExternalLink,
+  FileText,
   Loader2,
   MapPin,
   Radar,
+  RotateCcw,
   Search,
   Sparkles,
   Target,
@@ -112,10 +115,10 @@ function formatPostedAt(postedAt?: string): string {
 }
 
 function buildRadarReason(job: JobResult): string {
-  if (job.fitScore >= 85) return 'Strong match for your target role and current profile.';
+  if (job.fitScore >= 85) return 'Strong match for your target role and approved profile context.';
   if (job.salaryMin || job.salaryMax) return 'Visible salary gives you a faster go / no-go decision.';
   if (job.employerSignals?.riskLevel === 'high') return 'Relevant listing, but risk signals need review before you spend time.';
-  return 'Relevant role worth screening before you open a deeper review.';
+  return 'Relevant role worth screening before you create an application draft.';
 }
 
 function ProviderDiagnosticsPanel({ diagnostics }: { diagnostics: ProviderDiagnostic[] }) {
@@ -156,22 +159,12 @@ function ProviderDiagnosticsPanel({ diagnostics }: { diagnostics: ProviderDiagno
   );
 }
 
-function JobsSectionTabs() {
-  return (
-    <div className="flex flex-wrap gap-2">
-      <span className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-slate-950">Jobs Search</span>
-      <Link to="/job-radar" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/10">
-        Job Radar
-      </Link>
-    </div>
-  );
-}
-
 export default function JobsDiscovery() {
   const { user, isLoaded } = useUser();
   const userId = user?.id;
   const navigate = useNavigate();
   const [urlSearchParams, setUrlSearchParams] = useSearchParams();
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
 
   const [query, setQuery] = useState(() => urlSearchParams.get('q') ?? '');
   const [location, setLocation] = useState(() => urlSearchParams.get('loc') ?? DEFAULT_LOCATION);
@@ -208,6 +201,7 @@ export default function JobsDiscovery() {
   const saveJobMutation = api.jobs.saveJob.useMutation();
   const unsaveJobMutation = api.jobs.unsaveJob.useMutation();
   const startRadarScanMutation = api.jobRadar.startScan.useMutation();
+  const createApplicationMutation = api.applications.create.useMutation();
 
   const searchData = normalizeJobsSearchData(jobsQuery.data);
   const jobs = searchData.jobs;
@@ -217,8 +211,8 @@ export default function JobsDiscovery() {
   const profile = profileQuery.data as ProfileSnapshot | undefined;
   const dreamRole = deriveDreamRole(profile);
   const aiQuery = deriveAiQuery(profile);
-
   const canSearch = query.trim().length > 0 && sources.length > 0;
+  const actionPending = saveJobMutation.isPending || unsaveJobMutation.isPending || startRadarScanMutation.isPending || createApplicationMutation.isPending;
 
   function syncUrl(nextQuery: string, nextLocation: string, nextSources: Source[], nextDays: string) {
     const params = new URLSearchParams();
@@ -231,22 +225,13 @@ export default function JobsDiscovery() {
 
   function handleSearch() {
     const trimmedQuery = query.trim();
-    if (!trimmedQuery) {
-      toast.error('Enter a job title, keyword, or skill first.');
-      return;
-    }
-    if (sources.length === 0) {
-      toast.error('Select at least one source.');
-      return;
-    }
+    if (!trimmedQuery) return toast.error('Enter a job title, keyword, or skill first.');
+    if (sources.length === 0) return toast.error('Select at least one source.');
     syncUrl(trimmedQuery, location, sources, days);
   }
 
   function handleQuickSearch(nextQuery: string) {
-    if (!nextQuery.trim()) {
-      toast.error('Your profile does not yet contain enough information for this search.');
-      return;
-    }
+    if (!nextQuery.trim()) return toast.error('Your approved profile context does not yet contain enough information for this search.');
     setQuery(nextQuery);
     syncUrl(nextQuery, location, sources, days);
   }
@@ -261,41 +246,41 @@ export default function JobsDiscovery() {
 
   function toggleSource(source: Source) {
     setSources((prev) => {
-      if (prev.includes(source)) {
-        if (prev.length === 1) return prev;
-        return prev.filter((item) => item !== source);
-      }
+      if (prev.includes(source)) return prev.length === 1 ? prev : prev.filter((item) => item !== source);
       return [...prev, source];
     });
   }
 
-  function handleToggleSave(jobId: string) {
-    if (!userId) {
-      toast.error('Sign in to save jobs.');
+  function handleToggleSave(job: JobResult) {
+    if (!userId) return toast.error('Sign in to save jobs.');
+    setActiveJobId(job.id);
+    if (savedIds.has(job.id)) {
+      const toastId = toast.loading('Removing saved job…');
+      unsaveJobMutation.mutate({ jobId: job.id }, {
+        onSuccess: () => { toast.success('Job removed from Saved.', { id: toastId }); void savedJobsQuery.refetch(); },
+        onError: (error) => toast.error(`Could not unsave job: ${error.message}`, { id: toastId }),
+        onSettled: () => setActiveJobId(null),
+      });
       return;
     }
-    if (savedIds.has(jobId)) {
-      unsaveJobMutation.mutate({ jobId }, { onSuccess: () => savedJobsQuery.refetch() });
-      return;
-    }
-    saveJobMutation.mutate({ jobId }, { onSuccess: () => savedJobsQuery.refetch() });
+
+    const toastId = toast.loading('Saving job…');
+    saveJobMutation.mutate({ jobId: job.id }, {
+      onSuccess: () => { toast.success('Job saved. Open it in Saved or Radar next.', { id: toastId }); void savedJobsQuery.refetch(); },
+      onError: (error) => toast.error(`Could not save job: ${error.message}`, { id: toastId }),
+      onSettled: () => setActiveJobId(null),
+    });
+  }
+
+  function normalizeApplyUrl(job: JobResult): string | undefined {
+    if (!job.applyUrl) return undefined;
+    try { return new URL(job.applyUrl).toString(); } catch { return undefined; }
   }
 
   function handleStartRadarScan(job: JobResult) {
-    if (!userId) {
-      toast.error('Sign in to run Job Radar.');
-      return;
-    }
-
-    let validApplyUrl: string | undefined;
-    if (job.applyUrl) {
-      try {
-        validApplyUrl = new URL(job.applyUrl).toString();
-      } catch {
-        validApplyUrl = undefined;
-      }
-    }
-
+    if (!userId) return toast.error('Sign in to run Job Radar.');
+    setActiveJobId(job.id);
+    const toastId = toast.loading('Opening Job Radar insight…');
     startRadarScanMutation.mutate(
       {
         jobId: job.id,
@@ -305,17 +290,33 @@ export default function JobsDiscovery() {
         description: job.description,
         salaryMin: job.salaryMin ?? undefined,
         salaryMax: job.salaryMax ?? undefined,
-        applyUrl: validApplyUrl,
+        applyUrl: normalizeApplyUrl(job),
         scanTrigger: 'manual_search',
       },
       {
-        onSuccess: (data) => {
-          toast.success('Job Radar scan started.');
-          navigate(`/jobs/radar/${data.scanId}`);
-        },
-        onError: (error) => {
-          toast.error(`Could not start radar scan: ${error.message}`);
-        },
+        onSuccess: (data) => { toast.success('Radar insight started.', { id: toastId }); navigate(`/jobs/radar/${data.scanId}`); },
+        onError: (error) => toast.error(`Could not open radar: ${error.message}`, { id: toastId }),
+        onSettled: () => setActiveJobId(null),
+      },
+    );
+  }
+
+  function handleCreateDraft(job: JobResult) {
+    if (!userId) return toast.error('Sign in to create an application draft.');
+    setActiveJobId(job.id);
+    const toastId = toast.loading('Creating application draft…');
+    createApplicationMutation.mutate(
+      {
+        userId,
+        jobId: job.id,
+        jobTitle: job.title,
+        company: job.company,
+        notes: `Created from Jobs Search. Source: ${job.source}. ${buildRadarReason(job)}`,
+      },
+      {
+        onSuccess: () => { toast.success('Draft created in Applications.', { id: toastId }); navigate('/applications?mode=all&status=draft'); },
+        onError: (error) => toast.error(`Could not create draft: ${error.message}`, { id: toastId }),
+        onSettled: () => setActiveJobId(null),
       },
     );
   }
@@ -330,11 +331,7 @@ export default function JobsDiscovery() {
   }, [urlSearchParams]);
 
   if (!isLoaded) {
-    return (
-      <div className="flex h-48 items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
-      </div>
-    );
+    return <div className="flex h-48 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-indigo-500" /></div>;
   }
 
   return (
@@ -343,82 +340,56 @@ export default function JobsDiscovery() {
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div className="max-w-3xl">
             <p className="inline-flex items-center gap-2 rounded-full border border-indigo-300/25 bg-indigo-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-200">
-              <Briefcase className="h-3.5 w-3.5" />
-              Jobs · Search Mode
+              <Briefcase className="h-3.5 w-3.5" /> Jobs Lifecycle · Search
             </p>
-            <h1 className="mt-3 text-3xl font-bold text-white md:text-4xl">Search Jobs Without Wrestling The UI</h1>
+            <h1 className="mt-3 text-3xl font-bold text-white md:text-4xl">Search, Save, Enrich, Apply</h1>
             <p className="mt-3 text-sm text-slate-300 md:text-base">
-              Use Jobs Search for broad discovery and fast screening. Use Job Radar for deeper review, stronger fit checks, and saved lead triage.
+              Search from approved profile context, save promising leads, open Radar insight, then create an application draft without falling through a trapdoor in the UI.
             </p>
           </div>
-          <div className="space-y-3 xl:min-w-[340px]">
-            <JobsSectionTabs />
+          <div className="space-y-3 xl:min-w-[420px]">
+            <JobsLifecycleTabs />
             <div className="grid gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => handleQuickSearch(dreamRole)} className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-left text-sm text-emerald-50 transition hover:bg-emerald-500/15">
-                <div className="flex items-center gap-2 font-semibold"><Target className="h-4 w-4" /> Dream Job</div>
+                <div className="flex items-center gap-2 font-semibold"><Target className="h-4 w-4" /> Target Role</div>
                 <p className="mt-1 text-xs text-emerald-100/80">{dreamRole || 'Set target role in Profile first.'}</p>
               </button>
-              <Link to="/job-radar" className="rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-left text-sm text-cyan-50 transition hover:bg-cyan-500/15">
-                <div className="flex items-center gap-2 font-semibold"><Radar className="h-4 w-4" /> Open Job Radar</div>
-                <p className="mt-1 text-xs text-cyan-100/80">Deep review, risk checks, saved leads, recent scans.</p>
-              </Link>
+              <button type="button" onClick={() => handleQuickSearch(aiQuery)} className="rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-left text-sm text-cyan-50 transition hover:bg-cyan-500/15">
+                <div className="flex items-center gap-2 font-semibold"><Sparkles className="h-4 w-4" /> Profile Match Search</div>
+                <p className="mt-1 text-xs text-cyan-100/80">{aiQuery || 'Add role and skills to Profile first.'}</p>
+              </button>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="rounded-3xl border border-white/10 bg-white/5 p-5 md:p-6 space-y-4">
+      <section className="space-y-4 rounded-3xl border border-white/10 bg-white/5 p-5 md:p-6">
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_240px_auto]">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => { if (event.key === 'Enter') handleSearch(); }}
-              placeholder="Search by title, keyword, or skill"
-              className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            <input type="text" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') handleSearch(); }} placeholder="Search by title, keyword, or skill" className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           <div className="relative">
             <MapPin className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={location}
-              onChange={(event) => setLocation(event.target.value)}
-              onKeyDown={(event) => { if (event.key === 'Enter') handleSearch(); }}
-              placeholder="Location"
-              className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            <input type="text" value={location} onChange={(event) => setLocation(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') handleSearch(); }} placeholder="Location" className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={handleSearch} disabled={jobsQuery.isFetching || !canSearch} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60">
-              {jobsQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              Search
+              {jobsQuery.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />} Search
             </button>
-            <button type="button" onClick={handleClear} className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-white/10">
-              Clear
-            </button>
+            <button type="button" onClick={handleClear} className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-white/10">Clear</button>
           </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Posted</span>
           <select value={days} onChange={(event) => setDays(event.target.value)} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <option value="">Any time</option>
-            <option value="1">Today</option>
-            <option value="7">Last 7 days</option>
-            <option value="14">Last 14 days</option>
-            <option value="30">Last 30 days</option>
+            <option value="">Any time</option><option value="1">Today</option><option value="7">Last 7 days</option><option value="14">Last 14 days</option><option value="30">Last 30 days</option>
           </select>
           <span className={`rounded-full px-3 py-1 text-[11px] font-medium ${selectedSessionGap ? 'bg-amber-500/15 text-amber-200' : 'bg-emerald-500/15 text-emerald-200'}`}>
             {selectedSessionGap ? 'Some selected sources need session repair' : 'Selected sources ready'}
           </span>
-          {userId && (
-            <Link to="/jobs/saved" className="ml-auto rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-white/10">
-              Open Saved Jobs
-            </Link>
-          )}
+          <Link to="/jobs/saved" className="ml-auto rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-300 transition hover:bg-white/10">Open Saved</Link>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -426,14 +397,7 @@ export default function JobsDiscovery() {
             const active = sources.includes(source);
             const locked = SOURCE_META[source].requiresSession && !sessionProviders.has(source);
             return (
-              <button
-                key={source}
-                type="button"
-                onClick={() => toggleSource(source)}
-                disabled={locked}
-                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${active ? 'border-indigo-400/40 bg-indigo-500/15 text-indigo-100' : 'border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200'} ${locked ? 'cursor-not-allowed opacity-45' : ''}`}
-                title={locked ? 'This provider needs a saved session in Jobs.' : SOURCE_META[source].label}
-              >
+              <button key={source} type="button" onClick={() => toggleSource(source)} disabled={locked} className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${active ? 'border-indigo-400/40 bg-indigo-500/15 text-indigo-100' : 'border-white/10 bg-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200'} ${locked ? 'cursor-not-allowed opacity-45' : ''}`} title={locked ? 'This provider needs a saved session in Jobs.' : SOURCE_META[source].label}>
                 {SOURCE_META[source].label}
               </button>
             );
@@ -443,101 +407,54 @@ export default function JobsDiscovery() {
 
       <ProviderDiagnosticsPanel diagnostics={diagnostics} />
 
+      {jobsQuery.isError && (
+        <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-100">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>Could not load job results. Retry the same search.</span>
+            <button type="button" onClick={() => void jobsQuery.refetch()} className="inline-flex items-center gap-2 rounded-xl bg-red-500/20 px-3 py-2 text-xs font-semibold hover:bg-red-500/30"><RotateCcw className="h-3.5 w-3.5" />Retry</button>
+          </div>
+        </div>
+      )}
+
       <section className="space-y-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-white">Listings</h2>
             <p className="text-sm text-slate-500">
-              {jobsQuery.isFetching
-                ? 'Searching across selected sources…'
-                : searchParams === null
-                  ? 'Run a search to load listings.'
-                  : jobs.length === 0
-                    ? 'No listings for this search yet.'
-                    : `${jobs.length} listing${jobs.length === 1 ? '' : 's'} found`}
+              {jobsQuery.isFetching ? 'Searching across selected sources…' : searchParams === null ? 'Run a search to load listings.' : jobs.length === 0 ? 'No listings for this search yet.' : `${jobs.length} listing${jobs.length === 1 ? '' : 's'} found`}
             </p>
           </div>
-          {userId && savedJobsQuery.data && (
-            <p className="text-sm text-slate-500">Saved leads: {savedJobsQuery.data.length}</p>
-          )}
+          {userId && savedJobsQuery.data && <p className="text-sm text-slate-500">Saved leads: {savedJobsQuery.data.length}</p>}
         </div>
 
         {jobsQuery.isFetching ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 6 }, (_, index) => (
-              <div key={index} className="h-72 animate-pulse rounded-3xl border border-white/10 bg-white/5" />
-            ))}
-          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 6 }, (_, index) => <div key={index} className="h-72 animate-pulse rounded-3xl border border-white/10 bg-white/5" />)}</div>
         ) : searchParams === null ? (
-          <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.03] p-10 text-center">
-            <p className="text-base font-semibold text-white">Start with a real search</p>
-            <p className="mt-2 text-sm text-slate-500">Jobs is for quick, practical job search. Job Radar is for deeper review after you have a lead worth examining.</p>
-          </div>
+          <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.03] p-10 text-center"><p className="text-base font-semibold text-white">Start with a real search</p><p className="mt-2 text-sm text-slate-500">Jobs is for broad discovery. Radar and Applications are the next steps after a lead is worth action.</p></div>
         ) : jobs.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.03] p-10 text-center">
-            <p className="text-base font-semibold text-white">No listings matched this search</p>
-            <p className="mt-2 text-sm text-slate-500">Try broader keywords, more sources, or a wider location.</p>
-          </div>
+          <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.03] p-10 text-center"><p className="text-base font-semibold text-white">No listings matched this search</p><p className="mt-2 text-sm text-slate-500">Try broader keywords, more sources, or a wider location.</p></div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {jobs.map((job) => {
               const isSaved = savedIds.has(job.id);
+              const isThisPending = actionPending && activeJobId === job.id;
               return (
                 <article key={job.id} className="flex h-full flex-col rounded-3xl border border-white/10 bg-white/5 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] transition hover:border-indigo-400/30">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-lg font-semibold text-white">{job.title}</h3>
-                      <p className="mt-1 text-sm text-slate-400">{job.company}</p>
+                    <div><h3 className="text-lg font-semibold text-white">{job.title}</h3><p className="mt-1 text-sm text-slate-400">{job.company}</p></div>
+                    <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${job.fitScore >= 80 ? 'bg-emerald-500/15 text-emerald-200' : job.fitScore >= 60 ? 'bg-amber-500/15 text-amber-200' : 'bg-rose-500/15 text-rose-200'}`}>Fit {job.fitScore}%</span>
+                  </div>
+                  <div className="mt-4 space-y-2 text-sm text-slate-300"><div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-slate-500" /> {job.location || 'Location unavailable'}</div><div className="flex items-center gap-2"><Briefcase className="h-4 w-4 text-slate-500" /> {job.workMode || 'Work mode not stated'}</div></div>
+                  <div className="mt-4 flex flex-wrap gap-2"><span className="rounded-full bg-white/8 px-3 py-1 text-xs text-slate-300">{job.source}</span><span className="rounded-full bg-white/8 px-3 py-1 text-xs text-slate-300">{formatPostedAt(job.postedAt)}</span><span className="rounded-full bg-white/8 px-3 py-1 text-xs text-slate-300">{formatSalary(job)}</span></div>
+                  <div className="mt-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/8 p-3"><p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-200">Why This Is On Your Radar</p><p className="mt-1 text-sm text-slate-200">{buildRadarReason(job)}</p></div>
+                  {job.employerSignals && <div className="mt-4 grid grid-cols-2 gap-2 text-xs"><div className="rounded-xl border border-white/10 bg-black/15 p-3"><p className="text-slate-500">Trust</p><p className="mt-1 font-semibold capitalize text-white">{job.employerSignals.trustLevel.replace('_', ' ')}</p></div><div className="rounded-xl border border-white/10 bg-black/15 p-3"><p className="text-slate-500">Risk</p><p className="mt-1 font-semibold capitalize text-white">{job.employerSignals.riskLevel}</p></div></div>}
+                  <div className="mt-auto space-y-2 pt-5">
+                    <div className="grid grid-cols-3 gap-2">
+                      <button type="button" onClick={() => handleToggleSave(job)} disabled={isThisPending} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-sm font-medium text-white transition hover:bg-white/10 disabled:opacity-60">{isThisPending ? <Loader2 className="h-4 w-4 animate-spin" /> : isSaved ? <BookmarkCheck className="h-4 w-4 text-emerald-300" /> : <Bookmark className="h-4 w-4" />} {isSaved ? 'Saved' : 'Save'}</button>
+                      <button type="button" onClick={() => handleStartRadarScan(job)} disabled={isThisPending} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-3 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60">{isThisPending && startRadarScanMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radar className="h-4 w-4" />} Radar</button>
+                      <button type="button" onClick={() => handleCreateDraft(job)} disabled={isThisPending} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-3 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-60">{isThisPending && createApplicationMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />} Draft</button>
                     </div>
-                    <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${job.fitScore >= 80 ? 'bg-emerald-500/15 text-emerald-200' : job.fitScore >= 60 ? 'bg-amber-500/15 text-amber-200' : 'bg-rose-500/15 text-rose-200'}`}>
-                      Fit {job.fitScore}%
-                    </span>
-                  </div>
-
-                  <div className="mt-4 space-y-2 text-sm text-slate-300">
-                    <div className="flex items-center gap-2"><MapPin className="h-4 w-4 text-slate-500" /> {job.location || 'Location unavailable'}</div>
-                    <div className="flex items-center gap-2"><Briefcase className="h-4 w-4 text-slate-500" /> {job.workMode || 'Work mode not stated'}</div>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <span className="rounded-full bg-white/8 px-3 py-1 text-xs text-slate-300">{job.source}</span>
-                    <span className="rounded-full bg-white/8 px-3 py-1 text-xs text-slate-300">{formatPostedAt(job.postedAt)}</span>
-                    <span className="rounded-full bg-white/8 px-3 py-1 text-xs text-slate-300">{formatSalary(job)}</span>
-                  </div>
-
-                  <div className="mt-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/8 p-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-200">Why This Is On Your Radar</p>
-                    <p className="mt-1 text-sm text-slate-200">{buildRadarReason(job)}</p>
-                  </div>
-
-                  {job.employerSignals && (
-                    <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                      <div className="rounded-xl border border-white/10 bg-black/15 p-3">
-                        <p className="text-slate-500">Trust</p>
-                        <p className="mt-1 font-semibold capitalize text-white">{job.employerSignals.trustLevel.replace('_', ' ')}</p>
-                      </div>
-                      <div className="rounded-xl border border-white/10 bg-black/15 p-3">
-                        <p className="text-slate-500">Risk</p>
-                        <p className="mt-1 font-semibold capitalize text-white">{job.employerSignals.riskLevel}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-auto pt-5 space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <button type="button" onClick={() => handleToggleSave(job.id)} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white transition hover:bg-white/10">
-                        {isSaved ? <BookmarkCheck className="h-4 w-4 text-emerald-300" /> : <Bookmark className="h-4 w-4" />}
-                        {isSaved ? 'Saved' : 'Save'}
-                      </button>
-                      <button type="button" onClick={() => handleStartRadarScan(job)} disabled={startRadarScanMutation.isPending} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60">
-                        {startRadarScanMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Target className="h-4 w-4" />}
-                        Radar
-                      </button>
-                    </div>
-                    <a href={job.applyUrl || '#'} target="_blank" rel="noreferrer" className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition ${job.applyUrl ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/15' : 'pointer-events-none border-white/10 bg-white/5 text-slate-500'}`}>
-                      <ExternalLink className="h-4 w-4" />
-                      {job.applyUrl ? 'Open Listing' : 'No Apply Link'}
-                    </a>
+                    <a href={job.applyUrl || '#'} target="_blank" rel="noreferrer" className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition ${job.applyUrl ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-100 hover:bg-emerald-500/15' : 'pointer-events-none border-white/10 bg-white/5 text-slate-500'}`}><ExternalLink className="h-4 w-4" />{job.applyUrl ? 'Open Listing' : 'No Apply Link'}</a>
                   </div>
                 </article>
               );
