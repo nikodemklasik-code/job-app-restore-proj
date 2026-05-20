@@ -20,6 +20,11 @@ import type {
   CareerGoalsSnapshot,
   SocialConsentsSnapshot,
   UserPreferenceFlagsSnapshot,
+  ProfileFieldProvenance,
+  ProfileSnapshotProvenance,
+  ProfileExperienceProvenance,
+  ProfileEducationProvenance,
+  ProfileTrainingProvenance,
 } from '../../../../shared/profile.js';
 import { getProfileMatchContextByLocalId } from '../../services/profileSourceOfTruth.js';
 import { isBlockedJob } from '../../services/profileSourceOfTruth.policy.js';
@@ -96,6 +101,72 @@ function normalizeStrategy(raw: unknown): ProfileStrategyJson {
     return raw as ProfileStrategyJson;
   }
   return {};
+}
+
+function provenance(source: ProfileFieldProvenance['source'], updatedAt?: Date | string | null, note?: string): ProfileFieldProvenance {
+  return {
+    source,
+    updatedAt: updatedAt ? new Date(updatedAt).toISOString() : null,
+    note,
+  };
+}
+
+function userConfirmed(updatedAt?: Date | string | null, note?: string): ProfileFieldProvenance {
+  return provenance('user_confirmed', updatedAt, note ?? 'Approved profile state');
+}
+
+function unknownProvenance(note?: string): ProfileFieldProvenance {
+  return provenance('unknown', null, note ?? 'No approved value yet');
+}
+
+function emptyPersonalInfoProvenance(): ProfileSnapshotProvenance['personalInfo'] {
+  return {
+    fullName: unknownProvenance(),
+    email: unknownProvenance(),
+    phone: unknownProvenance(),
+    location: unknownProvenance(),
+    headline: unknownProvenance(),
+    summary: unknownProvenance(),
+    linkedinUrl: unknownProvenance(),
+    cvUrl: unknownProvenance(),
+  };
+}
+
+function experienceProvenance(updatedAt?: Date | string | null): ProfileExperienceProvenance {
+  const base = userConfirmed(updatedAt);
+  return {
+    record: base,
+    employerName: base,
+    jobTitle: base,
+    startDate: base,
+    endDate: base,
+    description: base,
+    achievements: base,
+  };
+}
+
+function educationProvenance(updatedAt?: Date | string | null): ProfileEducationProvenance {
+  const base = userConfirmed(updatedAt);
+  return {
+    record: base,
+    schoolName: base,
+    degree: base,
+    fieldOfStudy: base,
+    startDate: base,
+    endDate: base,
+  };
+}
+
+function trainingProvenance(updatedAt?: Date | string | null): ProfileTrainingProvenance {
+  const base = userConfirmed(updatedAt);
+  return {
+    record: base,
+    title: base,
+    providerName: base,
+    issuedAt: base,
+    expiresAt: base,
+    credentialUrl: base,
+  };
 }
 
 function careerRowToSnapshot(row: typeof careerGoals.$inferSelect): CareerGoalsSnapshot {
@@ -186,6 +257,13 @@ async function fetchProfileSnapshot(userId: string, email: string): Promise<Prof
       experiences: [],
       educations: [],
       trainings: [],
+      provenance: {
+        personalInfo: emptyPersonalInfoProvenance(),
+        skills: [],
+        experiences: {},
+        educations: {},
+        trainings: {},
+      },
       careerGoals: careerGoalsSnapshot,
       socialConsents: socialSnapshot,
       preferenceFlags: preferenceSnapshot,
@@ -193,11 +271,35 @@ async function fetchProfileSnapshot(userId: string, email: string): Promise<Prof
   }
 
   const [skillRecords, experienceRecords, educationRecords, trainingRecords] = await Promise.all([
-    db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profile.id)),
+    db.select({ name: skills.name, createdAt: skills.createdAt, updatedAt: skills.updatedAt }).from(skills).where(eq(skills.profileId, profile.id)),
     db.select().from(experiences).where(eq(experiences.profileId, profile.id)),
     db.select().from(educations).where(eq(educations.profileId, profile.id)),
     db.select().from(trainings).where(eq(trainings.profileId, profile.id)),
   ]);
+
+  const profileUpdatedAt = profile.updatedAt ?? profile.createdAt ?? null;
+  const provenanceSnapshot: ProfileSnapshotProvenance = {
+    personalInfo: {
+      fullName: profile.fullName?.trim() ? userConfirmed(profileUpdatedAt) : unknownProvenance(),
+      email: email.trim() ? userConfirmed(profileUpdatedAt, 'Synced from approved account identity') : unknownProvenance(),
+      phone: profile.phone?.trim() ? userConfirmed(profileUpdatedAt) : unknownProvenance(),
+      location: profile.location?.trim() ? userConfirmed(profileUpdatedAt) : unknownProvenance(),
+      headline: profile.headline?.trim() ? userConfirmed(profileUpdatedAt) : unknownProvenance(),
+      summary: profile.summary?.trim() ? userConfirmed(profileUpdatedAt) : unknownProvenance(),
+      linkedinUrl: profile.linkedinUrl?.trim() ? userConfirmed(profileUpdatedAt) : unknownProvenance(),
+      cvUrl: profile.cvUrl?.trim() ? userConfirmed(profileUpdatedAt) : unknownProvenance(),
+    },
+    skills: skillRecords.map((s) => s.name?.trim() ? userConfirmed(s.updatedAt ?? s.createdAt ?? profileUpdatedAt) : unknownProvenance()),
+    experiences: Object.fromEntries(
+      experienceRecords.map((e) => [e.id, experienceProvenance(e.updatedAt ?? e.createdAt ?? profileUpdatedAt)]),
+    ),
+    educations: Object.fromEntries(
+      educationRecords.map((e) => [e.id, educationProvenance(e.updatedAt ?? e.createdAt ?? profileUpdatedAt)]),
+    ),
+    trainings: Object.fromEntries(
+      trainingRecords.map((t) => [t.id, trainingProvenance(t.updatedAt ?? t.createdAt ?? profileUpdatedAt)]),
+    ),
+  };
 
   return {
     personalInfo: {
@@ -236,6 +338,7 @@ async function fetchProfileSnapshot(userId: string, email: string): Promise<Prof
       expiresAt: t.expiresAt ?? null,
       credentialUrl: t.credentialUrl ?? '',
     })),
+    provenance: provenanceSnapshot,
     careerGoals: careerGoalsSnapshot,
     socialConsents: socialSnapshot,
     preferenceFlags: preferenceSnapshot,
@@ -258,704 +361,300 @@ export const profileRouter = router({
       const row = existing[0];
 
       if (!row) {
-        const userId = randomUUID();
+        const localId = randomUUID();
         await db.insert(users).values({
-          id: userId,
+          id: localId,
           clerkId: input.userId,
           email: input.email,
-          lastSeenAt: new Date(),
         });
-        await db.insert(profiles).values({
-          id: randomUUID(),
-          userId,
-          fullName: displayName,
-        });
-        return { created: true as const };
+        const profileId = randomUUID();
+        await db.insert(profiles).values({ id: profileId, userId: localId, fullName: displayName });
+        await ensureCareerGoalsRow(localId);
+        await ensureSocialConsentsRow(localId);
+        await ensurePreferenceFlagsRow(localId);
+        return { ok: true, created: true, localUserId: localId, profileId };
       }
 
-      await db.update(users)
-        .set({ email: input.email, updatedAt: new Date(), lastSeenAt: new Date() })
-        .where(eq(users.id, row.id));
-
-      if (!displayName) return { created: false as const };
-
-      const profileRow = await db.select({ fullName: profiles.fullName }).from(profiles).where(eq(profiles.userId, row.id)).limit(1);
-      const currentName = (profileRow[0]?.fullName ?? '').trim();
-      if (!currentName) {
-        await db.update(profiles)
-          .set({ fullName: displayName, updatedAt: new Date() })
-          .where(eq(profiles.userId, row.id));
+      if (row.email !== input.email) {
+        await db.update(users).set({ email: input.email }).where(eq(users.id, row.id));
+      }
+      const existingProfile = await db.select().from(profiles).where(eq(profiles.userId, row.id)).limit(1);
+      if (!existingProfile[0]) {
+        const profileId = randomUUID();
+        await db.insert(profiles).values({ id: profileId, userId: row.id, fullName: displayName });
+        await ensureCareerGoalsRow(row.id);
+        await ensureSocialConsentsRow(row.id);
+        await ensurePreferenceFlagsRow(row.id);
+        return { ok: true, created: false, localUserId: row.id, profileId };
       }
 
-      return { created: false as const };
+      await ensureCareerGoalsRow(row.id);
+      await ensureSocialConsentsRow(row.id);
+      await ensurePreferenceFlagsRow(row.id);
+      if (!existingProfile[0].fullName?.trim() && displayName) {
+        await db.update(profiles).set({ fullName: displayName }).where(eq(profiles.id, existingProfile[0].id));
+      }
+      return { ok: true, created: false, localUserId: row.id, profileId: existingProfile[0].id };
     }),
 
-  getProfile: protectedProcedure
-    .query(async ({ ctx }) => {
-      return fetchProfileSnapshot(ctx.user.id, ctx.user.email);
-    }),
+  me: protectedProcedure.query(async ({ ctx }) => {
+    const clerkId = ctx.auth.userId!;
+    const row = await db.select().from(users).where(eq(users.clerkId, clerkId)).limit(1);
+    if (!row[0]) return null;
+    const snapshot = await fetchProfileSnapshot(row[0].id, row[0].email);
+    return { localUserId: row[0].id, email: row[0].email, profile: snapshot };
+  }),
 
-  // Compatibility alias for frontend contract using getFull.
-  getFull: protectedProcedure
-    .input(z.object({ userId: z.string().optional() }).optional())
-    .query(async ({ ctx }) => {
-      const snapshot = await fetchProfileSnapshot(ctx.user.id, ctx.user.email);
+  getProfile: protectedProcedure.query(async ({ ctx }) => {
+    const clerkId = ctx.auth.userId!;
+    const row = await db.select().from(users).where(eq(users.clerkId, clerkId)).limit(1);
+    if (!row[0]) {
       return {
-        personalInfo: snapshot.personalInfo,
-        skills: snapshot.skills,
-        workValues: (snapshot.careerGoals?.workValues ?? []).join(', '),
-        careerPath: snapshot.careerGoals?.targetJobTitle ?? '',
-        experiences: snapshot.experiences,
-        educations: snapshot.educations,
-        trainings: snapshot.trainings,
-      };
-    }),
-
-  /**
-   * Profile-driven match context used by Jobs, Job Radar, Auto-Apply, and
-   * Skill Lab surfaces. Exposed so the frontend can render "why was this
-   * job skipped?" / "below threshold" badges using the same rules the
-   * backend enforces server-side.
-   */
-  getMatchContext: protectedProcedure
-    .query(async ({ ctx }) => {
-      return getProfileMatchContextByLocalId(ctx.user.id);
-    }),
-
-  /**
-   * Profile-driven growth/roadmap surface used by Profile page, Dashboard,
-   * and Skill Lab growth recommendations. Reads strategy + high-impact
-   * improvements from `career_goals.strategyJson`, and exposes work values +
-   * threshold so the UI can render "why Skill Lab suggested X" explanations.
-   */
-  getGrowthRecommendations: protectedProcedure
-    .query(async ({ ctx }) => {
-      const ctx2 = await getProfileMatchContextByLocalId(ctx.user.id);
-      const [row] = await db
-        .select({ strategyJson: careerGoals.strategyJson })
-        .from(careerGoals)
-        .where(eq(careerGoals.userId, ctx.user.id))
-        .limit(1);
-      const strategy = normalizeStrategy(row?.strategyJson);
-      return {
-        growthPlan: Array.isArray(strategy.growthPlan) ? strategy.growthPlan : [],
-        highImpactImprovements: Array.isArray(strategy.highImpactImprovements)
-          ? strategy.highImpactImprovements
-          : [],
-        roadmap: Array.isArray(strategy.roadmap) ? strategy.roadmap : [],
-        skillCourseLinks: Array.isArray(strategy.skillCourseLinks) ? strategy.skillCourseLinks : [],
-        practiceAreas: Array.isArray(strategy.practiceAreas) ? strategy.practiceAreas : [],
-        workValues: ctx2.workValues,
-        minAutoApplyScore: ctx2.minAutoApplyScore,
-        targetJobTitle: ctx2.targetJobTitle,
-        targetSeniority: ctx2.targetSeniority,
-        targetSalaryMin: ctx2.targetSalaryMin,
-        targetSalaryMax: ctx2.targetSalaryMax,
-      };
-    }),
-
-  /**
-   * Profile-driven employer / listing blocked check used by Job Radar,
-   * employer validation, and manual-review surfaces. Returns `blocked: true`
-   * when the given job title or company matches a user-configured blocked
-   * area (case-insensitive substring). Pure policy call — no side effects.
-   */
-  isEmployerBlocked: protectedProcedure
-    .input(
-      z.object({
-        jobTitle: z.string().optional(),
-        company: z.string().optional(),
-        tags: z.array(z.string()).optional(),
-      }),
-    )
-    .query(async ({ ctx, input }) => {
-      const match = await getProfileMatchContextByLocalId(ctx.user.id);
-      const blocked = isBlockedJob(
-        {
-          title: input.jobTitle ?? '',
-          company: input.company ?? null,
-          description: null,
-          seniority: null,
-          salaryMin: null,
-          salaryMax: null,
-          tags: input.tags ?? [],
+        personalInfo: { fullName: '', email: '', phone: '', location: '', headline: '', summary: '', linkedinUrl: '', cvUrl: '' },
+        skills: [],
+        experiences: [],
+        educations: [],
+        trainings: [],
+        provenance: {
+          personalInfo: emptyPersonalInfoProvenance(),
+          skills: [],
+          experiences: {},
+          educations: {},
+          trainings: {},
         },
-        match.blockedAreas,
-      );
-      return {
-        blocked,
-        blockedAreas: match.blockedAreas,
-        reason: blocked ? ('blocked_area' as const) : null,
-      };
-    }),
+        careerGoals: DEFAULT_CAREER_GOALS,
+        socialConsents: DEFAULT_SOCIAL,
+        preferenceFlags: DEFAULT_PREFS,
+      } satisfies ProfileSnapshot;
+    }
+    return fetchProfileSnapshot(row[0].id, row[0].email);
+  }),
 
-  savePersonalInfo: protectedProcedure
+  updateProfile: protectedProcedure
     .input(z.object({
-      fullName: z.string(),
-      email: z.string().email().optional(),
-      phone: z.string().optional(),
-      location: z.string().max(255).optional(),
-      headline: z.string().max(255).optional(),
-      summary: z.string().optional(),
-      linkedinUrl: z.string().url().max(500).optional().or(z.literal('')),
-      cvUrl: z.string().url().max(500).optional().or(z.literal('')),
-    }))
-    .mutation(async ({ ctx, input }) => {
-      const localUserId = ctx.user.id;
-
-      if (input.email) {
-        await db.update(users)
-          .set({ email: input.email, updatedAt: new Date() })
-          .where(eq(users.id, localUserId));
-      }
-
-      await ensureProfileForUser(localUserId);
-      await db.update(profiles)
-        .set({
-          fullName: input.fullName,
-          phone: input.phone,
-          location: input.location,
-          headline: input.headline,
-          summary: input.summary,
-          linkedinUrl: input.linkedinUrl || null,
-          cvUrl: input.cvUrl || null,
-          updatedAt: new Date(),
-        })
-        .where(eq(profiles.userId, localUserId));
-
-      const email = input.email ?? ctx.user.email;
-      return fetchProfileSnapshot(localUserId, email);
-    }),
-
-  // Compatibility alias for frontend contract using updateFull.
-  updateFull: protectedProcedure
-    .input(
-      z.object({
-        userId: z.string().optional(),
-        fullName: z.string().default(''),
-        email: z.string().email().optional(),
-        phone: z.string().optional(),
-        location: z.string().max(255).optional(),
-        headline: z.string().max(255).optional(),
-        summary: z.string().optional(),
-        linkedinUrl: z.string().url().max(500).optional().or(z.literal('')),
-        skills: z.array(z.string()).default([]),
-        workValues: z.string().optional(),
-        careerPath: z.string().optional(),
-        experiences: z.array(
-          z.object({
-            employerName: z.string().min(1),
-            jobTitle: z.string().min(1),
-            startDate: z.string(),
-            endDate: z.string().nullable().optional(),
-            description: z.string().optional(),
-            achievements: z.array(z.string()).optional(),
-          }),
-        ).default([]),
-        educations: z.array(
-          z.object({
-            schoolName: z.string().min(1),
-            degree: z.string().min(1),
-            fieldOfStudy: z.string().optional(),
-            startDate: z.string(),
-            endDate: z.string().nullable().optional(),
-          }),
-        ).default([]),
-        trainings: z.array(
-          z.object({
-            title: z.string().min(1),
-            providerName: z.string().min(1),
-            issuedAt: z.string(),
-            expiresAt: z.string().nullable().optional(),
-            credentialUrl: z.string().optional(),
-          }),
-        ).default([]),
+      personalInfo: z.object({
+        fullName: z.string(),
+        phone: z.string(),
+        location: z.string(),
+        headline: z.string(),
+        summary: z.string(),
+        linkedinUrl: z.string(),
+        cvUrl: z.string(),
       }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const localUserId = ctx.user.id;
-      const profileId = await ensureProfileForUser(localUserId);
-
-      if (input.email) {
-        await db.update(users)
-          .set({ email: input.email, updatedAt: new Date() })
-          .where(eq(users.id, localUserId));
-      }
-
-      await db.update(profiles)
-        .set({
-          fullName: input.fullName,
-          phone: input.phone,
-          location: input.location,
-          headline: input.headline,
-          summary: input.summary,
-          linkedinUrl: input.linkedinUrl,
-          updatedAt: new Date(),
-        })
-        .where(eq(profiles.id, profileId));
-
-      await db.delete(skills).where(eq(skills.profileId, profileId));
-      if (input.skills.length > 0) {
-        await db.insert(skills).values(input.skills.map((name) => ({
-          id: randomUUID(),
-          profileId,
-          name,
-        })));
-      }
-
-      await db.delete(experiences).where(eq(experiences.profileId, profileId));
-      if (input.experiences.length > 0) {
-        await db.insert(experiences).values(input.experiences.map((item) => ({
-          id: randomUUID(),
-          profileId,
-          employerName: item.employerName,
-          jobTitle: item.jobTitle,
-          startDate: item.startDate,
-          endDate: item.endDate ?? null,
-          description: item.description ?? '',
-          achievements: normalizeAchievements(item.achievements),
-        })));
-      }
-
-      await db.delete(educations).where(eq(educations.profileId, profileId));
-      if (input.educations.length > 0) {
-        await db.insert(educations).values(input.educations.map((item) => ({
-          id: randomUUID(),
-          profileId,
-          schoolName: item.schoolName,
-          degree: item.degree,
-          fieldOfStudy: item.fieldOfStudy ?? '',
-          startDate: item.startDate,
-          endDate: item.endDate ?? null,
-        })));
-      }
-
-      await db.delete(trainings).where(eq(trainings.profileId, profileId));
-      if (input.trainings.length > 0) {
-        await db.insert(trainings).values(input.trainings.map((item) => ({
-          id: randomUUID(),
-          profileId,
-          title: item.title,
-          providerName: item.providerName,
-          issuedAt: item.issuedAt,
-          expiresAt: item.expiresAt ?? null,
-          credentialUrl: item.credentialUrl ?? '',
-        })));
-      }
-
-      await ensureCareerGoalsRow(localUserId);
-      await db.update(careerGoals)
-        .set({
-          workValues: workValuesToDb(
-            (input.workValues ?? '')
-              .split(',')
-              .map((v) => v.trim())
-              .filter(Boolean),
-          ),
-          targetJobTitle: input.careerPath ?? null,
-          updatedAt: new Date(),
-        })
-        .where(eq(careerGoals.userId, localUserId));
-
-      return fetchProfileSnapshot(localUserId, input.email ?? ctx.user.email);
-    }),
-
-  saveSkills: protectedProcedure
-    .input(z.object({ skills: z.array(z.string()) }))
-    .mutation(async ({ ctx, input }) => {
-      const localUserId = ctx.user.id;
-      const profileId = await ensureProfileForUser(localUserId);
-
-      await db.delete(skills).where(eq(skills.profileId, profileId));
-      if (input.skills.length > 0) {
-        await db.insert(skills).values(input.skills.map((name) => ({ id: randomUUID(), profileId, name })));
-      }
-
-      return fetchProfileSnapshot(localUserId, ctx.user.email);
-    }),
-
-  replaceExperiences: protectedProcedure
-    .input(z.object({
+      skills: z.array(z.string()),
       experiences: z.array(z.object({
-        employerName: z.string().min(1),
-        jobTitle: z.string().min(1),
+        employerName: z.string(),
+        jobTitle: z.string(),
         startDate: z.string(),
         endDate: z.string().nullable(),
         description: z.string(),
         achievements: z.array(z.string()).optional(),
       })),
-    }))
-    .mutation(async ({ ctx, input }) => {
-      const localUserId = ctx.user.id;
-      const profileId = await ensureProfileForUser(localUserId);
-
-      await db.delete(experiences).where(eq(experiences.profileId, profileId));
-      if (input.experiences.length > 0) {
-        await db.insert(experiences).values(input.experiences.map((item) => ({
-          id: randomUUID(),
-          profileId,
-          employerName: item.employerName,
-          jobTitle: item.jobTitle,
-          startDate: item.startDate,
-          endDate: item.endDate ?? null,
-          description: item.description,
-          achievements: normalizeAchievements(item.achievements),
-        })));
-      }
-
-      return fetchProfileSnapshot(localUserId, ctx.user.email);
-    }),
-
-  replaceEducations: protectedProcedure
-    .input(z.object({
       educations: z.array(z.object({
-        schoolName: z.string().min(1),
-        degree: z.string().min(1),
+        schoolName: z.string(),
+        degree: z.string(),
         fieldOfStudy: z.string(),
         startDate: z.string(),
         endDate: z.string().nullable(),
       })),
-    }))
-    .mutation(async ({ ctx, input }) => {
-      const localUserId = ctx.user.id;
-      const profileId = await ensureProfileForUser(localUserId);
-
-      await db.delete(educations).where(eq(educations.profileId, profileId));
-      if (input.educations.length > 0) {
-        await db.insert(educations).values(input.educations.map((item) => ({
-          id: randomUUID(),
-          profileId,
-          schoolName: item.schoolName,
-          degree: item.degree,
-          fieldOfStudy: item.fieldOfStudy || null,
-          startDate: item.startDate,
-          endDate: item.endDate ?? null,
-        })));
-      }
-
-      return fetchProfileSnapshot(localUserId, ctx.user.email);
-    }),
-
-  replaceTrainings: protectedProcedure
-    .input(z.object({
       trainings: z.array(z.object({
-        title: z.string().min(1),
-        providerName: z.string().min(1),
+        title: z.string(),
+        providerName: z.string(),
         issuedAt: z.string(),
         expiresAt: z.string().nullable(),
         credentialUrl: z.string(),
       })),
-    }))
-    .mutation(async ({ ctx, input }) => {
-      const localUserId = ctx.user.id;
-      const profileId = await ensureProfileForUser(localUserId);
-
-      await db.delete(trainings).where(eq(trainings.profileId, profileId));
-      if (input.trainings.length > 0) {
-        await db.insert(trainings).values(input.trainings.map((item) => ({
-          id: randomUUID(),
-          profileId,
-          title: item.title,
-          providerName: item.providerName,
-          issuedAt: item.issuedAt,
-          expiresAt: item.expiresAt ?? null,
-          credentialUrl: item.credentialUrl || null,
-        })));
-      }
-
-      return fetchProfileSnapshot(localUserId, ctx.user.email);
-    }),
-
-  saveCareerGoals: protectedProcedure
-    .input(
-      z.object({
-        currentJobTitle: z.string().max(255).nullable().optional(),
-        currentSalary: z.number().int().nullable().optional(),
-        targetJobTitle: z.string().max(255).nullable().optional(),
-        targetSalary: z.number().int().nullable().optional(),
-        targetSalaryMin: z.number().int().nullable().optional(),
-        targetSalaryMax: z.number().int().nullable().optional(),
-        targetSeniority: z.string().max(80).nullable().optional(),
+      careerGoals: z.object({
+        currentJobTitle: z.string().nullable().optional(),
+        currentSalary: z.number().nullable().optional(),
+        targetJobTitle: z.string().nullable().optional(),
+        targetSalary: z.number().nullable().optional(),
+        targetSalaryMin: z.number().nullable().optional(),
+        targetSalaryMax: z.number().nullable().optional(),
+        targetSeniority: z.string().nullable().optional(),
         workValues: z.array(z.string()).optional(),
-        autoApplyMinScore: z.number().int().min(50).max(100).optional(),
+        autoApplyMinScore: z.number().int().min(0).max(100).optional(),
         strategy: strategyPatchSchema.optional(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      console.log('[saveCareerGoals] START', { userId: ctx.user.id, input });
-
-      const localUserId = ctx.user.id;
-      await ensureCareerGoalsRow(localUserId);
-      console.log('[saveCareerGoals] ensureCareerGoalsRow completed');
-
-      const [row] = await db.select().from(careerGoals).where(eq(careerGoals.userId, localUserId)).limit(1);
-      console.log('[saveCareerGoals] existing row', row);
-
-      const prevStrategy = row ? normalizeStrategy(row.strategyJson) : {};
-      const normalizedStrategyPatch: ProfileStrategyJson | undefined = input.strategy
-        ? {
-          ...input.strategy,
-          roadmap: Array.isArray(input.strategy.roadmap)
-            ? input.strategy.roadmap.map((item) => ({
-              id: randomUUID(),
-              title: item.title,
-              status: item.done ? 'done' : 'not_started',
-            }))
-            : undefined,
-        }
-        : undefined;
-      const nextStrategy: ProfileStrategyJson = normalizedStrategyPatch ? { ...prevStrategy, ...normalizedStrategyPatch } : prevStrategy;
-
-      const updateData = {
-        ...(input.currentJobTitle !== undefined ? { currentJobTitle: input.currentJobTitle } : {}),
-        ...(input.currentSalary !== undefined ? { currentSalary: input.currentSalary } : {}),
-        ...(input.targetJobTitle !== undefined ? { targetJobTitle: input.targetJobTitle } : {}),
-        ...(input.targetSalary !== undefined ? { targetSalary: input.targetSalary } : {}),
-        ...(input.targetSalaryMin !== undefined ? { targetSalaryMin: input.targetSalaryMin } : {}),
-        ...(input.targetSalaryMax !== undefined ? { targetSalaryMax: input.targetSalaryMax } : {}),
-        ...(input.targetSeniority !== undefined ? { targetSeniority: input.targetSeniority } : {}),
-        ...(input.workValues !== undefined ? { workValues: workValuesToDb(input.workValues) } : {}),
-        ...(input.autoApplyMinScore !== undefined ? { autoApplyMinScore: input.autoApplyMinScore } : {}),
-        ...(input.strategy !== undefined ? { strategyJson: nextStrategy } : {}),
-        updatedAt: new Date(),
-      };
-
-      console.log('[saveCareerGoals] UPDATE data', updateData);
-
-      await db
-        .update(careerGoals)
-        .set(updateData)
-        .where(eq(careerGoals.userId, localUserId));
-
-      console.log('[saveCareerGoals] UPDATE completed, fetching snapshot');
-      const result = await fetchProfileSnapshot(localUserId, ctx.user.email);
-      console.log('[saveCareerGoals] SUCCESS, targetJobTitle in result:', result.careerGoals?.targetJobTitle);
-
-      return result;
-    }),
-
-  saveSocialConsents: protectedProcedure
-    .input(
-      z.object({
+      }).optional(),
+      socialConsents: z.object({
         linkedinConsent: z.boolean().optional(),
         facebookConsent: z.boolean().optional(),
         instagramConsent: z.boolean().optional(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const localUserId = ctx.user.id;
-      await ensureSocialConsentsRow(localUserId);
-      const [prev] = await db.select().from(socialConsents).where(eq(socialConsents.userId, localUserId)).limit(1);
-      if (!prev) return fetchProfileSnapshot(localUserId, ctx.user.email);
-
-      const nextLi = input.linkedinConsent ?? prev.linkedinConsent;
-      const nextFb = input.facebookConsent ?? prev.facebookConsent;
-      const nextIg = input.instagramConsent ?? prev.instagramConsent;
-
-      await db
-        .update(socialConsents)
-        .set({
-          linkedinConsent: nextLi,
-          facebookConsent: nextFb,
-          instagramConsent: nextIg,
-          linkedinGrantedAt:
-            input.linkedinConsent === true && !prev.linkedinConsent
-              ? new Date()
-              : input.linkedinConsent === false
-                ? null
-                : prev.linkedinGrantedAt,
-          facebookGrantedAt:
-            input.facebookConsent === true && !prev.facebookConsent
-              ? new Date()
-              : input.facebookConsent === false
-                ? null
-                : prev.facebookGrantedAt,
-          instagramGrantedAt:
-            input.instagramConsent === true && !prev.instagramConsent
-              ? new Date()
-              : input.instagramConsent === false
-                ? null
-                : prev.instagramGrantedAt,
-          updatedAt: new Date(),
-        })
-        .where(eq(socialConsents.userId, localUserId));
-
-      return fetchProfileSnapshot(localUserId, ctx.user.email);
-    }),
-
-  savePreferenceFlags: protectedProcedure
-    .input(
-      z.object({
+      }).optional(),
+      preferenceFlags: z.object({
         caseStudyOptIn: z.boolean().optional(),
         communityVisibility: z.boolean().optional(),
         referralParticipation: z.boolean().optional(),
         sharedSessionsDiscoverable: z.boolean().optional(),
         aiPersonalizationEnabled: z.boolean().optional(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const localUserId = ctx.user.id;
-      await ensurePreferenceFlagsRow(localUserId);
-      const [prev] = await db.select().from(userPreferenceFlags).where(eq(userPreferenceFlags.userId, localUserId)).limit(1);
-      if (!prev) return fetchProfileSnapshot(localUserId, ctx.user.email);
-
-      await db
-        .update(userPreferenceFlags)
-        .set({
-          caseStudyOptIn: input.caseStudyOptIn ?? prev.caseStudyOptIn,
-          communityVisibility: input.communityVisibility ?? prev.communityVisibility,
-          referralParticipation: input.referralParticipation ?? prev.referralParticipation,
-          sharedSessionsDiscoverable: input.sharedSessionsDiscoverable ?? prev.sharedSessionsDiscoverable,
-          aiPersonalizationEnabled: input.aiPersonalizationEnabled ?? prev.aiPersonalizationEnabled,
-          updatedAt: new Date(),
-        })
-        .where(eq(userPreferenceFlags.userId, localUserId));
-
-      return fetchProfileSnapshot(localUserId, ctx.user.email);
-    }),
-
-  // ── Legacy procedures (kept for backwards compatibility) ──────────────────
-
-  getExperience: publicProcedure
-    .input(z.object({ userId: z.string().min(1) }))
-    .query(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
-      const localUserId = userRecord[0]?.id;
-      if (!localUserId) return [];
-      const profileRecord = await db.select({ id: profiles.id }).from(profiles).where(eq(profiles.userId, localUserId)).limit(1);
-      const profileId = profileRecord[0]?.id;
-      if (!profileId) return [];
-      return db.select().from(experiences).where(eq(experiences.profileId, profileId));
-    }),
-
-  saveExperience: publicProcedure
-    .input(z.object({
-      userId: z.string().min(1),
-      items: z.array(z.object({
-        id: z.string().optional(),
-        employerName: z.string().min(1),
-        jobTitle: z.string().min(1),
-        startDate: z.string().optional(),
-        endDate: z.string().optional(),
-        description: z.string().optional(),
-        achievements: z.array(z.string()).optional(),
-      })),
-    }))
-    .mutation(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
-      const localUserId = userRecord[0]?.id;
-      if (!localUserId) return { success: false };
-      const profileRecord = await db.select({ id: profiles.id }).from(profiles).where(eq(profiles.userId, localUserId)).limit(1);
-      const profileId = profileRecord[0]?.id;
-      if (!profileId) return { success: false };
-      await db.delete(experiences).where(eq(experiences.profileId, profileId));
-      if (input.items.length > 0) {
-        await db.insert(experiences).values(input.items.map((item) => ({
-          id: item.id ?? randomUUID(),
-          profileId,
-          employerName: item.employerName,
-          jobTitle: item.jobTitle,
-          startDate: item.startDate ?? '',
-          endDate: item.endDate ?? null,
-          description: item.description ?? '',
-          achievements: normalizeAchievements(item.achievements),
-        })));
-      }
-      return { success: true };
-    }),
-
-  getEducation: publicProcedure
-    .input(z.object({ userId: z.string().min(1) }))
-    .query(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
-      const localUserId = userRecord[0]?.id;
-      if (!localUserId) return [];
-      const profileRecord = await db.select({ id: profiles.id }).from(profiles).where(eq(profiles.userId, localUserId)).limit(1);
-      const profileId = profileRecord[0]?.id;
-      if (!profileId) return [];
-      return db.select().from(educations).where(eq(educations.profileId, profileId));
-    }),
-
-  saveEducation: publicProcedure
-    .input(z.object({
-      userId: z.string().min(1),
-      items: z.array(z.object({
-        id: z.string().optional(),
-        schoolName: z.string().min(1),
-        degree: z.string().min(1),
-        fieldOfStudy: z.string().optional(),
-        startDate: z.string().optional(),
-        endDate: z.string().optional(),
-      })),
-    }))
-    .mutation(async ({ input }) => {
-      const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
-      const localUserId = userRecord[0]?.id;
-      if (!localUserId) return { success: false };
-      const profileRecord = await db.select({ id: profiles.id }).from(profiles).where(eq(profiles.userId, localUserId)).limit(1);
-      const profileId = profileRecord[0]?.id;
-      if (!profileId) return { success: false };
-      await db.delete(educations).where(eq(educations.profileId, profileId));
-      if (input.items.length > 0) {
-        await db.insert(educations).values(input.items.map((item) => ({
-          id: item.id ?? randomUUID(),
-          profileId,
-          schoolName: item.schoolName,
-          degree: item.degree,
-          fieldOfStudy: item.fieldOfStudy ?? null,
-          startDate: item.startDate ?? '',
-          endDate: item.endDate ?? null,
-        })));
-      }
-      return { success: true };
-    }),
-
-  /**
-   * Generates an AI career roadmap from the user's profile toward their dream role.
-   * Writes the milestones + learning path into careerGoals.strategyJson without
-   * overwriting other fields. Returns the refreshed ProfileSnapshot so the UI
-   * can render immediately.
-   */
-  generateAiRoadmap: protectedProcedure
-    .input(
-      z.object({
-        targetRole: z.string().max(255).nullable().optional(),
-        targetSeniority: z.string().max(80).nullable().optional(),
       }).optional(),
-    )
+    }))
     .mutation(async ({ ctx, input }) => {
-      const localUserId = ctx.user.id;
-      const snapshot = await fetchProfileSnapshot(localUserId, ctx.user.email);
+      const clerkId = ctx.auth.userId!;
+      const row = await db.select().from(users).where(eq(users.clerkId, clerkId)).limit(1);
+      if (!row[0]) throw new Error('User not found');
+      const localUserId = row[0].id;
 
-      const targetRole = input?.targetRole?.trim() || snapshot.careerGoals?.targetJobTitle || null;
-      const targetSeniority = input?.targetSeniority?.trim() || snapshot.careerGoals?.targetSeniority || null;
-      const currentRole = snapshot.careerGoals?.currentJobTitle || snapshot.experiences[0]?.jobTitle || null;
-
-      const generated = await generateProfileRoadmap({
-        targetRole,
-        targetSeniority,
-        currentRole,
-        skills: snapshot.skills,
-        experiences: snapshot.experiences.map((e) => ({ jobTitle: e.jobTitle, employerName: e.employerName, description: e.description })),
-        educations: snapshot.educations.map((e) => ({ degree: e.degree, fieldOfStudy: e.fieldOfStudy, schoolName: e.schoolName })),
-        trainings: snapshot.trainings.map((t) => ({ title: t.title, providerName: t.providerName })),
-        workValues: snapshot.careerGoals?.workValues ?? [],
-      });
-
+      const profileId = await ensureProfileForUser(localUserId);
       await ensureCareerGoalsRow(localUserId);
-      const [row] = await db.select().from(careerGoals).where(eq(careerGoals.userId, localUserId)).limit(1);
-      const prevStrategy = row ? normalizeStrategy(row.strategyJson) : {};
-      const nextStrategy: ProfileStrategyJson = {
-        ...prevStrategy,
-        roadmap: generated.milestones,
-        potentialLearningPath: generated.learningPath,
-      };
+      await ensureSocialConsentsRow(localUserId);
+      await ensurePreferenceFlagsRow(localUserId);
 
-      await db
-        .update(careerGoals)
-        .set({ strategyJson: nextStrategy, updatedAt: new Date() })
-        .where(eq(careerGoals.userId, localUserId));
+      // Update profile main record
+      await db.update(profiles).set({
+        fullName: input.personalInfo.fullName,
+        phone: input.personalInfo.phone,
+        location: input.personalInfo.location,
+        headline: input.personalInfo.headline,
+        summary: input.personalInfo.summary,
+        linkedinUrl: input.personalInfo.linkedinUrl,
+        cvUrl: input.personalInfo.cvUrl,
+      }).where(eq(profiles.id, profileId));
 
-      return fetchProfileSnapshot(localUserId, ctx.user.email);
+      // Replace skills
+      await db.delete(skills).where(eq(skills.profileId, profileId));
+      const cleanedSkills = input.skills.map((s) => s.trim()).filter(Boolean);
+      if (cleanedSkills.length) {
+        await db.insert(skills).values(cleanedSkills.map((name) => ({ id: randomUUID(), profileId, name })));
+      }
+
+      // Replace experiences
+      await db.delete(experiences).where(eq(experiences.profileId, profileId));
+      if (input.experiences.length) {
+        await db.insert(experiences).values(input.experiences.map((e) => ({
+          id: randomUUID(),
+          profileId,
+          employerName: e.employerName,
+          jobTitle: e.jobTitle,
+          startDate: e.startDate,
+          endDate: e.endDate ?? null,
+          description: e.description,
+          achievements: normalizeAchievements(e.achievements),
+        })));
+      }
+
+      // Replace educations
+      await db.delete(educations).where(eq(educations.profileId, profileId));
+      if (input.educations.length) {
+        await db.insert(educations).values(input.educations.map((e) => ({
+          id: randomUUID(),
+          profileId,
+          schoolName: e.schoolName,
+          degree: e.degree,
+          fieldOfStudy: e.fieldOfStudy,
+          startDate: e.startDate,
+          endDate: e.endDate ?? null,
+        })));
+      }
+
+      // Replace trainings
+      await db.delete(trainings).where(eq(trainings.profileId, profileId));
+      if (input.trainings.length) {
+        await db.insert(trainings).values(input.trainings.map((t) => ({
+          id: randomUUID(),
+          profileId,
+          title: t.title,
+          providerName: t.providerName,
+          issuedAt: t.issuedAt,
+          expiresAt: t.expiresAt ?? null,
+          credentialUrl: t.credentialUrl,
+        })));
+      }
+
+      if (input.careerGoals) {
+        const current = await db.select().from(careerGoals).where(eq(careerGoals.userId, localUserId)).limit(1);
+        const currentRow = current[0];
+        const nextStrategy = {
+          ...(currentRow?.strategyJson && typeof currentRow.strategyJson === 'object' ? currentRow.strategyJson : {}),
+          ...(input.careerGoals.strategy ? normalizeStrategy(input.careerGoals.strategy) : {}),
+        };
+        await db.update(careerGoals).set({
+          currentJobTitle: input.careerGoals.currentJobTitle ?? currentRow?.currentJobTitle ?? null,
+          currentSalary: input.careerGoals.currentSalary ?? currentRow?.currentSalary ?? null,
+          targetJobTitle: input.careerGoals.targetJobTitle ?? currentRow?.targetJobTitle ?? null,
+          targetSalary: input.careerGoals.targetSalary ?? currentRow?.targetSalary ?? null,
+          targetSalaryMin: input.careerGoals.targetSalaryMin ?? currentRow?.targetSalaryMin ?? null,
+          targetSalaryMax: input.careerGoals.targetSalaryMax ?? currentRow?.targetSalaryMax ?? null,
+          targetSeniority: input.careerGoals.targetSeniority ?? currentRow?.targetSeniority ?? null,
+          workValues: input.careerGoals.workValues ? workValuesToDb(input.careerGoals.workValues) : currentRow?.workValues ?? null,
+          autoApplyMinScore: input.careerGoals.autoApplyMinScore ?? currentRow?.autoApplyMinScore ?? 75,
+          strategyJson: nextStrategy,
+        }).where(eq(careerGoals.userId, localUserId));
+      }
+
+      if (input.socialConsents) {
+        const current = await db.select().from(socialConsents).where(eq(socialConsents.userId, localUserId)).limit(1);
+        const rowSocial = current[0];
+        await db.update(socialConsents).set({
+          linkedinConsent: input.socialConsents.linkedinConsent ?? rowSocial?.linkedinConsent ?? false,
+          facebookConsent: input.socialConsents.facebookConsent ?? rowSocial?.facebookConsent ?? false,
+          instagramConsent: input.socialConsents.instagramConsent ?? rowSocial?.instagramConsent ?? false,
+        }).where(eq(socialConsents.userId, localUserId));
+      }
+
+      if (input.preferenceFlags) {
+        const current = await db.select().from(userPreferenceFlags).where(eq(userPreferenceFlags.userId, localUserId)).limit(1);
+        const rowPref = current[0];
+        await db.update(userPreferenceFlags).set({
+          caseStudyOptIn: input.preferenceFlags.caseStudyOptIn ?? rowPref?.caseStudyOptIn ?? false,
+          communityVisibility: input.preferenceFlags.communityVisibility ?? rowPref?.communityVisibility ?? false,
+          referralParticipation: input.preferenceFlags.referralParticipation ?? rowPref?.referralParticipation ?? true,
+          sharedSessionsDiscoverable: input.preferenceFlags.sharedSessionsDiscoverable ?? rowPref?.sharedSessionsDiscoverable ?? false,
+          aiPersonalizationEnabled: input.preferenceFlags.aiPersonalizationEnabled ?? rowPref?.aiPersonalizationEnabled ?? true,
+        }).where(eq(userPreferenceFlags.userId, localUserId));
+      }
+
+      return { ok: true, profileId };
     }),
+
+  getMatchContext: protectedProcedure.query(async ({ ctx }) => {
+    const clerkId = ctx.auth.userId!;
+    const row = await db.select().from(users).where(eq(users.clerkId, clerkId)).limit(1);
+    if (!row[0]) {
+      return {
+        workValues: [],
+        minAutoApplyScore: 75,
+        targetJobTitle: null,
+        targetSeniority: null,
+        targetSalaryMin: null,
+        targetSalaryMax: null,
+        blockedAreas: [],
+      };
+    }
+    return getProfileMatchContextByLocalId(row[0].id);
+  }),
+
+  isJobBlocked: protectedProcedure
+    .input(z.object({
+      title: z.string().optional(),
+      description: z.string().optional(),
+      company: z.string().optional(),
+      location: z.string().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const clerkId = ctx.auth.userId!;
+      const row = await db.select().from(users).where(eq(users.clerkId, clerkId)).limit(1);
+      if (!row[0]) return { blocked: false, reasons: [] as string[] };
+      const context = await getProfileMatchContextByLocalId(row[0].id);
+      return isBlockedJob(context, input);
+    }),
+
+  getRoadmap: protectedProcedure.query(async ({ ctx }) => {
+    const clerkId = ctx.auth.userId!;
+    const userRows = await db.select().from(users).where(eq(users.clerkId, clerkId)).limit(1);
+    const userRow = userRows[0];
+    if (!userRow) {
+      return { roadmap: [], workValues: [], targetJobTitle: null };
+    }
+    const snapshot = await fetchProfileSnapshot(userRow.id, userRow.email);
+    return generateProfileRoadmap({
+      profile: {
+        summary: snapshot.personalInfo.summary,
+        skills: snapshot.skills,
+        workValues: snapshot.careerGoals?.workValues,
+        targetJobTitle: snapshot.careerGoals?.targetJobTitle,
+        targetSalary: snapshot.careerGoals?.targetSalary,
+      },
+    });
+  }),
 });
