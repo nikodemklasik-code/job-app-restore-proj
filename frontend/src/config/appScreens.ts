@@ -43,7 +43,7 @@ export const APP_SCREENS: Record<AppScreenKey, AppScreenDefinition> = {
   jobs: { key: 'jobs', label: 'Jobs', path: '/jobs', topLevel: true, showInSidebar: true },
   jobRadar: { key: 'jobRadar', label: 'Job Radar', path: '/job-radar', topLevel: false, parentKey: 'jobs', showInSidebar: false },
   applications: { key: 'applications', label: 'Applications', path: '/applications', topLevel: true, showInSidebar: true },
-  applicationsReview: { key: 'applicationsReview', label: 'Applications Review', path: '/applications-review', topLevel: true, showInSidebar: true },
+  applicationsReview: { key: 'applicationsReview', label: 'Applications Review', path: '/applications?mode=review', topLevel: false, parentKey: 'applications', showInSidebar: false },
   assistant: { key: 'assistant', label: 'AI Assistant', path: '/assistant', topLevel: true, showInSidebar: true },
   dailyWarmup: { key: 'dailyWarmup', label: 'Daily Warm-up', path: '/warmup', topLevel: true, showInSidebar: true },
   interview: { key: 'interview', label: 'Interview', path: '/interview', topLevel: true, showInSidebar: true },
@@ -68,7 +68,6 @@ export const SIDEBAR_SCREEN_ORDER: AppScreenKey[] = [
   'documentHub',
   'jobs',
   'applications',
-  'applicationsReview',
   'assistant',
   'dailyWarmup',
   'interview',
@@ -86,7 +85,7 @@ export const SIDEBAR_SCREEN_ORDER: AppScreenKey[] = [
 ];
 
 export const LEGACY_ROUTE_REDIRECTS: Array<{ from: string; to: string }> = [
-  { from: '/review', to: APP_SCREENS.applicationsReview.path },
+  { from: '/review', to: '/applications?mode=review' },
   { from: '/case-practice', to: APP_SCREENS.caseStudy.path },
   { from: '/salary', to: APP_SCREENS.salaryCalculator.path },
   { from: '/auto-apply', to: APP_SCREENS.autoApply.path },
@@ -96,4 +95,5 @@ export const LEGACY_ROUTE_REDIRECTS: Array<{ from: string; to: string }> = [
   { from: '/settings/community', to: APP_SCREENS.communityCenter.path },
   { from: '/ai-analysis', to: APP_SCREENS.reports.path },
   { from: '/jobs/radar', to: APP_SCREENS.jobRadar.path },
+  { from: '/applications-review', to: '/applications?mode=review' },
 ];
