@@ -1,27 +1,17 @@
-/**
- * CWJobs Provider
- * UK leader for IT, infrastructure and development roles
- * Method: Browser/Scraping (no public API)
- */
-
-import type { JobSourceProvider, ProviderContext, SourceJob } from '../types.js';
+import type { DiscoveryInput, JobSourceProvider, ProviderContext, SourceJob } from '../types.js';
 
 export class CWJobsProvider implements JobSourceProvider {
-  name = 'cwjobs' as const;
-  requiresSession = false;
+  name = 'cwjobs';
+  label = 'CWJobs';
 
-  async search(ctx: ProviderContext): Promise<SourceJob[]> {
-    // CWJobs doesn't have public API
-    // Implementation would require:
-    // 1. RSS feed parsing (if available)
-    // 2. Or integration with aggregator API (JSearch, SerpApi)
-    // 3. Or browser automation (Playwright)
-    
-    console.log('[CWJobsProvider] Search not yet implemented - requires RSS or aggregator integration');
-    return [];
+  async readiness(): Promise<{ ready: boolean; reason?: string }> {
+    return {
+      ready: false,
+      reason: 'CWJobs provider is registered as a catalogue placeholder; RSS or aggregator integration is not implemented yet.',
+    };
   }
 
-  async isHealthy(): Promise<boolean> {
-    return true; // Placeholder
+  async discover(_input: DiscoveryInput, _context?: ProviderContext): Promise<SourceJob[]> {
+    return [];
   }
 }
