@@ -34,7 +34,26 @@ W takim przypadku agent musi w raporcie lub wiadomości przekazania wskazać:
 - listę zmienionych plików,
 - zakres zweryfikowany statycznie,
 - czego nie dało się uruchomić lokalnie,
-- ręczne komendy do odpalenia przez operatora, np. `pnpm install`, `pnpm build`, `pnpm test`, zależnie od dostępnych skryptów repo.
+- ręczne komendy do odpalenia przez operatora, zależnie od dostępnych skryptów repo.
+
+Minimalny zestaw komend dla tego repo:
+
+```bash
+npm install
+npm run build
+npm run test:backend
+npm run test:frontend
+npm run smoke:local
+```
+
+Komendy rozbite per workspace, gdy trzeba zawęzić problem:
+
+```bash
+npm run build:backend
+npm run build:frontend
+cd backend && npm run test
+cd frontend && npm run test
+```
 
 Dla pipeline `Document Intake / Document Hub -> CV parse -> review diff -> approved Profile` ostatnia zdalna weryfikacja oznacza: kod został zacommitowany na `gptupdate`, ale finalny status integracyjny wymaga ręcznego builda/operator smoke testu, ponieważ w sesji wykonawczej nie było dostępnego lokalnego checkoutu. Tak, nawet komputery czasem potrzebują kartki z informacją „sprawdź ręcznie”, bo najwyraźniej automatyzacja też lubi urlop.
 
