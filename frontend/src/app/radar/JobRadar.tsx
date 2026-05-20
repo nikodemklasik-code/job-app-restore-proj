@@ -70,6 +70,25 @@ function radarReason(job: JobResult): string {
   return 'Worth a first-pass screen before you commit time.';
 }
 
+function JobsSectionTabs() {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Link
+        to="/jobs"
+        className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/10"
+      >
+        Jobs Search
+      </Link>
+      <Link
+        to="/job-radar"
+        className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition"
+      >
+        Job Radar
+      </Link>
+    </div>
+  );
+}
+
 export default function JobRadar() {
   const { user } = useUser();
   const userId = user?.id;
@@ -121,23 +140,25 @@ export default function JobRadar() {
           <div className="max-w-3xl">
             <p className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-cyan-200">
               <Radar className="h-3.5 w-3.5" />
-              Job Radar
+              Jobs · Radar Mode
             </p>
-            <h1 className="mt-3 text-3xl font-bold text-white md:text-4xl">Live Opportunity Signals, Saved Leads, And Deep Review Entry Points</h1>
+            <h1 className="mt-3 text-3xl font-bold text-white md:text-4xl">Review The Strongest Leads Before They Eat Your Time</h1>
             <p className="mt-3 text-sm text-slate-300 md:text-base">
-              Job Radar is not a plain job board. It is your opportunity-intelligence layer: what looks strong, what changed,
-              what deserves a scan, and what should probably not waste your time.
+              Jobs Search is for breadth. Job Radar is for depth: fit signals, risk checks, saved leads, and recent scans that deserve a deeper look.
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[340px]">
-            <Link to={derivedQuery ? `/jobs?q=${encodeURIComponent(derivedQuery)}&loc=${encodeURIComponent('United Kingdom')}` : '/jobs'} className="rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition hover:bg-cyan-500/15">
-              <div className="flex items-center gap-2"><Search className="h-4 w-4" /> Open Opportunities</div>
-              <p className="mt-1 text-xs font-normal text-cyan-100/80">{derivedQuery || 'Open Jobs and start searching.'}</p>
-            </Link>
-            <Link to="/jobs/saved" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
-              <div className="flex items-center gap-2"><Bookmark className="h-4 w-4" /> Saved Leads</div>
-              <p className="mt-1 text-xs font-normal text-slate-400">Review saved jobs and start deep scans.</p>
-            </Link>
+          <div className="space-y-3 xl:min-w-[340px]">
+            <JobsSectionTabs />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Link to={derivedQuery ? `/jobs?q=${encodeURIComponent(derivedQuery)}&loc=${encodeURIComponent('United Kingdom')}` : '/jobs'} className="rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition hover:bg-cyan-500/15">
+                <div className="flex items-center gap-2"><Search className="h-4 w-4" /> Back To Search</div>
+                <p className="mt-1 text-xs font-normal text-cyan-100/80">{derivedQuery || 'Open Jobs and start searching.'}</p>
+              </Link>
+              <Link to="/jobs/saved" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+                <div className="flex items-center gap-2"><Bookmark className="h-4 w-4" /> Saved Leads</div>
+                <p className="mt-1 text-xs font-normal text-slate-400">Review saved jobs and start deep scans.</p>
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -226,7 +247,7 @@ export default function JobRadar() {
             ) : (
               <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.03] p-10 text-center">
                 <p className="text-base font-semibold text-white">No active opportunity feed yet</p>
-                <p className="mt-2 text-sm text-slate-500">Set a target role on Profile, then open Jobs to load live listings.</p>
+                <p className="mt-2 text-sm text-slate-500">Set a target role on Profile, then open Jobs Search to load live listings.</p>
               </div>
             )}
           </section>
@@ -239,7 +260,7 @@ export default function JobRadar() {
               </div>
               <div className="mt-4 space-y-3">
                 {(recentScansQuery.data ?? []).length === 0 ? (
-                  <p className="text-sm text-slate-500">No scans yet. Start one from Jobs or Saved Leads.</p>
+                  <p className="text-sm text-slate-500">No scans yet. Start one from Jobs Search or Saved Leads.</p>
                 ) : (
                   recentScansQuery.data?.map((scan) => (
                     <Link key={scan.scanId} to={`/jobs/radar/${scan.scanId}`} className="block rounded-2xl border border-white/10 bg-black/15 p-4 transition hover:bg-white/5">
@@ -261,7 +282,7 @@ export default function JobRadar() {
                 <h2 className="text-lg font-semibold text-white">Radar Guidance</h2>
               </div>
               <ul className="mt-4 space-y-3 text-sm text-slate-300">
-                <li className="rounded-2xl border border-white/10 bg-black/15 p-3">Use Jobs for fast search. Use Job Radar when a listing is strong enough to deserve a deep scan.</li>
+                <li className="rounded-2xl border border-white/10 bg-black/15 p-3">Use Jobs Search for fast discovery. Use Job Radar when a listing is strong enough to deserve a deep scan.</li>
                 <li className="rounded-2xl border border-white/10 bg-black/15 p-3">Prioritise high fit + new, then salary-visible roles, then suspicious listings that need review.</li>
                 <li className="rounded-2xl border border-white/10 bg-black/15 p-3">Saved leads should not become a graveyard. Either scan them, apply, or remove them.</li>
               </ul>
