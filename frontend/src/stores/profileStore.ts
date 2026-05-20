@@ -29,6 +29,19 @@ type ProfilePreferencesSnapshot = {
   hobbies?: ProfileHobbyInput[];
 };
 
+type CareerGoalsInput = {
+  currentJobTitle?: string | null;
+  currentSalary?: number | null;
+  targetJobTitle?: string | null;
+  targetSalary?: number | null;
+  targetSalaryMin?: number | null;
+  targetSalaryMax?: number | null;
+  targetSeniority?: string | null;
+  workValues?: string[];
+  autoApplyMinScore?: number;
+  strategy?: Record<string, unknown>;
+};
+
 function mergeProfilePreferences(
   profile: ProfileSnapshot,
   preferences?: ProfilePreferencesSnapshot,
@@ -70,6 +83,52 @@ async function loadOptionalProfilePreferences(): Promise<ProfilePreferencesSnaps
   }
 }
 
+function updatePayloadFromSnapshot(profile: ProfileSnapshot, overrides: Partial<{
+  personalInfo: PersonalInfo;
+  skills: string[];
+  experiences: ProfileExperienceInput[];
+  educations: ProfileEducationInput[];
+  trainings: ProfileTrainingInput[];
+  careerGoals: CareerGoalsInput;
+}>) {
+  const personalInfo = overrides.personalInfo ?? profile.personalInfo;
+  return {
+    personalInfo: {
+      fullName: personalInfo.fullName,
+      phone: personalInfo.phone,
+      location: personalInfo.location,
+      headline: personalInfo.headline,
+      summary: personalInfo.summary,
+      linkedinUrl: personalInfo.linkedinUrl,
+      cvUrl: personalInfo.cvUrl,
+    },
+    skills: overrides.skills ?? profile.skills ?? [],
+    experiences: overrides.experiences ?? (profile.experiences ?? []).map(({ employerName, jobTitle, startDate, endDate, description, achievements }) => ({
+      employerName,
+      jobTitle,
+      startDate,
+      endDate,
+      description,
+      achievements: achievements ?? [],
+    })),
+    educations: overrides.educations ?? (profile.educations ?? []).map(({ schoolName, degree, fieldOfStudy, startDate, endDate }) => ({
+      schoolName,
+      degree,
+      fieldOfStudy,
+      startDate,
+      endDate,
+    })),
+    trainings: overrides.trainings ?? (profile.trainings ?? []).map(({ title, providerName, issuedAt, expiresAt, credentialUrl }) => ({
+      title,
+      providerName,
+      issuedAt,
+      expiresAt,
+      credentialUrl,
+    })),
+    careerGoals: overrides.careerGoals,
+  };
+}
+
 interface ProfileStore {
   profile: ProfileSnapshot | null;
   isLoadingProfile: boolean;
@@ -81,18 +140,7 @@ interface ProfileStore {
   replaceExperiences: (experiences: ProfileExperienceInput[]) => Promise<void>;
   replaceEducations: (educations: ProfileEducationInput[]) => Promise<void>;
   replaceTrainings: (trainings: ProfileTrainingInput[]) => Promise<void>;
-  saveCareerGoals: (data: {
-    currentJobTitle?: string | null;
-    currentSalary?: number | null;
-    targetJobTitle?: string | null;
-    targetSalary?: number | null;
-    targetSalaryMin?: number | null;
-    targetSalaryMax?: number | null;
-    targetSeniority?: string | null;
-    workValues?: string[];
-    autoApplyMinScore?: number;
-    strategy?: Record<string, unknown>;
-  }) => Promise<void>;
+  saveCareerGoals: (data: CareerGoalsInput) => Promise<void>;
   saveWorkSetup: (data: {
     workModePreferences: WorkModePreference[];
     employmentTypePreferences: EmploymentTypePreference[];
@@ -132,8 +180,11 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   async savePersonalInfo(data) {
     set({ isSaving: true, error: null });
     try {
-      const updated = await trpcClient.profile.savePersonalInfo.mutate(data);
-      set({ profile: mergeProfilePreferences(updated, get().profile ?? undefined) });
+      const current = get().profile;
+      if (!current) throw new Error('Profile is not loaded');
+      await trpcClient.profile.updateProfile.mutate(updatePayloadFromSnapshot(current, { personalInfo: data }));
+      const refreshed = await trpcClient.profile.getProfile.query();
+      set({ profile: mergeProfilePreferences(refreshed, current) });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save personal info' });
     } finally {
@@ -141,11 +192,14 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     }
   },
 
-  async saveSkills(skills) {
+  async saveSkills(nextSkills) {
     set({ isSaving: true, error: null });
     try {
-      const updated = await trpcClient.profile.saveSkills.mutate({ skills });
-      set({ profile: mergeProfilePreferences(updated, get().profile ?? undefined) });
+      const current = get().profile;
+      if (!current) throw new Error('Profile is not loaded');
+      await trpcClient.profile.updateProfile.mutate(updatePayloadFromSnapshot(current, { skills: nextSkills }));
+      const refreshed = await trpcClient.profile.getProfile.query();
+      set({ profile: mergeProfilePreferences(refreshed, current) });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save skills' });
     } finally {
@@ -153,11 +207,14 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     }
   },
 
-  async replaceExperiences(experiences) {
+  async replaceExperiences(nextExperiences) {
     set({ isSaving: true, error: null });
     try {
-      const updated = await trpcClient.profile.replaceExperiences.mutate({ experiences });
-      set({ profile: mergeProfilePreferences(updated, get().profile ?? undefined) });
+      const current = get().profile;
+      if (!current) throw new Error('Profile is not loaded');
+      await trpcClient.profile.updateProfile.mutate(updatePayloadFromSnapshot(current, { experiences: nextExperiences }));
+      const refreshed = await trpcClient.profile.getProfile.query();
+      set({ profile: mergeProfilePreferences(refreshed, current) });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save experiences' });
     } finally {
@@ -165,11 +222,14 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     }
   },
 
-  async replaceEducations(educations) {
+  async replaceEducations(nextEducations) {
     set({ isSaving: true, error: null });
     try {
-      const updated = await trpcClient.profile.replaceEducations.mutate({ educations });
-      set({ profile: mergeProfilePreferences(updated, get().profile ?? undefined) });
+      const current = get().profile;
+      if (!current) throw new Error('Profile is not loaded');
+      await trpcClient.profile.updateProfile.mutate(updatePayloadFromSnapshot(current, { educations: nextEducations }));
+      const refreshed = await trpcClient.profile.getProfile.query();
+      set({ profile: mergeProfilePreferences(refreshed, current) });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save educations' });
     } finally {
@@ -177,11 +237,14 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     }
   },
 
-  async replaceTrainings(trainings) {
+  async replaceTrainings(nextTrainings) {
     set({ isSaving: true, error: null });
     try {
-      const updated = await trpcClient.profile.replaceTrainings.mutate({ trainings });
-      set({ profile: mergeProfilePreferences(updated, get().profile ?? undefined) });
+      const current = get().profile;
+      if (!current) throw new Error('Profile is not loaded');
+      await trpcClient.profile.updateProfile.mutate(updatePayloadFromSnapshot(current, { trainings: nextTrainings }));
+      const refreshed = await trpcClient.profile.getProfile.query();
+      set({ profile: mergeProfilePreferences(refreshed, current) });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save trainings' });
     } finally {
@@ -192,8 +255,11 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   async saveCareerGoals(data) {
     set({ isSaving: true, error: null });
     try {
-      const updated = await trpcClient.profile.saveCareerGoals.mutate(data);
-      set({ profile: mergeProfilePreferences(updated, get().profile ?? undefined) });
+      const current = get().profile;
+      if (!current) throw new Error('Profile is not loaded');
+      await trpcClient.profile.updateProfile.mutate(updatePayloadFromSnapshot(current, { careerGoals: data }));
+      const refreshed = await trpcClient.profile.getProfile.query();
+      set({ profile: mergeProfilePreferences(refreshed, current) });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save career goals' });
     } finally {
@@ -206,9 +272,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     try {
       const preferredWorkSetup = await trpcClient.profilePreferences.saveWorkSetup.mutate(data);
       const current = get().profile;
-      if (current) {
-        set({ profile: mergeProfilePreferences(current, { preferredWorkSetup }) });
-      }
+      if (current) set({ profile: mergeProfilePreferences(current, { preferredWorkSetup }) });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save work preferences' });
     } finally {
@@ -221,9 +285,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     try {
       const updatedLanguages = await trpcClient.profilePreferences.replaceLanguages.mutate({ languages });
       const current = get().profile;
-      if (current) {
-        set({ profile: mergeProfilePreferences(current, { languages: updatedLanguages }) });
-      }
+      if (current) set({ profile: mergeProfilePreferences(current, { languages: updatedLanguages }) });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save languages' });
     } finally {
@@ -236,9 +298,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     try {
       const updatedHobbies = await trpcClient.profilePreferences.replaceHobbies.mutate({ hobbies });
       const current = get().profile;
-      if (current) {
-        set({ profile: mergeProfilePreferences(current, { hobbies: updatedHobbies }) });
-      }
+      if (current) set({ profile: mergeProfilePreferences(current, { hobbies: updatedHobbies }) });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save hobbies' });
     } finally {
@@ -249,8 +309,13 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   async generateAiRoadmap(overrides) {
     set({ isSaving: true, error: null });
     try {
-      const updated = await trpcClient.profile.generateAiRoadmap.mutate(overrides ?? {});
-      set({ profile: mergeProfilePreferences(updated, get().profile ?? undefined) });
+      const api = trpcClient as unknown as { profile: { generateAiRoadmap?: { mutate: (input: unknown) => Promise<ProfileSnapshot> } } };
+      if (api.profile.generateAiRoadmap) {
+        const updated = await api.profile.generateAiRoadmap.mutate(overrides ?? {});
+        set({ profile: mergeProfilePreferences(updated, get().profile ?? undefined) });
+      } else {
+        await get().loadProfile();
+      }
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to generate AI roadmap' });
     } finally {
