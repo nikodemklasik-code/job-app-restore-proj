@@ -7,6 +7,12 @@ import { db } from '../../db/index.js';
 import { cvUploads, profiles, skills, experiences, educations, trainings, users, careerGoals } from '../../db/schema.js';
 import { parseCvFromFile } from '../../services/cvParser.js';
 
+type PersonalFieldKey = 'fullName' | 'email' | 'phone' | 'headline' | 'location' | 'linkedinUrl' | 'summary';
+type SectionKey = 'skills' | 'experiences' | 'educations' | 'trainings';
+
+const PERSONAL_FIELDS: PersonalFieldKey[] = ['fullName', 'email', 'phone', 'headline', 'location', 'linkedinUrl', 'summary'];
+const SECTION_KEYS: SectionKey[] = ['skills', 'experiences', 'educations', 'trainings'];
+
 function cleanText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -18,12 +24,6 @@ function normalizeValue(value: string | null | undefined): string {
 function normalizeList(values: unknown): string[] {
   if (!Array.isArray(values)) return [];
   return values.map((value) => cleanText(value)).filter(Boolean);
-}
-
-function hasValue(value: unknown): boolean {
-  if (Array.isArray(value)) return value.some(hasValue);
-  if (value && typeof value === 'object') return Object.values(value).some(hasValue);
-  return cleanText(value).length > 0;
 }
 
 type ParsedExperience = {
@@ -105,18 +105,16 @@ function parseEducationItems(values: unknown, profileId: string): Array<ParsedEd
     if (typeof edu === 'string') {
       const text = edu.trim();
       const commaMatch = text.match(/^(.+?)[,\-–—]\s*(.+)$/);
-      if (commaMatch) {
-        return {
-          id: randomUUID(),
-          profileId,
-          schoolName: commaMatch[1].trim(),
-          degree: commaMatch[2].trim().slice(0, 100),
-          fieldOfStudy: '',
-          startDate: '',
-          endDate: null,
-        };
-      }
-      return null;
+      if (!commaMatch) return null;
+      return {
+        id: randomUUID(),
+        profileId,
+        schoolName: commaMatch[1].trim(),
+        degree: commaMatch[2].trim().slice(0, 100),
+        fieldOfStudy: '',
+        startDate: '',
+        endDate: null,
+      };
     }
     const school = cleanText(edu.school) || cleanText(edu.institution) || cleanText(edu.university);
     const degree = cleanText(edu.degree);
@@ -153,11 +151,11 @@ function parseTrainingItems(values: unknown, profileId: string): Array<ParsedTra
   }).filter((item): item is ParsedTraining & { id: string; profileId: string } => item !== null);
 }
 
-function summarizeExperience(item: { employerName?: string; jobTitle?: string; startDate?: string; endDate?: string | null; description?: string }): string {
+function summarizeExperience(item: { employerName?: string; jobTitle?: string; description?: string | null }): string {
   return [item.jobTitle, item.employerName].map(cleanText).filter(Boolean).join(' at ') || cleanText(item.description) || 'Untitled Experience';
 }
 
-function summarizeEducation(item: { schoolName?: string; degree?: string; fieldOfStudy?: string }): string {
+function summarizeEducation(item: { schoolName?: string; degree?: string; fieldOfStudy?: string | null }): string {
   return [item.degree, item.fieldOfStudy, item.schoolName].map(cleanText).filter(Boolean).join(' · ') || 'Untitled Education';
 }
 
@@ -166,25 +164,22 @@ function summarizeTraining(item: { title?: string; providerName?: string }): str
 }
 
 const importDecisionsSchema = z.object({
-  acceptedPersonalFields: z.array(z.enum(['fullName', 'email', 'phone', 'headline', 'location', 'linkedinUrl', 'summary'])).optional(),
+  acceptedPersonalFields: z.array(z.enum(PERSONAL_FIELDS)).default([]),
   acceptedSections: z.object({
-    skills: z.boolean().optional(),
-    experiences: z.boolean().optional(),
-    educations: z.boolean().optional(),
-    trainings: z.boolean().optional(),
-  }).optional(),
-  reviewed: z.boolean().optional(),
-}).optional();
+    skills: z.boolean().default(false),
+    experiences: z.boolean().default(false),
+    educations: z.boolean().default(false),
+    trainings: z.boolean().default(false),
+  }).default({}),
+  reviewed: z.literal(true),
+});
 
-function acceptedSet(decisions: z.infer<typeof importDecisionsSchema>, defaults: string[]): Set<string> {
-  return new Set(decisions?.acceptedPersonalFields ?? defaults);
-}
-
-function acceptedSection(decisions: z.infer<typeof importDecisionsSchema>, section: 'skills' | 'experiences' | 'educations' | 'trainings'): boolean {
-  return decisions?.acceptedSections?.[section] ?? true;
+function acceptedSection(decisions: z.infer<typeof importDecisionsSchema>, section: SectionKey): boolean {
+  return decisions.acceptedSections[section] === true;
 }
 
 async function markCvImportProvenance(userId: string, cvUploadId: string, acceptedFields: string[], acceptedSections: string[]): Promise<void> {
+  if (acceptedFields.length === 0 && acceptedSections.length === 0) return;
   const row = await db.select().from(careerGoals).where(eq(careerGoals.userId, userId)).limit(1);
   const current = row[0];
   const previous = current?.strategyJson && typeof current.strategyJson === 'object' && !Array.isArray(current.strategyJson)
@@ -221,9 +216,7 @@ export const cvRouter = router({
       const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       if (!userRecord[0]) throw new Error('User not found');
 
-      const mimeType = input.mimeType ?? 'application/pdf';
-      const parsed = await parseCvFromFile(input.base64, mimeType);
-
+      const parsed = await parseCvFromFile(input.base64, input.mimeType ?? 'application/pdf');
       const id = randomUUID();
       await db.insert(cvUploads).values({
         id,
@@ -245,7 +238,6 @@ export const cvRouter = router({
           languages: parsed.languages,
         },
       });
-
       return { id, parsed };
     }),
 
@@ -254,12 +246,10 @@ export const cvRouter = router({
     .query(async ({ input }) => {
       const userRecord = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       if (!userRecord[0]) return null;
-
       const rows = await db.select().from(cvUploads)
         .where(eq(cvUploads.userId, userRecord[0].id))
         .orderBy(desc(cvUploads.createdAt))
         .limit(1);
-
       return rows[0] ?? null;
     }),
 
@@ -311,9 +301,9 @@ export const cvRouter = router({
       const parsedTrainings = parseTrainingItems(data.trainings, profileIdForPreview);
 
       const warnings: string[] = [];
-      if (criticalFields.some((field) => field.willOverwrite)) warnings.push('Critical profile fields will be overwritten only if approved in the review decision payload.');
-      if (!parsedSkills.length) warnings.push('No skills were extracted from this CV. Import may still update text fields but will not enrich the skills section.');
-      if (!parsedExperiences.length && !parsedEducations.length && !parsedTrainings.length) warnings.push('No structured career sections were extracted. This looks more like a text-only parse than a strong CV extraction.');
+      if (criticalFields.some((field) => field.willOverwrite)) warnings.push('Critical profile fields will be overwritten only if explicitly approved in this review.');
+      if (!parsedSkills.length) warnings.push('No skills were extracted from this CV.');
+      if (!parsedExperiences.length && !parsedEducations.length && !parsedTrainings.length) warnings.push('No structured career sections were extracted.');
 
       return {
         cvUploadId: cvRow[0].id,
@@ -373,11 +363,9 @@ export const cvRouter = router({
         await db.insert(profiles).values({ id: profileId, userId: userRecord[0].id, fullName: '' });
       }
 
-      const defaultAcceptedFields = ['fullName', 'email', 'phone', 'headline', 'location', 'linkedinUrl', 'summary'];
-      const acceptedFields = acceptedSet(input.decisions, defaultAcceptedFields);
-      const acceptedFieldList = [...acceptedFields];
+      const acceptedFields = new Set(input.decisions.acceptedPersonalFields);
+      const appliedPersonalFields: string[] = [];
       const profilePatch: Partial<typeof profiles.$inferInsert> = { updatedAt: new Date() };
-
       const fieldMap = {
         fullName: cleanText(data.fullName),
         phone: cleanText(data.phone),
@@ -388,19 +376,22 @@ export const cvRouter = router({
       } satisfies Record<string, string>;
 
       for (const [key, value] of Object.entries(fieldMap)) {
-        if (!acceptedFields.has(key) || !value) continue;
+        if (!acceptedFields.has(key as PersonalFieldKey) || !value) continue;
         (profilePatch as Record<string, unknown>)[key] = value;
+        appliedPersonalFields.push(key);
       }
 
       if (acceptedFields.has('email')) {
         const parsedEmail = cleanText(data.email);
-        if (parsedEmail) await db.update(users).set({ email: parsedEmail, updatedAt: new Date() }).where(eq(users.id, userRecord[0].id));
+        if (parsedEmail) {
+          await db.update(users).set({ email: parsedEmail, updatedAt: new Date() }).where(eq(users.id, userRecord[0].id));
+          appliedPersonalFields.push('email');
+        }
       }
 
       await db.update(profiles).set(profilePatch).where(eq(profiles.id, profileId));
 
       const acceptedSectionsForProvenance: string[] = [];
-
       if (acceptedSection(input.decisions, 'skills')) {
         const parsedSkills = normalizeList(data.skills).slice(0, 30);
         if (parsedSkills.length > 0) {
@@ -437,13 +428,13 @@ export const cvRouter = router({
         }
       }
 
-      await markCvImportProvenance(userRecord[0].id, cvRow[0].id, acceptedFieldList, acceptedSectionsForProvenance);
+      await markCvImportProvenance(userRecord[0].id, cvRow[0].id, appliedPersonalFields, acceptedSectionsForProvenance);
 
       return {
         success: true,
         profileId,
         applied: {
-          personalFields: acceptedFieldList,
+          personalFields: appliedPersonalFields,
           sections: acceptedSectionsForProvenance,
         },
       };
