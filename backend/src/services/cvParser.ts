@@ -185,8 +185,8 @@ function parseCvTextBasic(text: string): ParsedCv {
 
   const expEntries = groupCvSection(expMatch?.[1] ?? '', 'experience');
   const eduEntries = groupCvSection(eduMatch?.[1] ?? '', 'education');
-  const trainingEntries = groupSimpleList(trainingMatch?.[1] ?? '', 'training');
-  const languageEntries = groupSimpleList(languageMatch?.[1] ?? '', 'language');
+  const trainingEntries = groupTrainingList(trainingMatch?.[1] ?? '');
+  const languageEntries = groupLanguageList(languageMatch?.[1] ?? '');
 
   return {
     fullName: nameMatch?.[1] ?? '',
@@ -205,19 +205,21 @@ function parseCvTextBasic(text: string): ParsedCv {
   };
 }
 
-function groupSimpleList(sectionText: string, kind: 'training' | 'language'): ParsedCvTraining[] | ParsedCvLanguage[] {
+function sectionLines(sectionText: string, max: number): string[] {
   if (!sectionText || sectionText.length < 4) return [];
-  const lines = sectionText
+  return sectionText
     .split('\n')
     .map((line) => line.replace(/^[•·▪\-*\s]+/, '').trim())
     .filter((line) => line.length > 1)
-    .slice(0, kind === 'training' ? 8 : 6);
+    .slice(0, max);
+}
 
-  if (kind === 'training') {
-    return lines.map((line) => ({ title: line }));
-  }
+function groupTrainingList(sectionText: string): ParsedCvTraining[] {
+  return sectionLines(sectionText, 8).map((line) => ({ title: line }));
+}
 
-  return lines.map((line) => ({ name: line }));
+function groupLanguageList(sectionText: string): ParsedCvLanguage[] {
+  return sectionLines(sectionText, 6).map((line) => ({ name: line }));
 }
 
 function groupCvSection(
