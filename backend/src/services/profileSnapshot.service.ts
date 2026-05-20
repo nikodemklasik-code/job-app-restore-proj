@@ -16,6 +16,8 @@ import type {
   ProfileStrategyJson,
   SocialConsentsSnapshot,
   UserPreferenceFlagsSnapshot,
+  ProfileSnapshotProvenance,
+  ProfileFieldProvenance,
 } from '../../../shared/profile.js';
 import { evaluateProfileCompletion, type ProfileCompletion } from '../../../shared/profileCompletion.js';
 
@@ -56,7 +58,6 @@ function workValuesFromDb(raw: string | null): string[] {
   return raw.split(',').map((value) => value.trim()).filter(Boolean);
 }
 
-
 function normalizeAchievements(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value
@@ -68,6 +69,29 @@ function normalizeAchievements(value: unknown): string[] {
 function normalizeStrategy(raw: unknown): ProfileStrategyJson {
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw as ProfileStrategyJson;
   return {};
+}
+
+function defaultProvenance(source: ProfileFieldProvenance['source'] = 'unknown', note?: string): ProfileFieldProvenance {
+  return { source, note, updatedAt: null };
+}
+
+function emptyProvenance(): ProfileSnapshotProvenance {
+  return {
+    personalInfo: {
+      fullName: defaultProvenance(),
+      email: defaultProvenance(),
+      phone: defaultProvenance(),
+      location: defaultProvenance(),
+      headline: defaultProvenance(),
+      summary: defaultProvenance(),
+      linkedinUrl: defaultProvenance(),
+      cvUrl: defaultProvenance(),
+    },
+    skills: [],
+    experiences: {},
+    educations: {},
+    trainings: {},
+  };
 }
 
 function careerRowToSnapshot(row: typeof careerGoals.$inferSelect): CareerGoalsSnapshot {
@@ -140,6 +164,7 @@ export async function fetchProfileSnapshotWithCompletion(input: {
       experiences: [],
       educations: [],
       trainings: [],
+      provenance: emptyProvenance(),
       careerGoals: careerGoalsSnapshot,
       socialConsents: socialSnapshot,
       preferenceFlags: preferenceSnapshot,
@@ -147,7 +172,7 @@ export async function fetchProfileSnapshotWithCompletion(input: {
   }
 
   const [skillRecords, experienceRecords, educationRecords, trainingRecords] = await Promise.all([
-    db.select({ name: skills.name }).from(skills).where(eq(skills.profileId, profile.id)),
+    db.select().from(skills).where(eq(skills.profileId, profile.id)),
     db.select().from(experiences).where(eq(experiences.profileId, profile.id)),
     db.select().from(educations).where(eq(educations.profileId, profile.id)),
     db.select().from(trainings).where(eq(trainings.profileId, profile.id)),
@@ -190,6 +215,7 @@ export async function fetchProfileSnapshotWithCompletion(input: {
       expiresAt: training.expiresAt ?? null,
       credentialUrl: training.credentialUrl ?? '',
     })),
+    provenance: emptyProvenance(),
     careerGoals: careerGoalsSnapshot,
     socialConsents: socialSnapshot,
     preferenceFlags: preferenceSnapshot,
