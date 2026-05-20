@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # ─── Smoke test — multivohub-jobapp ───────────────────────────────────────────
-# Checks that the backend API is responding after a deploy.
-# Runs on the VPS (called by deploy.sh and the GitHub Actions workflow).
+# Checks that the backend API and key frontend routes are responding after a deploy.
+# Authenticated billing/credits flows still require the manual checklist printed
+# below because the smoke script has no browser session or Clerk token.
 #
-# Exit 0 = all checks passed
-# Exit 1 = one or more checks failed
+# Exit 0 = HTTP smoke checks passed and manual billing gate printed
+# Exit 1 = one or more HTTP checks failed
 #
 set -euo pipefail
 
@@ -54,6 +55,14 @@ check "Backend /health"        "${API_BASE}/health"       '"status":"ok"'
 check "Backend /api/health"    "${API_BASE}/api/health"   '"status":"ok"'
 check "Frontend index.html"    "${FRONTEND_URL}"          '<!DOCTYPE html'
 
+# Frontend route reachability. These checks confirm the SPA shell is served.
+# Auth/data correctness is covered by the manual checklist printed below.
+check "Frontend /profile"      "${FRONTEND_URL}/profile"   '<!DOCTYPE html'
+check "Frontend /documents"    "${FRONTEND_URL}/documents" '<!DOCTYPE html'
+check "Frontend /style"        "${FRONTEND_URL}/style"     '<!DOCTYPE html'
+check "Frontend /coach"        "${FRONTEND_URL}/coach"     '<!DOCTYPE html'
+check "Frontend /billing"      "${FRONTEND_URL}/billing"   '<!DOCTYPE html'
+
 echo "────────────────────────────────────────────"
 echo "  Passed: ${pass} / Failed: ${fail}"
 echo "────────────────────────────────────────────"
@@ -63,4 +72,14 @@ if [[ $fail -gt 0 ]]; then
   exit 1
 fi
 
-echo "✅ All smoke checks passed"
+echo "✅ HTTP smoke checks passed"
+echo ""
+echo "Manual authenticated billing/credits gate (required before deploy sign-off):"
+echo "  [ ] Profile load: sign in and open /profile; approved profile data loads without parser/latest-CV state dependency."
+echo "  [ ] Document review path read-only: open /documents and navigate review/preview path without uploading or mutating CV data."
+echo "  [ ] Global credits: header shows loading -> real balance, zero state, low-balance warning, and error/retry if billing API fails."
+echo "  [ ] Style generation gate: verify Style Studio generation is blocked when credits are insufficient and allowed when balance covers backend estimate."
+echo "  [ ] Paid AI action: run one Coach answer evaluation; verify cost preview appears before action, backend deducts credits, and /billing shows the credit usage row."
+echo "  [ ] Ledger/history visibility: /billing shows AI credit transaction history with date, action type, amount, status, and related entity id when present."
+
+echo "✅ Smoke gate completed; manual authenticated checklist still required for billing sign-off"
