@@ -13,6 +13,51 @@ import { Resend } from 'resend';
 
 const getResend = () => new Resend(process.env.RESEND_API_KEY);
 
+type ApplicationLifecycleStatus = 'draft' | 'prepared' | 'sent' | 'follow_up_sent' | 'rejected' | 'accepted' | 'interview';
+
+function buildLifecycleUpdate(status: ApplicationLifecycleStatus, now: Date) {
+  const update: Partial<typeof applications.$inferInsert> = {
+    status,
+    updatedAt: now,
+  };
+
+  if (status === 'sent') {
+    update.emailSentAt = now;
+    update.silenceDays = 0;
+  }
+
+  if (status === 'follow_up_sent') {
+    update.lastFollowedUpAt = now;
+    update.silenceDays = 0;
+  }
+
+  if (status === 'interview' || status === 'accepted' || status === 'rejected') {
+    update.silenceDays = 0;
+  }
+
+  return update;
+}
+
+function buildLifecycleLogMeta(status: ApplicationLifecycleStatus, now: Date) {
+  const meta: Record<string, unknown> = { status, changedAt: now.toISOString() };
+
+  if (status === 'sent') {
+    meta.emailSentAt = now.toISOString();
+    meta.silenceDays = 0;
+  }
+
+  if (status === 'follow_up_sent') {
+    meta.lastFollowedUpAt = now.toISOString();
+    meta.silenceDays = 0;
+  }
+
+  if (status === 'interview' || status === 'accepted' || status === 'rejected') {
+    meta.silenceDays = 0;
+  }
+
+  return meta;
+}
+
 /**
  * Fetches complete profile data including experiences, educations, skills,
  * trainings and languages (from careerGoals.strategyJson).
@@ -147,8 +192,15 @@ export const applicationsRouter = router({
       if (!rows[0] || rows[0].userId !== localUserId) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Not authorized' });
       }
-      await db.update(applications).set({ status: input.status, updatedAt: new Date() }).where(eq(applications.id, input.id));
-      await db.insert(applicationLogs).values({ id: randomUUID(), applicationId: input.id, action: `status:${input.status}` });
+
+      const now = new Date();
+      await db.update(applications).set(buildLifecycleUpdate(input.status, now)).where(eq(applications.id, input.id));
+      await db.insert(applicationLogs).values({
+        id: randomUUID(),
+        applicationId: input.id,
+        action: `status:${input.status}`,
+        meta: buildLifecycleLogMeta(input.status, now),
+      });
       return { success: true };
     }),
 
@@ -289,8 +341,14 @@ export const applicationsRouter = router({
         ],
       });
 
-      await db.update(applications).set({ status: 'sent', emailSentAt: new Date(), updatedAt: new Date() }).where(eq(applications.id, input.applicationId));
-      await db.insert(applicationLogs).values({ id: randomUUID(), applicationId: input.applicationId, action: 'email_sent', meta: { to: input.recipientEmail } });
+      const now = new Date();
+      await db.update(applications).set({ status: 'sent', emailSentAt: now, silenceDays: 0, updatedAt: now }).where(eq(applications.id, input.applicationId));
+      await db.insert(applicationLogs).values({
+        id: randomUUID(),
+        applicationId: input.applicationId,
+        action: 'email_sent',
+        meta: { to: input.recipientEmail, emailSentAt: now.toISOString(), status: 'sent', silenceDays: 0 },
+      });
 
       return { success: true };
     }),
@@ -314,7 +372,14 @@ export const applicationsRouter = router({
       await recordOutcome(userRecord[0].id, skillRecords.map((s) => s.name), appRow[0].jobTitle, input.outcome);
 
       const statusMap = { interview: 'interview', offer: 'accepted', rejection: 'rejected' } as const;
-      await db.update(applications).set({ status: statusMap[input.outcome], updatedAt: new Date() }).where(eq(applications.id, input.applicationId));
+      const now = new Date();
+      await db.update(applications).set({ status: statusMap[input.outcome], silenceDays: 0, updatedAt: now }).where(eq(applications.id, input.applicationId));
+      await db.insert(applicationLogs).values({
+        id: randomUUID(),
+        applicationId: input.applicationId,
+        action: `outcome:${input.outcome}`,
+        meta: { status: statusMap[input.outcome], silenceDays: 0, changedAt: now.toISOString() },
+      });
 
       return { success: true };
     }),
@@ -363,7 +428,7 @@ export const applicationsRouter = router({
       return {
         total: all.length,
         byStatus,
-        applied: byStatus['sent'] ?? 0,
+        applied: (byStatus['sent'] ?? 0) + (byStatus['follow_up_sent'] ?? 0),
         interviews: byStatus['interview'] ?? 0,
         offers: byStatus['accepted'] ?? 0,
         rejections: byStatus['rejected'] ?? 0,
@@ -449,8 +514,8 @@ export const applicationsRouter = router({
         .where(eq(applications.userId, userRecord[0].id));
 
       const total = allApps.length;
-      const interviews = allApps.filter((a) => ['interview', 'interview_scheduled'].includes(a.status ?? '')).length;
-      const offers = allApps.filter((a) => a.status === 'offer').length;
+      const interviews = allApps.filter((a) => a.status === 'interview').length;
+      const offers = allApps.filter((a) => a.status === 'accepted').length;
       const responseRate = total > 0 ? Math.round(((interviews + offers) / total) * 100) : 0;
 
       // Status breakdown
