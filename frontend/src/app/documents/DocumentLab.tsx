@@ -51,6 +51,38 @@ interface UploadedDoc {
   createdAt: string;
 }
 
+interface ImportPreviewField {
+  key: string;
+  label: string;
+  currentValue: string;
+  parsedValue: string;
+  parsedHasValue: boolean;
+  currentHasValue: boolean;
+  isDifferent: boolean;
+  willOverwrite: boolean;
+  willFillEmpty: boolean;
+}
+
+interface ImportPreviewSection {
+  currentCount: number;
+  parsedCount: number;
+  willReplace: boolean;
+}
+
+interface ImportPreview {
+  cvUploadId: string;
+  originalFilename: string;
+  createdAt: string;
+  criticalFields: ImportPreviewField[];
+  sections: {
+    skills: ImportPreviewSection;
+    experiences: ImportPreviewSection;
+    educations: ImportPreviewSection;
+    trainings: ImportPreviewSection;
+  };
+  warnings: string[];
+}
+
 type DocumentIntakeType =
   | 'cv'
   | 'cover_letter'
@@ -81,6 +113,10 @@ function styleAnalyzeTypeForDoc(doc: UploadedDoc | undefined): StyleAnalyzeDocTy
 
 function formatDocType(type: string): string {
   return type.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatPreviewValue(value: string): string {
+  return value.trim() ? value : '—';
 }
 
 interface ScoreResult {
@@ -260,6 +296,14 @@ export default function DocumentLab() {
       originalFilename: String(latestCvQuery.data.originalFilename ?? 'CV'),
     }
     : null;
+  const importPreviewQuery = apiExt.cv.previewImportToProfile.useQuery(
+    latestCvQuery.data?.id ? { userId, cvUploadId: latestCvQuery.data.id } : undefined,
+    {
+      enabled: !!userId && !!latestCvQuery.data?.id,
+      staleTime: 15_000,
+    },
+  );
+  const importPreview = (importPreviewQuery.data as ImportPreview | undefined) ?? null;
 
   const utils = api.useUtils();
 
@@ -273,8 +317,10 @@ export default function DocumentLab() {
   const documentsUploadMutation = api.documents.upload.useMutation();
   const importToProfileMutation = api.cv.importToProfile.useMutation({
     onSuccess: () => {
-      setImportNotice('Profile updated from latest parsed CV.');
+      setImportNotice('Profile updated from reviewed CV import.');
       void utils.profile.getProfile.invalidate();
+      void utils.cv.getLatest.invalidate({ userId });
+      void importPreviewQuery.refetch();
     },
     onError: (err) => {
       setImportNotice(null);
@@ -331,16 +377,8 @@ export default function DocumentLab() {
         if (/\.(pdf|docx?)$/i.test(file.name)) {
           if (primaryDocType === 'cv') {
             const base64 = await fileToBase64(file);
-            const uploadResult = await cvUploadMutation.mutateAsync({ userId, filename: file.name, base64, mimeType: mime });
-            // Auto-import CV data to profile
-            if (uploadResult?.id) {
-              try {
-                await importToProfileMutation.mutateAsync({ userId, cvUploadId: uploadResult.id });
-                setImportNotice('CV data automatically imported to your profile.');
-              } catch {
-                setImportNotice('CV uploaded. Click "Import To Profile" to update your profile.');
-              }
-            }
+            await cvUploadMutation.mutateAsync({ userId, filename: file.name, base64, mimeType: mime });
+            setImportNotice('CV uploaded and parsed. Review the import preview below before applying changes to Profile.');
             await utils.profile.getProfile.invalidate();
             markJobsSearchPendingAfterCv();
           } else {
@@ -379,7 +417,7 @@ export default function DocumentLab() {
             <p className="text-sm font-medium text-slate-400">Document Intake Screen</p>
             <h1 className="mt-1 text-3xl font-bold tracking-tight text-white">Document Intake</h1>
             <p className="mt-2 max-w-3xl text-sm text-slate-400">
-              Upload CVs and supporting documents here. CV parsing and Import To Profile live only on this screen. Style Studio uses existing documents and does not own CV intake, because one intake point is enough for one species.
+              Upload CVs and supporting documents here. CV parsing and Profile import live only on this screen. Import is now explicit and review-gated, because silently overwriting user data is a terrible hobby even by startup standards.
             </p>
           </div>
           <Link to="/documents" className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/10">
@@ -470,11 +508,11 @@ export default function DocumentLab() {
       </section>
 
       {latestCvQuery.data && (
-        <section className="rounded-2xl border border-indigo-500/25 bg-indigo-500/5 p-4">
+        <section className="space-y-4 rounded-2xl border border-indigo-500/25 bg-indigo-500/5 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold text-white">Latest Parsed CV</p>
-              <p className="text-xs text-slate-400">{latestCvQuery.data.originalFilename} is ready. Import it to map extracted data into Profile.</p>
+              <p className="text-xs text-slate-400">{latestCvQuery.data.originalFilename} is ready. Review what will change before importing it into Profile.</p>
             </div>
             <button
               type="button"
@@ -483,13 +521,88 @@ export default function DocumentLab() {
                 setImportNotice(null);
                 importToProfileMutation.mutate({ userId, cvUploadId: latestCvQuery.data!.id });
               }}
-              disabled={!userId || importToProfileMutation.isPending}
+              disabled={!userId || importToProfileMutation.isPending || importPreviewQuery.isLoading}
               className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {importToProfileMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Import className="h-4 w-4" />}
-              {importToProfileMutation.isPending ? 'Importing…' : 'Import To Profile'}
+              {importToProfileMutation.isPending ? 'Importing…' : 'Apply CV To Profile'}
             </button>
           </div>
+
+          {importPreviewQuery.isLoading ? (
+            <div className="flex h-20 items-center justify-center rounded-2xl border border-white/10 bg-black/20">
+              <Loader2 className="h-5 w-5 animate-spin text-indigo-300" />
+            </div>
+          ) : importPreview ? (
+            <div className="space-y-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                {[
+                  { label: 'Skills', value: importPreview.sections.skills },
+                  { label: 'Experience', value: importPreview.sections.experiences },
+                  { label: 'Education', value: importPreview.sections.educations },
+                  { label: 'Trainings', value: importPreview.sections.trainings },
+                ].map((section) => (
+                  <div key={section.label} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{section.label}</p>
+                    <p className="mt-1 text-sm text-white">Current: {section.value.currentCount}</p>
+                    <p className="text-sm text-indigo-200">Parsed: {section.value.parsedCount}</p>
+                    <p className={`mt-2 text-xs font-medium ${section.value.willReplace ? 'text-amber-300' : 'text-slate-500'}`}>
+                      {section.value.willReplace ? 'Will replace current section' : 'No structured update detected'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {importPreview.warnings.length > 0 && (
+                <div className="space-y-2 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-200">Import Warnings</p>
+                  <ul className="space-y-1.5">
+                    {importPreview.warnings.map((warning, index) => (
+                      <li key={index} className="flex items-start gap-2 text-sm text-amber-100">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                        {warning}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Critical Field Review</p>
+                <div className="space-y-3">
+                  {importPreview.criticalFields.map((field) => (
+                    <div key={field.key} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-white">{field.label}</p>
+                        <span className={field.willOverwrite
+                          ? 'rounded-full border border-amber-400/40 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200'
+                          : field.willFillEmpty
+                            ? 'rounded-full border border-emerald-400/40 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-200'
+                            : 'rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-[11px] font-semibold text-slate-400'}
+                        >
+                          {field.willOverwrite ? 'Overwrite' : field.willFillEmpty ? 'Fill Empty' : field.isDifferent ? 'Parsed Diff' : 'No Change'}
+                        </span>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Current profile</p>
+                          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-300">{formatPreviewValue(field.currentValue)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Parsed from CV</p>
+                          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-indigo-100">{formatPreviewValue(field.parsedValue)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-slate-500">
+              Import preview is not available for this CV yet.
+            </div>
+          )}
         </section>
       )}
 
