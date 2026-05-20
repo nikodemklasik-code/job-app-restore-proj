@@ -1,401 +1,155 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
-import { markJobsSearchPendingAfterCv } from '@/lib/jobsAfterCvSync';
-import { useFileUpload } from '@/lib/useFileUpload';
 import {
-  Upload,
-  FileText,
-  Download,
-  Trash2,
-  CheckCircle2,
   AlertCircle,
+  Download,
+  FileText,
   Loader2,
   Palette,
-  BarChart2,
-  BookOpen,
-  FileBadge,
   Sparkles,
-  Wand2,
 } from 'lucide-react';
 
-type DocCategory = 'cv' | 'coverletter' | 'skills';
+export type StyleStudioVariant = 'page' | 'embedded';
 
-interface UploadedDoc {
+type GeneratedDocType = 'cv' | 'coverletter';
+
+type JobFeedItem = {
   id: string;
-  category: DocCategory;
-  filename: string;
-  preview: string;
-  skills: string[];
-  fullName?: string;
-  summary?: string;
-  rawText: string;
-}
-
-const TONE_KEYWORDS: Record<string, string[]> = {
-  formal: ['therefore', 'furthermore', 'consequently', 'additionally', 'hereby', 'wherein', 'pursuant'],
-  concise: ['delivered', 'improved', 'reduced', 'built', 'led', 'drove', 'cut', 'grew', 'launched'],
-  technical: ['api', 'sdk', 'typescript', 'react', 'node', 'sql', 'aws', 'docker', 'ci/cd', 'architecture'],
-  data_driven: ['%', 'increased', 'decreased', 'revenue', 'users', 'performance', 'metrics', 'kpi'],
-  collaborative: ['team', 'cross-functional', 'stakeholder', 'collaborated', 'partnered', 'aligned'],
-  leadership: ['managed', 'mentored', 'directed', 'oversaw', 'established', 'initiated', 'spearheaded'],
+  title: string;
+  company: string;
+  description?: string | null;
 };
 
-const ACTION_VERBS = [
-  'achieved', 'built', 'created', 'delivered', 'developed', 'drove', 'established', 'grew',
-  'implemented', 'improved', 'increased', 'initiated', 'launched', 'led', 'managed',
-  'mentored', 'optimised', 'reduced', 'spearheaded', 'transformed',
-];
+type GenerateMutation = {
+  mutate: (input: {
+    userId: string;
+    type: GeneratedDocType;
+    jobTitle: string;
+    jobDescription?: string;
+    company?: string;
+    profileSummary?: string;
+    skills?: string[];
+    senderName?: string;
+  }) => void;
+  isPending: boolean;
+};
 
-function analyseTextLocal(text: string) {
-  const lower = text.toLowerCase();
-  const words = lower.split(/\s+/).filter(Boolean);
-  const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 4);
-  const tones: { label: string; score: number }[] = Object.entries(TONE_KEYWORDS)
-    .map(([label, kws]) => ({ label: label.replace('_', ' '), score: kws.filter((kw) => lower.includes(kw)).length }))
-    .filter((t) => t.score > 0)
-    .sort((a, b) => b.score - a.score);
+type PdfMutation = {
+  mutateAsync: (input: Record<string, unknown>) => Promise<{ base64: string }>;
+  isPending?: boolean;
+};
 
-  const verbCounts: Record<string, number> = {};
-  for (const verb of ACTION_VERBS) {
-    const re = new RegExp(`\\b${verb}`, 'gi');
-    const matches = text.match(re);
-    if (matches && matches.length > 0) verbCounts[verb] = matches.length;
-  }
+const apiAny = api as any;
 
-  return {
-    wordCount: words.length,
-    sentenceCount: sentences.length,
-    tones: tones.slice(0, 5),
-    topVerbs: Object.entries(verbCounts).sort((a, b) => b[1] - a[1]).slice(0, 10),
-  };
+function downloadBase64Pdf(base64: string, filename: string) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  const blob = new Blob([bytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
-interface AiAnalysisResult {
-  suggestions?: string[];
-  score?: number;
-  tone?: string;
-  topVerbs?: string[];
+function initialsFilename(candidateName: string, suffix: 'CV' | 'CL') {
+  const trimmed = candidateName.trim();
+  if (!trimmed) return suffix === 'CV' ? 'CV.pdf' : 'CoverLetter.pdf';
+  const parts = trimmed.split(/\s+/);
+  const initials = parts[0]?.[0]?.toUpperCase() ?? '';
+  const lastName = parts.slice(1).join(' ');
+  return lastName ? `${initials}. ${lastName} ${suffix}.pdf` : `${trimmed} ${suffix}.pdf`;
 }
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const styleApi = (api as any).style as {
-  analyzeDocument: { useMutation: () => { mutateAsync: (input: { text: string; documentType: string }) => Promise<AiAnalysisResult>; isPending: boolean } };
-  rewriteSection: { useMutation: () => { mutateAsync: (input: { userId: string; text: string; instruction: string; tone: string }) => Promise<{ rewritten: string }>; isPending: boolean } };
-} | undefined;
-
-function UploadSlot({
-  category,
-  label,
-  icon: Icon,
-  doc,
-  loading,
-  onFile,
-  onRemove,
-}: {
-  category: DocCategory;
-  label: string;
-  icon: React.ElementType;
-  doc: UploadedDoc | undefined;
-  loading: boolean;
-  onFile: (file: File, cat: DocCategory) => void;
-  onRemove: (cat: DocCategory) => void;
-}) {
-  const fileRef = useRef<HTMLInputElement>(null);
-  const { isDragging, dragHandlers } = useFileUpload();
-
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-      <div className="mb-3 flex items-center gap-2">
-        <Icon className="h-4 w-4 text-slate-400" />
-        <h3 className="text-sm font-semibold text-white">{label}</h3>
-      </div>
-
-      {doc ? (
-        <div className="space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex items-center gap-2">
-              <FileText className="h-4 w-4 shrink-0 text-indigo-400" />
-              <span className="truncate text-sm text-white">{doc.filename}</span>
-            </div>
-            <button
-              onClick={() => onRemove(category)}
-              className="shrink-0 rounded-lg p-1 text-slate-500 transition-colors hover:bg-white/10 hover:text-red-400"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
-          {doc.preview ? (
-            <p className="line-clamp-3 rounded-lg bg-black/20 p-3 text-xs leading-relaxed text-slate-400">
-              {doc.preview}
-            </p>
-          ) : null}
-        </div>
-      ) : (
-        <div
-          className={`flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed p-6 text-center transition-colors ${isDragging ? 'border-indigo-400 bg-indigo-500/10' : 'border-white/10 hover:border-white/20'}`}
-          onClick={() => fileRef.current?.click()}
-          onDragOver={(e) => dragHandlers.onDragOver(e)}
-          onDragLeave={dragHandlers.onDragLeave}
-          onDrop={(e) => dragHandlers.onDrop(e, (f) => onFile(f, category))}
-        >
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".pdf,.docx,.txt"
-            className="sr-only"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onFile(f, category);
-              e.target.value = '';
-            }}
-          />
-          {loading ? <Loader2 className="h-5 w-5 animate-spin text-indigo-400" /> : <><Upload className="h-5 w-5 text-slate-500" /><span className="text-xs text-slate-500">PDF, DOCX or TXT</span></>}
-        </div>
-      )}
-    </div>
-  );
-}
-
-export type StyleStudioVariant = 'page' | 'embedded';
 
 export default function StyleStudio({ variant = 'page' }: { variant?: StyleStudioVariant }) {
   const { user, isLoaded } = useUser();
   const userId = user?.id ?? null;
-  const { fileToBase64 } = useFileUpload();
 
-  const [docs, setDocs] = useState<Partial<Record<DocCategory, UploadedDoc>>>({});
-  const [loadingCat, setLoadingCat] = useState<Partial<Record<DocCategory, boolean>>>({});
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [importSuccess, setImportSuccess] = useState<string | null>(null);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [aiAnalysis, setAiAnalysis] = useState<AiAnalysisResult | null>(null);
-  const [isAnalysing, setIsAnalysing] = useState(false);
-  const [rewrittenSummary, setRewrittenSummary] = useState<string | null>(null);
-  const [rewrittenSkills, setRewrittenSkills] = useState<string | null>(null);
-  const [isRewritingSummary, setIsRewritingSummary] = useState(false);
-  const [isRewritingSkills, setIsRewritingSkills] = useState(false);
-
-  const [genType, setGenType] = useState<'cv' | 'coverletter'>('cv');
+  const [genType, setGenType] = useState<GeneratedDocType>('cv');
   const [genJobId, setGenJobId] = useState<string | null>(null);
   const [genJobTitle, setGenJobTitle] = useState('');
   const [genCompany, setGenCompany] = useState('');
   const [genJobDesc, setGenJobDesc] = useState('');
   const [genResult, setGenResult] = useState<string | null>(null);
+  const [genError, setGenError] = useState<string | null>(null);
   const [genPdfError, setGenPdfError] = useState<string | null>(null);
 
-  const analyzeDocMutation = styleApi?.analyzeDocument.useMutation();
-  const rewriteMutation = styleApi?.rewriteSection.useMutation();
-
   const profileQuery = api.profile.getProfile.useQuery(undefined, { enabled: Boolean(userId) });
+  const jobsFeedQuery = apiAny.jobs.getFeed.useQuery({ limit: 30 }, { enabled: Boolean(userId) });
 
-  const uploadMutation = api.cv.upload.useMutation();
-  const downloadCvMutation = api.applications.downloadCvPdf.useMutation({
-    onError: (err) => setDownloadError(err.message),
-  });
+  const generateFromJobMutation = apiAny.style.generateFromJob.useMutation({
+    onSuccess: (data: { text: string }) => {
+      setGenResult(data.text);
+      setGenError(null);
+    },
+    onError: (error: Error) => {
+      setGenResult('');
+      setGenError(error.message || 'Generation failed.');
+    },
+  }) as GenerateMutation;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const generateFromJobMutation = (api as any).style.generateFromJob.useMutation({
-    onSuccess: (data: { text: string }) => setGenResult(data.text),
-    onError: () => setGenResult(''),
-  });
+  const downloadCvMutation = apiAny.applications.downloadCvPdf.useMutation({
+    onError: (error: Error) => setGenPdfError(error.message || 'PDF download failed.'),
+  }) as PdfMutation;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const downloadCoverLetterPdfMutation = (api as any).applications.downloadCoverLetterPdf?.useMutation?.({
-    onError: (err: Error) => setGenPdfError(err.message),
-  });
+  const downloadCoverLetterPdfMutation = apiAny.applications.downloadCoverLetterPdf?.useMutation?.({
+    onError: (error: Error) => setGenPdfError(error.message || 'PDF download failed.'),
+  }) as PdfMutation | undefined;
 
-  const latestQuery = api.cv.getLatest.useQuery({ userId: userId ?? '' }, { enabled: Boolean(userId) });
-  const jobsFeedQuery = api.jobs.getFeed.useQuery({ limit: 30 }, { enabled: Boolean(userId) });
-
-  async function handleFile(file: File, category: DocCategory) {
-    if (!userId) return;
-    setLoadingCat((prev) => ({ ...prev, [category]: true }));
-    setUploadError(null);
-    setImportSuccess(null);
-    try {
-      const prefix = category === 'coverletter' ? 'coverletter_' : category === 'skills' ? 'skills_' : 'cv_';
-      const base64 = await fileToBase64(file);
-      const result = await uploadMutation.mutateAsync({
-        userId,
-        filename: `${prefix}${file.name}`,
-        base64,
-        mimeType: file.type || undefined,
-      });
-      const parsed = result.parsed;
-      setDocs((prev) => ({
-        ...prev,
-        [category]: {
-          id: result.id,
-          category,
-          filename: file.name,
-          preview: (parsed.rawText ?? '').slice(0, 300),
-          skills: (parsed.skills ?? []) as string[],
-          fullName: parsed.fullName as string | undefined,
-          summary: parsed.summary as string | undefined,
-          rawText: parsed.rawText ?? '',
-        },
-      }));
-      if (category === 'cv') {
-        markJobsSearchPendingAfterCv();
-        setImportSuccess('Document uploaded. Review and apply profile sync inside Document Hub before using it as profile truth.');
-      }
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Upload failed');
-    } finally {
-      setLoadingCat((prev) => ({ ...prev, [category]: false }));
-    }
-  }
-
-  async function handleAnalyse(rawText: string) {
-    if (!userId || !analyzeDocMutation) return;
-    setIsAnalysing(true);
-    setAiAnalysis(null);
-    try {
-      const result = await analyzeDocMutation.mutateAsync({ text: rawText.slice(0, 5000), documentType: 'cv' });
-      setAiAnalysis(result);
-    } finally {
-      setIsAnalysing(false);
-    }
-  }
-
-  async function handleRewriteSummary(text: string) {
-    if (!userId || !rewriteMutation) return;
-    setIsRewritingSummary(true);
-    try {
-      const { rewritten } = await rewriteMutation.mutateAsync({ userId, text, instruction: 'Make this more professional and impactful', tone: 'professional' });
-      setRewrittenSummary(rewritten);
-    } finally {
-      setIsRewritingSummary(false);
-    }
-  }
-
-  async function handleRewriteSkills(text: string) {
-    if (!userId || !rewriteMutation) return;
-    setIsRewritingSkills(true);
-    try {
-      const { rewritten } = await rewriteMutation.mutateAsync({ userId, text, instruction: 'Make this skills description more professional and impactful', tone: 'professional' });
-      setRewrittenSkills(rewritten);
-    } finally {
-      setIsRewritingSkills(false);
-    }
-  }
-
-  function removeDoc(cat: DocCategory) {
-    setDocs((prev) => {
-      const next = { ...prev };
-      delete next[cat];
-      return next;
-    });
-  }
-
-  async function handleDownloadPdf() {
-    if (!userId) return;
-    setDownloadError(null);
-    try {
-      const result = await downloadCvMutation.mutateAsync({ userId });
-      const binary = atob(result.base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      const blob = new Blob([bytes], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'CV.pdf';
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      // handled in onError
-    }
-  }
-
-  async function handleGenerate() {
-    if (!userId) return;
-    setGenResult(null);
-    setGenPdfError(null);
-    const profileData = profileQuery.data;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const skillNames = ((profileData as any)?.skills ?? []).map((s: { name?: string } | string) => (typeof s === 'string' ? s : s.name ?? '')).filter(Boolean) as string[];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    generateFromJobMutation.mutate({
-      userId,
-      type: genType,
-      jobTitle: genJobTitle || 'this role',
-      jobDescription: genJobDesc || undefined,
-      company: genCompany || undefined,
-      profileSummary: (profileData as any)?.summary ?? undefined,
-      skills: skillNames,
-      senderName: (profileData as any)?.fullName ?? undefined,
-    });
-  }
-
-  async function handleDownloadGenPdf() {
-    if (!genResult || !userId) return;
-    setGenPdfError(null);
-    const candidateName = (profileQuery.data as any)?.fullName ?? user?.fullName ?? '';
-    function makeFilename(suffix: 'CV' | 'CL') {
-      if (!candidateName) return suffix === 'CV' ? 'CV.pdf' : 'CoverLetter.pdf';
-      const parts = candidateName.trim().split(/\s+/);
-      const initials = parts[0]?.[0]?.toUpperCase() ?? '';
-      const lastName = parts.slice(1).join(' ');
-      return lastName ? `${initials}. ${lastName} ${suffix}.pdf` : `${candidateName} ${suffix}.pdf`;
-    }
-
-    try {
-      if (genType === 'cv') {
-        const result = await downloadCvMutation.mutateAsync({ userId });
-        const binary = atob(result.base64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        const blob = new Blob([bytes], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = makeFilename('CV');
-        a.click();
-        URL.revokeObjectURL(url);
-      } else if (downloadCoverLetterPdfMutation) {
-        const result = await downloadCoverLetterPdfMutation.mutateAsync({ userId, text: genResult, company: genCompany, role: genJobTitle });
-        const binary = atob(result.base64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        const blob = new Blob([bytes], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'CoverLetter-generated.pdf';
-        a.click();
-        URL.revokeObjectURL(url);
-      }
-    } catch {
-      // handled in onError
-    }
-  }
-
-  const latestCvAsDoc: UploadedDoc | undefined = useMemo(() => {
-    const row = latestQuery.data;
-    if (!row?.parsedText || String(row.parsedText).trim().length === 0) return undefined;
-    const pd = row.parsedData as { skills?: string[]; fullName?: string; summary?: string } | undefined;
-    return {
-      id: row.id,
-      category: 'cv',
-      filename: row.originalFilename ?? 'CV',
-      preview: String(row.parsedText).slice(0, 300),
-      skills: Array.isArray(pd?.skills) ? (pd.skills as string[]) : [],
-      fullName: pd?.fullName,
-      summary: pd?.summary,
-      rawText: String(row.parsedText),
-    };
-  }, [latestQuery.data]);
-
-  const cvDoc = docs.cv ?? (variant === 'embedded' ? latestCvAsDoc : undefined);
-  const localAnalysis = cvDoc?.rawText ? analyseTextLocal(cvDoc.rawText) : null;
   const profile = profileQuery.data;
+  const approvedPersonal = profile?.personalInfo;
+  const approvedSkills = useMemo(() => (profile?.skills ?? []).filter((skill: string) => skill.trim()), [profile?.skills]);
+  const approvedSummary = approvedPersonal?.summary?.trim() ?? '';
+  const approvedName = approvedPersonal?.fullName?.trim() ?? user?.fullName ?? '';
+  const hasApprovedProfileEvidence = Boolean(approvedName || approvedSummary || approvedSkills.length > 0 || profile?.experiences?.length || profile?.educations?.length || profile?.trainings?.length);
 
   if (!isLoaded) return null;
   if (!userId) {
     return <div className="flex items-center justify-center py-24 text-slate-500">Sign in to use Style Studio</div>;
+  }
+
+  function handleGenerate() {
+    if (!userId) return;
+    setGenResult(null);
+    setGenError(null);
+    setGenPdfError(null);
+    generateFromJobMutation.mutate({
+      userId,
+      type: genType,
+      jobTitle: genJobTitle.trim() || 'this role',
+      jobDescription: genJobDesc.trim() || undefined,
+      company: genCompany.trim() || undefined,
+      profileSummary: approvedSummary || undefined,
+      skills: approvedSkills,
+      senderName: approvedName || undefined,
+    });
+  }
+
+  async function handleDownloadGeneratedPdf() {
+    if (!genResult || !userId) return;
+    setGenPdfError(null);
+    try {
+      if (genType === 'cv') {
+        const result = await downloadCvMutation.mutateAsync({ userId });
+        downloadBase64Pdf(result.base64, initialsFilename(approvedName, 'CV'));
+        return;
+      }
+      if (downloadCoverLetterPdfMutation) {
+        const result = await downloadCoverLetterPdfMutation.mutateAsync({
+          userId,
+          text: genResult,
+          company: genCompany,
+          role: genJobTitle,
+        });
+        downloadBase64Pdf(result.base64, initialsFilename(approvedName, 'CL'));
+      }
+    } catch {
+      // handled by mutation onError where available
+    }
   }
 
   return (
@@ -406,33 +160,27 @@ export default function StyleStudio({ variant = 'page' }: { variant?: StyleStudi
         </div>
         <div>
           <h1 className="text-2xl font-bold text-white">{variant === 'embedded' ? 'Build — style & generation' : 'Style Studio'}</h1>
-          <p className="mt-0.5 text-sm text-slate-400">
-            {variant === 'embedded'
-              ? 'Analyse CV text from your library, rewrite sections, generate from jobs, and export PDFs. Upload files in the Upload tab.'
-              : 'Upload your documents, analyse writing style, and build your profile.'}
+          <p className="mt-0.5 max-w-3xl text-sm text-slate-400">
+            Generate and export career text from your approved Profile only. Document upload and CV parsing live in Document Hub, where changes must be reviewed before becoming profile truth.
           </p>
         </div>
       </div>
 
-      {(uploadError || downloadError) ? (
-        <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          {uploadError ?? downloadError}
+      {profileQuery.isLoading ? (
+        <div className="flex h-32 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+          <Loader2 className="h-6 w-6 animate-spin text-indigo-300" />
         </div>
-      ) : null}
-
-      {importSuccess ? (
-        <div className="flex items-center gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400">
-          <CheckCircle2 className="h-4 w-4 shrink-0" />
-          {importSuccess}
+      ) : profileQuery.error ? (
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          {profileQuery.error.message || 'Could not load approved profile.'}
         </div>
       ) : null}
 
       <div className="rounded-2xl border border-amber-500/20 bg-amber-500/8 px-4 py-4 text-sm text-amber-100">
-        <p className="font-semibold text-white">Profile sync is controlled in Document Hub</p>
+        <p className="font-semibold text-white">Approved Profile is the source of truth</p>
         <p className="mt-1 leading-6 text-amber-100/85">
-          Style Studio can analyse and rewrite uploaded documents, but applying CV data to your profile happens only through the Document Hub review flow.
-          That keeps Profile as the approved source of truth instead of letting random uploads mutate it behind your back.
+          Style Studio no longer uses parser output as profile context. Upload a CV in Document Hub, review the diff, then approved data will appear here for generation. Civilisation inches forward.
         </p>
         <div className="mt-3 flex flex-wrap gap-3">
           <Link to="/documents" className="inline-flex items-center rounded-xl border border-amber-300/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20">
@@ -444,211 +192,93 @@ export default function StyleStudio({ variant = 'page' }: { variant?: StyleStudi
         </div>
       </div>
 
-      {variant !== 'embedded' ? (
-        <section>
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-500">Document Upload</h2>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <UploadSlot category="cv" label="CV / Résumé" icon={FileText} doc={docs.cv} loading={Boolean(loadingCat.cv)} onFile={(f, c) => void handleFile(f, c)} onRemove={removeDoc} />
-            <UploadSlot category="coverletter" label="Cover Letter" icon={BookOpen} doc={docs.coverletter} loading={Boolean(loadingCat.coverletter)} onFile={(f, c) => void handleFile(f, c)} onRemove={removeDoc} />
-            <UploadSlot category="skills" label="Skills List" icon={FileBadge} doc={docs.skills} loading={Boolean(loadingCat.skills)} onFile={(f, c) => void handleFile(f, c)} onRemove={removeDoc} />
-          </div>
-        </section>
-      ) : null}
+      <section>
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-500">Approved profile context</h2>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+          {hasApprovedProfileEvidence ? (
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-bold text-white">{approvedName || 'Your Name'}</h3>
+                  {approvedPersonal?.headline ? <p className="mt-1 text-sm text-indigo-200">{approvedPersonal.headline}</p> : null}
+                  {approvedPersonal?.phone ? <p className="mt-0.5 text-sm text-slate-400">{approvedPersonal.phone}</p> : null}
+                  {approvedPersonal?.location ? <p className="mt-0.5 text-sm text-slate-400">{approvedPersonal.location}</p> : null}
+                  {approvedSummary ? <p className="mt-3 max-w-prose text-sm leading-relaxed text-slate-300">{approvedSummary}</p> : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleDownloadGeneratedPdf()}
+                  disabled={!userId || downloadCvMutation.isPending || !hasApprovedProfileEvidence}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {downloadCvMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  Download approved CV PDF
+                </button>
+              </div>
 
-      {variant === 'embedded' && !cvDoc ? (
-        <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 px-4 py-3 text-sm text-amber-200">
-          No CV text in your library yet. Upload a CV in the <strong className="text-white">Upload</strong> tab, then return here for style analysis and generation.
+              {approvedSkills.length > 0 ? (
+                <div>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Approved skills</p>
+                  <div className="flex flex-wrap gap-2">
+                    {approvedSkills.map((skill: string) => <span key={skill} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white">{skill}</span>)}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-8 text-center">
+              <FileText className="mx-auto h-10 w-10 text-slate-600" />
+              <h3 className="mt-3 text-sm font-semibold text-white">No approved profile evidence yet</h3>
+              <p className="mt-1 text-sm text-slate-500">Approve CV import changes in Document Hub or fill Profile manually before generating tailored documents.</p>
+            </div>
+          )}
         </div>
-      ) : null}
-
-      {cvDoc && localAnalysis ? (
-        <section>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-slate-500">Style Analysis — {cvDoc.filename}</h2>
-            {analyzeDocMutation ? (
-              <button onClick={() => void handleAnalyse(cvDoc.rawText)} disabled={isAnalysing} className="inline-flex items-center gap-1.5 rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-xs font-medium text-purple-300 transition-colors hover:bg-purple-500/20 disabled:opacity-50">
-                {isAnalysing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                Analyse with AI
-              </button>
-            ) : null}
-          </div>
-
-          {aiAnalysis ? (
-            <div className="mb-4 space-y-3 rounded-2xl border border-purple-500/20 bg-purple-500/5 p-5">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-purple-400" />
-                <span className="text-sm font-semibold text-white">AI Insights</span>
-                {aiAnalysis.score !== undefined ? <span className="ml-auto text-sm font-bold text-purple-300">{aiAnalysis.score}/100</span> : null}
-              </div>
-              {aiAnalysis.tone ? <p className="text-sm text-slate-300"><span className="text-slate-500">Detected tone: </span><span className="capitalize">{aiAnalysis.tone}</span></p> : null}
-              {aiAnalysis.topVerbs && aiAnalysis.topVerbs.length > 0 ? <div className="flex flex-wrap gap-1.5">{aiAnalysis.topVerbs.map((v) => <span key={v} className="rounded-full border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-xs text-purple-300">{v}</span>)}</div> : null}
-              {aiAnalysis.suggestions && aiAnalysis.suggestions.length > 0 ? <ul className="space-y-1.5 text-sm text-slate-300">{aiAnalysis.suggestions.map((s, i) => <li key={i} className="flex gap-2"><span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-purple-400" />{s}</li>)}</ul> : null}
-            </div>
-          ) : null}
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="mb-4 flex items-center gap-2"><BarChart2 className="h-4 w-4 text-slate-400" /><span className="text-sm font-semibold text-white">Document stats</span></div>
-              <dl className="space-y-3">
-                <div className="flex justify-between"><dt className="text-sm text-slate-400">Word count</dt><dd className="text-sm font-semibold text-white">{localAnalysis.wordCount.toLocaleString()}</dd></div>
-                <div className="flex justify-between"><dt className="text-sm text-slate-400">Sentences</dt><dd className="text-sm font-semibold text-white">{localAnalysis.sentenceCount.toLocaleString()}</dd></div>
-                <div className="flex justify-between"><dt className="text-sm text-slate-400">Avg. sentence length</dt><dd className="text-sm font-semibold text-white">{localAnalysis.sentenceCount > 0 ? Math.round(localAnalysis.wordCount / localAnalysis.sentenceCount) : 0} words</dd></div>
-              </dl>
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="mb-4 flex items-center gap-2"><Palette className="h-4 w-4 text-slate-400" /><span className="text-sm font-semibold text-white">Writing tone</span></div>
-              {localAnalysis.tones.length === 0 ? <p className="text-sm text-slate-500">No strong tone signals detected.</p> : <div className="space-y-2">{localAnalysis.tones.map((t) => <div key={t.label} className="flex items-center gap-3"><span className="w-24 shrink-0 text-xs capitalize text-slate-400">{t.label}</span><div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/5"><div className="h-full rounded-full bg-purple-500" style={{ width: `${Math.min(100, t.score * 20)}%` }} /></div><span className="text-xs text-slate-500">{t.score}</span></div>)}</div>}
-            </div>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="mb-4 flex items-center gap-2"><Loader2 className="h-4 w-4 text-slate-400" /><span className="text-sm font-semibold text-white">Top action verbs</span></div>
-              {localAnalysis.topVerbs.length === 0 ? <p className="text-sm text-slate-500">No action verbs found.</p> : <div className="flex flex-wrap gap-2">{localAnalysis.topVerbs.map(([verb, count]) => <span key={verb} className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs text-white">{verb}<span className="text-slate-500">×{count}</span></span>)}</div>}
-            </div>
-          </div>
-
-          {rewriteMutation && cvDoc.summary ? (
-            <div className="mt-4 space-y-3 rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-medium text-white">Summary</p>
-                  <p className="mt-0.5 line-clamp-2 text-sm text-slate-400">{rewrittenSummary ?? cvDoc.summary}</p>
-                </div>
-                <button onClick={() => void handleRewriteSummary(cvDoc.summary ?? '')} disabled={isRewritingSummary} className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 transition-colors hover:bg-indigo-500/20 disabled:opacity-50">
-                  {isRewritingSummary ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
-                  Rewrite with AI
-                </button>
-              </div>
-              {rewrittenSummary ? <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3 text-sm text-slate-300">{rewrittenSummary}</div> : null}
-            </div>
-          ) : null}
-
-          {rewriteMutation && cvDoc.skills.length > 0 ? (
-            <div className="mt-3 space-y-3 rounded-2xl border border-white/10 bg-white/5 p-5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-medium text-white">Skills</p>
-                  <p className="mt-0.5 line-clamp-1 text-sm text-slate-400">{cvDoc.skills.slice(0, 5).join(', ')}{cvDoc.skills.length > 5 ? '…' : ''}</p>
-                </div>
-                <button onClick={() => void handleRewriteSkills(cvDoc.skills.join(', '))} disabled={isRewritingSkills} className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 transition-colors hover:bg-indigo-500/20 disabled:opacity-50">
-                  {isRewritingSkills ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
-                  Rewrite with AI
-                </button>
-              </div>
-              {rewrittenSkills ? <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3 text-sm text-slate-300">{rewrittenSkills}</div> : null}
-            </div>
-          ) : null}
-
-          <div className="mt-4 flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-5">
-            <div>
-              <p className="font-medium text-white">Document-to-profile review</p>
-              <p className="mt-0.5 text-sm text-slate-400">
-                Apply CV data to Profile from Document Hub only, where overwrite risk and diff review are explicit.
-              </p>
-            </div>
-            <Link to="/documents" className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700">
-              Review in Document Hub
-            </Link>
-          </div>
-        </section>
-      ) : null}
-
-      {profile ? (
-        <section>
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-500">CV Preview</h2>
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-bold text-white">{profile.personalInfo.fullName || 'Your Name'}</h3>
-                {profile.personalInfo.phone ? <p className="mt-0.5 text-sm text-slate-400">{profile.personalInfo.phone}</p> : null}
-                {profile.personalInfo.summary ? <p className="mt-3 max-w-prose text-sm leading-relaxed text-slate-300">{profile.personalInfo.summary}</p> : null}
-              </div>
-              <button onClick={() => void handleDownloadPdf()} disabled={downloadCvMutation.isPending} className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10 disabled:opacity-50">
-                {downloadCvMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                Download PDF
-              </button>
-            </div>
-
-            {profile.skills.length > 0 ? (
-              <div className="mt-5">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Skills</p>
-                <div className="flex flex-wrap gap-2">
-                  {profile.skills.map((s) => <span key={s} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white">{s}</span>)}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
-
-      {variant !== 'embedded' ? (
-        <section>
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-500">Document Library</h2>
-          <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/5">
-            {latestQuery.isLoading ? (
-              <div className="flex items-center justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-slate-500" /></div>
-            ) : !latestQuery.data ? (
-              <div className="py-8 text-center text-sm text-slate-500">No documents uploaded yet.</div>
-            ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-white/5 text-left">
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-widest text-slate-500">File</th>
-                    <th className="hidden px-5 py-3 text-xs font-semibold uppercase tracking-widest text-slate-500 sm:table-cell">Uploaded</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-widest text-slate-500">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b border-white/5 last:border-0">
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-2"><FileText className="h-4 w-4 shrink-0 text-slate-400" /><span className="max-w-xs truncate text-white">{latestQuery.data.originalFilename}</span></div>
-                    </td>
-                    <td className="hidden px-5 py-4 text-slate-400 sm:table-cell">{new Date(latestQuery.data.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-                    <td className="px-5 py-4 text-right">
-                      <Link to="/documents" className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-white/10">
-                        Review in Document Hub
-                      </Link>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            )}
-          </div>
-        </section>
-      ) : null}
+      </section>
 
       <section>
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-500">Generate from Job</h2>
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-widest text-slate-500">Generate from job</h2>
         <div className="space-y-5 rounded-2xl border border-white/10 bg-white/5 p-6">
-          <p className="text-xs text-slate-400">Pick a job from your feed or enter details manually and let AI generate a tailored CV summary or cover letter.</p>
+          <p className="text-xs text-slate-400">
+            Pick a job or enter details manually. The generator receives approved profile summary, approved skills and approved sender name only.
+          </p>
 
           <div className="flex gap-2">
-            {(['cv', 'coverletter'] as const).map((t) => (
-              <button key={t} onClick={() => { setGenType(t); setGenResult(null); }} className={`rounded-lg border px-4 py-2 text-sm font-semibold transition-all ${genType === t ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300' : 'border-white/10 bg-white/5 text-slate-400 hover:border-indigo-500/30'}`}>
-                {t === 'cv' ? '📄 CV Summary' : '✉️ Cover Letter'}
+            {(['cv', 'coverletter'] as const).map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => { setGenType(type); setGenResult(null); setGenError(null); }}
+                className={`rounded-lg border px-4 py-2 text-sm font-semibold transition-all ${genType === type ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300' : 'border-white/10 bg-white/5 text-slate-400 hover:border-indigo-500/30'}`}
+              >
+                {type === 'cv' ? 'CV Summary' : 'Cover Letter'}
               </button>
             ))}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <p className="mb-1.5 text-xs font-semibold text-slate-500">Job Title</p>
-              <input type="text" value={genJobTitle} onChange={(e) => setGenJobTitle(e.target.value)} placeholder="e.g. Senior Frontend Engineer" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/50" />
+              <label className="mb-1.5 block text-xs font-semibold text-slate-500">Job Title</label>
+              <input type="text" value={genJobTitle} onChange={(event) => setGenJobTitle(event.target.value)} placeholder="e.g. Senior Frontend Engineer" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/50" />
             </div>
             <div>
-              <p className="mb-1.5 text-xs font-semibold text-slate-500">Company</p>
-              <input type="text" value={genCompany} onChange={(e) => setGenCompany(e.target.value)} placeholder="e.g. Acme Corp" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/50" />
+              <label className="mb-1.5 block text-xs font-semibold text-slate-500">Company</label>
+              <input type="text" value={genCompany} onChange={(event) => setGenCompany(event.target.value)} placeholder="e.g. Acme Corp" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/50" />
             </div>
           </div>
 
-          {jobsFeedQuery.data && jobsFeedQuery.data.length > 0 ? (
+          {Array.isArray(jobsFeedQuery.data) && jobsFeedQuery.data.length > 0 ? (
             <div>
               <p className="mb-2 text-xs font-semibold text-slate-500">Or pick from your job feed</p>
               <div className="max-h-36 space-y-1.5 overflow-y-auto">
-                {(jobsFeedQuery.data as { id: string; title: string; company: string; description?: string | null }[]).map((j) => (
-                  <button key={j.id} onClick={() => { setGenJobId(j.id); setGenJobTitle(j.title); setGenCompany(j.company); setGenJobDesc(j.description ?? ''); }} className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-all ${genJobId === j.id ? 'border-indigo-500 bg-indigo-500/15 text-indigo-200' : 'border-white/[0.06] bg-white/[0.02] text-slate-300 hover:border-indigo-500/30'}`}>
-                    <span className="font-medium">{j.title}</span>
-                    <span className="ml-2 text-xs text-slate-500">{j.company}</span>
+                {(jobsFeedQuery.data as JobFeedItem[]).map((job) => (
+                  <button
+                    key={job.id}
+                    type="button"
+                    onClick={() => { setGenJobId(job.id); setGenJobTitle(job.title); setGenCompany(job.company); setGenJobDesc(job.description ?? ''); }}
+                    className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-all ${genJobId === job.id ? 'border-indigo-500 bg-indigo-500/15 text-indigo-200' : 'border-white/[0.06] bg-white/[0.02] text-slate-300 hover:border-indigo-500/30'}`}
+                  >
+                    <span className="font-medium">{job.title}</span>
+                    <span className="ml-2 text-xs text-slate-500">{job.company}</span>
                   </button>
                 ))}
               </div>
@@ -656,14 +286,21 @@ export default function StyleStudio({ variant = 'page' }: { variant?: StyleStudi
           ) : null}
 
           <div>
-            <p className="mb-1.5 text-xs font-semibold text-slate-500">Job Description (optional)</p>
-            <textarea rows={3} value={genJobDesc} onChange={(e) => setGenJobDesc(e.target.value)} placeholder="Paste the job description for better tailoring…" className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/50" />
+            <label className="mb-1.5 block text-xs font-semibold text-slate-500">Job Description optional</label>
+            <textarea rows={4} value={genJobDesc} onChange={(event) => setGenJobDesc(event.target.value)} placeholder="Paste the job description for better tailoring…" className="w-full resize-y rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-500/50" />
           </div>
 
-          <button onClick={() => void handleGenerate()} disabled={!genJobTitle.trim() || generateFromJobMutation.isPending} className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50">
+          <button
+            type="button"
+            onClick={() => void handleGenerate()}
+            disabled={!genJobTitle.trim() || generateFromJobMutation.isPending || !hasApprovedProfileEvidence}
+            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+          >
             {generateFromJobMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             {generateFromJobMutation.isPending ? 'Generating…' : `Generate ${genType === 'cv' ? 'CV Summary' : 'Cover Letter'}`}
           </button>
+
+          {genError ? <p className="text-sm text-red-400">{genError}</p> : null}
 
           {genResult !== null ? (
             <div className="space-y-3">
@@ -671,11 +308,11 @@ export default function StyleStudio({ variant = 'page' }: { variant?: StyleStudi
                 <div className="mb-3 flex items-center gap-2"><Sparkles className="h-4 w-4 text-indigo-400" /><span className="text-sm font-semibold text-white">Generated {genType === 'cv' ? 'CV Summary' : 'Cover Letter'}</span></div>
                 <div className="whitespace-pre-wrap text-sm leading-relaxed text-slate-200">{genResult || 'Generation failed. Try again.'}</div>
               </div>
-              {genResult && (
-                <button onClick={() => void handleDownloadGenPdf()} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10">
+              {genResult ? (
+                <button onClick={() => void handleDownloadGeneratedPdf()} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10">
                   <Download className="h-4 w-4" /> Download PDF
                 </button>
-              )}
+              ) : null}
               {genPdfError ? <p className="text-sm text-red-400">{genPdfError}</p> : null}
             </div>
           ) : null}
