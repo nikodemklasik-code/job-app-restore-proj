@@ -3,7 +3,7 @@ import { BriefcaseBusiness, CalendarDays, Handshake, HeartHandshake, Megaphone, 
 const SECTION_CARD =
   'rounded-2xl border border-white/10 bg-white/5 p-5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]';
 
-export default function CommunityCentrePage() {
+export default function CommunityCenterPage() {
   return (
     <div className="space-y-8">
       <section className="rounded-3xl border border-indigo-500/30 bg-gradient-to-br from-indigo-500/15 via-slate-900/40 to-violet-900/25 p-6 md:p-8">
@@ -11,7 +11,7 @@ export default function CommunityCentrePage() {
           <div className="max-w-3xl">
             <p className="inline-flex items-center gap-2 rounded-full border border-indigo-300/30 bg-indigo-500/15 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-200">
               <Users className="h-3.5 w-3.5" />
-              Community Centre
+              Community Center
             </p>
             <h1 className="mt-3 text-3xl font-bold text-white md:text-4xl">Grow with peers, proof, and shared momentum.</h1>
             <p className="mt-3 text-sm text-slate-300 md:text-base">
@@ -127,7 +127,7 @@ export default function CommunityCentrePage() {
             <Star className="h-5 w-5 text-amber-300" />
           </div>
           <ul className="mt-3 space-y-2 text-sm text-slate-300">
-            <li>• Elena — improved interview confidence score after Daily Warmup streak.</li>
+            <li>• Elena — improved interview confidence score after Daily Warm-up streak.</li>
             <li>• Marcus — converted report insights into stronger application replies.</li>
             <li>• Priya — negotiated compensation band with clear value framing.</li>
           </ul>
@@ -167,7 +167,7 @@ export default function CommunityCentrePage() {
           <div className="mt-3 space-y-2 text-sm text-slate-300">
             <p>Top topic: Follow-up strategy after 7+ days of silence.</p>
             <p>Most saved template: Compensation boundary response draft.</p>
-            <p>Fastest growing ritual: 10-minute Daily Warmup challenge.</p>
+            <p>Fastest growing ritual: 10-minute Daily Warm-up challenge.</p>
           </div>
         </article>
       </section>
