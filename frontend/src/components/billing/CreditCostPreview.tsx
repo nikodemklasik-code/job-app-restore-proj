@@ -2,12 +2,35 @@ import { AlertTriangle, CheckCircle2, Coins, Loader2, RotateCcw } from 'lucide-r
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
 
-type FeatureKey = Parameters<typeof api.billing.estimateCost.useQuery>[0]['feature'];
+export type BillingFeatureKey =
+  | 'warmup_session_15s'
+  | 'warmup_session_30s'
+  | 'warmup_session_45s'
+  | 'warmup_session_60s'
+  | 'coach_quick_reframe'
+  | 'coach_structured_guidance'
+  | 'coach_deep_coaching'
+  | 'coach_session'
+  | 'interview_lite'
+  | 'interview_standard'
+  | 'interview_deep'
+  | 'negotiation_reply_draft'
+  | 'negotiation_counter_offer'
+  | 'negotiation_strategy'
+  | 'negotiation_simulation'
+  | 'skill_lab_gap_analysis'
+  | 'skill_lab_course_suggest'
+  | 'style_analyze_document'
+  | 'legal_hub_ai_answer'
+  | 'legal_hub_search_pdf'
+  | 'ai_analysis_compare'
+  | 'matrix_skill_gap_analysis'
+  | 'matrix_employer_deep_dive'
+  | 'matrix_market_comparison';
 
 type Props = {
-  feature: FeatureKey;
+  feature: BillingFeatureKey;
   title?: string;
-  referenceId?: string;
 };
 
 function estimateDisplay(cost: unknown): { label: string; maxCost: number; productLabel: string } {
