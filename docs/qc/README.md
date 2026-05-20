@@ -24,4 +24,18 @@ Umieszczaj nowe pliki QC zgodnie z fazą squadu:
 
 Brak pliku w danej fazie = normalne na początku; **nie** blokuj QC od przeszukiwania `docs/qc-reports/`.
 
+## Ręczna weryfikacja buildów
+
+Dla zmian wprowadzanych zdalnie przez GitHub API, gdy lokalne `git clone` / środowisko wykonawcze nie jest dostępne, status buildów należy traktować jako **manual verification required**.
+
+W takim przypadku agent musi w raporcie lub wiadomości przekazania wskazać:
+
+- ostatni commit SHA,
+- listę zmienionych plików,
+- zakres zweryfikowany statycznie,
+- czego nie dało się uruchomić lokalnie,
+- ręczne komendy do odpalenia przez operatora, np. `pnpm install`, `pnpm build`, `pnpm test`, zależnie od dostępnych skryptów repo.
+
+Dla pipeline `Document Intake / Document Hub -> CV parse -> review diff -> approved Profile` ostatnia zdalna weryfikacja oznacza: kod został zacommitowany na `gptupdate`, ale finalny status integracyjny wymaga ręcznego builda/operator smoke testu, ponieważ w sesji wykonawczej nie było dostępnego lokalnego checkoutu. Tak, nawet komputery czasem potrzebują kartki z informacją „sprawdź ręcznie”, bo najwyraźniej automatyzacja też lubi urlop.
+
 **Słowa werdyktu przy integracji** — spójnie z [`../policies/quality-control-developer-role-spec.md`](../policies/quality-control-developer-role-spec.md): końcowa decyzja merge/release = **Approved For Integration** albo **Not Approved For Integration**. Wewnątrz raportu możesz użyć skrótów z modelu operacyjnego (Approved / Rejected / Rework Required / Conditionally Approved), byle końcowa linia decyzji była zgodna z polityką integracji.
