@@ -1,187 +1,208 @@
-# MultivoHub — Execution Progress Tracker (branch `gptupdate`)
+# MultivoHub - Execution Progress Tracker (branch gptupdate)
 
 Stan na: 2026-05-20
 
-Ten plik jest roboczym trackerem wykonania głównego planu. Nie jest marketingiem ani raportem „wszystko super”. Ma pokazywać, co jest naprawdę domknięte, co jest w toku i co dalej blokuje przepływy end to end.
+Ten plik jest roboczym trackerem wykonania glownego planu. Pokazuje, co jest domkniete, co jest czesciowe, czego brakuje i co blokuje integracje.
 
-## Legenda statusów
+## Legenda
 
-- 🟩 Zrobione
-- 🟨 W toku
-- 🟥 Niezrobione / zablokowane
-- ⬜ Jeszcze nieruszone
+- zrobione = kodowo wdrozone
+- czesciowe = wdrozone tylko dla czesci flow albo bez pelnej walidacji
+- brak = niezaimplementowane w tym slice
+- blocker = blokuje status integracyjny
 
----
+## Glowny cel
 
-## Główny cel
+Doprowadzic produkt do stanu, w ktorym 5 kluczowych przeplywow dziala stabilnie end to end:
 
-Doprowadzić produkt do stanu, w którym 5 kluczowych przepływów działa stabilnie end to end:
-
-1. Document Intake -> CV parse -> Profile sync -> Style Studio / CV output
+1. Document Intake -> CV parse -> review -> approved Profile -> Style Studio / CV output
 2. Profile -> Jobs Search / Job Radar -> Save / Apply -> Applications
 3. Billing / Credits -> AI action -> credit deduction -> history / visibility
 4. Interview / Coach / Skill Lab -> evidence / skill impact -> profile value
 5. Deploy -> smoke test -> monitoring -> rollback readiness
 
----
+## Audyt end-to-end: CV -> review -> approve/reject -> Profile -> downstream
 
-# Strumień A — Source of Truth danych użytkownika
+Status: czesciowe / manual verification required.
 
-## Cel
-Jeden spójny model danych użytkownika dla Profile, Document Hub, Style Studio, Jobs, Job Radar, Applications i Skill Lab.
+### Zrobione
 
-## Zadania
-- 🟨 Finalny kontrakt `Profile` jako centralnego źródła prawdy
-- 🟨 Mapowanie pól z parsera CV do profilu
-- 🟩 Import z CV nie robi już cichego overwrite profilu
-- 🟨 Znaczniki pochodzenia danych: `imported_from_cv`, `user_confirmed`, `ai_suggested`
-- 🟨 Review-before-overwrite dla pól krytycznych
+- CV upload przez DocumentLab.
+- CV parse przez backendowy CV router.
+- Latest parsed CV query.
+- Review preview przed importem do profilu.
+- Diff personal info: current value, parsed value, overwrite/fill/no-change.
+- Diff sekcji: skills, experience, education, training.
+- Approve/reject dla personal fields.
+- Approve/reject dla sekcji.
+- Backend importuje tylko zaakceptowane pola i sekcje.
+- Rejected parser output nie jest zapisywany.
+- Provenance imported_from_cv jest zapisywane dla zatwierdzonych zmian.
+- Profile UI pokazuje badges: user_confirmed, imported_from_cv, ai_suggested, unknown.
+- Style Studio czyta approved profile state, nie parser state.
+- Approved CV PDF path jest oparty o profile data, nie ostatni upload CV.
 
-## Kamienie milowe
-- 🟨 M1: finalny kontrakt danych profilu i mapowanie pól
-- 🟨 M2: CV import aktualizuje profil bez utraty danych
-- 🟨 M3: użytkownik widzi i zatwierdza różnice przed nadpisaniem
-- 🟨 M4: wszystkie moduły czytają z tego samego modelu
+### Czesciowe
 
-## Notatka operacyjna
-Najważniejsza zmiana już wykonana: CV nie powinno już po cichu rozwalać profilu. Doszedł też jawny kontrakt provenance w `shared/profile.ts` i backend zwraca provenance dla approved snapshotu. Nadal brakuje pełnego rozróżnienia między `imported_from_cv` a `user_confirmed` na poziomie historycznym oraz prezentacji tego w UI.
+- Profile truth contract jest rozbudowany, ale nie jest jeszcze udowodniony globalnie dla Jobs, Job Radar, Applications i Skill Lab.
+- Parser state side-channel audit jest wykonany dla glownego flow Document/Profile/Style, ale wymaga pelnego lokalnego grep/build.
+- Operacyjne pola profilu z planu nie sa w pelni mapowane z CV: languages, work values, target role, work setup, target industries.
 
----
+### Brak
 
-# Strumień B — Dokumenty i pipeline CV
+- Wersjonowanie dokumentow i rollback.
+- Finalny system approved CV templates.
+- Jobs / Job Radar / Applications jako jeden flow.
+- Wspolny job lead model i statusy.
+- Skill Lab evidence loop.
+- Billing global credit visibility.
+- Sentry, uptime monitoring i deploy smoke gate.
 
-## Cel
-Upload dokumentu -> parse -> review -> import do profile -> generate styled doc / CV / cover letter
+### Blocker
 
-## Zadania
-- 🟨 Ujednolicenie nazewnictwa: Document Hub + Document Intake + Style Studio
-- 🟨 Onboarding: najpierw CV, potem Profile, potem generowanie
-- 🟨 Parser + ekran review importu
-- 🟩 Style Studio nie syncuje już profilu bokiem
-- ⬜ Wersjonowanie / powrót do poprzednich wersji dokumentów
-- ⬜ Odpowiednie szablony CV oparte o zatwierdzone dane
+- Brak lokalnego builda i smoke testu.
+- Brak CI statusow dla ostatnich commitow.
+- Znane ryzyko backend builda: w backend/src/trpc/routers/cv.router.ts PERSONAL_FIELDS powinno byc const tuple dla Zod enum, a nie zwykla tablica typowana jako PersonalFieldKey[].
 
-## Kamienie milowe
-- 🟨 M1: upload i parse działają stabilnie
-- 🟨 M2: import do Profile działa przewidywalnie
-- 🟨 M3: Style Studio generuje tylko z zatwierdzonych danych
-- ⬜ M4: użytkownik może wrócić do poprzednich wersji dokumentów
-- ⬜ M5: CV templates są spójne, czytelne i oparte na approved profile state
+## Porownanie z raportem stanu projektu
 
-## Notatka operacyjna
-Style Studio zostało odcięte od bezpośredniego „import to profile”. To ważne, bo ten skrót psuł cały spine danych jak tania rurka odpływowa.
+Raport postepu z 2026-05-20 jest czesciowo nieaktualny wzgledem aktualnego gptupdate.
 
----
+| Obszar | Status w starym raporcie | Status aktualny |
+|---|---|---|
+| CV preview gate | zrobione | zrobione |
+| No silent overwrite | zrobione | zrobione kodowo, build pending |
+| Document Lab review UI | zrobione | zrobione |
+| Sekcje CV jako sumy | zrobione | zrobione lepiej: structural diff |
+| Provenance danych | niezrobione | zrobione kodowo, build pending |
+| Richer diff sekcji | niezrobione | zrobione kodowo |
+| Profile truth contract | niezrobione/czesciowe | czesciowe |
+| Style Studio sync | niezrobione | zrobione kodowo |
+| Jobs/Radar/Applications | niezrobione | brak |
+| Credits visibility | niezrobione | brak |
+| Build/smoke/deploy gate | niezrobione | blocker |
 
-# Strumień C — Jobs, Job Radar i Applications jako jedna maszyna operacyjna
+## Strumien A - Source of Truth danych uzytkownika
 
-## Cel
-Profile -> Jobs Search -> save / shortlist -> Job Radar deep scan -> apply / prepare draft -> Applications tracking -> review queue
+Status: czesciowe.
 
-## Zadania
-- 🟥 Jobs jako jeden obszar z podwidokami: Search / Saved / Radar / Applications
-- 🟥 Wspólny model `job lead`
-- 🟥 Spięcie Save Job -> Open Radar -> Create Application Draft
-- 🟥 Naprawa draft applications flow: toasty / loading / success / retry
-- 🟥 Review queue jako filtr Applications, nie osobny byt
+Zrobione:
 
-## Kamienie milowe
-- 🟥 M1: Jobs i Job Radar są jednym obszarem nawigacyjnym
-- 🟥 M2: zapisanie oferty i przejście do Applications działa zawsze
-- 🟥 M3: Radar wzbogaca lead i wpływa na decyzję apply / skip
-- 🟥 M4: Applications są głównym pipeline wykonawczym
+- Profile snapshot rozszerzony o provenance.
+- Backend normalizuje provenance dla approved profile snapshot.
+- Profile UI pokazuje provenance badges.
+- CV import nie robi silent overwrite w glownej sciezce review.
 
-## Notatka operacyjna
-Ten strumień jest nadal częściowo rozgrzebany. Bez domknięcia Source of Truth naprawianie go do końca byłoby polerowaniem błędnych danych, czyli klasyczna ludzka rozrywka.
+Braki:
 
----
+- Pelny mapping CV -> Profile dla wszystkich pol planu.
+- Pelna historia zmian profilu.
+- Globalne potwierdzenie, ze wszystkie downstream moduly czytaja approved profile.
 
-# Strumień D — Skill Lab, Interview, Coach, Case Practice
+Blocker:
 
-## Cel
-Profile -> Skill Lab gap -> Interview / Coach / Case Practice -> evidence -> updated profile signals -> better Jobs / CV / Radar
+- Build/smoke niepotwierdzony.
 
-## Zadania
-- 🟥 Wspólny model `evidence`
-- 🟥 Interview -> evidence tracking
-- 🟥 Coach -> action plan jako controlled save, nie silent write
-- 🟥 Skill Lab tylko na real data
-- 🟥 Pokazanie wpływu rozwoju na fit score / CV value / market value
+## Strumien B - Dokumenty i pipeline CV
 
-## Kamienie milowe
-- 🟥 M1: Skill Lab przestaje być izolowanym ekranem
-- 🟥 M2: Interview i Coach produkują evidence
-- 🟥 M3: Evidence wpływa na Jobs, Radar i CV
-- 🟥 M4: użytkownik widzi wpływ rozwoju na rynek
+Status: czesciowe / blisko zrobione dla core flow.
 
----
+Zrobione:
 
-# Strumień E — Legal, Negotiation, Salary Intelligence
+- Upload dokumentu.
+- Parse CV.
+- Review diff.
+- Approve/reject.
+- Import tylko zatwierdzonych zmian.
+- Style Studio z approved profile.
 
-## Cel
-Job / Application / Offer -> Salary Intelligence / Negotiation / Legal Hub -> recommended action
+Braki:
 
-## Zadania
-- ⬜ Salary Intelligence osadzone w Job Radar / Negotiation / Offer handling
-- ⬜ Negotiation odpalane z kontekstu aplikacji lub oferty
-- ⬜ Legal Hub jako wyszukiwarka i kontekstowe CTA
-- ⬜ Ujednolicone wejścia: salary / role / company / contract / benefits / legal concern
-- ⬜ Structured output: quick answer / strategy / risks / next action
+- Wersjonowanie dokumentow.
+- Powrot do poprzednich wersji.
+- Finalne approved CV templates.
 
-## Kamienie milowe
-- ⬜ M1: Salary Intelligence używane w Job Radar
-- ⬜ M2: Negotiation odpalane z realnego kontekstu
-- ⬜ M3: Legal Hub wspiera decyzje, a nie jest samotną wyszukiwarką
+Blocker:
 
----
+- Backend schema typing risk i brak build/smoke.
 
-# Strumień F — Billing, visibility, deploy, monitoring i jakość operacyjna
+## Strumien C - Jobs, Job Radar, Applications
 
-## Cel
-Widoczne koszty, przewidywalne mutacje, monitoring i bezpieczny deploy.
+Status: brak.
 
-## Zadania
-- 🟥 Globalna widoczność kredytów
-- 🟥 Zamiana `alert()` na toasty
-- 🟥 Loading / pending / error / success states dla głównych mutacji
-- ⬜ Sentry frontend + backend
-- ⬜ Uptime monitoring + smoke test po deployu
-- ⬜ Deploy gate checklist
+Braki:
 
-## Kamienie milowe
-- 🟥 M1: użytkownik zawsze widzi kredyty i koszt akcji
-- 🟥 M2: znikają alerty i martwe kliknięcia
-- ⬜ M3: każdy deploy ma smoke gate
-- ⬜ M4: błędy produkcyjne są widoczne i śledzone
+- Jobs jako jeden obszar z podwidokami Search/Saved/Radar/Applications.
+- Wspolny model job lead.
+- Unified statuses.
+- Save Job -> Open Radar -> Create Application Draft.
+- Draft applications loading/success/error/retry states.
+- Review queue jako filtr Applications.
 
----
+## Strumien D - Skill Lab, Interview, Coach, Case Practice
 
-# Ostatnio wykonane
+Status: brak.
 
-## 2026-05-20
-- 🟩 Dodany review gate dla CV -> Profile zamiast cichego nadpisania
-- 🟩 Dodane ostrzeżenia o ryzyku parsowania / overwrite
-- 🟩 Style Studio odcięte od bezpośredniego syncu do profilu
-- 🟩 Style Studio kieruje teraz użytkownika do Document Hub review flow
-- 🟩 Utrwalony tracker postępu na branchu `gptupdate`
-- 🟩 Dodany kontrakt provenance do snapshotu profilu
-- 🟩 Backend zwraca provenance dla approved profile state
+Braki:
 
----
+- Wspolny model evidence.
+- Interview -> evidence tracking.
+- Coach -> controlled save jako sugestie, nie silent write.
+- Skill Lab na real approved profile data.
+- Widoczny wplyw evidence na Jobs, Radar i CV.
 
-# Najbliższe kroki
+## Strumien E - Legal, Negotiation, Salary Intelligence
 
-1. Dodać provenance do UI profilu i review flow dokumentów
-2. Rozbudować structural diff dla experience / education / training
-3. Ustalić approved CV templates oparte o zatwierdzone dane
-4. Dopiero potem wrócić do unifikacji Jobs / Job Radar / Applications
+Status: brak.
 
----
+Braki:
 
-# Reguły egzekucji
+- Salary Intelligence osadzone w Job Radar / Negotiation / Offer handling.
+- Negotiation z kontekstu aplikacji albo oferty.
+- Legal Hub jako kontekstowe CTA.
+- Structured output: quick answer, strategy, risks, next action.
 
-- Żadna akcja AI nie robi silent write do profilu
-- Każdy moduł premium pokazuje koszt przed uruchomieniem
-- Każdy zapisujący moduł ma loading / success / error state
-- Każde dane użytkownika mają docelowo source provenance
-- Najpierw domykamy główne flow, potem ozdoby i poboczne gadżety
+## Strumien F - Billing, visibility, deploy, monitoring
+
+Status: brak.
+
+Braki:
+
+- Globalna widocznosc kredytow.
+- Before-action cost preview.
+- Transaction history.
+- Low balance warning.
+- Toasty zamiast alert we wszystkich modulach.
+- Sentry frontend/backend.
+- Uptime monitoring.
+- Deploy smoke gate.
+
+## Wymagana walidacja przed integracja
+
+Manual build/test required:
+
+- npm install
+- npm run build
+- npm run test:backend
+- npm run test:frontend
+- npm run smoke:local
+- npm run build:backend
+- npm run build:frontend
+
+## Decyzja integracyjna
+
+Not Approved For Integration until:
+
+1. backend typing risk in CV import decision schema is patched,
+2. manual build passes,
+3. backend and frontend tests pass,
+4. local smoke for CV -> review -> approve/reject -> Profile -> Style Studio passes.
+
+## Kolejnosc dalszej egzekucji
+
+1. Patch backend CV import decision schema typing.
+2. Run manual build/test/smoke.
+3. If green, mark Stream A/B core as zrobione.
+4. Implement Jobs/Radar/Applications unification.
+5. Implement Billing visibility and deploy gate.
+6. Implement Skill Lab evidence loop.
