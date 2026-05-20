@@ -119,6 +119,29 @@ function unknownProvenance(note?: string): ProfileFieldProvenance {
   return provenance('unknown', null, note ?? 'No approved value yet');
 }
 
+function normalizeStoredProvenance(raw: unknown): ProfileFieldProvenance | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const candidate = raw as Record<string, unknown>;
+  const source = candidate.source;
+  if (
+    source !== 'unknown'
+    && source !== 'imported_from_cv'
+    && source !== 'user_confirmed'
+    && source !== 'ai_suggested'
+  ) {
+    return null;
+  }
+  return {
+    source,
+    note: typeof candidate.note === 'string' ? candidate.note : undefined,
+    updatedAt: typeof candidate.updatedAt === 'string' ? candidate.updatedAt : null,
+  };
+}
+
+function withStoredProvenance(fallback: ProfileFieldProvenance, raw: unknown): ProfileFieldProvenance {
+  return normalizeStoredProvenance(raw) ?? fallback;
+}
+
 function emptyPersonalInfoProvenance(): ProfileSnapshotProvenance['personalInfo'] {
   return {
     fullName: unknownProvenance(),
@@ -167,6 +190,53 @@ function trainingProvenance(updatedAt?: Date | string | null): ProfileTrainingPr
     expiresAt: base,
     credentialUrl: base,
   };
+}
+
+function applyExperienceStoredProvenance(base: ProfileExperienceProvenance, raw: unknown): ProfileExperienceProvenance {
+  const stamp = normalizeStoredProvenance(raw);
+  if (!stamp) return base;
+  return {
+    record: stamp,
+    employerName: stamp,
+    jobTitle: stamp,
+    startDate: stamp,
+    endDate: stamp,
+    description: stamp,
+    achievements: stamp,
+  };
+}
+
+function applyEducationStoredProvenance(base: ProfileEducationProvenance, raw: unknown): ProfileEducationProvenance {
+  const stamp = normalizeStoredProvenance(raw);
+  if (!stamp) return base;
+  return {
+    record: stamp,
+    schoolName: stamp,
+    degree: stamp,
+    fieldOfStudy: stamp,
+    startDate: stamp,
+    endDate: stamp,
+  };
+}
+
+function applyTrainingStoredProvenance(base: ProfileTrainingProvenance, raw: unknown): ProfileTrainingProvenance {
+  const stamp = normalizeStoredProvenance(raw);
+  if (!stamp) return base;
+  return {
+    record: stamp,
+    title: stamp,
+    providerName: stamp,
+    issuedAt: stamp,
+    expiresAt: stamp,
+    credentialUrl: stamp,
+  };
+}
+
+function strategyProfileProvenance(strategy: ProfileStrategyJson): Record<string, unknown> {
+  const raw = strategy.profileProvenance;
+  return raw && typeof raw === 'object' && !Array.isArray(raw)
+    ? raw as Record<string, unknown>
+    : {};
 }
 
 function careerRowToSnapshot(row: typeof careerGoals.$inferSelect): CareerGoalsSnapshot {
@@ -232,6 +302,7 @@ async function fetchProfileSnapshot(userId: string, email: string): Promise<Prof
   ]);
 
   const careerGoalsSnapshot = careerRow[0] ? careerRowToSnapshot(careerRow[0]) : DEFAULT_CAREER_GOALS;
+  const storedProfileProvenance = strategyProfileProvenance(careerGoalsSnapshot.strategy);
   const socialSnapshot: SocialConsentsSnapshot = socialRow[0]
     ? {
       linkedinConsent: socialRow[0].linkedinConsent,
@@ -278,26 +349,31 @@ async function fetchProfileSnapshot(userId: string, email: string): Promise<Prof
   ]);
 
   const profileUpdatedAt = profile.updatedAt ?? profile.createdAt ?? null;
+  const skillSectionProvenance = storedProfileProvenance.skills;
+  const experienceSectionProvenance = storedProfileProvenance.experiences;
+  const educationSectionProvenance = storedProfileProvenance.educations;
+  const trainingSectionProvenance = storedProfileProvenance.trainings;
+
   const provenanceSnapshot: ProfileSnapshotProvenance = {
     personalInfo: {
-      fullName: profile.fullName?.trim() ? userConfirmed(profileUpdatedAt) : unknownProvenance(),
-      email: email.trim() ? userConfirmed(profileUpdatedAt, 'Synced from approved account identity') : unknownProvenance(),
-      phone: profile.phone?.trim() ? userConfirmed(profileUpdatedAt) : unknownProvenance(),
-      location: profile.location?.trim() ? userConfirmed(profileUpdatedAt) : unknownProvenance(),
-      headline: profile.headline?.trim() ? userConfirmed(profileUpdatedAt) : unknownProvenance(),
-      summary: profile.summary?.trim() ? userConfirmed(profileUpdatedAt) : unknownProvenance(),
-      linkedinUrl: profile.linkedinUrl?.trim() ? userConfirmed(profileUpdatedAt) : unknownProvenance(),
-      cvUrl: profile.cvUrl?.trim() ? userConfirmed(profileUpdatedAt) : unknownProvenance(),
+      fullName: profile.fullName?.trim() ? withStoredProvenance(userConfirmed(profileUpdatedAt), storedProfileProvenance['personalInfo.fullName']) : unknownProvenance(),
+      email: email.trim() ? withStoredProvenance(userConfirmed(profileUpdatedAt, 'Synced from approved account identity'), storedProfileProvenance['personalInfo.email']) : unknownProvenance(),
+      phone: profile.phone?.trim() ? withStoredProvenance(userConfirmed(profileUpdatedAt), storedProfileProvenance['personalInfo.phone']) : unknownProvenance(),
+      location: profile.location?.trim() ? withStoredProvenance(userConfirmed(profileUpdatedAt), storedProfileProvenance['personalInfo.location']) : unknownProvenance(),
+      headline: profile.headline?.trim() ? withStoredProvenance(userConfirmed(profileUpdatedAt), storedProfileProvenance['personalInfo.headline']) : unknownProvenance(),
+      summary: profile.summary?.trim() ? withStoredProvenance(userConfirmed(profileUpdatedAt), storedProfileProvenance['personalInfo.summary']) : unknownProvenance(),
+      linkedinUrl: profile.linkedinUrl?.trim() ? withStoredProvenance(userConfirmed(profileUpdatedAt), storedProfileProvenance['personalInfo.linkedinUrl']) : unknownProvenance(),
+      cvUrl: profile.cvUrl?.trim() ? withStoredProvenance(userConfirmed(profileUpdatedAt), storedProfileProvenance['personalInfo.cvUrl']) : unknownProvenance(),
     },
-    skills: skillRecords.map((s) => s.name?.trim() ? userConfirmed(s.updatedAt ?? s.createdAt ?? profileUpdatedAt) : unknownProvenance()),
+    skills: skillRecords.map((s) => s.name?.trim() ? withStoredProvenance(userConfirmed(s.updatedAt ?? s.createdAt ?? profileUpdatedAt), skillSectionProvenance) : unknownProvenance()),
     experiences: Object.fromEntries(
-      experienceRecords.map((e) => [e.id, experienceProvenance(e.updatedAt ?? e.createdAt ?? profileUpdatedAt)]),
+      experienceRecords.map((e) => [e.id, applyExperienceStoredProvenance(experienceProvenance(e.updatedAt ?? e.createdAt ?? profileUpdatedAt), experienceSectionProvenance)]),
     ),
     educations: Object.fromEntries(
-      educationRecords.map((e) => [e.id, educationProvenance(e.updatedAt ?? e.createdAt ?? profileUpdatedAt)]),
+      educationRecords.map((e) => [e.id, applyEducationStoredProvenance(educationProvenance(e.updatedAt ?? e.createdAt ?? profileUpdatedAt), educationSectionProvenance)]),
     ),
     trainings: Object.fromEntries(
-      trainingRecords.map((t) => [t.id, trainingProvenance(t.updatedAt ?? t.createdAt ?? profileUpdatedAt)]),
+      trainingRecords.map((t) => [t.id, applyTrainingStoredProvenance(trainingProvenance(t.updatedAt ?? t.createdAt ?? profileUpdatedAt), trainingSectionProvenance)]),
     ),
   };
 
