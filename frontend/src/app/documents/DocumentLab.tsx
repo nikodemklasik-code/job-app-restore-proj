@@ -215,6 +215,14 @@ export default function DocumentLab() {
     () => SECTION_KEYS.filter((key) => review.sections[key]),
     [review.sections],
   );
+  const rejectedSections = useMemo(
+    () => SECTION_KEYS.filter((key) => importPreview?.sections[key]?.willReplace && !review.sections[key]),
+    [importPreview, review.sections],
+  );
+  const rejectedPersonalFields = useMemo(
+    () => importPreview?.criticalFields.filter((field) => field.parsedHasValue && field.isDifferent && !review.personal[field.key]).map((field) => field.label) ?? [],
+    [importPreview, review.personal],
+  );
   const hasAnyApprovedChange = selectedPersonalFields.length > 0 || selectedSections.length > 0;
 
   const cvUploadMutation = api.cv.upload.useMutation();
@@ -407,6 +415,18 @@ export default function DocumentLab() {
               </button>
             </div>
           </div>
+
+          {importPreview ? (
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-slate-300">
+              <p className="font-semibold text-white">Decision summary</p>
+              <p className="mt-1">Approved now: {selectedPersonalFields.length} personal field(s) and {selectedSections.length} structured section(s).</p>
+              {(rejectedPersonalFields.length > 0 || rejectedSections.length > 0) ? (
+                <p className="mt-1 text-slate-400">
+                  Rejected and ignored on save: {[...rejectedPersonalFields, ...rejectedSections.map((key) => SECTION_LABELS[key])].join(' • ')}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           {importPreviewQuery.isLoading ? (
             <div className="flex h-20 items-center justify-center rounded-2xl border border-white/10 bg-black/20">
