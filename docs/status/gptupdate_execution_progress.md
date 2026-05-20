@@ -41,6 +41,7 @@ Status: czesciowe / manual verification required.
 - Profile UI pokazuje badges: user_confirmed, imported_from_cv, ai_suggested, unknown.
 - Style Studio czyta approved profile state, nie parser state.
 - Approved CV PDF path jest oparty o profile data, nie ostatni upload CV.
+- PERSONAL_FIELDS w `backend/src/trpc/routers/cv.router.ts` zostalo poprawione do const tuple dla kompatybilnosci z `z.enum(...)`.
 
 ### Czesciowe
 
@@ -62,7 +63,7 @@ Status: czesciowe / manual verification required.
 
 - Brak lokalnego builda i smoke testu.
 - Brak CI statusow dla ostatnich commitow.
-- Znane ryzyko backend builda: w backend/src/trpc/routers/cv.router.ts PERSONAL_FIELDS powinno byc const tuple dla Zod enum, a nie zwykla tablica typowana jako PersonalFieldKey[].
+- Manualna walidacja komend `npm install`, `npm run build`, `npm run test:backend`, `npm run test:frontend` i `npm run smoke:local` pozostaje wymagana przed zmiana statusu na `zrobione`.
 
 ## Porownanie z raportem stanu projektu
 
@@ -124,7 +125,7 @@ Braki:
 
 Blocker:
 
-- Backend schema typing risk i brak build/smoke.
+- Brak potwierdzonego build/smoke po patchu tuple fix.
 
 ## Strumien C - Jobs, Job Radar, Applications
 
