@@ -9,9 +9,9 @@ const DashboardPage = lazy(() => import('./app/dashboard/DashboardPage'));
 const JobsDiscovery = lazy(() => import('./app/jobs/JobsDiscovery'));
 const JobDetailPage = lazy(() => import('./app/jobs/JobDetailPage'));
 const JobRadarReport = lazy(() => import('./app/jobs/JobRadarReport'));
-const SavedJobs = lazy(() => import('./app/jobs/SavedJobs')); const ApplicationsPage = lazy(() => import('./app/applications/ApplicationsPage'));
+const SavedJobs = lazy(() => import('./app/jobs/SavedJobs'));
+const ApplicationsPage = lazy(() => import('./app/applications/ApplicationsPage'));
 const ApplicationsPipeline = lazy(() => import('./app/applications/ApplicationsPipeline'));
-const ReviewQueue = lazy(() => import('./app/review/ReviewQueue'));
 const AssistantPage = lazy(() => import('./app/assistant/AssistantPage'));
 const InterviewPractice = lazy(() => import('./app/interview/InterviewPracticeFamilyPage'));
 const ProfilePage = lazy(() => import('./app/profile/ProfileScreenV2'));
@@ -49,42 +49,11 @@ const withSuspense = (Component: ComponentType) => (
 );
 
 export const router = createBrowserRouter([
-  {
-    path: '/auth',
-    element: (
-      <Suspense fallback={<PageLoader />}>
-        <AuthPage />
-      </Suspense>
-    ),
-  },
-  {
-    path: '/sso-callback',
-    element: <AuthenticateWithRedirectCallback />,
-  },
-  {
-    path: '/terms',
-    element: (
-      <Suspense fallback={<PageLoader />}>
-        <TermsPage />
-      </Suspense>
-    ),
-  },
-  {
-    path: '/privacy',
-    element: (
-      <Suspense fallback={<PageLoader />}>
-        <PrivacyPage />
-      </Suspense>
-    ),
-  },
-  {
-    path: '/cookies',
-    element: (
-      <Suspense fallback={<PageLoader />}>
-        <CookiesPage />
-      </Suspense>
-    ),
-  },
+  { path: '/auth', element: <Suspense fallback={<PageLoader />}><AuthPage /></Suspense> },
+  { path: '/sso-callback', element: <AuthenticateWithRedirectCallback /> },
+  { path: '/terms', element: <Suspense fallback={<PageLoader />}><TermsPage /></Suspense> },
+  { path: '/privacy', element: <Suspense fallback={<PageLoader />}><PrivacyPage /></Suspense> },
+  { path: '/cookies', element: <Suspense fallback={<PageLoader />}><CookiesPage /></Suspense> },
   {
     path: '/',
     element: <AppShell />,
@@ -98,9 +67,10 @@ export const router = createBrowserRouter([
       { path: APP_SCREENS.jobs.path.slice(1), element: withSuspense(JobsDiscovery) },
       { path: 'jobs/:id', element: withSuspense(JobDetailPage) },
       { path: 'jobs/radar/:scanId', element: withSuspense(JobRadarReport) },
-      { path: 'jobs/saved', element: withSuspense(SavedJobs) }, { path: APP_SCREENS.applications.path.slice(1), element: withSuspense(ApplicationsPage) },
+      { path: 'jobs/saved', element: withSuspense(SavedJobs) },
+      { path: APP_SCREENS.applications.path.slice(1), element: withSuspense(ApplicationsPage) },
       { path: 'applications/board', element: withSuspense(ApplicationsPipeline) },
-      { path: APP_SCREENS.applicationsReview.path.slice(1), element: withSuspense(ReviewQueue) },
+      { path: 'applications-review', element: <Navigate to="/applications?mode=review" replace /> },
       { path: APP_SCREENS.assistant.path.slice(1), element: withSuspense(AssistantPage) },
       { path: APP_SCREENS.dailyWarmup.path.slice(1), element: withSuspense(DailyWarmupPage) },
       { path: APP_SCREENS.interview.path.slice(1), element: withSuspense(InterviewPractice) },
@@ -117,11 +87,7 @@ export const router = createBrowserRouter([
       { path: APP_SCREENS.autoApply.path.slice(1), element: <Navigate to="/settings?tab=auto-apply" replace /> },
       { path: APP_SCREENS.billing.path.slice(1), element: withSuspense(BillingPage) },
       { path: APP_SCREENS.faq.path.slice(1), element: withSuspense(FAQPage) },
-
-      ...LEGACY_ROUTE_REDIRECTS.map(({ from, to }) => ({
-        path: from.slice(1),
-        element: <Navigate to={to} replace />,
-      })),
+      ...LEGACY_ROUTE_REDIRECTS.map(({ from, to }) => ({ path: from.slice(1), element: <Navigate to={to} replace /> })),
       { path: 'security', element: withSuspense(SecurityPage) },
       { path: 'radar', element: withSuspense(JobRadar) },
       { path: 'job-radar', element: withSuspense(JobRadar) },
