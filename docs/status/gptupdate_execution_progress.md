@@ -34,17 +34,17 @@ Jeden spójny model danych użytkownika dla Profile, Document Hub, Style Studio,
 - 🟨 Finalny kontrakt `Profile` jako centralnego źródła prawdy
 - 🟨 Mapowanie pól z parsera CV do profilu
 - 🟩 Import z CV nie robi już cichego overwrite profilu
-- ⬜ Znaczniki pochodzenia danych: `imported_from_cv`, `user_confirmed`, `ai_suggested`
+- 🟨 Znaczniki pochodzenia danych: `imported_from_cv`, `user_confirmed`, `ai_suggested`
 - 🟨 Review-before-overwrite dla pól krytycznych
 
 ## Kamienie milowe
 - 🟨 M1: finalny kontrakt danych profilu i mapowanie pól
 - 🟨 M2: CV import aktualizuje profil bez utraty danych
 - 🟨 M3: użytkownik widzi i zatwierdza różnice przed nadpisaniem
-- ⬜ M4: wszystkie moduły czytają z tego samego modelu
+- 🟨 M4: wszystkie moduły czytają z tego samego modelu
 
 ## Notatka operacyjna
-Najważniejsza zmiana już wykonana: CV nie powinno już po cichu rozwalać profilu. Nadal brakuje provenance i pełnego downstream contract.
+Najważniejsza zmiana już wykonana: CV nie powinno już po cichu rozwalać profilu. Doszedł też jawny kontrakt provenance w `shared/profile.ts` i backend zwraca provenance dla approved snapshotu. Nadal brakuje pełnego rozróżnienia między `imported_from_cv` a `user_confirmed` na poziomie historycznym oraz prezentacji tego w UI.
 
 ---
 
@@ -164,16 +164,17 @@ Widoczne koszty, przewidywalne mutacje, monitoring i bezpieczny deploy.
 - 🟩 Style Studio odcięte od bezpośredniego syncu do profilu
 - 🟩 Style Studio kieruje teraz użytkownika do Document Hub review flow
 - 🟩 Utrwalony tracker postępu na branchu `gptupdate`
+- 🟩 Dodany kontrakt provenance do snapshotu profilu
+- 🟩 Backend zwraca provenance dla approved profile state
 
 ---
 
 # Najbliższe kroki
 
-1. Dokończyć rozszerzony kontrakt profilu
-2. Dodać provenance dla pól importowanych z CV
-3. Rozbudować structural diff dla experience / education / training
-4. Ustalić approved CV templates oparte o zatwierdzone dane
-5. Dopiero potem wrócić do unifikacji Jobs / Job Radar / Applications
+1. Dodać provenance do UI profilu i review flow dokumentów
+2. Rozbudować structural diff dla experience / education / training
+3. Ustalić approved CV templates oparte o zatwierdzone dane
+4. Dopiero potem wrócić do unifikacji Jobs / Job Radar / Applications
 
 ---
 
