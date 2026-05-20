@@ -1,3 +1,4 @@
+import { disabledUntilFlagReason, fetchWithProviderTimeout, isExperimentalProviderEnabled } from '../providerRuntime.js';
 import type { DiscoveryInput, JobSourceProvider, ProviderContext, SourceJob } from '../types.js';
 
 function clean(value: string): string {
@@ -94,6 +95,7 @@ export class JobsAcUkProvider implements JobSourceProvider {
   label = 'jobs.ac.uk';
 
   async readiness(): Promise<{ ready: boolean; reason?: string }> {
+    if (!isExperimentalProviderEnabled(this.name)) return { ready: false, reason: disabledUntilFlagReason(this.name) };
     return { ready: true, reason: 'Public jobs.ac.uk RSS feeds enabled' };
   }
 
@@ -105,7 +107,7 @@ export class JobsAcUkProvider implements JobSourceProvider {
     ];
 
     const results = await Promise.allSettled(feeds.map(async (url) => {
-      const response = await fetch(url, { headers: { Accept: 'application/rss+xml, application/xml, text/xml, */*' } });
+      const response = await fetchWithProviderTimeout(url, { headers: { Accept: 'application/rss+xml, application/xml, text/xml, */*' } });
       if (!response.ok) throw new Error(`jobs.ac.uk RSS ${response.status}`);
       return response.text();
     }));
