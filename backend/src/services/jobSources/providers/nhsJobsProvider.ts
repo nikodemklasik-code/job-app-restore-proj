@@ -1,3 +1,4 @@
+import { disabledUntilFlagReason, fetchWithProviderTimeout, isExperimentalProviderEnabled } from '../providerRuntime.js';
 import type { DiscoveryInput, JobSourceProvider, ProviderContext, SourceJob } from '../types.js';
 
 function clean(value: unknown): string {
@@ -107,6 +108,7 @@ export class NHSJobsProvider implements JobSourceProvider {
   label = 'NHS Jobs';
 
   async readiness(): Promise<{ ready: boolean; reason?: string }> {
+    if (!isExperimentalProviderEnabled(this.name)) return { ready: false, reason: disabledUntilFlagReason(this.name) };
     return { ready: true, reason: 'NHS Jobs public search enabled' };
   }
 
@@ -122,7 +124,7 @@ export class NHSJobsProvider implements JobSourceProvider {
     urls[1].searchParams.set('format', 'json');
 
     const settled = await Promise.allSettled(urls.map(async (url) => {
-      const response = await fetch(url.toString(), { headers: { Accept: 'application/json, text/html, */*' } });
+      const response = await fetchWithProviderTimeout(url, { headers: { Accept: 'application/json, text/html, */*' } });
       if (!response.ok) throw new Error(`NHS Jobs ${response.status}`);
       const text = await response.text();
       if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
