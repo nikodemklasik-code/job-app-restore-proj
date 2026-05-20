@@ -12,6 +12,7 @@ import {
   ExternalLink,
   Loader2,
   MapPin,
+  Radar,
   Search,
   Sparkles,
   Target,
@@ -151,6 +152,17 @@ function ProviderDiagnosticsPanel({ diagnostics }: { diagnostics: ProviderDiagno
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function JobsSectionTabs() {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <span className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-slate-950">Jobs Search</span>
+      <Link to="/job-radar" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/10">
+        Job Radar
+      </Link>
     </div>
   );
 }
@@ -332,23 +344,25 @@ export default function JobsDiscovery() {
           <div className="max-w-3xl">
             <p className="inline-flex items-center gap-2 rounded-full border border-indigo-300/25 bg-indigo-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-200">
               <Briefcase className="h-3.5 w-3.5" />
-              Jobs
+              Jobs · Search Mode
             </p>
             <h1 className="mt-3 text-3xl font-bold text-white md:text-4xl">Search Jobs Without Wrestling The UI</h1>
             <p className="mt-3 text-sm text-slate-300 md:text-base">
-              This screen is for practical search and fast screening. Use Dream Job for your target role, AI Match for profile-driven discovery,
-              and Job Radar when a listing deserves deeper review.
+              Use Jobs Search for broad discovery and fast screening. Use Job Radar for deeper review, stronger fit checks, and saved lead triage.
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[320px]">
-            <button type="button" onClick={() => handleQuickSearch(dreamRole)} className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-left text-sm text-emerald-50 transition hover:bg-emerald-500/15">
-              <div className="flex items-center gap-2 font-semibold"><Target className="h-4 w-4" /> Dream Job</div>
-              <p className="mt-1 text-xs text-emerald-100/80">{dreamRole || 'Set target role in Profile first.'}</p>
-            </button>
-            <button type="button" onClick={() => handleQuickSearch(aiQuery)} className="rounded-2xl border border-violet-500/25 bg-violet-500/10 px-4 py-3 text-left text-sm text-violet-50 transition hover:bg-violet-500/15">
-              <div className="flex items-center gap-2 font-semibold"><Sparkles className="h-4 w-4" /> AI Match</div>
-              <p className="mt-1 text-xs text-violet-100/80">{aiQuery || 'Add skills or experience on Profile first.'}</p>
-            </button>
+          <div className="space-y-3 xl:min-w-[340px]">
+            <JobsSectionTabs />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button type="button" onClick={() => handleQuickSearch(dreamRole)} className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-left text-sm text-emerald-50 transition hover:bg-emerald-500/15">
+                <div className="flex items-center gap-2 font-semibold"><Target className="h-4 w-4" /> Dream Job</div>
+                <p className="mt-1 text-xs text-emerald-100/80">{dreamRole || 'Set target role in Profile first.'}</p>
+              </button>
+              <Link to="/job-radar" className="rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-left text-sm text-cyan-50 transition hover:bg-cyan-500/15">
+                <div className="flex items-center gap-2 font-semibold"><Radar className="h-4 w-4" /> Open Job Radar</div>
+                <p className="mt-1 text-xs text-cyan-100/80">Deep review, risk checks, saved leads, recent scans.</p>
+              </Link>
+            </div>
           </div>
         </div>
       </section>
