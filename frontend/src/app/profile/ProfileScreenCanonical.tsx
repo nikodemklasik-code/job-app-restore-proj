@@ -8,6 +8,7 @@ import type {
   PersonalInfo,
   ProfileEducationInput,
   ProfileExperienceInput,
+  ProfileFieldProvenance,
   ProfileHobbyInput,
   ProfileLanguageInput,
   ProfileTrainingInput,
@@ -84,10 +85,43 @@ function text(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function provenanceMeta(source?: ProfileFieldProvenance['source']) {
+  switch (source) {
+    case 'user_confirmed':
+      return {
+        label: 'Approved',
+        className: 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200',
+      };
+    case 'imported_from_cv':
+      return {
+        label: 'From CV',
+        className: 'border-sky-400/30 bg-sky-500/10 text-sky-200',
+      };
+    case 'ai_suggested':
+      return {
+        label: 'AI suggested',
+        className: 'border-violet-400/30 bg-violet-500/10 text-violet-200',
+      };
+    default:
+      return {
+        label: 'Unknown',
+        className: 'border-amber-400/30 bg-amber-500/10 text-amber-200',
+      };
+  }
+}
+
+function ProvenancePill({ provenance }: { provenance?: ProfileFieldProvenance | null }) {
+  const meta = provenanceMeta(provenance?.source);
+  return <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${meta.className}`}>{meta.label}</span>;
+}
+
+function Field({ label, provenance, children }: { label: string; provenance?: ProfileFieldProvenance | null; children: ReactNode }) {
   return (
     <label className="block space-y-1">
-      <span className="text-xs font-medium text-slate-400">{label}</span>
+      <span className="flex items-center justify-between gap-2 text-xs font-medium text-slate-400">
+        <span>{label}</span>
+        {provenance ? <ProvenancePill provenance={provenance} /> : null}
+      </span>
       {children}
     </label>
   );
@@ -193,6 +227,17 @@ export default function ProfileScreenCanonical() {
     return Math.round((checks.filter(Boolean).length / checks.length) * 100);
   }, [career.dreamRole, experiences.length, languages.length, personalInfo.email, personalInfo.fullName, personalInfo.summary, skills.length, workSetup.workModePreferences.length]);
 
+  const provenanceSummary = useMemo(() => {
+    if (!profile?.provenance) return [] as ProfileFieldProvenance['source'][];
+    const seen = new Set<ProfileFieldProvenance['source']>();
+    Object.values(profile.provenance.personalInfo).forEach((item) => item?.source && seen.add(item.source));
+    profile.provenance.skills.forEach((item) => item?.source && seen.add(item.source));
+    Object.values(profile.provenance.experiences).forEach((record) => Object.values(record).forEach((item) => item?.source && seen.add(item.source)));
+    Object.values(profile.provenance.educations).forEach((record) => Object.values(record).forEach((item) => item?.source && seen.add(item.source)));
+    Object.values(profile.provenance.trainings).forEach((record) => Object.values(record).forEach((item) => item?.source && seen.add(item.source)));
+    return Array.from(seen);
+  }, [profile]);
+
   const addSkill = () => {
     const next = newSkill.trim();
     if (!next || skills.includes(next)) return;
@@ -251,6 +296,18 @@ export default function ProfileScreenCanonical() {
 
       {error ? <div className="flex items-start justify-between gap-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4"><p className="text-sm text-red-200">{error}</p><button type="button" onClick={store.dismissError} className="text-red-200 hover:text-white" aria-label="Dismiss error"><X className="h-4 w-4" /></button></div> : null}
 
+      <section className="rounded-2xl border border-white/10 bg-white/5 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-white">Approved profile provenance</p>
+            <p className="mt-1 text-sm text-slate-400">You can now see which approved data came from direct confirmation, CV import or AI suggestion before anything else builds on it.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {provenanceSummary.map((source) => <ProvenancePill key={source} provenance={{ source }} />)}
+          </div>
+        </div>
+      </section>
+
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4"><p className="text-xs text-slate-400">Target role</p><p className="mt-1 text-sm font-semibold text-white">{career.dreamRole || 'Not set'}</p></div>
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4"><p className="text-xs text-slate-400">Work evidence</p><p className="mt-1 text-sm font-semibold text-white">{experiences.length} experience item(s)</p></div>
@@ -261,13 +318,13 @@ export default function ProfileScreenCanonical() {
       <section className={cardCls}>
         <SectionTitle icon={UserRound} title="Personal information" description="Basic identity and professional summary used across the product." />
         <div className="grid gap-4 lg:grid-cols-2">
-          <Field label="Full name"><input className={inputCls} value={personalInfo.fullName} onChange={(event) => setPersonalInfo({ ...personalInfo, fullName: event.target.value })} /></Field>
-          <Field label="Email"><input className={inputCls} type="email" value={personalInfo.email} onChange={(event) => setPersonalInfo({ ...personalInfo, email: event.target.value })} /></Field>
-          <Field label="Phone"><input className={inputCls} value={personalInfo.phone} onChange={(event) => setPersonalInfo({ ...personalInfo, phone: event.target.value })} /></Field>
-          <Field label="Location"><input className={inputCls} value={personalInfo.location} onChange={(event) => setPersonalInfo({ ...personalInfo, location: event.target.value })} /></Field>
-          <Field label="Headline"><input className={inputCls} value={personalInfo.headline} onChange={(event) => setPersonalInfo({ ...personalInfo, headline: event.target.value })} /></Field>
-          <Field label="LinkedIn URL"><input className={inputCls} value={personalInfo.linkedinUrl} onChange={(event) => setPersonalInfo({ ...personalInfo, linkedinUrl: event.target.value })} /></Field>
-          <div className="lg:col-span-2"><Field label="Professional summary"><textarea className={areaCls} value={personalInfo.summary} onChange={(event) => setPersonalInfo({ ...personalInfo, summary: event.target.value })} /></Field></div>
+          <Field label="Full name" provenance={profile.provenance.personalInfo.fullName}><input className={inputCls} value={personalInfo.fullName} onChange={(event) => setPersonalInfo({ ...personalInfo, fullName: event.target.value })} /></Field>
+          <Field label="Email" provenance={profile.provenance.personalInfo.email}><input className={inputCls} type="email" value={personalInfo.email} onChange={(event) => setPersonalInfo({ ...personalInfo, email: event.target.value })} /></Field>
+          <Field label="Phone" provenance={profile.provenance.personalInfo.phone}><input className={inputCls} value={personalInfo.phone} onChange={(event) => setPersonalInfo({ ...personalInfo, phone: event.target.value })} /></Field>
+          <Field label="Location" provenance={profile.provenance.personalInfo.location}><input className={inputCls} value={personalInfo.location} onChange={(event) => setPersonalInfo({ ...personalInfo, location: event.target.value })} /></Field>
+          <Field label="Headline" provenance={profile.provenance.personalInfo.headline}><input className={inputCls} value={personalInfo.headline} onChange={(event) => setPersonalInfo({ ...personalInfo, headline: event.target.value })} /></Field>
+          <Field label="LinkedIn URL" provenance={profile.provenance.personalInfo.linkedinUrl}><input className={inputCls} value={personalInfo.linkedinUrl} onChange={(event) => setPersonalInfo({ ...personalInfo, linkedinUrl: event.target.value })} /></Field>
+          <div className="lg:col-span-2"><Field label="Professional summary" provenance={profile.provenance.personalInfo.summary}><textarea className={areaCls} value={personalInfo.summary} onChange={(event) => setPersonalInfo({ ...personalInfo, summary: event.target.value })} /></Field></div>
         </div>
         <div className="mt-5"><SaveButton isSaving={isSaving} onClick={() => void store.savePersonalInfo(personalInfo)}>Save personal information</SaveButton></div>
       </section>
@@ -302,25 +359,41 @@ export default function ProfileScreenCanonical() {
 
       <section className={cardCls}>
         <SectionTitle icon={Sparkles} title="Skills" description="Declared profile skills. Verification and course pathing stay in Skill Lab." />
-        {skills.length ? <div className="flex flex-wrap gap-2">{skills.map((skill) => <span key={skill} className="inline-flex items-center gap-2 rounded-full bg-indigo-500/20 px-3 py-1 text-sm font-semibold text-indigo-100">{skill}<button type="button" onClick={() => setSkills(skills.filter((item) => item !== skill))} aria-label={`Remove ${skill}`}><X className="h-3 w-3" /></button></span>)}</div> : <EmptyInline label="No skills added yet." />}
+        {skills.length ? <div className="flex flex-wrap gap-2">{skills.map((skill, index) => <span key={skill} className="inline-flex items-center gap-2 rounded-full bg-indigo-500/20 px-3 py-1 text-sm font-semibold text-indigo-100">{skill}<ProvenancePill provenance={profile.provenance.skills[index]} /><button type="button" onClick={() => setSkills(skills.filter((item) => item !== skill))} aria-label={`Remove ${skill}`}><X className="h-3 w-3" /></button></span>)}</div> : <EmptyInline label="No skills added yet." />}
         <div className="mt-4 flex gap-2"><input className={inputCls} value={newSkill} onChange={(event) => setNewSkill(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') addSkill(); }} /><button type="button" onClick={addSkill} className="rounded-xl border border-white/10 bg-white/5 px-3 text-slate-200 hover:bg-white/10"><Plus className="h-4 w-4" /></button></div>
         <div className="mt-5"><SaveButton isSaving={isSaving} onClick={() => void store.saveSkills(skills)}>Save skills</SaveButton></div>
       </section>
 
       <section className={cardCls}>
         <SectionTitle icon={Briefcase} title="Work experience" description="Real work history evidence used by CV, jobs and applications." />
-        <div className="space-y-3">{experiences.length ? experiences.map((item, index) => <div key={index} className="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 md:grid-cols-2"><Field label="Company / employer"><input className={inputCls} value={item.employerName} onChange={(event) => setExperiences(experiences.map((row, rowIndex) => rowIndex === index ? { ...row, employerName: event.target.value } : row))} /></Field><Field label="Job title"><input className={inputCls} value={item.jobTitle} onChange={(event) => setExperiences(experiences.map((row, rowIndex) => rowIndex === index ? { ...row, jobTitle: event.target.value } : row))} /></Field><Field label="Start date"><input className={inputCls} value={item.startDate} onChange={(event) => setExperiences(experiences.map((row, rowIndex) => rowIndex === index ? { ...row, startDate: event.target.value } : row))} /></Field><Field label="End date"><input className={inputCls} value={item.endDate ?? ''} onChange={(event) => setExperiences(experiences.map((row, rowIndex) => rowIndex === index ? { ...row, endDate: event.target.value || null } : row))} /></Field><div className="md:col-span-2"><Field label="Description"><textarea className={areaCls} value={item.description} onChange={(event) => setExperiences(experiences.map((row, rowIndex) => rowIndex === index ? { ...row, description: event.target.value } : row))} /></Field></div><button type="button" onClick={() => setExperiences(experiences.filter((_, rowIndex) => rowIndex !== index))} className="inline-flex items-center gap-2 text-sm text-rose-200"><Trash2 className="h-4 w-4" />Remove experience</button></div>) : <EmptyInline label="No work experience added yet." />}</div>
+        <div className="space-y-3">{experiences.length ? experiences.map((item, index) => {
+          const recordId = profile.experiences[index]?.id;
+          const provenance = recordId ? profile.provenance.experiences[recordId] : undefined;
+          return <div key={index} className="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 md:grid-cols-2"><div className="md:col-span-2 flex items-center justify-between"><p className="text-sm font-semibold text-white">Experience #{index + 1}</p><ProvenancePill provenance={provenance?.record} /></div><Field label="Company / employer" provenance={provenance?.employerName}><input className={inputCls} value={item.employerName} onChange={(event) => setExperiences(experiences.map((row, rowIndex) => rowIndex === index ? { ...row, employerName: event.target.value } : row))} /></Field><Field label="Job title" provenance={provenance?.jobTitle}><input className={inputCls} value={item.jobTitle} onChange={(event) => setExperiences(experiences.map((row, rowIndex) => rowIndex === index ? { ...row, jobTitle: event.target.value } : row))} /></Field><Field label="Start date" provenance={provenance?.startDate}><input className={inputCls} value={item.startDate} onChange={(event) => setExperiences(experiences.map((row, rowIndex) => rowIndex === index ? { ...row, startDate: event.target.value } : row))} /></Field><Field label="End date" provenance={provenance?.endDate}><input className={inputCls} value={item.endDate ?? ''} onChange={(event) => setExperiences(experiences.map((row, rowIndex) => rowIndex === index ? { ...row, endDate: event.target.value || null } : row))} /></Field><div className="md:col-span-2"><Field label="Description" provenance={provenance?.description}><textarea className={areaCls} value={item.description} onChange={(event) => setExperiences(experiences.map((row, rowIndex) => rowIndex === index ? { ...row, description: event.target.value } : row))} /></Field></div><button type="button" onClick={() => setExperiences(experiences.filter((_, rowIndex) => rowIndex !== index))} className="inline-flex items-center gap-2 text-sm text-rose-200"><Trash2 className="h-4 w-4" />Remove experience</button></div>;
+        }) : <EmptyInline label="No work experience added yet." />}</div>
         <div className="mt-4 flex flex-wrap gap-3"><button type="button" onClick={() => setExperiences([...experiences, { employerName: '', jobTitle: '', startDate: '', endDate: null, description: '', achievements: [] }])} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"><Plus className="h-4 w-4" />Add experience</button><SaveButton isSaving={isSaving} onClick={() => void store.replaceExperiences(experiences)}>Save work experience</SaveButton></div>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2">
-        <div className={cardCls}><SectionTitle icon={GraduationCap} title="Education" />{educations.length ? educations.map((item, index) => <div key={index} className="mb-3 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4"><Field label="School name"><input className={inputCls} value={item.schoolName} onChange={(event) => setEducations(educations.map((row, rowIndex) => rowIndex === index ? { ...row, schoolName: event.target.value } : row))} /></Field><Field label="Degree"><input className={inputCls} value={item.degree} onChange={(event) => setEducations(educations.map((row, rowIndex) => rowIndex === index ? { ...row, degree: event.target.value } : row))} /></Field><Field label="Field of study"><input className={inputCls} value={item.fieldOfStudy} onChange={(event) => setEducations(educations.map((row, rowIndex) => rowIndex === index ? { ...row, fieldOfStudy: event.target.value } : row))} /></Field><button type="button" onClick={() => setEducations(educations.filter((_, rowIndex) => rowIndex !== index))} className="inline-flex items-center gap-2 text-sm text-rose-200"><Trash2 className="h-4 w-4" />Remove education</button></div>) : <EmptyInline label="No education added yet." />}<div className="mt-4 flex flex-wrap gap-3"><button type="button" onClick={() => setEducations([...educations, { schoolName: '', degree: '', fieldOfStudy: '', startDate: '', endDate: null }])} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"><Plus className="h-4 w-4" />Add education</button><SaveButton isSaving={isSaving} onClick={() => void store.replaceEducations(educations)}>Save education</SaveButton></div></div>
-        <div className={cardCls}><SectionTitle icon={Award} title="Training / courses" />{trainings.length ? trainings.map((item, index) => <div key={index} className="mb-3 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4"><Field label="Title"><input className={inputCls} value={item.title} onChange={(event) => setTrainings(trainings.map((row, rowIndex) => rowIndex === index ? { ...row, title: event.target.value } : row))} /></Field><Field label="Provider"><input className={inputCls} value={item.providerName} onChange={(event) => setTrainings(trainings.map((row, rowIndex) => rowIndex === index ? { ...row, providerName: event.target.value } : row))} /></Field><Field label="Credential URL"><input className={inputCls} value={item.credentialUrl} onChange={(event) => setTrainings(trainings.map((row, rowIndex) => rowIndex === index ? { ...row, credentialUrl: event.target.value } : row))} /></Field><button type="button" onClick={() => setTrainings(trainings.filter((_, rowIndex) => rowIndex !== index))} className="inline-flex items-center gap-2 text-sm text-rose-200"><Trash2 className="h-4 w-4" />Remove training</button></div>) : <EmptyInline label="No training or courses added yet." />}<div className="mt-4 flex flex-wrap gap-3"><button type="button" onClick={() => setTrainings([...trainings, { title: '', providerName: '', issuedAt: '', expiresAt: null, credentialUrl: '' }])} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"><Plus className="h-4 w-4" />Add training</button><SaveButton isSaving={isSaving} onClick={() => void store.replaceTrainings(trainings)}>Save training</SaveButton></div></div>
+        <div className={cardCls}><SectionTitle icon={GraduationCap} title="Education" />{educations.length ? educations.map((item, index) => {
+          const recordId = profile.educations[index]?.id;
+          const provenance = recordId ? profile.provenance.educations[recordId] : undefined;
+          return <div key={index} className="mb-3 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4"><div className="flex items-center justify-between"><p className="text-sm font-semibold text-white">Education #{index + 1}</p><ProvenancePill provenance={provenance?.record} /></div><Field label="School name" provenance={provenance?.schoolName}><input className={inputCls} value={item.schoolName} onChange={(event) => setEducations(educations.map((row, rowIndex) => rowIndex === index ? { ...row, schoolName: event.target.value } : row))} /></Field><Field label="Degree" provenance={provenance?.degree}><input className={inputCls} value={item.degree} onChange={(event) => setEducations(educations.map((row, rowIndex) => rowIndex === index ? { ...row, degree: event.target.value } : row))} /></Field><Field label="Field of study" provenance={provenance?.fieldOfStudy}><input className={inputCls} value={item.fieldOfStudy} onChange={(event) => setEducations(educations.map((row, rowIndex) => rowIndex === index ? { ...row, fieldOfStudy: event.target.value } : row))} /></Field><button type="button" onClick={() => setEducations(educations.filter((_, rowIndex) => rowIndex !== index))} className="inline-flex items-center gap-2 text-sm text-rose-200"><Trash2 className="h-4 w-4" />Remove education</button></div>;
+        }) : <EmptyInline label="No education added yet." />}
+          <div className="mt-4 flex flex-wrap gap-3"><button type="button" onClick={() => setEducations([...educations, { schoolName: '', degree: '', fieldOfStudy: '', startDate: '', endDate: null }])} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"><Plus className="h-4 w-4" />Add education</button><SaveButton isSaving={isSaving} onClick={() => void store.replaceEducations(educations)}>Save education</SaveButton></div></div>
+        <div className={cardCls}><SectionTitle icon={Award} title="Training / courses" />{trainings.length ? trainings.map((item, index) => {
+          const recordId = profile.trainings[index]?.id;
+          const provenance = recordId ? profile.provenance.trainings[recordId] : undefined;
+          return <div key={index} className="mb-3 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4"><div className="flex items-center justify-between"><p className="text-sm font-semibold text-white">Training #{index + 1}</p><ProvenancePill provenance={provenance?.record} /></div><Field label="Title" provenance={provenance?.title}><input className={inputCls} value={item.title} onChange={(event) => setTrainings(trainings.map((row, rowIndex) => rowIndex === index ? { ...row, title: event.target.value } : row))} /></Field><Field label="Provider" provenance={provenance?.providerName}><input className={inputCls} value={item.providerName} onChange={(event) => setTrainings(trainings.map((row, rowIndex) => rowIndex === index ? { ...row, providerName: event.target.value } : row))} /></Field><Field label="Credential URL" provenance={provenance?.credentialUrl}><input className={inputCls} value={item.credentialUrl} onChange={(event) => setTrainings(trainings.map((row, rowIndex) => rowIndex === index ? { ...row, credentialUrl: event.target.value } : row))} /></Field><button type="button" onClick={() => setTrainings(trainings.filter((_, rowIndex) => rowIndex !== index))} className="inline-flex items-center gap-2 text-sm text-rose-200"><Trash2 className="h-4 w-4" />Remove training</button></div>;
+        }) : <EmptyInline label="No training or courses added yet." />}
+          <div className="mt-4 flex flex-wrap gap-3"><button type="button" onClick={() => setTrainings([...trainings, { title: '', providerName: '', issuedAt: '', expiresAt: null, credentialUrl: '' }])} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"><Plus className="h-4 w-4" />Add training</button><SaveButton isSaving={isSaving} onClick={() => void store.replaceTrainings(trainings)}>Save training</SaveButton></div></div>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2">
-        <div className={cardCls}><SectionTitle icon={Languages} title="Languages" />{languages.length ? languages.map((item, index) => <div key={index} className="mb-3 grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 md:grid-cols-2"><Field label="Language"><input className={inputCls} value={item.name} onChange={(event) => setLanguages(languages.map((row, rowIndex) => rowIndex === index ? { ...row, name: event.target.value } : row))} /></Field><Field label="Proficiency"><input className={inputCls} value={item.proficiency} onChange={(event) => setLanguages(languages.map((row, rowIndex) => rowIndex === index ? { ...row, proficiency: event.target.value } : row))} /></Field><div className="md:col-span-2"><Field label="Certificate"><input className={inputCls} value={item.certificate ?? ''} onChange={(event) => setLanguages(languages.map((row, rowIndex) => rowIndex === index ? { ...row, certificate: event.target.value || null } : row))} /></Field></div><button type="button" onClick={() => setLanguages(languages.filter((_, rowIndex) => rowIndex !== index))} className="inline-flex items-center gap-2 text-sm text-rose-200"><Trash2 className="h-4 w-4" />Remove language</button></div>) : <EmptyInline label="No languages added yet." />}<div className="mt-4 flex flex-wrap gap-3"><button type="button" onClick={() => setLanguages([...languages, { name: '', proficiency: '', certificate: null }])} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"><Plus className="h-4 w-4" />Add language</button><SaveButton isSaving={isSaving} onClick={() => void store.replaceLanguages(languages)}>Save languages</SaveButton></div></div>
-        <div className={cardCls}><SectionTitle icon={Heart} title="Hobbies" />{hobbies.length ? hobbies.map((item, index) => <div key={index} className="mb-3 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4"><Field label="Name"><input className={inputCls} value={item.name} onChange={(event) => setHobbies(hobbies.map((row, rowIndex) => rowIndex === index ? { ...row, name: event.target.value } : row))} /></Field><Field label="Description"><textarea className={areaCls} value={item.description ?? ''} onChange={(event) => setHobbies(hobbies.map((row, rowIndex) => rowIndex === index ? { ...row, description: event.target.value || null } : row))} /></Field><button type="button" onClick={() => setHobbies(hobbies.filter((_, rowIndex) => rowIndex !== index))} className="inline-flex items-center gap-2 text-sm text-rose-200"><Trash2 className="h-4 w-4" />Remove hobby</button></div>) : <EmptyInline label="No hobbies added yet." />}<div className="mt-4 flex flex-wrap gap-3"><button type="button" onClick={() => setHobbies([...hobbies, { name: '', description: null }])} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"><Plus className="h-4 w-4" />Add hobby</button><SaveButton isSaving={isSaving} onClick={() => void store.replaceHobbies(hobbies)}>Save hobbies</SaveButton></div></div>
+        <div className={cardCls}><SectionTitle icon={Languages} title="Languages" />{languages.length ? languages.map((item, index) => <div key={index} className="mb-3 grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 md:grid-cols-2"><Field label="Language"><input className={inputCls} value={item.name} onChange={(event) => setLanguages(languages.map((row, rowIndex) => rowIndex === index ? { ...row, name: event.target.value } : row))} /></Field><Field label="Proficiency"><input className={inputCls} value={item.proficiency} onChange={(event) => setLanguages(languages.map((row, rowIndex) => rowIndex === index ? { ...row, proficiency: event.target.value } : row))} /></Field><div className="md:col-span-2"><Field label="Certificate"><input className={inputCls} value={item.certificate ?? ''} onChange={(event) => setLanguages(languages.map((row, rowIndex) => rowIndex === index ? { ...row, certificate: event.target.value || null } : row))} /></Field></div><button type="button" onClick={() => setLanguages(languages.filter((_, rowIndex) => rowIndex !== index))} className="inline-flex items-center gap-2 text-sm text-rose-200"><Trash2 className="h-4 w-4" />Remove language</button></div>) : <EmptyInline label="No languages added yet." />}
+          <div className="mt-4 flex flex-wrap gap-3"><button type="button" onClick={() => setLanguages([...languages, { name: '', proficiency: '', certificate: null }])} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"><Plus className="h-4 w-4" />Add language</button><SaveButton isSaving={isSaving} onClick={() => void store.replaceLanguages(languages)}>Save languages</SaveButton></div></div>
+        <div className={cardCls}><SectionTitle icon={Heart} title="Hobbies" />{hobbies.length ? hobbies.map((item, index) => <div key={index} className="mb-3 space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4"><Field label="Name"><input className={inputCls} value={item.name} onChange={(event) => setHobbies(hobbies.map((row, rowIndex) => rowIndex === index ? { ...row, name: event.target.value } : row))} /></Field><Field label="Description"><textarea className={areaCls} value={item.description ?? ''} onChange={(event) => setHobbies(hobbies.map((row, rowIndex) => rowIndex === index ? { ...row, description: event.target.value || null } : row))} /></Field><button type="button" onClick={() => setHobbies(hobbies.filter((_, rowIndex) => rowIndex !== index))} className="inline-flex items-center gap-2 text-sm text-rose-200"><Trash2 className="h-4 w-4" />Remove hobby</button></div>) : <EmptyInline label="No hobbies added yet." />}
+          <div className="mt-4 flex flex-wrap gap-3"><button type="button" onClick={() => setHobbies([...hobbies, { name: '', description: null }])} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"><Plus className="h-4 w-4" />Add hobby</button><SaveButton isSaving={isSaving} onClick={() => void store.replaceHobbies(hobbies)}>Save hobbies</SaveButton></div></div>
       </section>
     </div>
   );
