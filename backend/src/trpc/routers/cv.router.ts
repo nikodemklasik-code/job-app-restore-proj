@@ -11,6 +11,10 @@ function cleanText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function normalizeValue(value: string | null | undefined): string {
+  return (value ?? '').trim();
+}
+
 export const cvRouter = router({
   // Upload base64-encoded PDF, parse it, save result
   upload: publicProcedure
@@ -64,6 +68,134 @@ export const cvRouter = router({
         .limit(1);
 
       return rows[0] ?? null;
+    }),
+
+  previewImportToProfile: publicProcedure
+    .input(z.object({ userId: z.string(), cvUploadId: z.string() }))
+    .query(async ({ input }) => {
+      const userRecord = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      if (!userRecord[0]) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'User not found' });
+      }
+
+      const cvRow = await db.select().from(cvUploads).where(eq(cvUploads.id, input.cvUploadId)).limit(1);
+      if (!cvRow[0] || cvRow[0].userId !== userRecord[0].id) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Not your CV' });
+      }
+
+      const data = (cvRow[0].parsedData as Record<string, unknown>) ?? {};
+      const existingProfile = await db.select().from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1);
+      const profile = existingProfile[0] ?? null;
+
+      const existingSkillRows = profile ? await db.select({ id: skills.id }).from(skills).where(eq(skills.profileId, profile.id)) : [];
+      const existingExperienceRows = profile ? await db.select({ id: experiences.id }).from(experiences).where(eq(experiences.profileId, profile.id)) : [];
+      const existingEducationRows = profile ? await db.select({ id: educations.id }).from(educations).where(eq(educations.profileId, profile.id)) : [];
+      const existingTrainingRows = profile ? await db.select({ id: trainings.id }).from(trainings).where(eq(trainings.profileId, profile.id)) : [];
+
+      const criticalFields = [
+        {
+          key: 'fullName',
+          label: 'Full name',
+          currentValue: normalizeValue(profile?.fullName),
+          parsedValue: cleanText(data.fullName),
+        },
+        {
+          key: 'email',
+          label: 'Email',
+          currentValue: normalizeValue(userRecord[0].email),
+          parsedValue: cleanText(data.email),
+        },
+        {
+          key: 'phone',
+          label: 'Phone',
+          currentValue: normalizeValue(profile?.phone),
+          parsedValue: cleanText(data.phone),
+        },
+        {
+          key: 'headline',
+          label: 'Headline',
+          currentValue: normalizeValue(profile?.headline),
+          parsedValue: cleanText(data.headline),
+        },
+        {
+          key: 'location',
+          label: 'Location',
+          currentValue: normalizeValue(profile?.location),
+          parsedValue: cleanText(data.location),
+        },
+        {
+          key: 'linkedinUrl',
+          label: 'LinkedIn URL',
+          currentValue: normalizeValue(profile?.linkedinUrl),
+          parsedValue: cleanText(data.linkedinUrl),
+        },
+        {
+          key: 'summary',
+          label: 'Professional summary',
+          currentValue: normalizeValue(profile?.summary),
+          parsedValue: cleanText(data.summary),
+        },
+      ].map((field) => {
+        const parsedHasValue = field.parsedValue.length > 0;
+        const currentHasValue = field.currentValue.length > 0;
+        const isDifferent = parsedHasValue && field.parsedValue !== field.currentValue;
+        return {
+          ...field,
+          parsedHasValue,
+          currentHasValue,
+          isDifferent,
+          willOverwrite: currentHasValue && isDifferent,
+          willFillEmpty: !currentHasValue && parsedHasValue,
+        };
+      });
+
+      const parsedSkills = Array.isArray(data.skills)
+        ? (data.skills as unknown[]).map((value) => cleanText(value)).filter(Boolean)
+        : [];
+      const parsedExperiences = Array.isArray(data.experience) ? data.experience.length : 0;
+      const parsedEducations = Array.isArray(data.education) ? data.education.length : 0;
+      const parsedTrainings = Array.isArray(data.trainings) ? data.trainings.length : 0;
+
+      const warnings: string[] = [];
+      if (criticalFields.some((field) => field.willOverwrite)) {
+        warnings.push('Critical profile fields will be overwritten if you import this CV. Review the differences first.');
+      }
+      if (!parsedSkills.length) {
+        warnings.push('No skills were extracted from this CV. Import may still update text fields but will not enrich the skills section.');
+      }
+      if (!parsedExperiences && !parsedEducations && !parsedTrainings) {
+        warnings.push('No structured career sections were extracted. This looks more like a text-only parse than a strong CV extraction.');
+      }
+
+      return {
+        cvUploadId: cvRow[0].id,
+        originalFilename: cvRow[0].originalFilename,
+        createdAt: cvRow[0].createdAt,
+        criticalFields,
+        sections: {
+          skills: {
+            currentCount: existingSkillRows.length,
+            parsedCount: parsedSkills.length,
+            willReplace: parsedSkills.length > 0,
+          },
+          experiences: {
+            currentCount: existingExperienceRows.length,
+            parsedCount: parsedExperiences,
+            willReplace: parsedExperiences > 0,
+          },
+          educations: {
+            currentCount: existingEducationRows.length,
+            parsedCount: parsedEducations,
+            willReplace: parsedEducations > 0,
+          },
+          trainings: {
+            currentCount: existingTrainingRows.length,
+            parsedCount: parsedTrainings,
+            willReplace: parsedTrainings > 0,
+          },
+        },
+        warnings,
+      };
     }),
 
   // Import parsed CV data into user profile
