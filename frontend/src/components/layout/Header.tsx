@@ -3,6 +3,8 @@ import { useLocation } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import {
   AlertTriangle,
+  Coins,
+  Loader2,
   PanelLeftClose,
   PanelLeft,
   Moon,
@@ -33,13 +35,15 @@ export default function Header() {
   const { pathname, search } = useLocation();
   const { user } = useUser();
   const { theme, setTheme, focusMode, setFocusMode } = useThemeStore();
-  const creditsQuery = api.billing.getCurrentPlan.useQuery(
+  const creditsQuery = api.billing.getAccountState.useQuery(
     { userId: user?.id ?? '' },
-    { enabled: !!user?.id, staleTime: 60_000 },
+    { enabled: !!user?.id, staleTime: 30_000, retry: 1 },
   );
-  const credits = creditsQuery.data?.credits ?? null;
-  const lowBalance = typeof credits === 'number' && credits > 0 && credits <= 10;
-  const creditsLabel = credits === null ? null : credits > 0 ? `${credits.toLocaleString()} credits` : 'Credits syncing';
+  const spendableTotal = creditsQuery.data?.spendableTotal ?? null;
+  const allowanceRemaining = creditsQuery.data?.allowance.remaining ?? null;
+  const paidCredits = creditsQuery.data?.credits ?? null;
+  const lowBalance = typeof spendableTotal === 'number' && spendableTotal > 0 && spendableTotal <= 10;
+  const zeroBalance = spendableTotal === 0;
 
   const title = pageTitleForPath(pathname, search);
   const today = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -84,24 +88,40 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-3">
-        {creditsLabel && (
+        {user?.id && (
           <div className="flex items-center gap-2">
             <div
+              title={creditsQuery.isError ? creditsQuery.error.message : spendableTotal === null ? 'Loading credits' : `${allowanceRemaining ?? 0} allowance + ${paidCredits ?? 0} paid credits`}
               className={clsx(
-                'rounded-full px-3 py-1 text-xs font-semibold',
-                lowBalance
-                  ? 'bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/30'
-                  : neutralHeader
-                    ? 'bg-slate-200/90 text-slate-800 ring-1 ring-slate-300/70'
-                    : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400',
+                'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold',
+                creditsQuery.isError || zeroBalance
+                  ? 'bg-red-500/15 text-red-200 ring-1 ring-red-400/30'
+                  : lowBalance
+                    ? 'bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/30'
+                    : neutralHeader
+                      ? 'bg-slate-200/90 text-slate-800 ring-1 ring-slate-300/70'
+                      : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400',
               )}
             >
-              {creditsLabel}
+              {creditsQuery.isLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : creditsQuery.isError || zeroBalance || lowBalance ? (
+                <AlertTriangle className="h-3.5 w-3.5" />
+              ) : (
+                <Coins className="h-3.5 w-3.5" />
+              )}
+              {creditsQuery.isLoading
+                ? 'Loading credits'
+                : creditsQuery.isError
+                  ? 'Credits unavailable'
+                  : spendableTotal === 0
+                    ? '0 credits'
+                    : `${(spendableTotal ?? 0).toLocaleString()} credits`}
             </div>
-            {lowBalance ? (
+            {lowBalance || zeroBalance ? (
               <div className="hidden items-center gap-1 rounded-full border border-amber-400/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200 lg:flex">
                 <AlertTriangle className="h-3.5 w-3.5" />
-                Low balance
+                {zeroBalance ? 'No credits' : 'Low balance'}
               </div>
             ) : null}
           </div>
