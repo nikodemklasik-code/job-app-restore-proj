@@ -6,7 +6,7 @@ import { protectedProcedure, router } from '../trpc.js';
 import { db } from '../../db/index.js';
 import { applicationLogs, applications, jobs } from '../../db/schema.js';
 
-const reviewStatusValues = ['draft', 'sent', 'viewed', 'interview', 'offer', 'accepted', 'rejected', 'archived'] as const;
+const reviewStatusValues = ['draft', 'prepared', 'sent', 'follow_up_sent', 'interview', 'accepted', 'rejected', 'archived', 'viewed'] as const;
 const reviewStatusSchema = z.enum(reviewStatusValues);
 const recommendationActionValues = ['wait', 'follow_up', 'close_application', 'move_to_interview', 'none'] as const;
 const recommendationActionSchema = z.enum(recommendationActionValues);
@@ -62,6 +62,14 @@ function buildRecommendation(input: {
     return {
       recommendedAction: 'wait',
       recommendationReasons: reasons.length > 0 ? reasons : ['This application is already in the interview stage.'],
+      listingStatus,
+    };
+  }
+
+  if (input.status === 'follow_up_sent' || input.status === 'viewed') {
+    return {
+      recommendedAction: 'wait',
+      recommendationReasons: reasons.length > 0 ? reasons : ['A follow-up is already recorded. Wait for a response before taking another action.'],
       listingStatus,
     };
   }
@@ -192,13 +200,13 @@ export const reviewRouter = router({
         .where(
           and(
             eq(applications.userId, ctx.user.id),
-            inArray(applications.status, ['sent', 'viewed', 'interview']),
+            inArray(applications.status, ['sent', 'follow_up_sent', 'interview', 'viewed']),
           ),
         )
         .orderBy(desc(applications.silenceDays), desc(applications.updatedAt))
         .limit(50);
 
-      const filtered = appRows.filter((r) => r.silenceDays >= input.silenceThresholdDays);
+      const filtered = appRows.filter((r) => r.silenceDays >= input.silenceThresholdDays || r.status === 'interview');
 
       const jobIds = filtered
         .map((r) => r.jobId)
@@ -228,14 +236,15 @@ export const reviewRouter = router({
     }))
     .output(successSchema)
     .mutation(async ({ ctx, input }) => {
+      const now = new Date();
       await assertOwnedApplication(input.applicationId, ctx.user.id);
 
       await db
         .update(applications)
-        .set({ lastFollowedUpAt: new Date(), silenceDays: 0, notes: input.note, status: 'viewed' })
+        .set({ lastFollowedUpAt: now, silenceDays: 0, notes: input.note, status: 'follow_up_sent', updatedAt: now })
         .where(and(eq(applications.id, input.applicationId), eq(applications.userId, ctx.user.id)));
 
-      await appendApplicationLog(input.applicationId, 'review_follow_up', { note: input.note });
+      await appendApplicationLog(input.applicationId, 'review_follow_up', { note: input.note, status: 'follow_up_sent' });
 
       return { success: true };
     }),
@@ -244,10 +253,11 @@ export const reviewRouter = router({
     .input(z.object({ applicationId: z.string().min(1), note: z.string().max(2000).optional() }))
     .output(successSchema)
     .mutation(async ({ ctx, input }) => {
+      const now = new Date();
       await assertOwnedApplication(input.applicationId, ctx.user.id);
       await db
         .update(applications)
-        .set({ status: 'interview', notes: input.note, silenceDays: 0 })
+        .set({ status: 'interview', notes: input.note, silenceDays: 0, updatedAt: now })
         .where(and(eq(applications.id, input.applicationId), eq(applications.userId, ctx.user.id)));
       await appendApplicationLog(input.applicationId, 'review_mark_interview', { note: input.note ?? null });
       return { success: true };
@@ -257,12 +267,13 @@ export const reviewRouter = router({
     .input(z.object({ applicationId: z.string().min(1), note: z.string().max(2000).optional() }))
     .output(successSchema)
     .mutation(async ({ ctx, input }) => {
+      const now = new Date();
       await assertOwnedApplication(input.applicationId, ctx.user.id);
       await db
         .update(applications)
-        .set({ status: 'archived', notes: input.note })
+        .set({ status: 'rejected', notes: input.note, silenceDays: 0, updatedAt: now })
         .where(and(eq(applications.id, input.applicationId), eq(applications.userId, ctx.user.id)));
-      await appendApplicationLog(input.applicationId, 'review_close_application', { note: input.note ?? null });
+      await appendApplicationLog(input.applicationId, 'review_close_application', { note: input.note ?? null, status: 'rejected' });
       return { success: true };
     }),
 
@@ -270,12 +281,13 @@ export const reviewRouter = router({
     .input(z.object({ applicationId: z.string().min(1), note: z.string().max(2000).optional() }))
     .output(successSchema)
     .mutation(async ({ ctx, input }) => {
+      const now = new Date();
       await assertOwnedApplication(input.applicationId, ctx.user.id);
       await db
         .update(applications)
-        .set({ status: 'archived', notes: input.note })
+        .set({ status: 'rejected', notes: input.note, silenceDays: 0, updatedAt: now })
         .where(and(eq(applications.id, input.applicationId), eq(applications.userId, ctx.user.id)));
-      await appendApplicationLog(input.applicationId, 'review_mark_no_response', { note: input.note ?? null });
+      await appendApplicationLog(input.applicationId, 'review_mark_no_response', { note: input.note ?? null, status: 'rejected' });
       return { success: true };
     }),
 });
