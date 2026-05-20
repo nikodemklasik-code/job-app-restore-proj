@@ -129,6 +129,17 @@ export default function StyleStudio({ variant = 'page' }: { variant?: StyleStudi
     });
   }
 
+  async function handleDownloadApprovedCvPdf() {
+    if (!userId) return;
+    setGenPdfError(null);
+    try {
+      const result = await downloadCvMutation.mutateAsync({ userId });
+      downloadBase64Pdf(result.base64, initialsFilename(approvedName, 'CV'));
+    } catch {
+      // handled by mutation onError where available
+    }
+  }
+
   async function handleDownloadGeneratedPdf() {
     if (!genResult || !userId) return;
     setGenPdfError(null);
@@ -207,7 +218,7 @@ export default function StyleStudio({ variant = 'page' }: { variant?: StyleStudi
                 </div>
                 <button
                   type="button"
-                  onClick={() => void handleDownloadGeneratedPdf()}
+                  onClick={() => void handleDownloadApprovedCvPdf()}
                   disabled={!userId || downloadCvMutation.isPending || !hasApprovedProfileEvidence}
                   className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
                 >
