@@ -10,6 +10,7 @@ import { parseCvFromFile } from '../../services/cvParser.js';
 const PERSONAL_FIELDS = ['fullName', 'email', 'phone', 'headline', 'location', 'linkedinUrl', 'summary'] as const;
 type PersonalFieldKey = typeof PERSONAL_FIELDS[number];
 type SectionKey = 'skills' | 'experiences' | 'educations' | 'trainings';
+type Uuid = ReturnType<typeof randomUUID>;
 
 const SECTION_KEYS: SectionKey[] = ['skills', 'experiences', 'educations', 'trainings'];
 
@@ -50,10 +51,14 @@ type ParsedTraining = {
   credentialUrl: string;
 };
 
-function parseExperienceItems(values: unknown, profileId: string): Array<ParsedExperience & { id: string; profileId: string }> {
+type ExperienceInsert = ParsedExperience & { id: Uuid; profileId: string };
+type EducationInsert = ParsedEducation & { id: Uuid; profileId: string };
+type TrainingInsert = ParsedTraining & { id: Uuid; profileId: string };
+
+function parseExperienceItems(values: unknown, profileId: string): ExperienceInsert[] {
   if (!Array.isArray(values)) return [];
   type ExpItem = { company?: string; title?: string; role?: string; employer?: string; startDate?: string; endDate?: string | null; description?: string };
-  return (values as (string | ExpItem)[]).slice(0, 10).map((exp) => {
+  const mapped: Array<ExperienceInsert | null> = (values as (string | ExpItem)[]).slice(0, 10).map((exp) => {
     if (typeof exp === 'string') {
       const text = exp.trim();
       const atMatch = text.match(/^(.+?)\s+at\s+(.+?)(?:\s*\(([^)]+)\))?$/i);
@@ -95,13 +100,14 @@ function parseExperienceItems(values: unknown, profileId: string): Array<ParsedE
       endDate: exp.endDate === null ? null : cleanText(exp.endDate) || null,
       description,
     };
-  }).filter((item): item is ParsedExperience & { id: string; profileId: string } => item !== null);
+  });
+  return mapped.filter((item): item is ExperienceInsert => item !== null);
 }
 
-function parseEducationItems(values: unknown, profileId: string): Array<ParsedEducation & { id: string; profileId: string }> {
+function parseEducationItems(values: unknown, profileId: string): EducationInsert[] {
   if (!Array.isArray(values)) return [];
   type EduItem = { school?: string; institution?: string; university?: string; degree?: string; fieldOfStudy?: string; field?: string; startDate?: string; endDate?: string | null };
-  return (values as (string | EduItem)[]).slice(0, 10).map((edu) => {
+  const mapped: Array<EducationInsert | null> = (values as (string | EduItem)[]).slice(0, 10).map((edu) => {
     if (typeof edu === 'string') {
       const text = edu.trim();
       const commaMatch = text.match(/^(.+?)[,\-–—]\s*(.+)$/);
@@ -129,13 +135,14 @@ function parseEducationItems(values: unknown, profileId: string): Array<ParsedEd
       startDate: cleanText(edu.startDate),
       endDate: edu.endDate === null ? null : cleanText(edu.endDate) || null,
     };
-  }).filter((item): item is ParsedEducation & { id: string; profileId: string } => item !== null);
+  });
+  return mapped.filter((item): item is EducationInsert => item !== null);
 }
 
-function parseTrainingItems(values: unknown, profileId: string): Array<ParsedTraining & { id: string; profileId: string }> {
+function parseTrainingItems(values: unknown, profileId: string): TrainingInsert[] {
   if (!Array.isArray(values)) return [];
   type TrainingItem = { title?: string; providerName?: string; issuedAt?: string; expiresAt?: string | null; credentialUrl?: string };
-  return (values as TrainingItem[]).slice(0, 10).map((training) => {
+  const mapped: Array<TrainingInsert | null> = (values as TrainingItem[]).slice(0, 10).map((training) => {
     const title = cleanText(training.title);
     const providerName = cleanText(training.providerName);
     if (!title && !providerName) return null;
@@ -148,7 +155,8 @@ function parseTrainingItems(values: unknown, profileId: string): Array<ParsedTra
       expiresAt: training.expiresAt === null ? null : cleanText(training.expiresAt) || null,
       credentialUrl: cleanText(training.credentialUrl),
     };
-  }).filter((item): item is ParsedTraining & { id: string; profileId: string } => item !== null);
+  });
+  return mapped.filter((item): item is TrainingInsert => item !== null);
 }
 
 function summarizeExperience(item: { employerName?: string; jobTitle?: string; description?: string | null }): string {
@@ -266,10 +274,10 @@ export const cvRouter = router({
 
       const [profileRows, skillRows, expRows, eduRows, trainingRows] = await Promise.all([
         db.select().from(profiles).where(eq(profiles.userId, userRecord[0].id)).limit(1),
-        db.select().from(skills).where(eq(skills.profileId, userRecord[0].id)).orderBy(desc(skills.updatedAt)),
-        db.select().from(experiences).where(eq(experiences.profileId, userRecord[0].id)).orderBy(desc(experiences.updatedAt)),
-        db.select().from(educations).where(eq(educations.profileId, userRecord[0].id)).orderBy(desc(educations.updatedAt)),
-        db.select().from(trainings).where(eq(trainings.profileId, userRecord[0].id)).orderBy(desc(trainings.updatedAt)),
+        db.select().from(skills).where(eq(skills.profileId, userRecord[0].id)).orderBy(desc(skills.createdAt)),
+        db.select().from(experiences).where(eq(experiences.profileId, userRecord[0].id)).orderBy(desc(experiences.createdAt)),
+        db.select().from(educations).where(eq(educations.profileId, userRecord[0].id)).orderBy(desc(educations.createdAt)),
+        db.select().from(trainings).where(eq(trainings.profileId, userRecord[0].id)).orderBy(desc(trainings.createdAt)),
       ]);
 
       const profile = profileRows[0] ?? null;
@@ -408,7 +416,6 @@ export const cvRouter = router({
             profileId: userRecord[0].id,
             name,
             createdAt: new Date(),
-            updatedAt: new Date(),
           })));
         }
         acceptedSections.push('skills');
@@ -418,7 +425,7 @@ export const cvRouter = router({
         const items = parseExperienceItems(parsedData.experience, userRecord[0].id);
         await db.delete(experiences).where(eq(experiences.profileId, userRecord[0].id));
         if (items.length > 0) {
-          await db.insert(experiences).values(items.map((item) => ({ ...item, createdAt: new Date(), updatedAt: new Date() })));
+          await db.insert(experiences).values(items.map((item) => ({ ...item, createdAt: new Date() })));
         }
         acceptedSections.push('experiences');
       }
@@ -427,7 +434,7 @@ export const cvRouter = router({
         const items = parseEducationItems(parsedData.education, userRecord[0].id);
         await db.delete(educations).where(eq(educations.profileId, userRecord[0].id));
         if (items.length > 0) {
-          await db.insert(educations).values(items.map((item) => ({ ...item, createdAt: new Date(), updatedAt: new Date() })));
+          await db.insert(educations).values(items.map((item) => ({ ...item, createdAt: new Date() })));
         }
         acceptedSections.push('educations');
       }
@@ -436,7 +443,7 @@ export const cvRouter = router({
         const items = parseTrainingItems(parsedData.trainings, userRecord[0].id);
         await db.delete(trainings).where(eq(trainings.profileId, userRecord[0].id));
         if (items.length > 0) {
-          await db.insert(trainings).values(items.map((item) => ({ ...item, createdAt: new Date(), updatedAt: new Date() })));
+          await db.insert(trainings).values(items.map((item) => ({ ...item, createdAt: new Date() })));
         }
         acceptedSections.push('trainings');
       }
