@@ -76,7 +76,7 @@ const strategyPatchSchema = z
     blockedAreas: z.array(z.string()).optional(),
     highImpactImprovements: z.array(z.string()).optional(),
   })
-  .passthrough(); // allow extra keys (e.g. targetIndustries, dreamJob) without throwing
+  .passthrough();
 
 function workValuesFromDb(raw: string | null): string[] {
   if (!raw?.trim()) return [];
@@ -283,8 +283,6 @@ async function ensurePreferenceFlagsRow(userId: string): Promise<void> {
   await db.insert(userPreferenceFlags).values({ userId });
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
 async function ensureProfileForUser(userId: string): Promise<string> {
   const existing = await db.select({ id: profiles.id }).from(profiles).where(eq(profiles.userId, userId)).limit(1);
   if (existing[0]) return existing[0].id;
@@ -342,7 +340,7 @@ async function fetchProfileSnapshot(userId: string, email: string): Promise<Prof
   }
 
   const [skillRecords, experienceRecords, educationRecords, trainingRecords] = await Promise.all([
-    db.select({ name: skills.name, createdAt: skills.createdAt, updatedAt: skills.updatedAt }).from(skills).where(eq(skills.profileId, profile.id)),
+    db.select({ name: skills.name, createdAt: skills.createdAt }).from(skills).where(eq(skills.profileId, profile.id)),
     db.select().from(experiences).where(eq(experiences.profileId, profile.id)),
     db.select().from(educations).where(eq(educations.profileId, profile.id)),
     db.select().from(trainings).where(eq(trainings.profileId, profile.id)),
@@ -365,15 +363,15 @@ async function fetchProfileSnapshot(userId: string, email: string): Promise<Prof
       linkedinUrl: profile.linkedinUrl?.trim() ? withStoredProvenance(userConfirmed(profileUpdatedAt), storedProfileProvenance['personalInfo.linkedinUrl']) : unknownProvenance(),
       cvUrl: profile.cvUrl?.trim() ? withStoredProvenance(userConfirmed(profileUpdatedAt), storedProfileProvenance['personalInfo.cvUrl']) : unknownProvenance(),
     },
-    skills: skillRecords.map((s) => s.name?.trim() ? withStoredProvenance(userConfirmed(s.updatedAt ?? s.createdAt ?? profileUpdatedAt), skillSectionProvenance) : unknownProvenance()),
+    skills: skillRecords.map((s) => s.name?.trim() ? withStoredProvenance(userConfirmed(s.createdAt ?? profileUpdatedAt), skillSectionProvenance) : unknownProvenance()),
     experiences: Object.fromEntries(
-      experienceRecords.map((e) => [e.id, applyExperienceStoredProvenance(experienceProvenance(e.updatedAt ?? e.createdAt ?? profileUpdatedAt), experienceSectionProvenance)]),
+      experienceRecords.map((e) => [e.id, applyExperienceStoredProvenance(experienceProvenance(e.createdAt ?? profileUpdatedAt), experienceSectionProvenance)]),
     ),
     educations: Object.fromEntries(
-      educationRecords.map((e) => [e.id, applyEducationStoredProvenance(educationProvenance(e.updatedAt ?? e.createdAt ?? profileUpdatedAt), educationSectionProvenance)]),
+      educationRecords.map((e) => [e.id, applyEducationStoredProvenance(educationProvenance(e.createdAt ?? profileUpdatedAt), educationSectionProvenance)]),
     ),
     trainings: Object.fromEntries(
-      trainingRecords.map((t) => [t.id, applyTrainingStoredProvenance(trainingProvenance(t.updatedAt ?? t.createdAt ?? profileUpdatedAt), trainingSectionProvenance)]),
+      trainingRecords.map((t) => [t.id, applyTrainingStoredProvenance(trainingProvenance(t.createdAt ?? profileUpdatedAt), trainingSectionProvenance)]),
     ),
   };
 
@@ -421,10 +419,7 @@ async function fetchProfileSnapshot(userId: string, email: string): Promise<Prof
   };
 }
 
-// ── Router ─────────────────────────────────────────────────────────────────────
-
 export const profileRouter = router({
-  /** Creates local `users` + `profiles` on first sign-in; keeps email in sync; fills empty profile name from Clerk. */
   ensureFromClerk: publicProcedure
     .input(z.object({
       userId: z.string().min(1),
@@ -433,7 +428,7 @@ export const profileRouter = router({
     }))
     .mutation(async ({ input }) => {
       const displayName = (input.fullName ?? '').trim();
-      const existing = await db.select({ id: users.id }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
+      const existing = await db.select({ id: users.id, email: users.email }).from(users).where(eq(users.clerkId, input.userId)).limit(1);
       const row = existing[0];
 
       if (!row) {
@@ -474,7 +469,7 @@ export const profileRouter = router({
     }),
 
   me: protectedProcedure.query(async ({ ctx }) => {
-    const clerkId = ctx.auth.userId!;
+    const clerkId = ctx.auth.clerkUserId;
     const row = await db.select().from(users).where(eq(users.clerkId, clerkId)).limit(1);
     if (!row[0]) return null;
     const snapshot = await fetchProfileSnapshot(row[0].id, row[0].email);
@@ -482,7 +477,7 @@ export const profileRouter = router({
   }),
 
   getProfile: protectedProcedure.query(async ({ ctx }) => {
-    const clerkId = ctx.auth.userId!;
+    const clerkId = ctx.auth.clerkUserId;
     const row = await db.select().from(users).where(eq(users.clerkId, clerkId)).limit(1);
     if (!row[0]) {
       return {
@@ -566,7 +561,7 @@ export const profileRouter = router({
       }).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const clerkId = ctx.auth.userId!;
+      const clerkId = ctx.auth.clerkUserId;
       const row = await db.select().from(users).where(eq(users.clerkId, clerkId)).limit(1);
       if (!row[0]) throw new Error('User not found');
       const localUserId = row[0].id;
@@ -576,7 +571,6 @@ export const profileRouter = router({
       await ensureSocialConsentsRow(localUserId);
       await ensurePreferenceFlagsRow(localUserId);
 
-      // Update profile main record
       await db.update(profiles).set({
         fullName: input.personalInfo.fullName,
         phone: input.personalInfo.phone,
@@ -587,14 +581,12 @@ export const profileRouter = router({
         cvUrl: input.personalInfo.cvUrl,
       }).where(eq(profiles.id, profileId));
 
-      // Replace skills
       await db.delete(skills).where(eq(skills.profileId, profileId));
       const cleanedSkills = input.skills.map((s) => s.trim()).filter(Boolean);
       if (cleanedSkills.length) {
         await db.insert(skills).values(cleanedSkills.map((name) => ({ id: randomUUID(), profileId, name })));
       }
 
-      // Replace experiences
       await db.delete(experiences).where(eq(experiences.profileId, profileId));
       if (input.experiences.length) {
         await db.insert(experiences).values(input.experiences.map((e) => ({
@@ -609,7 +601,6 @@ export const profileRouter = router({
         })));
       }
 
-      // Replace educations
       await db.delete(educations).where(eq(educations.profileId, profileId));
       if (input.educations.length) {
         await db.insert(educations).values(input.educations.map((e) => ({
@@ -623,7 +614,6 @@ export const profileRouter = router({
         })));
       }
 
-      // Replace trainings
       await db.delete(trainings).where(eq(trainings.profileId, profileId));
       if (input.trainings.length) {
         await db.insert(trainings).values(input.trainings.map((t) => ({
@@ -684,7 +674,7 @@ export const profileRouter = router({
     }),
 
   getMatchContext: protectedProcedure.query(async ({ ctx }) => {
-    const clerkId = ctx.auth.userId!;
+    const clerkId = ctx.auth.clerkUserId;
     const row = await db.select().from(users).where(eq(users.clerkId, clerkId)).limit(1);
     if (!row[0]) {
       return {
@@ -708,15 +698,24 @@ export const profileRouter = router({
       location: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const clerkId = ctx.auth.userId!;
+      const clerkId = ctx.auth.clerkUserId;
       const row = await db.select().from(users).where(eq(users.clerkId, clerkId)).limit(1);
       if (!row[0]) return { blocked: false, reasons: [] as string[] };
       const context = await getProfileMatchContextByLocalId(row[0].id);
-      return isBlockedJob(context, input);
+      const blocked = isBlockedJob({
+        title: input.title ?? '',
+        company: input.company ?? null,
+        description: input.description ?? null,
+        seniority: null,
+        salaryMin: null,
+        salaryMax: null,
+        tags: input.location ? [input.location] : [],
+      }, context.blockedAreas);
+      return { blocked, reasons: blocked ? context.blockedAreas : [] as string[] };
     }),
 
   getRoadmap: protectedProcedure.query(async ({ ctx }) => {
-    const clerkId = ctx.auth.userId!;
+    const clerkId = ctx.auth.clerkUserId;
     const userRows = await db.select().from(users).where(eq(users.clerkId, clerkId)).limit(1);
     const userRow = userRows[0];
     if (!userRow) {
@@ -724,13 +723,25 @@ export const profileRouter = router({
     }
     const snapshot = await fetchProfileSnapshot(userRow.id, userRow.email);
     return generateProfileRoadmap({
-      profile: {
-        summary: snapshot.personalInfo.summary,
-        skills: snapshot.skills,
-        workValues: snapshot.careerGoals?.workValues,
-        targetJobTitle: snapshot.careerGoals?.targetJobTitle,
-        targetSalary: snapshot.careerGoals?.targetSalary,
-      },
+      targetRole: snapshot.careerGoals?.targetJobTitle ?? null,
+      targetSeniority: snapshot.careerGoals?.targetSeniority ?? null,
+      currentRole: snapshot.careerGoals?.currentJobTitle ?? snapshot.experiences[0]?.jobTitle ?? null,
+      skills: snapshot.skills,
+      experiences: snapshot.experiences.map((experience) => ({
+        jobTitle: experience.jobTitle,
+        employerName: experience.employerName,
+        description: experience.description,
+      })),
+      educations: snapshot.educations.map((education) => ({
+        degree: education.degree,
+        fieldOfStudy: education.fieldOfStudy,
+        schoolName: education.schoolName,
+      })),
+      trainings: snapshot.trainings.map((training) => ({
+        title: training.title,
+        providerName: training.providerName,
+      })),
+      workValues: snapshot.careerGoals?.workValues,
     });
   }),
 });
