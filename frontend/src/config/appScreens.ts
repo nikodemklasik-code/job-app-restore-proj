@@ -41,7 +41,7 @@ export const APP_SCREENS: Record<AppScreenKey, AppScreenDefinition> = {
   documentUpload: { key: 'documentUpload', label: 'Document Intake', path: '/documents/upload', topLevel: false, parentKey: 'documentHub', showInSidebar: false },
   styleStudio: { key: 'styleStudio', label: 'Style Studio', path: '/documents/style-studio', topLevel: false, parentKey: 'documentHub', showInSidebar: false },
   jobs: { key: 'jobs', label: 'Jobs', path: '/jobs', topLevel: true, showInSidebar: true },
-  jobRadar: { key: 'jobRadar', label: 'Job Radar', path: '/jobs/radar', topLevel: false, parentKey: 'jobs', showInSidebar: false },
+  jobRadar: { key: 'jobRadar', label: 'Job Radar', path: '/job-radar', topLevel: false, parentKey: 'jobs', showInSidebar: false },
   applications: { key: 'applications', label: 'Applications', path: '/applications', topLevel: true, showInSidebar: true },
   applicationsReview: { key: 'applicationsReview', label: 'Applications Review', path: '/applications-review', topLevel: true, showInSidebar: true },
   assistant: { key: 'assistant', label: 'AI Assistant', path: '/assistant', topLevel: true, showInSidebar: true },
@@ -95,5 +95,4 @@ export const LEGACY_ROUTE_REDIRECTS: Array<{ from: string; to: string }> = [
   { from: '/negotiation-coach', to: APP_SCREENS.negotiation.path },
   { from: '/settings/community', to: APP_SCREENS.communityCenter.path },
   { from: '/ai-analysis', to: APP_SCREENS.reports.path },
-  { from: '/job-radar', to: APP_SCREENS.jobRadar.path },
 ];
