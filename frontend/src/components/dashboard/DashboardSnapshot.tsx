@@ -1,19 +1,24 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
   Briefcase,
   Building2,
   ClipboardList,
+  CreditCard,
+  FileQuestion,
   FileText,
+  HelpCircle,
   LayoutGrid,
   Newspaper,
+  Scale,
   Search,
   Settings,
   Sparkles,
   Target,
   TrendingUp,
   User,
+  X,
 } from 'lucide-react';
 import { useUser } from '@clerk/clerk-react';
 import { api } from '@/lib/api';
@@ -70,6 +75,131 @@ function newsroomTone(type: DashboardSnapshotDto['newsroom'][number]['type']): s
   return 'border-violet-500/20 bg-violet-500/10 text-violet-200';
 }
 
+type SystemNoticeTone = 'critical' | 'warning' | 'positive';
+
+type SystemNotice = {
+  tone: SystemNoticeTone;
+  title: string;
+  description: string;
+  detail?: string;
+  compactLabel?: string;
+  actionLabel?: string;
+  onAction?: () => void;
+};
+
+function noticeToneClasses(tone: SystemNoticeTone) {
+  if (tone === 'critical') {
+    return {
+      shell: 'border-red-500/35 bg-red-500/12 text-red-100',
+      icon: 'bg-red-500/20 text-red-200',
+      compact: 'border-red-500/25 bg-red-500/10 text-red-100',
+      button: 'border-red-300/30 bg-red-500/15 text-red-100 hover:bg-red-500/25',
+    };
+  }
+  if (tone === 'positive') {
+    return {
+      shell: 'border-emerald-500/35 bg-emerald-500/12 text-emerald-100',
+      icon: 'bg-emerald-500/20 text-emerald-200',
+      compact: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-100',
+      button: 'border-emerald-300/30 bg-emerald-500/15 text-emerald-100 hover:bg-emerald-500/25',
+    };
+  }
+  return {
+    shell: 'border-amber-500/35 bg-amber-500/12 text-amber-100',
+    icon: 'bg-amber-500/20 text-amber-200',
+    compact: 'border-amber-500/25 bg-amber-500/10 text-amber-100',
+    button: 'border-amber-300/30 bg-amber-500/15 text-amber-100 hover:bg-amber-500/25',
+  };
+}
+
+function NoticeBanner({ notice, storageKey }: { notice: SystemNotice; storageKey: string }) {
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    try {
+      setDismissed(window.localStorage.getItem(storageKey) === 'dismissed');
+    } catch {
+      setDismissed(false);
+    }
+  }, [storageKey]);
+
+  const tones = noticeToneClasses(notice.tone);
+
+  const dismiss = () => {
+    setDismissed(true);
+    try {
+      window.localStorage.setItem(storageKey, 'dismissed');
+    } catch {
+      // ignore storage failure
+    }
+  };
+
+  const restore = () => {
+    setDismissed(false);
+    try {
+      window.localStorage.removeItem(storageKey);
+    } catch {
+      // ignore storage failure
+    }
+  };
+
+  if (dismissed) {
+    return (
+      <div className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${tones.compact}`}>
+        <div>
+          <p className="text-sm font-semibold">{notice.compactLabel ?? notice.title}</p>
+          <p className="text-xs opacity-80">{notice.description}</p>
+        </div>
+        <button
+          type="button"
+          onClick={restore}
+          className={`rounded-xl border px-3 py-1.5 text-xs font-semibold transition ${tones.button}`}
+        >
+          Show
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`rounded-2xl border px-4 py-4 ${tones.shell}`}>
+      <div className="flex items-start gap-3">
+        <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${tones.icon}`}>
+          <AlertTriangle className="h-4.5 w-4.5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold">{notice.title}</p>
+              <p className="mt-1 text-sm opacity-90">{notice.description}</p>
+              {notice.detail ? <p className="mt-2 text-xs opacity-75">{notice.detail}</p> : null}
+            </div>
+            <button
+              type="button"
+              onClick={dismiss}
+              aria-label="Dismiss notice"
+              className="rounded-lg p-1.5 transition hover:bg-white/10"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          {notice.actionLabel && notice.onAction ? (
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={notice.onAction}
+                className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${tones.button}`}
+              >
+                {notice.actionLabel}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Newsroom({ items }: { items: DashboardSnapshotDto['newsroom'] }) {
   const visibleItems = items && items.length > 0
     ? items
@@ -93,7 +223,7 @@ function Newsroom({ items }: { items: DashboardSnapshotDto['newsroom'] }) {
             <Newspaper className="h-4 w-4 text-indigo-300" />
             <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300">Workspace Status Newsroom</p>
           </div>
-          <p className="mt-1 text-sm text-slate-300">Live feed of new jobs, employer intelligence, and recruitment-process changes only — action tiles live below.</p>
+          <p className="mt-1 text-sm text-slate-300">Live feed of new jobs, employer intelligence, and recruitment-process changes only. Operational shortcuts and setup actions live outside the newsroom.</p>
         </div>
         <Link to="/jobs" className="text-xs font-semibold text-indigo-300 transition hover:text-indigo-200">
           Refresh opportunities →
@@ -150,7 +280,6 @@ function StatusBadge({ status }: { status: DashboardSnapshotDto['applications'][
   );
 }
 
-
 type CareerProfileEvidence = {
   skills: string[];
   experiences: unknown[];
@@ -192,40 +321,19 @@ function getCareerEvidence(profileData: unknown, dashboardProfile: DashboardSnap
 }
 
 function estimateAnnualValue(evidence: CareerProfileEvidence, profileCompleteness: number): number {
-  // Realistic UK market baseline: entry-level starting point £22k (minimum wage annual ~£22k)
   const base = 22_000;
-
-  // Experience: 0-8 years, each worth ~£2.5k (max £20k premium)
   const experiencePremium = Math.min(evidence.experiences.length, 8) * 2_500;
-
-  // Education: diminishing value, max £3k for multiple degrees
   const educationPremium = Math.min(evidence.educations.length, 3) * 1_000;
-
-  // Skills: each marketable skill worth £300-500, max 30 skills
   const skillPremium = Math.min(evidence.skills.length, 30) * 400;
-
-  // Languages: £500 each, max 5 languages
   const languagePremium = Math.min(evidence.languages.length, 5) * 500;
-
-  // Certifications: £400 each, max 10
   const trainingPremium = Math.min(evidence.trainings.length, 10) * 400;
-
-  // Target role defined: +£1.5k (signals career clarity)
   const goalPremium = evidence.targetRole ? 1_500 : 0;
-
-  // Profile completeness bonus: up to £3k for fully filled profile
   const profilePremium = Math.round(profileCompleteness * 30);
-
-  // Seniority multiplier if evidence includes senior-level roles
   const hasSeniorRole = evidence.experiences.some((exp) =>
-    typeof exp === 'object' && exp !== null &&
-    /senior|lead|principal|head|director|manager/i.test(String((exp as { jobTitle?: string }).jobTitle ?? '')),
+    typeof exp === 'object' && exp !== null && /senior|lead|principal|head|director|manager/i.test(String((exp as { jobTitle?: string }).jobTitle ?? '')),
   );
   const seniorityMultiplier = hasSeniorRole ? 1.15 : 1.0;
-
   const raw = (base + experiencePremium + educationPremium + skillPremium + languagePremium + trainingPremium + goalPremium + profilePremium) * seniorityMultiplier;
-
-  // Round to nearest £500
   return Math.round(raw / 500) * 500;
 }
 
@@ -332,7 +440,6 @@ function FlipCard(props: {
   );
 }
 
-
 function CareerIntelligenceSection({ profile }: { profile: DashboardSnapshotDto['profile'] }) {
   const { user } = useUser();
   const userId = user?.id ?? '';
@@ -362,9 +469,7 @@ function CareerIntelligenceSection({ profile }: { profile: DashboardSnapshotDto[
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-white">Career Intelligence</h2>
-          <p className="mt-1 text-sm text-slate-400">
-            Reversible cards: click a card to see evidence, assumptions and legal-safe estimate notes.
-          </p>
+          <p className="mt-1 text-sm text-slate-400">Reversible cards: click a card to see evidence, assumptions and legal-safe estimate notes.</p>
         </div>
         <Link to="/skills" className="text-sm font-medium text-indigo-300 transition hover:text-indigo-200">
           View Skills Lab →
@@ -428,6 +533,36 @@ function CareerIntelligenceSection({ profile }: { profile: DashboardSnapshotDto[
         />
       </div>
     </section>
+  );
+}
+
+function QuickActionTiles() {
+  const tiles = [
+    { title: 'Settings', subtitle: 'Preferences, alerts and controls', href: '/settings', icon: Settings, tone: 'border-slate-500/25 bg-slate-500/10 text-slate-200' },
+    { title: 'Billing', subtitle: 'Credits, spend and pack history', href: '/billing', icon: CreditCard, tone: 'border-indigo-500/25 bg-indigo-500/10 text-indigo-200' },
+    { title: 'Legal Hub', subtitle: 'Grounded UK employment guidance', href: '/legal', icon: Scale, tone: 'border-amber-500/25 bg-amber-500/10 text-amber-100' },
+    { title: 'FAQ', subtitle: 'Help, definitions and workspace rules', href: '/faq', icon: HelpCircle, tone: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-100' },
+  ];
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {tiles.map((tile) => {
+        const Icon = tile.icon;
+        return (
+          <Link key={tile.title} to={tile.href} className={`rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:bg-white/10 ${tile.tone}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-white">{tile.title}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-300">{tile.subtitle}</p>
+              </div>
+              <div className="rounded-xl bg-white/10 p-2">
+                <Icon className="h-4.5 w-4.5" />
+              </div>
+            </div>
+          </Link>
+        );
+      })}
+    </div>
   );
 }
 
@@ -553,36 +688,222 @@ function gapCopy(field: string): { title: string; description: string; href: str
   };
 }
 
-export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto }) {
-  const { profile, applications, practice, nextAction, activity = {
-    lastLoginAt: null,
-    lastJobSearchAt: null,
-    lastJobSearchLabel: null,
-    lastMarketResearchAt: null,
-  }, newsroom = [] } = snapshot;
+function HistoryActivity({ activity, practice }: { activity: DashboardSnapshotDto['activity']; practice: DashboardSnapshotDto['practice'] }) {
+  return (
+    <div className="mvh-card-glow rounded-2xl border border-white/10 bg-white/5 p-5">
+      <h2 className="text-lg font-semibold text-white">History Activity</h2>
+      <div className="mt-4 space-y-3 text-sm text-slate-300">
+        <div className="flex items-start gap-3 rounded-xl bg-black/20 px-3 py-3">
+          <User className="mt-0.5 h-4 w-4 text-indigo-300" />
+          <div>
+            <span className="block text-slate-500">Last login session</span>
+            <span className="mt-1 block font-medium text-white">{formatDate(activity.lastLoginAt)}</span>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 rounded-xl bg-black/20 px-3 py-3">
+          <Search className="mt-0.5 h-4 w-4 text-emerald-300" />
+          <div>
+            <span className="block text-slate-500">Last job search</span>
+            <span className="mt-1 block font-medium text-white">{formatDate(activity.lastJobSearchAt)}</span>
+            {activity.lastJobSearchLabel ? <span className="mt-1 block text-xs text-slate-500">{activity.lastJobSearchLabel}</span> : null}
+          </div>
+        </div>
+        <div className="flex items-start gap-3 rounded-xl bg-black/20 px-3 py-3">
+          <LayoutGrid className="mt-0.5 h-4 w-4 text-sky-300" />
+          <div>
+            <span className="block text-slate-500">Last labour-market research</span>
+            <span className="mt-1 block font-medium text-white">{formatDate(activity.lastMarketResearchAt)}</span>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 rounded-xl bg-black/20 px-3 py-3">
+          <Target className="mt-0.5 h-4 w-4 text-violet-300" />
+          <div>
+            <span className="block text-slate-500">Last interview practice</span>
+            <span className="mt-1 block font-medium text-white">{formatDate(practice.lastCompletedAt)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProfileGaps({ profile }: { profile: DashboardSnapshotDto['profile'] }) {
+  return (
+    <div className="mvh-card-glow rounded-2xl border border-white/10 bg-white/5 p-5">
+      <h2 className="text-lg font-semibold text-white">Profile Gaps</h2>
+      {!profile.missingCriticalFields || profile.missingCriticalFields.length === 0 ? (
+        <p className="mt-4 text-sm text-emerald-300">All tracked profile signals are present.</p>
+      ) : (
+        <ul className="mt-4 space-y-3">
+          {profile.missingCriticalFields.map((field) => {
+            const copy = gapCopy(field);
+            return (
+              <li key={field} className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-100">{copy.title}</p>
+                    <p className="mt-1 text-xs leading-5 text-amber-100/80">{copy.description}</p>
+                    <Link to={copy.href} className="mt-2 inline-flex text-xs font-semibold text-amber-200 hover:text-amber-100">
+                      {copy.cta} →
+                    </Link>
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function OnboardingProgress({ snapshot }: { snapshot: DashboardSnapshotDto }) {
+  const steps = [
+    {
+      title: 'Complete profile basics',
+      done: snapshot.profile.completeness >= 60,
+      percent: Math.min(100, Math.round(snapshot.profile.completeness)),
+      href: '/profile',
+      note: snapshot.profile.completeness >= 60 ? 'Core profile data is present.' : 'Complete target role, work values and missing basics.',
+    },
+    {
+      title: 'Prepare profile documents',
+      done: snapshot.profile.completeness >= 75,
+      percent: Math.min(100, Math.round(Math.max(snapshot.profile.completeness - 15, 0))),
+      href: '/documents',
+      note: snapshot.profile.completeness >= 75 ? 'Document setup looks healthy.' : 'Upload or review CV and supporting material.',
+    },
+    {
+      title: 'Start first job search',
+      done: snapshot.activity.lastJobSearchAt !== null,
+      percent: snapshot.activity.lastJobSearchAt ? 100 : 0,
+      href: '/jobs',
+      note: snapshot.activity.lastJobSearchAt ? 'Search activity recorded.' : 'No recorded job search yet.',
+    },
+    {
+      title: 'Create application pipeline',
+      done: snapshot.applications.total > 0,
+      percent: snapshot.applications.total > 0 ? 100 : 0,
+      href: '/applications',
+      note: snapshot.applications.total > 0 ? `${snapshot.applications.total} application items in workspace.` : 'No applications yet.',
+    },
+  ];
+
+  const unfinished = steps.filter((step) => !step.done).length;
+  const average = Math.round(steps.reduce((sum, step) => sum + step.percent, 0) / steps.length);
+
+  return (
+    <section className="rounded-3xl border border-white/10 bg-white/5 p-6">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-indigo-300">First workspace steps</p>
+          <h2 className="mt-1 text-xl font-bold text-white">Workspace onboarding</h2>
+          <p className="mt-1 text-sm text-slate-400">Essential setup steps that make career intelligence, jobs and applications work together properly.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-right">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Overall progress</p>
+            <p className="text-2xl font-bold text-white">{average}%</p>
+          </div>
+          {unfinished > 0 ? (
+            <div className="rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-red-100">
+              <p className="text-xs uppercase tracking-wide text-red-200/80">Attention</p>
+              <p className="text-sm font-semibold">{unfinished} required step{unfinished > 1 ? 's' : ''} still open</p>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-emerald-100">
+              <p className="text-xs uppercase tracking-wide text-emerald-200/80">Ready</p>
+              <p className="text-sm font-semibold">Core setup is complete</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {steps.map((step) => (
+          <Link key={step.title} to={step.href} className={`rounded-2xl border p-4 transition hover:-translate-y-0.5 hover:bg-white/10 ${step.done ? 'border-emerald-500/25 bg-emerald-500/8' : 'border-red-500/20 bg-red-500/8'}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-white">{step.title}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-400">{step.note}</p>
+              </div>
+              <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${step.done ? 'bg-emerald-500/20 text-emerald-200' : 'bg-red-500/20 text-red-200'}`}>
+                {step.done ? 'Done' : 'Open'}
+              </span>
+            </div>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+              <div className={`h-full rounded-full ${step.done ? 'bg-emerald-400' : 'bg-red-400'}`} style={{ width: `${Math.max(step.percent, step.done ? 100 : 8)}%` }} />
+            </div>
+            <p className="mt-2 text-xs font-semibold text-slate-300">{step.percent}% complete</p>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function DashboardSnapshot({ snapshot, systemNotice }: { snapshot: DashboardSnapshotDto; systemNotice?: SystemNotice }) {
+  const {
+    profile,
+    applications,
+    practice,
+    nextAction,
+    billing,
+    activity = {
+      lastLoginAt: null,
+      lastJobSearchAt: null,
+      lastJobSearchLabel: null,
+      lastMarketResearchAt: null,
+    },
+    newsroom = [],
+    generatedAt,
+  } = snapshot;
   const displayName = firstName(profile.fullName);
+
+  const onboardingNeeded = useMemo(() => {
+    return profile.completeness < 75 || applications.total === 0 || activity.lastJobSearchAt === null;
+  }, [activity.lastJobSearchAt, applications.total, profile.completeness]);
+
   return (
     <div className="space-y-8">
+      {systemNotice ? <NoticeBanner notice={systemNotice} storageKey="dashboard-system-notice" /> : null}
+
       <section className="mvh-card-glow rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.08] via-white/[0.04] to-indigo-500/[0.08] p-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-indigo-200">WELCOME BACK</p>
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
               {displayName ? `Welcome back, ${displayName}` : 'Welcome back'}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-              Newsroom shows live career updates. Workspace tiles, applications and intelligence actions are outside the newsroom.
+              Newsroom shows live career updates. Workspace actions, setup priorities and credit visibility sit outside the newsroom where they belong.
             </p>
           </div>
-          <Link
-            to={nextAction.href}
-            className="inline-flex min-w-[170px] items-center justify-center rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-400"
-          >
-            {nextAction.label}
-          </Link>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[360px]">
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Available credits</p>
+              <div className="mt-1 flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-indigo-300" />
+                <p className="text-2xl font-bold text-white">{Math.max(0, Math.floor((billing?.availableBalanceCents ?? 0) / 100))}</p>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Workspace snapshot</p>
+              <p className="mt-1 text-sm font-semibold text-white">{generatedAt ? formatDate(generatedAt) : 'Live now'}</p>
+            </div>
+          </div>
         </div>
+
+        <div className="mt-5">
+          <QuickActionTiles />
+        </div>
+
         <Newsroom items={newsroom} />
       </section>
+
+      {onboardingNeeded ? <OnboardingProgress snapshot={snapshot} /> : null}
 
       <WorkspaceTiles applications={applications} practice={practice} />
 
@@ -592,9 +913,7 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
         <div className="mvh-card-glow rounded-2xl border border-white/10 bg-white/5 p-5 xl:col-span-2">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-white">Recent Application</h2>
-            <Link to="/applications" className="text-sm font-medium text-indigo-300 hover:text-indigo-200">
-              View All
-            </Link>
+            <Link to="/applications" className="text-sm font-medium text-indigo-300 hover:text-indigo-200">View All</Link>
           </div>
 
           {applications.recent.length === 0 ? (
@@ -616,22 +935,14 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
                   {applications.recent.map((application) => (
                     <tr key={application.id} className="transition hover:bg-indigo-500/10">
                       <td className="px-4 py-3 text-sm font-medium text-white">
-                        <Link to={`/applications?applicationId=${encodeURIComponent(application.id)}`} className="hover:text-indigo-300">
-                          {application.companyName}
-                        </Link>
+                        <Link to={`/applications?applicationId=${encodeURIComponent(application.id)}`} className="hover:text-indigo-300">{application.companyName}</Link>
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-300">
-                        <Link to={`/applications?applicationId=${encodeURIComponent(application.id)}`} className="hover:text-indigo-300">
-                          {application.roleTitle}
-                        </Link>
+                        <Link to={`/applications?applicationId=${encodeURIComponent(application.id)}`} className="hover:text-indigo-300">{application.roleTitle}</Link>
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-300">
-                        <StatusBadge status={application.status} />
-                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-300"><StatusBadge status={application.status} /></td>
                       <td className="px-4 py-3 text-sm text-slate-400">
-                        <Link to={`/applications?applicationId=${encodeURIComponent(application.id)}`} className="hover:text-indigo-300">
-                          {new Date(application.updatedAt).toLocaleDateString('en-GB')}
-                        </Link>
+                        <Link to={`/applications?applicationId=${encodeURIComponent(application.id)}`} className="hover:text-indigo-300">{new Date(application.updatedAt).toLocaleDateString('en-GB')}</Link>
                       </td>
                     </tr>
                   ))}
@@ -643,70 +954,26 @@ export function DashboardSnapshot({ snapshot }: { snapshot: DashboardSnapshotDto
 
         <div className="space-y-6">
           <PipelineStatus byStatus={applications.byStatus} />
-
-          <div className="mvh-card-glow rounded-2xl border border-white/10 bg-white/5 p-5">
-            <h2 className="text-lg font-semibold text-white">Profile Gaps</h2>
-            {!profile.missingCriticalFields || profile.missingCriticalFields.length === 0 ? (
-              <p className="mt-4 text-sm text-emerald-300">All tracked profile signals are present.</p>
-            ) : (
-              <ul className="mt-4 space-y-3">
-                {profile.missingCriticalFields.map((field) => {
-                  const copy = gapCopy(field);
-                  return (
-                    <li key={field} className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-3">
-                      <div className="flex items-start gap-2">
-                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
-                        <div>
-                          <p className="text-sm font-semibold text-amber-100">{copy.title}</p>
-                          <p className="mt-1 text-xs leading-5 text-amber-100/80">{copy.description}</p>
-                          <Link to={copy.href} className="mt-2 inline-flex text-xs font-semibold text-amber-200 hover:text-amber-100">
-                            {copy.cta} →
-                          </Link>
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-
-          <div className="mvh-card-glow rounded-2xl border border-white/10 bg-white/5 p-5">
-            <h2 className="text-lg font-semibold text-white">History Activity</h2>
-            <div className="mt-4 space-y-3 text-sm text-slate-300">
-              <div className="flex items-start gap-3 rounded-xl bg-black/20 px-3 py-3">
-                <User className="mt-0.5 h-4 w-4 text-indigo-300" />
-                <div>
-                  <span className="block text-slate-500">Last login session</span>
-                  <span className="mt-1 block font-medium text-white">{formatDate(activity.lastLoginAt)}</span>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 rounded-xl bg-black/20 px-3 py-3">
-                <Search className="mt-0.5 h-4 w-4 text-emerald-300" />
-                <div>
-                  <span className="block text-slate-500">Last job search</span>
-                  <span className="mt-1 block font-medium text-white">{formatDate(activity.lastJobSearchAt)}</span>
-                  {activity.lastJobSearchLabel ? <span className="mt-1 block text-xs text-slate-500">{activity.lastJobSearchLabel}</span> : null}
-                </div>
-              </div>
-              <div className="flex items-start gap-3 rounded-xl bg-black/20 px-3 py-3">
-                <LayoutGrid className="mt-0.5 h-4 w-4 text-sky-300" />
-                <div>
-                  <span className="block text-slate-500">Last labour-market research</span>
-                  <span className="mt-1 block font-medium text-white">{formatDate(activity.lastMarketResearchAt)}</span>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 rounded-xl bg-black/20 px-3 py-3">
-                <Target className="mt-0.5 h-4 w-4 text-violet-300" />
-                <div>
-                  <span className="block text-slate-500">Last interview practice</span>
-                  <span className="mt-1 block font-medium text-white">{formatDate(practice.lastCompletedAt)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <HistoryActivity activity={activity} practice={practice} />
+          <ProfileGaps profile={profile} />
         </div>
       </section>
+
+      {!onboardingNeeded ? (
+        <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+          Workspace setup is in a healthy state. You can keep moving through jobs, applications and career intelligence without onboarding blockers.
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-slate-400">
+        <div className="flex items-center gap-2">
+          <FileQuestion className="h-4 w-4 text-slate-500" />
+          <span>Dashboard uses live workspace data where available and safe fallbacks where required.</span>
+        </div>
+        <Link to={nextAction.href} className="font-semibold text-indigo-300 hover:text-indigo-200">
+          {nextAction.label} →
+        </Link>
+      </div>
     </div>
   );
 }
