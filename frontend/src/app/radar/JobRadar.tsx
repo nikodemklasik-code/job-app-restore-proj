@@ -1,465 +1,284 @@
-import { useState, useEffect, useRef } from 'react';
+import { useMemo } from 'react';
+import { useUser } from '@clerk/clerk-react';
+import { Link } from 'react-router-dom';
 import { api } from '@/lib/api';
+import type { ProfileSnapshot } from '../../../../shared/profile';
 import {
-  Radar, Zap, TrendingUp, Sparkles, ExternalLink,
-  RefreshCw, BookOpen, ChevronDown, ChevronUp, CheckCircle2,
-  Search, Database, Brain, BarChart3, GraduationCap, Activity,
+  Activity,
+  AlertTriangle,
+  Bookmark,
+  Briefcase,
+  ExternalLink,
+  Loader2,
+  Radar,
+  RefreshCw,
+  Search,
+  ShieldAlert,
+  Sparkles,
+  Target,
 } from 'lucide-react';
 
-// ── Trend config ─────────────────────────────────────────────────────────────
+type JobResult = {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  workMode: string | null;
+  source: string;
+  applyUrl: string;
+  fitScore: number;
+  postedAt?: string;
+  employerSignals?: {
+    riskLevel: 'low' | 'medium' | 'high';
+    trustLevel: 'verified' | 'likely_legit' | 'review' | 'risky';
+    riskReasons: string[];
+    trustReasons: string[];
+  };
+};
 
-const TREND_CONFIG = {
-  hot:      { label: 'Hot now',   color: '#f97316', bg: 'rgba(249,115,22,0.12)',  border: 'rgba(249,115,22,0.3)'  },
-  rising:   { label: 'Rising',    color: '#fbbf24', bg: 'rgba(251,191,36,0.10)',  border: 'rgba(251,191,36,0.3)'  },
-  emerging: { label: 'Emerging',  color: '#34d399', bg: 'rgba(52,211,153,0.10)',  border: 'rgba(52,211,153,0.25)' },
-} as const;
+type JobsSearchResponse = { jobs: JobResult[] };
 
-type TrendKey = keyof typeof TREND_CONFIG;
-
-interface Course  { title: string; provider: string; url: string; level: string }
-interface Skill   { skill: string; trend: TrendKey; reason: string; timeframe: string; courses: Course[] }
-interface RadarResult { sector: string; generatedAt: string; skills: Skill[]; summary: string }
-
-// ── Analysis log steps ────────────────────────────────────────────────────────
-
-interface LogStep {
-  id: number;
-  icon: React.ElementType;
-  text: string;
-  delayMs: number;
-  done?: boolean;
+function normalizeJobsSearchData(data: unknown): JobsSearchResponse {
+  if (Array.isArray(data)) return { jobs: data as JobResult[] };
+  const maybe = data as Partial<JobsSearchResponse> | undefined;
+  return { jobs: Array.isArray(maybe?.jobs) ? maybe.jobs : [] };
 }
 
-const ANALYSIS_STEPS: Omit<LogStep, 'done'>[] = [
-  { id: 0, icon: Database,     text: 'Connecting to job market database…',       delayMs: 0    },
-  { id: 1, icon: Search,       text: 'Scanning your application history…',        delayMs: 700  },
-  { id: 2, icon: BarChart3,    text: 'Querying global demand signals…',           delayMs: 1800 },
-  { id: 3, icon: Brain,        text: 'AI analysing skill trends…',               delayMs: 3200 },
-  { id: 4, icon: Activity,     text: 'Calculating 6–12 month outlook…',           delayMs: 5000 },
-  { id: 5, icon: GraduationCap,text: 'Generating course recommendations…',       delayMs: 6800 },
-];
+function deriveRadarQuery(profile: ProfileSnapshot | undefined): string {
+  const target = profile?.careerGoals?.targetJobTitle?.trim();
+  if (target) return target;
+  const latestRole = profile?.experiences?.[0]?.jobTitle?.trim();
+  if (latestRole) return latestRole;
+  const skills = (profile?.skills ?? []).map((skill) => skill.trim()).filter(Boolean);
+  if (skills.length > 0) return `${skills[0]} developer`;
+  return '';
+}
 
-// ── Live Log component ─────────────────────────────────────────────────────────
+function formatSalary(job: JobResult): string {
+  if (job.salaryMin && job.salaryMax) return `£${job.salaryMin.toLocaleString()}–£${job.salaryMax.toLocaleString()}`;
+  if (job.salaryMin) return `From £${job.salaryMin.toLocaleString()}`;
+  if (job.salaryMax) return `Up to £${job.salaryMax.toLocaleString()}`;
+  return 'Salary not listed';
+}
 
-function AnalysisLog({
-  isRunning,
-  result,
-  onDone,
-}: {
-  isRunning: boolean;
-  result: RadarResult | null;
-  onDone: () => void;
-}) {
-  const [visibleSteps, setVisibleSteps] = useState<number[]>([]);
-  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
-  const [finalLine, setFinalLine] = useState<string | null>(null);
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const doneCalledRef = useRef(false);
+function radarReason(job: JobResult): string {
+  if (job.fitScore >= 85) return 'High fit and ready for a deeper review.';
+  if ((job.salaryMin ?? 0) > 0 || (job.salaryMax ?? 0) > 0) return 'Visible salary makes this lead easier to prioritise.';
+  if (job.employerSignals?.riskLevel === 'high') return 'Relevant role, but risk signals need a sanity check first.';
+  return 'Worth a first-pass screen before you commit time.';
+}
 
-  useEffect(() => {
-    if (!isRunning && visibleSteps.length === 0) return;
-    if (!isRunning) return;
+export default function JobRadar() {
+  const { user } = useUser();
+  const userId = user?.id;
 
-    // clear any leftover timers
-    timersRef.current.forEach(clearTimeout);
-    timersRef.current = [];
-    doneCalledRef.current = false;
-    setVisibleSteps([]);
-    setCompletedSteps([]);
-    setFinalLine(null);
+  const profileQuery = api.profile.getProfile.useQuery(undefined, { enabled: !!userId, staleTime: 15_000 });
+  const savedJobsQuery = api.jobs.getSavedJobs.useQuery(undefined, { enabled: !!userId });
+  const recentScansQuery = api.jobRadar.getRecentScans.useQuery({ limit: 6 }, { enabled: !!userId });
 
-    // Schedule each step appearing
-    ANALYSIS_STEPS.forEach((step) => {
-      const t = setTimeout(() => {
-        setVisibleSteps((prev) => [...prev, step.id]);
-      }, step.delayMs);
-      timersRef.current.push(t);
-    });
+  const profile = profileQuery.data as ProfileSnapshot | undefined;
+  const derivedQuery = deriveRadarQuery(profile);
 
-    // Mark each step as "done" 900ms after it appears
-    ANALYSIS_STEPS.forEach((step) => {
-      const t = setTimeout(() => {
-        setCompletedSteps((prev) => [...prev, step.id]);
-      }, step.delayMs + 900);
-      timersRef.current.push(t);
-    });
+  const opportunitiesQuery = api.jobs.search.useQuery(
+    {
+      query: derivedQuery || 'software engineer',
+      location: 'United Kingdom',
+      sources: ['adzuna', 'cv-library', 'findajob', 'jooble', 'monster', 'reed', 'totaljobs'],
+      userId: userId || undefined,
+      limit: 8,
+      maxDaysOld: 14,
+    },
+    {
+      enabled: !!userId && !!derivedQuery,
+      staleTime: 60_000,
+    },
+  );
 
-    return () => timersRef.current.forEach(clearTimeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRunning]);
+  const searchData = normalizeJobsSearchData(opportunitiesQuery.data);
+  const opportunities = searchData.jobs;
 
-  // When result arrives, show completion line + call onDone
-  useEffect(() => {
-    if (result && !doneCalledRef.current) {
-      doneCalledRef.current = true;
-      // Mark all steps done
-      setCompletedSteps(ANALYSIS_STEPS.map((s) => s.id));
-      const t = setTimeout(() => {
-        setFinalLine(`Sector detected: ${result.sector} — ${result.skills.length} trends identified`);
-        setTimeout(onDone, 600);
-      }, 300);
-      return () => clearTimeout(t);
-    }
-  }, [result, onDone]);
+  const summary = useMemo(() => {
+    const highFit = opportunities.filter((job) => job.fitScore >= 80).length;
+    const riskSignals = opportunities.filter((job) => job.employerSignals?.riskLevel === 'high').length;
+    const salaryVisible = opportunities.filter((job) => (job.salaryMin ?? 0) > 0 || (job.salaryMax ?? 0) > 0).length;
+    return {
+      highFit,
+      riskSignals,
+      salaryVisible,
+      savedLeads: savedJobsQuery.data?.length ?? 0,
+      recentScans: recentScansQuery.data?.length ?? 0,
+    };
+  }, [opportunities, recentScansQuery.data, savedJobsQuery.data]);
 
-  if (visibleSteps.length === 0) return null;
+  const loading = profileQuery.isLoading || savedJobsQuery.isLoading || recentScansQuery.isLoading || opportunitiesQuery.isLoading;
 
   return (
-    <div className="mt-8 rounded-2xl border border-white/8 bg-black/30 p-5 font-mono text-xs">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-        <span className="text-slate-400 uppercase tracking-widest text-[10px]">Job Radar — live analysis</span>
-      </div>
+    <div className="space-y-6">
+      <section className="rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/10 via-slate-900/40 to-indigo-900/20 p-6 md:p-8">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div className="max-w-3xl">
+            <p className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-cyan-200">
+              <Radar className="h-3.5 w-3.5" />
+              Job Radar
+            </p>
+            <h1 className="mt-3 text-3xl font-bold text-white md:text-4xl">Live Opportunity Signals, Saved Leads, And Deep Review Entry Points</h1>
+            <p className="mt-3 text-sm text-slate-300 md:text-base">
+              Job Radar is not a plain job board. It is your opportunity-intelligence layer: what looks strong, what changed,
+              what deserves a scan, and what should probably not waste your time.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[340px]">
+            <Link to={derivedQuery ? `/jobs?q=${encodeURIComponent(derivedQuery)}&loc=${encodeURIComponent('United Kingdom')}` : '/jobs'} className="rounded-2xl border border-cyan-400/20 bg-cyan-500/10 px-4 py-3 text-sm font-semibold text-cyan-50 transition hover:bg-cyan-500/15">
+              <div className="flex items-center gap-2"><Search className="h-4 w-4" /> Open Opportunities</div>
+              <p className="mt-1 text-xs font-normal text-cyan-100/80">{derivedQuery || 'Open Jobs and start searching.'}</p>
+            </Link>
+            <Link to="/jobs/saved" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+              <div className="flex items-center gap-2"><Bookmark className="h-4 w-4" /> Saved Leads</div>
+              <p className="mt-1 text-xs font-normal text-slate-400">Review saved jobs and start deep scans.</p>
+            </Link>
+          </div>
+        </div>
+      </section>
 
-      <div className="space-y-2">
-        {ANALYSIS_STEPS.filter((s) => visibleSteps.includes(s.id)).map((step) => {
-          const done = completedSteps.includes(step.id);
-          const Icon = step.icon;
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        {[
+          { label: 'High Fit Listings', value: summary.highFit, icon: Target },
+          { label: 'Risk Signals', value: summary.riskSignals, icon: ShieldAlert },
+          { label: 'Salary Visible', value: summary.salaryVisible, icon: Briefcase },
+          { label: 'Saved Leads', value: summary.savedLeads, icon: Bookmark },
+          { label: 'Recent Scans', value: summary.recentScans, icon: Activity },
+        ].map((card) => {
+          const Icon = card.icon;
           return (
-            <div
-              key={step.id}
-              className="flex items-center gap-3 transition-all"
-              style={{ animation: 'fadeSlideIn 0.3s ease-out both' }}
-            >
-              {done ? (
-                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
-              ) : (
-                <Icon className="h-3.5 w-3.5 shrink-0 text-indigo-400 animate-pulse" />
-              )}
-              <span className={done ? 'text-slate-400' : 'text-slate-200'}>
-                {step.text}
-              </span>
-              {!done && (
-                <span className="flex gap-0.5 ml-1">
-                  {[0, 1, 2].map((i) => (
-                    <span
-                      key={i}
-                      className="h-1 w-1 rounded-full bg-indigo-400"
-                      style={{ animation: `dotBounce 1.2s ${i * 0.2}s infinite` }}
-                    />
-                  ))}
-                </span>
-              )}
+            <div key={card.label} className="rounded-3xl border border-white/10 bg-white/5 p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-slate-500">{card.label}</p>
+                  <p className="mt-3 text-4xl font-bold text-white">{card.value}</p>
+                </div>
+                <Icon className="h-5 w-5 text-cyan-300" />
+              </div>
             </div>
           );
         })}
+      </section>
 
-        {finalLine && (
-          <div
-            className="flex items-center gap-3 text-emerald-400 font-semibold pt-1 border-t border-white/8"
-            style={{ animation: 'fadeSlideIn 0.4s ease-out both' }}
-          >
-            <Sparkles className="h-3.5 w-3.5 shrink-0" />
-            {finalLine}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Skill card ────────────────────────────────────────────────────────────────
-
-function SkillCard({ skill, index, visible, expanded, onToggle }: {
-  skill: Skill;
-  index: number;
-  visible: boolean;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  const cfg = TREND_CONFIG[skill.trend] ?? TREND_CONFIG.rising;
-
-  return (
-    <div
-      className="rounded-xl overflow-hidden transition-all duration-500"
-      style={{
-        background: 'rgba(15,23,42,0.8)',
-        border: '1px solid #1e293b',
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(16px)',
-        transitionDelay: `${index * 120}ms`,
-      }}
-    >
-      <button
-        onClick={onToggle}
-        className="w-full text-left px-5 py-4 flex items-center gap-3 hover:bg-white/[0.02] transition-colors"
-      >
-        {/* Rank */}
-        <span className="text-xs font-mono text-slate-600 w-4 shrink-0">{index + 1}</span>
-
-        {/* Icon + name */}
-        <Zap className="h-4 w-4 shrink-0" style={{ color: cfg.color }} />
-        <span className="text-sm font-bold text-white flex-1 text-left">{skill.skill}</span>
-
-        {/* Badge */}
-        <span
-          className="text-xs px-2 py-0.5 rounded-full font-semibold shrink-0"
-          style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}
-        >
-          {cfg.label}
-        </span>
-
-        {/* Timeframe */}
-        <span className="text-xs text-slate-500 shrink-0 hidden sm:block">{skill.timeframe}</span>
-
-        {expanded
-          ? <ChevronUp className="h-4 w-4 text-slate-500 shrink-0" />
-          : <ChevronDown className="h-4 w-4 text-slate-500 shrink-0" />
-        }
-      </button>
-
-      {expanded && (
-        <div
-          className="px-5 pb-5 border-t border-slate-800"
-          style={{ animation: 'fadeSlideIn 0.25s ease-out both' }}
-        >
-          <p className="text-sm text-slate-300 mt-4 mb-5 leading-relaxed">{skill.reason}</p>
-
-          {skill.courses.length > 0 && (
-            <div>
-              <div className="flex items-center gap-1.5 mb-3">
-                <BookOpen className="h-3.5 w-3.5 text-indigo-400" />
-                <span className="text-xs font-semibold text-indigo-300 uppercase tracking-wider">
-                  Courses to get ahead
-                </span>
+      {loading ? (
+        <div className="flex h-48 items-center justify-center rounded-3xl border border-white/10 bg-white/5">
+          <Loader2 className="h-7 w-7 animate-spin text-cyan-300" />
+        </div>
+      ) : (
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(320px,0.9fr)]">
+          <section className="space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold text-white">Opportunity Feed</h2>
+                <p className="text-sm text-slate-500">Based on your profile role and recent fit signals.</p>
               </div>
-              <div className="space-y-2">
-                {skill.courses.map((course, i) => (
-                  <a
-                    key={i}
-                    href={course.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 p-3 rounded-xl group transition-all"
-                    style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.12)' }}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-200 group-hover:text-indigo-300 transition-colors truncate">
-                        {course.title}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {course.provider}
-                        <span className="mx-1.5 text-slate-700">·</span>
-                        <span
-                          className="font-medium"
-                          style={{
-                            color: course.level === 'Beginner' ? '#34d399' : course.level === 'Advanced' ? '#f87171' : '#fbbf24',
-                          }}
-                        >
-                          {course.level}
-                        </span>
-                      </p>
+              <Link to={derivedQuery ? `/jobs?q=${encodeURIComponent(derivedQuery)}&loc=${encodeURIComponent('United Kingdom')}` : '/jobs'} className="text-sm font-medium text-cyan-300 hover:text-cyan-200">
+                Open Full Search
+              </Link>
+            </div>
+
+            {derivedQuery && opportunities.length > 0 ? (
+              <div className="grid gap-4 lg:grid-cols-2">
+                {opportunities.map((job) => (
+                  <article key={job.id} className="flex h-full flex-col rounded-3xl border border-white/10 bg-white/5 p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">{job.title}</h3>
+                        <p className="mt-1 text-sm text-slate-400">{job.company}</p>
+                      </div>
+                      <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${job.fitScore >= 80 ? 'bg-emerald-500/15 text-emerald-200' : job.fitScore >= 60 ? 'bg-amber-500/15 text-amber-200' : 'bg-rose-500/15 text-rose-200'}`}>
+                        Fit {job.fitScore}%
+                      </span>
                     </div>
-                    <ExternalLink className="h-3.5 w-3.5 text-slate-600 group-hover:text-indigo-400 transition-colors shrink-0" />
-                  </a>
+                    <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-300">
+                      <span className="rounded-full bg-white/8 px-3 py-1">{job.location || 'Location unavailable'}</span>
+                      <span className="rounded-full bg-white/8 px-3 py-1">{job.workMode || 'Work mode unknown'}</span>
+                      <span className="rounded-full bg-white/8 px-3 py-1">{formatSalary(job)}</span>
+                    </div>
+                    <div className="mt-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/8 p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-cyan-200">Why This Is On Your Radar</p>
+                      <p className="mt-1 text-sm text-slate-200">{radarReason(job)}</p>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-xl border border-white/10 bg-black/15 p-3">
+                        <p className="text-slate-500">Trust Signal</p>
+                        <p className="mt-1 font-semibold capitalize text-white">{job.employerSignals?.trustLevel?.replace('_', ' ') || 'Unknown'}</p>
+                      </div>
+                      <div className="rounded-xl border border-white/10 bg-black/15 p-3">
+                        <p className="text-slate-500">Risk Signal</p>
+                        <p className="mt-1 font-semibold capitalize text-white">{job.employerSignals?.riskLevel || 'Unknown'}</p>
+                      </div>
+                    </div>
+                    <div className="mt-auto pt-5">
+                      <a href={job.applyUrl || '#'} target="_blank" rel="noreferrer" className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-medium transition ${job.applyUrl ? 'border-cyan-500/20 bg-cyan-500/10 text-cyan-100 hover:bg-cyan-500/15' : 'pointer-events-none border-white/10 bg-white/5 text-slate-500'}`}>
+                        <ExternalLink className="h-4 w-4" />
+                        {job.applyUrl ? 'Open Listing' : 'No Apply Link'}
+                      </a>
+                    </div>
+                  </article>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="rounded-3xl border border-dashed border-white/10 bg-white/[0.03] p-10 text-center">
+                <p className="text-base font-semibold text-white">No active opportunity feed yet</p>
+                <p className="mt-2 text-sm text-slate-500">Set a target role on Profile, then open Jobs to load live listings.</p>
+              </div>
+            )}
+          </section>
+
+          <aside className="space-y-4">
+            <section className="rounded-3xl border border-white/10 bg-white/5 p-5">
+              <div className="flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 text-cyan-300" />
+                <h2 className="text-lg font-semibold text-white">Recent Scans</h2>
+              </div>
+              <div className="mt-4 space-y-3">
+                {(recentScansQuery.data ?? []).length === 0 ? (
+                  <p className="text-sm text-slate-500">No scans yet. Start one from Jobs or Saved Leads.</p>
+                ) : (
+                  recentScansQuery.data?.map((scan) => (
+                    <Link key={scan.scanId} to={`/jobs/radar/${scan.scanId}`} className="block rounded-2xl border border-white/10 bg-black/15 p-4 transition hover:bg-white/5">
+                      <p className="text-sm font-semibold text-white">{scan.jobTitle}</p>
+                      <p className="mt-1 text-xs text-slate-400">{scan.company}</p>
+                      <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+                        <span className="capitalize">{scan.status.replace('_', ' ')}</span>
+                        <span>{new Date(scan.startedAt).toLocaleDateString('en-GB')}</span>
+                      </div>
+                    </Link>
+                  ))
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-3xl border border-white/10 bg-white/5 p-5">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-cyan-300" />
+                <h2 className="text-lg font-semibold text-white">Radar Guidance</h2>
+              </div>
+              <ul className="mt-4 space-y-3 text-sm text-slate-300">
+                <li className="rounded-2xl border border-white/10 bg-black/15 p-3">Use Jobs for fast search. Use Job Radar when a listing is strong enough to deserve a deep scan.</li>
+                <li className="rounded-2xl border border-white/10 bg-black/15 p-3">Prioritise high fit + new, then salary-visible roles, then suspicious listings that need review.</li>
+                <li className="rounded-2xl border border-white/10 bg-black/15 p-3">Saved leads should not become a graveyard. Either scan them, apply, or remove them.</li>
+              </ul>
+            </section>
+
+            <section className="rounded-3xl border border-amber-500/20 bg-amber-500/10 p-5">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-300" />
+                <div>
+                  <h2 className="text-sm font-semibold text-amber-100">What Job Radar Is Not</h2>
+                  <p className="mt-1 text-sm text-amber-50/85">Not a plain job board. Not a skill trend toy. Not a dead admin table. It should point you toward action.</p>
+                </div>
+              </div>
+            </section>
+          </aside>
         </div>
       )}
     </div>
-  );
-}
-
-// ── Main component ────────────────────────────────────────────────────────────
-
-export default function JobRadar() {
-  const [sector, setSector] = useState('');
-  const [result, setResult] = useState<RadarResult | null>(null);
-  const [showResults, setShowResults] = useState(false);
-  const [visibleSkills, setVisibleSkills] = useState<number[]>([]);
-  const [expanded, setExpanded] = useState<string | null>(null);
-
-  const generateMutation = api.radar.generate.useMutation({
-    onSuccess: (data) => setResult(data as RadarResult),
-  });
-
-  const isRunning = generateMutation.isPending;
-
-  function handleGenerate() {
-    setResult(null);
-    setShowResults(false);
-    setVisibleSkills([]);
-    setExpanded(null);
-    generateMutation.mutate({ sector: sector.trim() || undefined });
-  }
-
-  // Once log is done → reveal results progressively
-  function handleLogDone() {
-    setShowResults(true);
-  }
-
-  useEffect(() => {
-    if (!showResults || !result) return;
-    result.skills.forEach((_, i) => {
-      const t = setTimeout(() => {
-        setVisibleSkills((prev) => [...prev, i]);
-      }, i * 130);
-      return () => clearTimeout(t);
-    });
-  }, [showResults, result]);
-
-  const fmtDate = (iso: string) =>
-    new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-
-  return (
-    <>
-      {/* Keyframe styles */}
-      <style>{`
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes dotBounce {
-          0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-          40%            { transform: translateY(-4px); opacity: 1; }
-        }
-        @keyframes radarPulse {
-          0%   { transform: scale(1);    opacity: 0.6; }
-          50%  { transform: scale(1.15); opacity: 1;   }
-          100% { transform: scale(1);    opacity: 0.6; }
-        }
-      `}</style>
-
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-0">
-
-        {/* ── Header ─────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl"
-            style={{
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-              animation: isRunning ? 'radarPulse 2s ease-in-out infinite' : 'none',
-            }}
-          >
-            <Radar className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-white">Job Radar</h1>
-            <p className="text-xs text-slate-400">AI skill trend predictions — next 6–12 months in your sector</p>
-          </div>
-        </div>
-
-        {/* ── Input ──────────────────────────────────────────────────── */}
-        <div className="mt-6 flex gap-3 items-end">
-          <div className="flex-1">
-            <label className="text-xs text-slate-400 mb-1.5 block">
-              Sector or role{' '}
-              <span className="text-slate-600">— leave blank to infer from your applications</span>
-            </label>
-            <input
-              value={sector}
-              onChange={(e) => setSector(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !isRunning && handleGenerate()}
-              placeholder="e.g. Product Management, Data Engineering, UX Design"
-              className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm text-white placeholder-slate-500 outline-none focus:border-indigo-500 transition-colors"
-            />
-          </div>
-          <button
-            onClick={handleGenerate}
-            disabled={isRunning}
-            className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all disabled:cursor-not-allowed"
-            style={{
-              background: isRunning
-                ? 'rgba(99,102,241,0.3)'
-                : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-            }}
-          >
-            {isRunning ? (
-              <RefreshCw className="h-4 w-4 animate-spin" />
-            ) : result ? (
-              <><RefreshCw className="h-4 w-4" /> Refresh</>
-            ) : (
-              <><Sparkles className="h-4 w-4" /> Analyse</>
-            )}
-          </button>
-        </div>
-
-        {/* ── Live analysis log ───────────────────────────────────────── */}
-        <AnalysisLog
-          isRunning={isRunning}
-          result={result}
-          onDone={handleLogDone}
-        />
-
-        {/* ── Error ──────────────────────────────────────────────────── */}
-        {generateMutation.isError && (
-          <div className="mt-6 rounded-xl border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-400">
-            Something went wrong — please try again.
-          </div>
-        )}
-
-        {/* ── Results ────────────────────────────────────────────────── */}
-        {showResults && result && (
-          <div
-            className="mt-8 space-y-4"
-            style={{ animation: 'fadeSlideIn 0.4s ease-out both' }}
-          >
-            {/* Sector summary banner */}
-            <div
-              className="rounded-2xl px-5 py-4"
-              style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="h-4 w-4 text-indigo-400" />
-                <span className="text-xs font-semibold text-indigo-300 uppercase tracking-wider">
-                  {result.sector}
-                </span>
-                <span className="ml-auto text-xs text-slate-500">{fmtDate(result.generatedAt)}</span>
-              </div>
-              <p className="text-sm text-slate-300 leading-relaxed">{result.summary}</p>
-            </div>
-
-            {/* Skill cards */}
-            <div className="space-y-3">
-              {result.skills.map((skill, i) => (
-                <SkillCard
-                  key={skill.skill}
-                  skill={skill}
-                  index={i}
-                  visible={visibleSkills.includes(i)}
-                  expanded={expanded === skill.skill}
-                  onToggle={() => setExpanded(expanded === skill.skill ? null : skill.skill)}
-                />
-              ))}
-            </div>
-
-            <p className="text-xs text-slate-600 text-center pt-2">
-              Predictions are AI-generated based on your application history and market signals. Not a guarantee of hiring outcomes.
-            </p>
-          </div>
-        )}
-
-        {/* ── Empty state ─────────────────────────────────────────────── */}
-        {!result && !isRunning && (
-          <div
-            className="mt-16 flex flex-col items-center gap-5 text-center"
-            style={{ animation: 'fadeSlideIn 0.5s ease-out both' }}
-          >
-            <div
-              className="flex h-16 w-16 items-center justify-center rounded-2xl"
-              style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}
-            >
-              <Radar className="h-8 w-8 text-indigo-400" />
-            </div>
-            <div>
-              <p className="text-base font-semibold text-slate-200 mb-2">Predict your next skill move</p>
-              <p className="text-sm text-slate-400 max-w-sm leading-relaxed">
-                Job Radar analyses your application history to identify which skills will be in highest demand in your sector
-                over the next 6–12 months — and suggests courses to get there first.
-              </p>
-            </div>
-            <button
-              onClick={handleGenerate}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-sm text-white"
-              style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
-            >
-              <Sparkles className="h-4 w-4" /> Run Job Radar
-            </button>
-          </div>
-        )}
-      </div>
-    </>
   );
 }
