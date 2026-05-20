@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import {
+  AlertTriangle,
   PanelLeftClose,
   PanelLeft,
   Moon,
@@ -26,7 +27,6 @@ const THEME_ICONS: Record<ThemeId, typeof Moon> = {
   'accessible-contrast': Glasses,
 };
 
-/** Light / low-chroma themes — header chrome uses slate instead of indigo accents. */
 const NEUTRAL_HEADER_THEMES: ThemeId[] = ['soft-light', 'calm-blue', 'sage', 'warm-sand'];
 
 export default function Header() {
@@ -38,6 +38,7 @@ export default function Header() {
     { enabled: !!user?.id, staleTime: 60_000 },
   );
   const credits = creditsQuery.data?.credits ?? null;
+  const lowBalance = typeof credits === 'number' && credits > 0 && credits <= 10;
   const creditsLabel = credits === null ? null : credits > 0 ? `${credits.toLocaleString()} credits` : 'Credits syncing';
 
   const title = pageTitleForPath(pathname, search);
@@ -84,15 +85,25 @@ export default function Header() {
 
       <div className="flex items-center gap-3">
         {creditsLabel && (
-          <div
-            className={clsx(
-              'rounded-full px-3 py-1 text-xs font-semibold',
-              neutralHeader
-                ? 'bg-slate-200/90 text-slate-800 ring-1 ring-slate-300/70'
-                : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400',
-            )}
-          >
-            {creditsLabel}
+          <div className="flex items-center gap-2">
+            <div
+              className={clsx(
+                'rounded-full px-3 py-1 text-xs font-semibold',
+                lowBalance
+                  ? 'bg-amber-500/15 text-amber-200 ring-1 ring-amber-400/30'
+                  : neutralHeader
+                    ? 'bg-slate-200/90 text-slate-800 ring-1 ring-slate-300/70'
+                    : 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400',
+              )}
+            >
+              {creditsLabel}
+            </div>
+            {lowBalance ? (
+              <div className="hidden items-center gap-1 rounded-full border border-amber-400/30 bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-200 lg:flex">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Low balance
+              </div>
+            ) : null}
           </div>
         )}
 
