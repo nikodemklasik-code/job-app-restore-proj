@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Briefcase,
   Building2,
+  CheckCircle2,
   ClipboardList,
   CreditCard,
   FileQuestion,
@@ -873,8 +874,14 @@ export function DashboardSnapshot({ snapshot, systemNotice }: { snapshot: Dashbo
   } = snapshot;
   const displayName = firstName(profile.fullName);
 
+  const safeActivity = activity ?? {
+    lastLoginAt: null,
+    lastJobSearchAt: null,
+    lastJobSearchLabel: null,
+    lastMarketResearchAt: null,
+  };
+
   const onboardingNeeded = useMemo(() => {
-    const safeActivity = activity ?? { lastJobSearchAt: null };
     return profile.completeness < 75 || applications.total === 0 || safeActivity.lastJobSearchAt === null;
   }, [activity, applications.total, profile.completeness]);
 
@@ -883,8 +890,8 @@ export function DashboardSnapshot({ snapshot, systemNotice }: { snapshot: Dashbo
       {systemNotice ? <NoticeBanner notice={systemNotice} storageKey="dashboard-system-notice" /> : null}
 
       <section className="mvh-card-glow rounded-3xl border border-white/10 bg-gradient-to-br from-white/[0.08] via-white/[0.04] to-indigo-500/[0.08] p-6">
-        {/* Header z Dashboard, datą/godziną i kredytami w jednej linii */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        {/* Header z Dashboard, datą/godziną, kredytami i motywami w jednej linii */}
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-4">
             <h1 className="text-3xl font-bold tracking-tight text-white">Dashboard</h1>
             <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-1.5">
@@ -892,13 +899,52 @@ export function DashboardSnapshot({ snapshot, systemNotice }: { snapshot: Dashbo
             </div>
           </div>
           
-          <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-2">
-            <div className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4 text-indigo-300" />
-              <span className="text-xs font-semibold uppercase tracking-wide text-indigo-300">Credits</span>
-              <span className="text-xl font-bold text-white">{Math.max(0, Math.floor((billing?.availableBalanceCents ?? 0) / 100))}</span>
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-2">
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-indigo-300" />
+                <span className="text-xs font-semibold uppercase tracking-wide text-indigo-300">Credits</span>
+                <span className="text-xl font-bold text-white">{Math.max(0, Math.floor((billing?.availableBalanceCents ?? 0) / 100))}</span>
+              </div>
+            </div>
+            <div className="rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-violet-300" />
+                <span className="text-sm font-semibold text-violet-100">Motywy</span>
+              </div>
             </div>
           </div>
+        </div>
+
+        {/* Workspace - dynamiczny tekst z progress */}
+        <div className="mb-5">
+          {onboardingNeeded ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-bold text-white">Workspace</h2>
+                <div className="h-2 w-32 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full bg-gradient-to-r from-red-500 to-amber-500 rounded-full" style={{ width: `${Math.round(((4 - (profile.completeness < 60 ? 1 : 0) - (profile.completeness < 75 ? 1 : 0) - (safeActivity.lastJobSearchAt === null ? 1 : 0) - (applications.total === 0 ? 1 : 0)) / 4) * 100)}%` }} />
+                </div>
+              </div>
+              <div className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-1.5 text-red-100">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="text-xs font-semibold">Attention</span>
+                  <span className="text-sm font-bold">{[profile.completeness < 60, profile.completeness < 75, safeActivity.lastJobSearchAt === null, applications.total === 0].filter(Boolean).length} steps to do</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-bold text-white">Workspace</h2>
+              <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-3 py-1.5 text-emerald-100">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span className="text-sm font-semibold">Ready for tasks</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 4 małe kafelki (1/3 obecnego rozmiaru) */}
