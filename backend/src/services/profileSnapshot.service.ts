@@ -13,6 +13,7 @@ import {
 import type {
   CareerGoalsSnapshot,
   ProfileSnapshot,
+  ProfileSnapshotProvenance,
   ProfileStrategyJson,
   SocialConsentsSnapshot,
   UserPreferenceFlagsSnapshot,
@@ -56,7 +57,6 @@ function workValuesFromDb(raw: string | null): string[] {
   return raw.split(',').map((value) => value.trim()).filter(Boolean);
 }
 
-
 function normalizeAchievements(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value
@@ -82,6 +82,58 @@ function careerRowToSnapshot(row: typeof careerGoals.$inferSelect): CareerGoalsS
     workValues: workValuesFromDb(row.workValues),
     autoApplyMinScore: row.autoApplyMinScore ?? 75,
     strategy: normalizeStrategy(row.strategyJson),
+  };
+}
+
+function unknownStamp(note = 'No approved value yet') {
+  return { source: 'unknown' as const, updatedAt: null, note };
+}
+
+function confirmedStamp(updatedAt?: Date | string | null, note = 'Approved profile state') {
+  return {
+    source: 'user_confirmed' as const,
+    updatedAt: updatedAt ? new Date(updatedAt).toISOString() : null,
+    note,
+  };
+}
+
+function emptyProvenance(): ProfileSnapshotProvenance {
+  const personalInfo = {
+    fullName: unknownStamp(),
+    email: unknownStamp(),
+    phone: unknownStamp(),
+    location: unknownStamp(),
+    headline: unknownStamp(),
+    summary: unknownStamp(),
+    linkedinUrl: unknownStamp(),
+    cvUrl: unknownStamp(),
+  };
+  return {
+    personalInfo,
+    skills: [],
+    experiences: {},
+    educations: {},
+    trainings: {},
+  };
+}
+
+function snapshotProvenance(profileUpdatedAt?: Date | string | null): ProfileSnapshotProvenance {
+  const base = confirmedStamp(profileUpdatedAt);
+  return {
+    personalInfo: {
+      fullName: base,
+      email: confirmedStamp(profileUpdatedAt, 'Synced from approved account identity'),
+      phone: base,
+      location: base,
+      headline: base,
+      summary: base,
+      linkedinUrl: base,
+      cvUrl: base,
+    },
+    skills: [],
+    experiences: {},
+    educations: {},
+    trainings: {},
   };
 }
 
@@ -140,6 +192,7 @@ export async function fetchProfileSnapshotWithCompletion(input: {
       experiences: [],
       educations: [],
       trainings: [],
+      provenance: emptyProvenance(),
       careerGoals: careerGoalsSnapshot,
       socialConsents: socialSnapshot,
       preferenceFlags: preferenceSnapshot,
@@ -190,6 +243,7 @@ export async function fetchProfileSnapshotWithCompletion(input: {
       expiresAt: training.expiresAt ?? null,
       credentialUrl: training.credentialUrl ?? '',
     })),
+    provenance: snapshotProvenance(profile.updatedAt ?? profile.createdAt),
     careerGoals: careerGoalsSnapshot,
     socialConsents: socialSnapshot,
     preferenceFlags: preferenceSnapshot,
