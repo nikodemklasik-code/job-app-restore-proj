@@ -7,24 +7,9 @@ import { db } from '../../db/index.js';
 import { cvUploads, profiles, skills, experiences, educations, trainings, users, careerGoals } from '../../db/schema.js';
 import { parseCvFromFile } from '../../services/cvParser.js';
 
-type PersonalFieldKey = 'fullName' | 'email' | 'phone' | 'headline' | 'location' | 'linkedinUrl' | 'summary';
+const PERSONAL_FIELDS = ['fullName', 'email', 'phone', 'headline', 'location', 'linkedinUrl', 'summary'] as const;
+type PersonalFieldKey = typeof PERSONAL_FIELDS[number];
 type SectionKey = 'skills' | 'experiences' | 'educations' | 'trainings';
-
-const PERSONAL_FIELDS: PersonalFieldKey[] = ['fullName', 'email', 'phone', 'headline', 'location', 'linkedinUrl', 'summary'];
-const SECTION_KEYS: SectionKey[] = ['skills', 'experiences', 'educations', 'trainings'];
-
-function cleanText(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function normalizeValue(value: string | null | undefined): string {
-  return (value ?? '').trim();
-}
-
-function normalizeList(values: unknown): string[] {
-  if (!Array.isArray(values)) return [];
-  return values.map((value) => cleanText(value)).filter(Boolean);
-}
 
 type ParsedExperience = {
   employerName: string;
@@ -50,10 +35,27 @@ type ParsedTraining = {
   credentialUrl: string;
 };
 
-function parseExperienceItems(values: unknown, profileId: string): Array<ParsedExperience & { id: string; profileId: string }> {
+type ParsedExperienceInsert = ParsedExperience & { id: string; profileId: string };
+type ParsedEducationInsert = ParsedEducation & { id: string; profileId: string };
+type ParsedTrainingInsert = ParsedTraining & { id: string; profileId: string };
+
+function cleanText(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeValue(value: string | null | undefined): string {
+  return (value ?? '').trim();
+}
+
+function normalizeList(values: unknown): string[] {
+  if (!Array.isArray(values)) return [];
+  return values.map((value) => cleanText(value)).filter(Boolean);
+}
+
+function parseExperienceItems(values: unknown, profileId: string): ParsedExperienceInsert[] {
   if (!Array.isArray(values)) return [];
   type ExpItem = { company?: string; title?: string; role?: string; employer?: string; startDate?: string; endDate?: string | null; description?: string };
-  return (values as (string | ExpItem)[]).slice(0, 10).map((exp) => {
+  const mapped: Array<ParsedExperienceInsert | null> = (values as (string | ExpItem)[]).slice(0, 10).map((exp) => {
     if (typeof exp === 'string') {
       const text = exp.trim();
       const atMatch = text.match(/^(.+?)\s+at\s+(.+?)(?:\s*\(([^)]+)\))?$/i);
@@ -95,13 +97,14 @@ function parseExperienceItems(values: unknown, profileId: string): Array<ParsedE
       endDate: exp.endDate === null ? null : cleanText(exp.endDate) || null,
       description,
     };
-  }).filter((item): item is ParsedExperience & { id: string; profileId: string } => item !== null);
+  });
+  return mapped.filter((item): item is ParsedExperienceInsert => item !== null);
 }
 
-function parseEducationItems(values: unknown, profileId: string): Array<ParsedEducation & { id: string; profileId: string }> {
+function parseEducationItems(values: unknown, profileId: string): ParsedEducationInsert[] {
   if (!Array.isArray(values)) return [];
   type EduItem = { school?: string; institution?: string; university?: string; degree?: string; fieldOfStudy?: string; field?: string; startDate?: string; endDate?: string | null };
-  return (values as (string | EduItem)[]).slice(0, 10).map((edu) => {
+  const mapped: Array<ParsedEducationInsert | null> = (values as (string | EduItem)[]).slice(0, 10).map((edu) => {
     if (typeof edu === 'string') {
       const text = edu.trim();
       const commaMatch = text.match(/^(.+?)[,\-–—]\s*(.+)$/);
@@ -129,13 +132,14 @@ function parseEducationItems(values: unknown, profileId: string): Array<ParsedEd
       startDate: cleanText(edu.startDate),
       endDate: edu.endDate === null ? null : cleanText(edu.endDate) || null,
     };
-  }).filter((item): item is ParsedEducation & { id: string; profileId: string } => item !== null);
+  });
+  return mapped.filter((item): item is ParsedEducationInsert => item !== null);
 }
 
-function parseTrainingItems(values: unknown, profileId: string): Array<ParsedTraining & { id: string; profileId: string }> {
+function parseTrainingItems(values: unknown, profileId: string): ParsedTrainingInsert[] {
   if (!Array.isArray(values)) return [];
   type TrainingItem = { title?: string; providerName?: string; issuedAt?: string; expiresAt?: string | null; credentialUrl?: string };
-  return (values as TrainingItem[]).slice(0, 10).map((training) => {
+  const mapped: Array<ParsedTrainingInsert | null> = (values as TrainingItem[]).slice(0, 10).map((training) => {
     const title = cleanText(training.title);
     const providerName = cleanText(training.providerName);
     if (!title && !providerName) return null;
@@ -148,7 +152,8 @@ function parseTrainingItems(values: unknown, profileId: string): Array<ParsedTra
       expiresAt: training.expiresAt === null ? null : cleanText(training.expiresAt) || null,
       credentialUrl: cleanText(training.credentialUrl),
     };
-  }).filter((item): item is ParsedTraining & { id: string; profileId: string } => item !== null);
+  });
+  return mapped.filter((item): item is ParsedTrainingInsert => item !== null);
 }
 
 function summarizeExperience(item: { employerName?: string; jobTitle?: string; description?: string | null }): string {
@@ -363,7 +368,7 @@ export const cvRouter = router({
         await db.insert(profiles).values({ id: profileId, userId: userRecord[0].id, fullName: '' });
       }
 
-      const acceptedFields = new Set(input.decisions.acceptedPersonalFields);
+      const acceptedFields = new Set<PersonalFieldKey>(input.decisions.acceptedPersonalFields);
       const appliedPersonalFields: string[] = [];
       const profilePatch: Partial<typeof profiles.$inferInsert> = { updatedAt: new Date() };
       const fieldMap = {
