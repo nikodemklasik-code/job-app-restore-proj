@@ -1,4 +1,5 @@
 export type ProviderName =
+  // Existing providers
   | 'reed'
   | 'adzuna'
   | 'jooble'
@@ -10,6 +11,69 @@ export type ProviderName =
   | 'linkedin'
   | 'monster'
   | 'glassdoor'
+  // IT/Tech (9 new)
+  | 'cwjobs'
+  | 'technojobs'
+  | 'theitjobboard'
+  | 'harnham'
+  | 'datacareer'
+  | 'workinstartups'
+  | 'siliconmilkroundabout'
+  | 'dice-uk'
+  // Finance (3 new)
+  | 'gaapweb'
+  | 'cityjobs'
+  | 'barclaysimpson'
+  // Healthcare (6 new)
+  | 'nhs-jobs'
+  | 'healthjobs'
+  | 'nurses'
+  | 'bmj-careers'
+  | 'trac-jobs'
+  | 'nhs-professionals'
+  // Education (6 new)
+  | 'tes-jobs'
+  | 'jobs-ac-uk'
+  | 'teaching-vacancies'
+  | 'eteach'
+  | 'fejobs'
+  | 'timeshighereducation'
+  // Engineering/Construction (7 new)
+  | 'engineeringjobs'
+  | 'ice-recruit'
+  | 'justengineers'
+  | 'themanufacturerjobs'
+  | 'fawkesreece'
+  | 'propertyweekjobs'
+  | 'iwfmjobs'
+  // Logistics/Transport (3 new)
+  | 'cips-jobs'
+  | 'supplychainonline'
+  | 'driverhire'
+  // Hospitality/Retail/Tourism (5 new)
+  | 'caterer'
+  | 'retailchoice'
+  | 'hosco'
+  | 'cmtravel'
+  | 'fashionjobs-uk'
+  // Public/NGO/Green (5 new)
+  | 'civilservicejobs'
+  | 'charityjob'
+  | 'environmentjob'
+  | 'greenjobs'
+  | 'farmingukjobs'
+  // Legal (3 new)
+  | 'totallylegal'
+  | 'lawgazettejobs'
+  | 'thelawyerjobs'
+  // Graduate/Student (6 new)
+  | 'targetjobs'
+  | 'prospects'
+  | 'milkround'
+  | 'gradcracker'
+  | 'studentcircus'
+  | 'indeedflex'
+  // Internal
   | 'database'
   | 'manual'
   | 'openai-discovery'
@@ -29,6 +93,7 @@ export interface JobSourceCatalogEntry {
 }
 
 export const EXTERNAL_JOB_PROVIDER_NAMES: ProviderName[] = [
+  // General boards
   'reed',
   'adzuna',
   'jooble',
@@ -40,6 +105,68 @@ export const EXTERNAL_JOB_PROVIDER_NAMES: ProviderName[] = [
   'linkedin',
   'monster',
   'glassdoor',
+  // IT/Tech
+  'cwjobs',
+  'technojobs',
+  'theitjobboard',
+  'harnham',
+  'datacareer',
+  'workinstartups',
+  'siliconmilkroundabout',
+  'dice-uk',
+  // Finance
+  'gaapweb',
+  'cityjobs',
+  'barclaysimpson',
+  // Healthcare
+  'nhs-jobs',
+  'healthjobs',
+  'nurses',
+  'bmj-careers',
+  'trac-jobs',
+  'nhs-professionals',
+  // Education
+  'tes-jobs',
+  'jobs-ac-uk',
+  'teaching-vacancies',
+  'eteach',
+  'fejobs',
+  'timeshighereducation',
+  // Engineering/Construction
+  'engineeringjobs',
+  'ice-recruit',
+  'justengineers',
+  'themanufacturerjobs',
+  'fawkesreece',
+  'propertyweekjobs',
+  'iwfmjobs',
+  // Logistics/Transport
+  'cips-jobs',
+  'supplychainonline',
+  'driverhire',
+  // Hospitality/Retail/Tourism
+  'caterer',
+  'retailchoice',
+  'hosco',
+  'cmtravel',
+  'fashionjobs-uk',
+  // Public/NGO/Green
+  'civilservicejobs',
+  'charityjob',
+  'environmentjob',
+  'greenjobs',
+  'farmingukjobs',
+  // Legal
+  'totallylegal',
+  'lawgazettejobs',
+  'thelawyerjobs',
+  // Graduate/Student
+  'targetjobs',
+  'prospects',
+  'milkround',
+  'gradcracker',
+  'studentcircus',
+  'indeedflex',
 ];
 
 export const JOB_SOURCE_CATALOG: JobSourceCatalogEntry[] = [
@@ -170,6 +297,640 @@ export const JOB_SOURCE_CATALOG: JobSourceCatalogEntry[] = [
     icon: '🏢',
     requiresApiKey: null,
     requiresSession: true,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  // ── IT/Tech Niche Boards ──────────────────────────────────────────────────
+  {
+    name: 'cwjobs',
+    label: 'CWJobs',
+    description: 'UK leader for IT, infrastructure and development roles. Enabling this source allows MultivoHub to search CWJobs listings.',
+    icon: '💻',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'technojobs',
+    label: 'Technojobs',
+    description: 'Expert portal for IT support, software development and data science. Enabling this source allows MultivoHub to search Technojobs listings.',
+    icon: '⚙️',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'theitjobboard',
+    label: 'The IT Job Board',
+    description: 'Dedicated portal for IT careers. Enabling this source allows MultivoHub to search The IT Job Board listings.',
+    icon: '🖥️',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'harnham',
+    label: 'Harnham',
+    description: 'Specialist in Data Science, Machine Learning and AI roles. Enabling this source allows MultivoHub to search Harnham listings.',
+    icon: '🤖',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'datacareer',
+    label: 'DataCareer',
+    description: 'Jobs for Data Analysts, Data Engineers and Business Intelligence. Enabling this source allows MultivoHub to search DataCareer listings.',
+    icon: '📊',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'workinstartups',
+    label: 'Work In Startups',
+    description: 'Focused exclusively on startups and fast-growing tech companies. Enabling this source allows MultivoHub to search Work In Startups listings.',
+    icon: '🚀',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'siliconmilkroundabout',
+    label: 'Silicon Milkroundabout',
+    description: 'Connects startups with candidates (tech, product, design). Enabling this source allows MultivoHub to search Silicon Milkroundabout listings.',
+    icon: '🥛',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'dice-uk',
+    label: 'Dice UK',
+    description: 'Global tech job portal with strong UK presence. Enabling this source allows MultivoHub to search Dice UK listings.',
+    icon: '🎲',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  // ── Finance & Accounting ──────────────────────────────────────────────────
+  {
+    name: 'gaapweb',
+    label: 'GAAPweb',
+    description: 'Portal #1 for financial controllers, auditors and accountants. Enabling this source allows MultivoHub to search GAAPweb listings.',
+    icon: '💰',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'cityjobs',
+    label: 'CityJobs',
+    description: 'Focused on London City and regional financial hubs. Enabling this source allows MultivoHub to search CityJobs listings.',
+    icon: '🏦',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'barclaysimpson',
+    label: 'Barclay Simpson',
+    description: 'Main portal for Risk, Compliance and AML roles. Enabling this source allows MultivoHub to search Barclay Simpson listings.',
+    icon: '🛡️',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  // ── Healthcare & Medical ──────────────────────────────────────────────────
+  {
+    name: 'nhs-jobs',
+    label: 'NHS Jobs',
+    description: 'Official portal for all National Health Service roles (England & Wales). Enabling this source allows MultivoHub to search NHS Jobs listings.',
+    icon: '🏥',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'api',
+    isExternalProvider: true,
+  },
+  {
+    name: 'healthjobs',
+    label: 'Healthjobs.co.uk',
+    description: 'Wide portal for public and private healthcare (AHP, pharmacy, mental health). Enabling this source allows MultivoHub to search Healthjobs listings.',
+    icon: '⚕️',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'nurses',
+    label: 'Nurses.co.uk',
+    description: 'Dedicated exclusively for nurses and midwives. Enabling this source allows MultivoHub to search Nurses.co.uk listings.',
+    icon: '👩‍⚕️',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'bmj-careers',
+    label: 'BMJ Careers',
+    description: 'Prestigious British Medical Journal platform for doctors and consultants. Enabling this source allows MultivoHub to search BMJ Careers listings.',
+    icon: '🩺',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'trac-jobs',
+    label: 'trac.jobs',
+    description: 'Aggregator of jobs from multiple NHS trusts and public sector. Enabling this source allows MultivoHub to search trac.jobs listings.',
+    icon: '🏥',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'nhs-professionals',
+    label: 'NHS Professionals',
+    description: 'Portal for flexible shifts (locum) within NHS. Enabling this source allows MultivoHub to search NHS Professionals listings.',
+    icon: '🩹',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  // ── Education & Academic ──────────────────────────────────────────────────
+  {
+    name: 'tes-jobs',
+    label: 'Tes Jobs',
+    description: 'Largest portal for primary, secondary and SEND schools (Times Educational Supplement). Enabling this source allows MultivoHub to search Tes Jobs listings.',
+    icon: '📚',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'jobs-ac-uk',
+    label: 'jobs.ac.uk',
+    description: 'Leader for academic, research and university administration roles. Supports RSS feeds. Enabling this source allows MultivoHub to search jobs.ac.uk listings.',
+    icon: '🎓',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'api',
+    isExternalProvider: true,
+  },
+  {
+    name: 'teaching-vacancies',
+    label: 'Teaching Vacancies',
+    description: 'Official, free government service for state schools (GOV.UK). Enabling this source allows MultivoHub to search Teaching Vacancies listings.',
+    icon: '🏫',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'api',
+    isExternalProvider: true,
+  },
+  {
+    name: 'eteach',
+    label: 'Eteach',
+    description: 'Large portal for teachers and leadership staff in schools and colleges. Enabling this source allows MultivoHub to search Eteach listings.',
+    icon: '👨‍🏫',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'fejobs',
+    label: 'FEjobs',
+    description: 'Dedicated to Further Education (FE) and vocational training. Enabling this source allows MultivoHub to search FEjobs listings.',
+    icon: '📖',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'timeshighereducation',
+    label: 'Times Higher Education Jobs',
+    description: 'Global portal for senior academic staff. Enabling this source allows MultivoHub to search THE Jobs listings.',
+    icon: '🎯',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  // ── Engineering & Construction ────────────────────────────────────────────
+  {
+    name: 'engineeringjobs',
+    label: 'Engineering Jobs',
+    description: 'Largest portal for mechanical, electrical and design engineering. Enabling this source allows MultivoHub to search Engineering Jobs listings.',
+    icon: '⚙️',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'ice-recruit',
+    label: 'ICE Recruit',
+    description: 'Official portal of Institution of Civil Engineers. Enabling this source allows MultivoHub to search ICE Recruit listings.',
+    icon: '🏗️',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'justengineers',
+    label: 'Just Engineers',
+    description: 'Platform for all levels of engineering. Enabling this source allows MultivoHub to search Just Engineers listings.',
+    icon: '🔧',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'themanufacturerjobs',
+    label: 'The Manufacturer Jobs',
+    description: 'Focused on manufacturing, QA and process management. Enabling this source allows MultivoHub to search The Manufacturer Jobs listings.',
+    icon: '🏭',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'fawkesreece',
+    label: 'Fawkes & Reece',
+    description: 'Specialists in construction (white-collar and blue-collar). Enabling this source allows MultivoHub to search Fawkes & Reece listings.',
+    icon: '👷',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'propertyweekjobs',
+    label: 'Property Week Jobs',
+    description: 'Main portal for commercial property and surveyors. Enabling this source allows MultivoHub to search Property Week Jobs listings.',
+    icon: '🏢',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'iwfmjobs',
+    label: 'IWFM Jobs',
+    description: 'Portals for Facilities Management. Enabling this source allows MultivoHub to search IWFM Jobs listings.',
+    icon: '🏛️',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  // ── Logistics & Supply Chain ──────────────────────────────────────────────
+  {
+    name: 'cips-jobs',
+    label: 'CIPS Procurement & Supply Jobs',
+    description: 'Official portal of Chartered Institute of Procurement & Supply. Enabling this source allows MultivoHub to search CIPS Jobs listings.',
+    icon: '📦',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'supplychainonline',
+    label: 'SupplyChainOnline',
+    description: 'Leading portal for supply chain, procurement and logistics. Enabling this source allows MultivoHub to search SupplyChainOnline listings.',
+    icon: '🚚',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'driverhire',
+    label: 'Driver Hire',
+    description: 'Largest portal for drivers (HGV, vans) and warehouse workers. Enabling this source allows MultivoHub to search Driver Hire listings.',
+    icon: '🚛',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  // ── Hospitality, Retail & Tourism ─────────────────────────────────────────
+  {
+    name: 'caterer',
+    label: 'Caterer.com',
+    description: 'Largest portal for hotels, restaurants, bars and catering. Enabling this source allows MultivoHub to search Caterer.com listings.',
+    icon: '🍽️',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'retailchoice',
+    label: 'RetailChoice.com',
+    description: 'Leader for retail careers (management, ecommerce). Enabling this source allows MultivoHub to search RetailChoice listings.',
+    icon: '🛍️',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'hosco',
+    label: 'Hosco',
+    description: 'Global network for luxury hospitality (hotels, resorts). Enabling this source allows MultivoHub to search Hosco listings.',
+    icon: '🏨',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'cmtravel',
+    label: 'C&M Travel Recruitment',
+    description: 'Most trusted portal for travel industry. Enabling this source allows MultivoHub to search C&M Travel listings.',
+    icon: '✈️',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'fashionjobs-uk',
+    label: 'FashionJobs UK',
+    description: 'Niche portal for fashion, luxury goods and beauty. Enabling this source allows MultivoHub to search FashionJobs UK listings.',
+    icon: '👗',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  // ── Public Sector, NGO & Green Jobs ───────────────────────────────────────
+  {
+    name: 'civilservicejobs',
+    label: 'Civil Service Jobs',
+    description: 'Official portal for UK civil service and ministries. Enabling this source allows MultivoHub to search Civil Service Jobs listings.',
+    icon: '🏛️',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'api',
+    isExternalProvider: true,
+  },
+  {
+    name: 'charityjob',
+    label: 'CharityJob',
+    description: 'Largest portal dedicated exclusively to charities and NGOs. Enabling this source allows MultivoHub to search CharityJob listings.',
+    icon: '❤️',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'environmentjob',
+    label: 'Environmentjob.co.uk',
+    description: 'Most active portal for environmental protection and ecology. Enabling this source allows MultivoHub to search Environmentjob listings.',
+    icon: '🌍',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'greenjobs',
+    label: 'GreenJobs / Sustainability Job',
+    description: 'Portals for ESG, renewable energy and sustainable development roles. Enabling this source allows MultivoHub to search GreenJobs listings.',
+    icon: '♻️',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'farmingukjobs',
+    label: 'Farming UK Jobs',
+    description: 'Main portal for agriculture and land management. Enabling this source allows MultivoHub to search Farming UK Jobs listings.',
+    icon: '🚜',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  // ── Legal ─────────────────────────────────────────────────────────────────
+  {
+    name: 'totallylegal',
+    label: 'TotallyLegal',
+    description: 'Leading portal for lawyers, solicitors and paralegals. Enabling this source allows MultivoHub to search TotallyLegal listings.',
+    icon: '⚖️',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'lawgazettejobs',
+    label: 'Law Gazette Jobs',
+    description: 'Portal of official Law Society magazine. Enabling this source allows MultivoHub to search Law Gazette Jobs listings.',
+    icon: '📜',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'thelawyerjobs',
+    label: 'The Lawyer Jobs',
+    description: 'Focused on senior positions (In-House Counsel, Partners). Enabling this source allows MultivoHub to search The Lawyer Jobs listings.',
+    icon: '👔',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  // ── Graduate & Student Jobs ───────────────────────────────────────────────
+  {
+    name: 'targetjobs',
+    label: 'TARGETjobs',
+    description: 'Part of the big three portals for graduates (graduate schemes). Enabling this source allows MultivoHub to search TARGETjobs listings.',
+    icon: '🎓',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'prospects',
+    label: 'Prospects',
+    description: 'Part of the big three portals for graduates. Enabling this source allows MultivoHub to search Prospects listings.',
+    icon: '🎯',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'milkround',
+    label: 'Milkround',
+    description: 'Part of the big three portals for graduates. Enabling this source allows MultivoHub to search Milkround listings.',
+    icon: '🥛',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'gradcracker',
+    label: 'Gradcracker',
+    description: 'Dedicated to STEM students. Enabling this source allows MultivoHub to search Gradcracker listings.',
+    icon: '🔬',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'studentcircus',
+    label: 'Student Circus',
+    description: 'Jobs with sponsored visa for international students. Enabling this source allows MultivoHub to search Student Circus listings.',
+    icon: '🎪',
+    requiresApiKey: null,
+    requiresSession: false,
+    isAiPowered: false,
+    defaultEnabled: false,
+    category: 'browser',
+    isExternalProvider: true,
+  },
+  {
+    name: 'indeedflex',
+    label: 'Indeed Flex / Coople / GIG',
+    description: 'Apps for flexible shift work (hospitality, warehouses). Enabling this source allows MultivoHub to search flexible work listings.',
+    icon: '📱',
+    requiresApiKey: null,
+    requiresSession: false,
     isAiPowered: false,
     defaultEnabled: false,
     category: 'browser',

@@ -17,18 +17,70 @@ import { OpenAiDiscoveryProvider } from './providers/openAiDiscoveryProvider.js'
 import { RapidApiJobsProvider } from './providers/rapidApiJobsProvider.js';
 import { SerpApiJobsProvider } from './providers/serpApiJobsProvider.js';
 import { TheMuseJobsProvider } from './providers/theMuseJobsProvider.js';
-// New API-based providers (no cookies required)
 import { RapidApiProvider } from './providers/rapidApiProvider.js';
 import { GovJobsProvider } from './providers/govJobsProvider.js';
 import { RssFeedProvider } from './providers/rssFeedProvider.js';
 import { AggregatorProvider } from './providers/aggregatorProvider.js';
+import { JobsAcUkProvider } from './providers/jobsAcUkProvider.js';
+import { NHSJobsProvider } from './providers/nhsJobsProvider.js';
+import { CWJobsProvider } from './providers/cwjobsProvider.js';
+import {
+  TechnojobsProvider,
+  TheITJobBoardProvider,
+  HarnhamProvider,
+  DataCareerProvider,
+  WorkInStartupsProvider,
+  SiliconMilkroundaboutProvider,
+  DiceUKProvider,
+  GAAPwebProvider,
+  CityJobsProvider,
+  BarclaySimpsonProvider,
+  HealthjobsProvider,
+  NursesProvider,
+  BMJCareersProvider,
+  TracJobsProvider,
+  NHSProfessionalsProvider,
+  TesJobsProvider,
+  TeachingVacanciesProvider,
+  EteachProvider,
+  FEjobsProvider,
+  TimesHigherEducationProvider,
+  EngineeringJobsProvider,
+  ICERecruitProvider,
+  JustEngineersProvider,
+  TheManufacturerJobsProvider,
+  FawkesReeceProvider,
+  PropertyWeekJobsProvider,
+  IWFMJobsProvider,
+  CIPSJobsProvider,
+  SupplyChainOnlineProvider,
+  DriverHireProvider,
+  CatererProvider,
+  RetailChoiceProvider,
+  HoscoProvider,
+  CMTravelProvider,
+  FashionJobsUKProvider,
+  CivilServiceJobsProvider,
+  CharityJobProvider,
+  EnvironmentJobProvider,
+  GreenJobsProvider,
+  FarmingUKJobsProvider,
+  TotallyLegalProvider,
+  LawGazetteJobsProvider,
+  TheLawyerJobsProvider,
+  TargetJobsProvider,
+  ProspectsProvider,
+  MilkroundProvider,
+  GradcrackerProvider,
+  StudentCircusProvider,
+  IndeedFlexProvider,
+} from './providers/allNicheProviders.js';
 
 let _providers: JobSourceProvider[] | null = null;
 
 export function getProviders(): JobSourceProvider[] {
   if (_providers) return _providers;
   _providers = [
-    // API-based providers (reliable, no cookies)
     new ReedProvider(),
     new AdzunaProvider(),
     new JoobleProvider(),
@@ -40,19 +92,68 @@ export function getProviders(): JobSourceProvider[] {
     new SerpApiJobsProvider(),
     new TheMuseJobsProvider(),
 
-    // Cookie/session-based providers (may be unreliable)
+    // UK job board catalogue additions. Most are explicit placeholders with readiness=false.
+    new JobsAcUkProvider(),
+    new NHSJobsProvider(),
+    new CWJobsProvider(),
+    new TechnojobsProvider(),
+    new TheITJobBoardProvider(),
+    new HarnhamProvider(),
+    new DataCareerProvider(),
+    new WorkInStartupsProvider(),
+    new SiliconMilkroundaboutProvider(),
+    new DiceUKProvider(),
+    new GAAPwebProvider(),
+    new CityJobsProvider(),
+    new BarclaySimpsonProvider(),
+    new HealthjobsProvider(),
+    new NursesProvider(),
+    new BMJCareersProvider(),
+    new TracJobsProvider(),
+    new NHSProfessionalsProvider(),
+    new TesJobsProvider(),
+    new TeachingVacanciesProvider(),
+    new EteachProvider(),
+    new FEjobsProvider(),
+    new TimesHigherEducationProvider(),
+    new EngineeringJobsProvider(),
+    new ICERecruitProvider(),
+    new JustEngineersProvider(),
+    new TheManufacturerJobsProvider(),
+    new FawkesReeceProvider(),
+    new PropertyWeekJobsProvider(),
+    new IWFMJobsProvider(),
+    new CIPSJobsProvider(),
+    new SupplyChainOnlineProvider(),
+    new DriverHireProvider(),
+    new CatererProvider(),
+    new RetailChoiceProvider(),
+    new HoscoProvider(),
+    new CMTravelProvider(),
+    new FashionJobsUKProvider(),
+    new CivilServiceJobsProvider(),
+    new CharityJobProvider(),
+    new EnvironmentJobProvider(),
+    new GreenJobsProvider(),
+    new FarmingUKJobsProvider(),
+    new TotallyLegalProvider(),
+    new LawGazetteJobsProvider(),
+    new TheLawyerJobsProvider(),
+    new TargetJobsProvider(),
+    new ProspectsProvider(),
+    new MilkroundProvider(),
+    new GradcrackerProvider(),
+    new StudentCircusProvider(),
+    new IndeedFlexProvider(),
+
     new IndeedBrowserProvider(),
     new GumtreeProvider(),
     new LinkedInProvider(),
     new MonsterProvider(),
     new GlassdoorProvider(),
-
-    // Scraping-based providers (may be blocked)
     new TotaljobsProvider(),
     new CvLibraryProvider(),
     new FindAJobProvider(),
-
-    // Internal providers
     new DatabaseProvider(),
     new ManualProvider(),
     new CompanyTargetsProvider(),
