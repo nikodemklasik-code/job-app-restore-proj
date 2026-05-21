@@ -185,8 +185,8 @@ function parseCvTextBasic(text: string): ParsedCv {
 
   const expEntries = groupCvSection(expMatch?.[1] ?? '', 'experience');
   const eduEntries = groupCvSection(eduMatch?.[1] ?? '', 'education');
-  const trainingEntries = groupSimpleList(trainingMatch?.[1] ?? '', 'training');
-  const languageEntries = groupSimpleList(languageMatch?.[1] ?? '', 'language');
+  const trainingEntries: ParsedCvTraining[] = groupSimpleList(trainingMatch?.[1] ?? '', 'training');
+  const languageEntries: ParsedCvLanguage[] = groupSimpleList(languageMatch?.[1] ?? '', 'language');
 
   return {
     fullName: nameMatch?.[1] ?? '',
@@ -205,6 +205,8 @@ function parseCvTextBasic(text: string): ParsedCv {
   };
 }
 
+function groupSimpleList(sectionText: string, kind: 'training'): ParsedCvTraining[];
+function groupSimpleList(sectionText: string, kind: 'language'): ParsedCvLanguage[];
 function groupSimpleList(sectionText: string, kind: 'training' | 'language'): ParsedCvTraining[] | ParsedCvLanguage[] {
   if (!sectionText || sectionText.length < 4) return [];
   const lines = sectionText
@@ -313,10 +315,7 @@ async function extractTextFromPdf(buffer: Buffer): Promise<string> {
 export async function extractTextFromFile(base64: string, mimeType: string): Promise<string> {
   const buffer = Buffer.from(base64, 'base64');
 
-  if (
-    mimeType === 'application/pdf' ||
-    mimeType === 'application/octet-stream'
-  ) {
+  if (mimeType === 'application/pdf' || mimeType === 'application/octet-stream') {
     return extractTextFromPdf(buffer);
   }
 
