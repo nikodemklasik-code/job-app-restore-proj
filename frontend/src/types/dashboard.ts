@@ -41,6 +41,13 @@ export type BillingSummary = {
   availableBalanceCents: number;
 };
 
+export type DashboardActivitySummary = {
+  lastLoginAt: string | null;
+  lastJobSearchAt: string | null;
+  lastJobSearchLabel: string | null;
+  lastMarketResearchAt: string | null;
+};
+
 export type DashboardSnapshot = {
   userId: string;
   profile: {
@@ -63,11 +70,6 @@ export type DashboardSnapshot = {
     reason: string;
   };
   newsroom: DashboardNewsroomItem[];
-  activity?: {
-    lastLoginAt: string | null;
-    lastJobSearchAt: string | null;
-    lastJobSearchLabel: string | null;
-    lastMarketResearchAt: string | null;
-  };
+  activity: DashboardActivitySummary;
   generatedAt: string;
 };
