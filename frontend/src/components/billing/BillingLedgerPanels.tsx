@@ -2,6 +2,7 @@ import { Loader2, DatabaseZap } from 'lucide-react';
 import { api } from '@/lib/api';
 import { LedgerView } from '@/components/billing/LedgerView';
 import { PendingSpend } from '@/components/billing/PendingSpend';
+import { CreditUsageHistory } from '@/components/billing/CreditUsageHistory';
 
 type Props = { enabled: boolean };
 
@@ -53,22 +54,28 @@ export function BillingLedgerPanels({ enabled }: Props) {
 
   if (loading) {
     return (
-      <div className="flex min-h-[120px] items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-        <Loader2 className="h-6 w-6 animate-spin text-indigo-400" aria-label="Loading ledger" />
+      <div className="space-y-6">
+        <CreditUsageHistory />
+        <div className="flex min-h-[120px] items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+          <Loader2 className="h-6 w-6 animate-spin text-indigo-400" aria-label="Loading ledger" />
+        </div>
       </div>
     );
   }
 
   if (err) {
     return (
-      <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
-        <p className="font-medium">Ledger / pending spend</p>
-        <p className="mt-1 text-red-200/90">{msg}</p>
+      <div className="space-y-6">
+        <CreditUsageHistory />
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-100">
+          <p className="font-medium">Ledger / pending spend</p>
+          <p className="mt-1 text-red-200/90">{msg}</p>
+        </div>
       </div>
     );
   }
 
-  if (!ledgerQuery.data || !pendingQuery.data) return null;
+  if (!ledgerQuery.data || !pendingQuery.data) return <CreditUsageHistory />;
 
   const ledgerInactive = isLedgerInactive({
     entries: ledgerQuery.data.entries,
@@ -79,17 +86,20 @@ export function BillingLedgerPanels({ enabled }: Props) {
 
   if (ledgerInactive) {
     return (
-      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-50">
-        <div className="flex items-start gap-3">
-          <DatabaseZap className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
-          <div>
-            <p className="font-semibold text-white">Ledger not active yet</p>
-            <p className="mt-1 text-amber-100/90">
-              We are not showing fake zero balances here. This area needs posted ledger data or the SQL-backed billing tables to be enabled first.
-            </p>
-            <p className="mt-2 text-amber-100/80">
-              Until then, treat this as <strong>setup required</strong>, not as a real account balance of zero.
-            </p>
+      <div className="space-y-6">
+        <CreditUsageHistory />
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-5 text-sm text-amber-50">
+          <div className="flex items-start gap-3">
+            <DatabaseZap className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
+            <div>
+              <p className="font-semibold text-white">Ledger not active yet</p>
+              <p className="mt-1 text-amber-100/90">
+                We are not showing fake zero balances here. This area needs posted ledger data or the SQL-backed billing tables to be enabled first.
+              </p>
+              <p className="mt-2 text-amber-100/80">
+                Until then, treat this as <strong>setup required</strong>, not as a real account balance of zero.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -98,6 +108,7 @@ export function BillingLedgerPanels({ enabled }: Props) {
 
   return (
     <div className="space-y-6">
+      <CreditUsageHistory />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
           <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Available (ledger model)</div>
