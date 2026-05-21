@@ -765,6 +765,13 @@ function ProfileGaps({ profile }: { profile: DashboardSnapshotDto['profile'] }) 
 }
 
 function OnboardingProgress({ snapshot }: { snapshot: DashboardSnapshotDto }) {
+  const safeActivity = snapshot.activity ?? {
+    lastLoginAt: null,
+    lastJobSearchAt: null,
+    lastJobSearchLabel: null,
+    lastMarketResearchAt: null,
+  };
+
   const steps = [
     {
       title: 'Complete profile basics',
@@ -782,10 +789,10 @@ function OnboardingProgress({ snapshot }: { snapshot: DashboardSnapshotDto }) {
     },
     {
       title: 'Start first job search',
-      done: snapshot.activity.lastJobSearchAt !== null,
-      percent: snapshot.activity.lastJobSearchAt ? 100 : 0,
+      done: safeActivity.lastJobSearchAt !== null,
+      percent: safeActivity.lastJobSearchAt ? 100 : 0,
       href: '/jobs',
-      note: snapshot.activity.lastJobSearchAt ? 'Search activity recorded.' : 'No recorded job search yet.',
+      note: safeActivity.lastJobSearchAt ? 'Search activity recorded.' : 'No recorded job search yet.',
     },
     {
       title: 'Create application pipeline',
