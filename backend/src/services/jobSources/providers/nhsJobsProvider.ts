@@ -77,16 +77,17 @@ function collectRecords(value: unknown, out: Record<string, unknown>[]): void {
 }
 
 function parseHtmlCards(html: string, input: DiscoveryInput): SourceJob[] {
+  const jobs: SourceJob[] = [];
   const cards = html.split('nhsuk-list-panel').slice(1).slice(0, input.limit);
-  return cards.map((card, index) => {
+  for (const card of cards) {
     const hrefStart = card.indexOf('href="');
-    if (hrefStart < 0) return null;
+    if (hrefStart < 0) continue;
     const hrefRest = card.slice(hrefStart + 6);
     const href = hrefRest.slice(0, hrefRest.indexOf('"'));
     const title = stripTags(card.slice(0, Math.min(card.length, 600))).split('  ').find((part) => part.trim().length > 8) ?? '';
-    if (!title) return null;
+    if (!title) continue;
     const applyUrl = href.startsWith('http') ? href : `https://www.jobs.nhs.uk${href}`;
-    return {
+    jobs.push({
       externalId: applyUrl,
       source: 'nhs-jobs',
       title: title.trim(),
@@ -99,8 +100,9 @@ function parseHtmlCards(html: string, input: DiscoveryInput): SourceJob[] {
       workMode: null,
       requirements: [],
       postedAt: new Date().toISOString(),
-    } satisfies SourceJob;
-  }).filter((job): job is SourceJob => job !== null);
+    });
+  }
+  return jobs;
 }
 
 export class NHSJobsProvider implements JobSourceProvider {
